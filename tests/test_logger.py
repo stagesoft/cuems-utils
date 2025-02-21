@@ -1,6 +1,6 @@
 '''Test logging functions.'''
-from cuems_utils.log import logged, cuemsFormatter
-from logging import INFO, DEBUG, ERROR
+from cuemsutils.log import logged
+from logging import DEBUG
 
 @logged
 def hello():

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cuems-utils"
+name = "cuemsutils"
 dynamic = ["version"]
 description = "Reusable classes and methods for CueMS system"
 readme = "README.md"
@@ -34,31 +34,31 @@ test = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/stagesoft/cuems-utils#readme"
-Issues = "https://github.com/stagesoft/cuems-utils/issues"
-Source = "https://github.com/stagesoft/cuems-utils"
+Documentation = "https://github.com/stagesoft/cuemsutils#readme"
+Issues = "https://github.com/stagesoft/cuemsutils/issues"
+Source = "https://github.com/stagesoft/cuemsutils"
 
 [tool.hatch.version]
-path = "src/cuems-utils/__init__.py"
+path = "src/cuemsutils/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cuems-utils"]
+packages = ["src/cuemsutils"]
 
 [tool.hatch.envs.types]
 extra-dependencies = [
   "mypy>=1.0.0",
 ]
 [tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/cuems-utils tests}"
+check = "mypy --install-types --non-interactive {args:src/cuemsutils tests}"
 
 [tool.coverage.run]
-source_pkgs = ["cuems-utils", "tests"]
+source_pkgs = ["cuemsutils", "tests"]
 branch = true
 parallel = true
 omit = []
 
 [tool.coverage.paths]
-cuems-utils = ["src/cuems-utils", "*/cuems-utils/src/cuems-utils"]
+cuemsutils = ["src/cuemsutils", "*/cuems-utils/src/cuemsutils"]
 tests = ["tests", "*/cuems-utils/tests"]
 
 [tool.coverage.report]
