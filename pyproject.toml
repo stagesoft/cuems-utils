@@ -34,12 +34,15 @@ test = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/stagesoft/cuemsutils#readme"
-Issues = "https://github.com/stagesoft/cuemsutils/issues"
-Source = "https://github.com/stagesoft/cuemsutils"
+Documentation = "https://github.com/stagesoft/cuems-utils#readme"
+Issues = "https://github.com/stagesoft/cuems-utils/issues"
+Source = "https://github.com/stagesoft/cuems-utils"
 
 [tool.hatch.version]
 path = "src/cuemsutils/__init__.py"
+
+[tool.hatch.build]
+include = ["src/cuemsutils/xml/schemas"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cuemsutils"]
@@ -47,6 +50,8 @@ packages = ["src/cuemsutils"]
 [tool.hatch.envs.types]
 extra-dependencies = [
   "mypy>=1.0.0",
+  "xmlschema>=3.0.1",
+  "lxml>=5.3.1"
 ]
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/cuemsutils tests}"

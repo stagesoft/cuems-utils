@@ -1,8 +1,8 @@
 # cuems-utils
 Reusable classes and methods for CueMS system
 
-[![PyPI - Version](https://img.shields.io/pypi/v/cuems-utils.svg)](https://pypi.org/project/cuems-utils)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/cuems-utils.svg)](https://pypi.org/project/cuems-utils)
+[![PyPI - Version](https://img.shields.io/pypi/v/cuemsutils.svg)](https://pypi.org/project/cuemsutils)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/cuemsutils.svg)](https://pypi.org/project/cuemsutils)
 
 -----
 
@@ -14,9 +14,9 @@ Reusable classes and methods for CueMS system
 ## Installation
 
 ```console
-pip install cuems-utils
+pip install cuemsutils
 ```
 
 ## License
 
-`cuems-utils` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+`cuemsutils` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
