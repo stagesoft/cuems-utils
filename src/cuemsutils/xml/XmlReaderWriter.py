@@ -1,13 +1,12 @@
-# DEV: Move to cuems-utils
 """ For the moment it works with pip3 install xmlschema==1.2.2
  """
-
 from os import path
 from xmlschema import XMLSchema11
-from cuemsutils.log import logged, Logger
-from CMLCuemsConverter import CMLCuemsConverter
-from DictParser import CuemsParser
-from XmlBuilder import XmlBuilder
+
+from .CMLCuemsConverter import CMLCuemsConverter
+from .DictParser import CuemsParser
+from .XmlBuilder import XmlBuilder
+from ..log import logged, Logger
 
 @logged
 def get_schema(schema_name: str):
@@ -31,12 +30,10 @@ class CuemsXml():
         self.xmldata = None
         self.namespace = namespace
         self.xml_root_tag = xml_root_tag
-        
     
     @property
     def schema(self):
         return self._schema
-        
 
     @schema.setter
     def schema(self, name):
@@ -61,13 +58,11 @@ class XmlWriter(CuemsXml):
 
     def write_from_dict(self, project_dict):
         project_object = CuemsParser(project_dict).parse()
-        xml_data = XmlBuilder(project_object, namespace=self.namespace, xsd_path=self.schema, xml_root_tag=self.xml_root_tag).build()
-        self.write(xml_data)
+        self.write_from_object(project_object)
 
     def write_from_object(self, project_object):
         xml_data = XmlBuilder(project_object, namespace=self.namespace, xsd_path=self.schema, xml_root_tag=self.xml_root_tag).build()
         self.write(xml_data)
-
 
 class XmlReader(CuemsXml):
     def read(self):

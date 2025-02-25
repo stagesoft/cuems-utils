@@ -1,4 +1,3 @@
-# DEV: Move to cuems-utils
 import distutils.util
 
 PARSER_SUFFIX = 'Parser'

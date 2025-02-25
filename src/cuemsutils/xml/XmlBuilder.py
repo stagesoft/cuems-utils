@@ -1,7 +1,7 @@
-# DEV: Move to cuems-utils
-from xml.etree.ElementTree import Element, ElementTree, SubElement, register_namespace
 from enum import Enum
-from DictParser import GenericDict
+from xml.etree.ElementTree import Element, ElementTree, SubElement, register_namespace
+
+from .DictParser import GenericDict
 
 PARSER_SUFFIX = 'XmlBuilder'
 GENERIC_BUILDER = 'GenericCueXmlBuilder'
