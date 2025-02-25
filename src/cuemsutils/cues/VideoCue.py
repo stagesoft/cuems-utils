@@ -3,11 +3,11 @@ from os import path
 from threading import Thread
 from time import sleep
 
-from Cue import Cue
-from cuemsutils.CTimecode import CTimecode
+from .Cue import Cue
 # from ..players.VideoPlayer import VideoPlayer
 # from ..OssiaServer import OssiaServer, OSCConfData, PlayerOSCConfData
-from cuemsutils.log import logged, Logger
+from ..CTimecode import CTimecode
+from ..log import logged, Logger
 
 class VideoCue(Cue):
     '''

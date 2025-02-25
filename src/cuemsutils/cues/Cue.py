@@ -1,8 +1,8 @@
 from time import sleep
 from threading import Thread
 
-from cuemsutils.log import logged
-from cuemsutils.CTimecode import CTimecode
+from ..CTimecode import CTimecode
+from ..log import logged
 
 class Cue(dict):
     def __init__(self, init_dict = None):
@@ -29,10 +29,12 @@ class Cue(dict):
 
     @property
     def id(self):
+        """"""
         return super().__getitem__('id')
 
     @id.setter
     def id(self, id):
+        """Created by UI"""
         super().__setitem__('id', id)
 
     @property

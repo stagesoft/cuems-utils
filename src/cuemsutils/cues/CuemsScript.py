@@ -1,5 +1,5 @@
-from cuemsutils.log import logged
-from CueList import CueList
+from .CueList import CueList
+from ..log import logged
 
 class CuemsScript(dict):
     def __init__(self, init_dict = None):

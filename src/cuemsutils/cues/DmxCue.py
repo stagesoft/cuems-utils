@@ -4,10 +4,10 @@ from time import sleep
 from collections.abc import Mapping
 # from os import path
 # from pyossia import ossia
-from Cue import Cue
+from .Cue import Cue
 # from ..players.DmxPlayer import DmxPlayer
 # from ..OssiaServer import OssiaServer, OSCConfData, PlayerOSCConfData
-from cuemsutils.log import logged, Logger
+from ..log import logged, Logger
 
 #### TODO: asegurar asignacion de escenas a cue, no copia!!
 

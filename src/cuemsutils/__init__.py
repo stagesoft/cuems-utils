@@ -1,4 +1,4 @@
 # SPDX-FileCopyrightText: 2025-present Adrià (NaturNum) <adria@naturnum.com>
 #
 # SPDX-License-Identifier: MIT
-__version__ = "0.0.3"
+__version__ = "0.0.3-rev1"

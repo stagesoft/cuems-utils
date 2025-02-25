@@ -1,9 +1,8 @@
-
 from time import sleep
 from threading import Thread
 
-from Cue import Cue
-from cuemsutils.log import logged
+from .Cue import Cue
+from ..log import logged
 
 class ActionCue(Cue):
     def __init__(self, init_dict = None):

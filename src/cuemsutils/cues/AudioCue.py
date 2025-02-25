@@ -2,11 +2,11 @@
 from time import sleep
 from threading import Thread
 
-from Cue import Cue
+from .Cue import Cue
 # from ..CTimecode import CTimecode
 # from ..players.AudioPlayer import AudioPlayer
 # from ..OssiaServer import OssiaServer, OSCConfData, PlayerOSCConfData
-from cuemsutils.log import logged, Logger
+from ..log import logged, Logger
 
 class AudioCue(Cue):
     # And dinamically attach it to the ossia for remote control it
@@ -150,7 +150,7 @@ class AudioCue(Cue):
                 offset_to_go = float(-(self._start_mtc.milliseconds) + self.media.regions[0].in_time.milliseconds)
                 ossia.send_message(key, offset_to_go)
                 Logger.log_info(
-                    f"Sending offset {offset_to_go} to {key + " " + str(ossia._oscquery_registered_nodes[key][0].value)}",
+                    f"Sending offset {offset_to_go} to {key} {str(ossia._oscquery_registered_nodes[key][0].value)}",
                     extra = {"caller": self.__class__.__name__}
                 )
             except KeyError:
