@@ -46,5 +46,6 @@ def test_superproperty():
     assert child.bye2 == "See you later!"
 
     child["bye3"] = "See you later, alligator!"
+    child.__setitem__("bye4", "See you later, alligator!")
 
-    assert [i for i in child.keys()] == ["_hello", "bye3"]
+    assert [i for i in child.keys()] == ["_hello", "bye3", "bye4"]
