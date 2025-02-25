@@ -11,7 +11,7 @@ def goodbye():
     return "Goodbye, World!"
 
 @logged
-def error():
+def error_func():
     raise ValueError("An error occurred.")
 
 @logged
@@ -22,6 +22,12 @@ def hello_with_arg(name: str):
 def hello_with_kwargs(name: str, greeting: str):
     return f"{greeting}, {name}!"
 
+@logged
+def hello_with_warning():
+    import warnings
+    warnings.warn("This is a warning.")
+    return "Hello, World!"
+
 
 def test_logged(caplog):
     """Test that the logged decorator works."""
@@ -30,21 +36,25 @@ def test_logged(caplog):
     result_hello = hello()
     result_goodbye = goodbye()
     try:
-        result_error = error()
+        result_error = error_func()
     except ValueError:
         result_error = None
     result_hello_with_arg = hello_with_arg("World")
     result_hello_with_kwargs = hello_with_kwargs(
         name = "World", greeting = "Goodbye"
     )
+    from pytest import warns
+    with warns(Warning, match = "This is a warning."):
+        result_hello_with_warning = hello_with_warning()
 
     assert result_hello == "Hello, World!"
     assert result_goodbye == "Goodbye, World!"
     assert result_error is None
     assert result_hello_with_arg == "Hello, World!"
     assert result_hello_with_kwargs == "Goodbye, World!"
+    assert result_hello_with_warning == "Hello, World!"
 
-    assert len(caplog.records) == 15
+    assert len(caplog.records) == 18
     for record in caplog.records:
         assert record.name == "tests.test_logger"
         if record.levelname == "INFO":
@@ -53,8 +63,10 @@ def test_logged(caplog):
             assert record.message == "Error occurred: An error occurred."
         elif record.levelname == "DEBUG":
             assert record.message[:13] in ["Using args: (", "Finished with"]
+        elif record.levelname == "WARNING":
+            assert record.message == "Warning occurred: This is a warning."
 
-def test_syslog(capsys):
+def test_syslog():
     """Test that the logger writes to syslog."""
     
     ## Arrange: Set up logging outputs
@@ -77,7 +89,7 @@ def test_syslog(capsys):
     ## Act: Run the functions
     result_hello = hello_with_arg("World")
     try:
-        result_error = error()
+        result_error = error_func()
     except ValueError:
         result_error = None
 
@@ -92,9 +104,9 @@ def test_syslog(capsys):
     assert syslog_split[0][2] == "tests.test_logger:test_syslog:hello_with_arg)> Call recieved\n"
     assert syslog_split[1][2] == "tests.test_logger:test_syslog:hello_with_arg)> Using args: ('World',) and kwargs: {}\n"
     assert syslog_split[2][2] == "tests.test_logger:test_syslog:hello_with_arg)> Finished with result: Hello, World!\n"
-    assert syslog_split[3][2] == "tests.test_logger:test_syslog:error)> Call recieved\n"
-    assert syslog_split[4][2] == "tests.test_logger:test_syslog:error)> Using args: () and kwargs: {}\n"
-    assert syslog_split[5][2] == "tests.test_logger:test_syslog:error)> Error occurred: An error occurred.\n"
+    assert syslog_split[3][2] == "tests.test_logger:test_syslog:error_func)> Call recieved\n"
+    assert syslog_split[4][2] == "tests.test_logger:test_syslog:error_func)> Using args: () and kwargs: {}\n"
+    assert syslog_split[5][2] == "tests.test_logger:test_syslog:error_func)> Error occurred: An error occurred.\n"
 
     for i in range(6):
         x = syslog_split[i][0]

@@ -1,15 +1,15 @@
 import sys
-from logging import getLogger, StreamHandler, Formatter, DEBUG, INFO, ERROR, WARNING
+from logging import getLogger, LoggerAdapter, StreamHandler, Formatter, DEBUG, INFO, ERROR, WARNING
 from logging.handlers import SysLogHandler
 from functools import wraps
 
 cuemsFormatter = Formatter('[%(asctime)s][%(levelname)s] \tFormitGo (PID: %(process)d)-(%(threadName)-9s)-(%(name)s:%(funcName)s:%(caller)s)> %(message)s')
 
-def root_logger(with_syslog = True, with_stdout = True):
+def main_logger(with_syslog = True, with_stdout = True):
     """
     Create a root logger with a custom formatter.
     """
-    logger = getLogger()
+    logger = getLogger(__name__)
     logger.setLevel(DEBUG)
 
     if with_stdout:
@@ -24,30 +24,31 @@ def root_logger(with_syslog = True, with_stdout = True):
         syslog_handler.setFormatter(cuemsFormatter)
         logger.addHandler(syslog_handler)
 
-    return logger
+    logger_adapter = LoggerAdapter(logger, {"caller": ''})
+    return logger_adapter
 
 class Logger:
-    logger = root_logger()
+    logger = main_logger()
 
     @staticmethod
     def log(level, message, extra):
         Logger.logger.log(level, message, stacklevel = 4, extra = extra)
     
     @staticmethod
-    def log_debug(message, extra = {"caller": ''}):
-        Logger.log(DEBUG, message, extra = extra)
+    def log_debug(message, **kwargs):
+        Logger.log(DEBUG, message, **kwargs)
     
     @staticmethod
-    def log_info(message, extra = {"caller": ''}):
-        Logger.log(INFO, message, extra = extra)
+    def log_info(message, **kwargs):
+        Logger.log(INFO, message, **kwargs)
 
     @staticmethod
-    def log_error(message, extra = {"caller": ''}):
-        Logger.log(ERROR, message, extra = extra)
+    def log_error(message, **kwargs):
+        Logger.log(ERROR, message, **kwargs)
 
     @staticmethod
-    def log_warning(message, extra = {"caller": ''}):
-        Logger.log(WARNING, message, extra = extra)
+    def log_warning(message, **kwargs):
+        Logger.log(WARNING, message, **kwargs)
 
 def logged(func):
     """
@@ -66,7 +67,9 @@ def logged(func):
         try:
             result = func(*args, **kwargs)
             Logger.log_debug(f"Finished with result: {result}", extra = d)
-        
+        except Warning as w:
+            Logger.log_warning(f"Warning occurred: {w}", extra = d)
+            return result
         except Exception as e:
             Logger.log_error(f"Error occurred: {e}", extra = d)
             raise
