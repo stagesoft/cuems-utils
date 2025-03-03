@@ -1,8 +1,4 @@
-from time import sleep
-from threading import Thread
-
 from ..CTimecode import CTimecode
-from ..log import logged
 
 class Cue(dict):
     def __init__(self, init_dict = None):
@@ -83,6 +79,7 @@ class Cue(dict):
 
     @offset.setter
     def offset(self, offset):
+        offset = self._format_timecode(offset)
         self.__setitem__('offset', offset)
 
     @property
@@ -99,6 +96,7 @@ class Cue(dict):
 
     @prewait.setter
     def prewait(self, prewait):
+        prewait = self._format_timecode(prewait)
         super().__setitem__('prewait', prewait)
 
     @property
@@ -107,6 +105,7 @@ class Cue(dict):
 
     @postwait.setter
     def postwait(self, postwait):
+        postwait = self._format_timecode(postwait)
         super().__setitem__('postwait', postwait)
 
     @property
@@ -135,6 +134,7 @@ class Cue(dict):
 
     @property
     def media(self):
+        # TODO: # Why capital letters? (i.e. Media not media)
         return super().__getitem__('Media')
 
     @media.setter
@@ -147,95 +147,27 @@ class Cue(dict):
     def type(self):
         return type(self)
 
-    def __setitem__(self, key, value):
-        if (key in ['offset', 'prewait', 'postwait']) and (value not in (None, "")):
-            if isinstance(value, CTimecode):
-                ctime_value = value
+    def _format_timecode(self, value):
+        if not value or value == '':
+            raise ValueError(f'Invalid timecode value {value}')
+        if isinstance(value, CTimecode):
+            return value
+        elif isinstance(value, (int, float)):
+            ctime_value = CTimecode(start_seconds = value)
+            ctime_value.frames = ctime_value.frames + 1
+            return ctime_value
+        elif isinstance(value, str):
+            return CTimecode(value)
+        elif isinstance(value, dict):
+            dict_timecode = value.pop('CTimecode', None)
+            if dict_timecode is None:
+                return CTimecode()
+            elif isinstance(dict_timecode, int):
+                return CTimecode(start_seconds = dict_timecode)
             else:
-                if isinstance(value, (int, float)):
-                    ctime_value = CTimecode(start_seconds = value)
-                    ctime_value.frames = ctime_value.frames + 1
-                elif isinstance(value, str):
-                    ctime_value = CTimecode(value)
-                elif isinstance(value, dict):
-                    dict_timecode = value.pop('CTimecode', None)
-                    if dict_timecode is None:
-                        ctime_value = CTimecode()
-                    elif isinstance(dict_timecode, int):
-                        ctime_value = CTimecode(start_seconds = dict_timecode)
-                    else:
-                        ctime_value = CTimecode(dict_timecode)
-
-            super().__setitem__(key, ctime_value)
-
+                return CTimecode(dict_timecode)
         else:
-            super().__setitem__(key, value)
-
-    def arm(self, conf, ossia, armed_list, init = False):
-        self._conf = conf
-        self._armed_list = armed_list
-
-        if not self.enabled:
-            if self.loaded and self in self._armed_list:
-                self.disarm(ossia)
-            return False
-        elif self.loaded and not init:
-            if not self in self._armed_list:
-                self._armed_list.append(self)
-            return True
-
-        if self.post_go == 'go':
-            self._target_object.arm(self._conf, ossia, self._armed_list, init)
-
-        return True
-
-    @logged
-    def go(self, ossia, mtc):
-        if not self.loaded:
-            raise Exception(f'{self.__class__.__name__} {self.uuid} not loaded to go')
-
-        else:
-            # THREADED GO
-            thread = Thread(
-                name = f'GO:{self.__class__.__name__}:{self.uuid}',
-                target = self.go_thread,
-                args = [ossia, mtc]
-            )
-            thread.start()
-
-    def go_thread(self, ossia, mtc):
-        # ARM NEXT TARGET
-        if self._target_object:
-            self._target_object.arm(self._conf, ossia, self._armed_list)
-
-        # PREWAIT
-        if self.prewait > 0:
-            sleep(self.prewait.milliseconds / 1000)
-
-        # PLAY WHATEVER A SIMPLE CUE WOULD PLAY
-
-        # POSTWAIT
-        if self.postwait > 0:
-            sleep(self.postwait.milliseconds / 1000)
-
-        # POST-GO GO
-        if self.post_go == 'go':
-            self._target_object.go(ossia, mtc)
-
-        if self in self._armed_list:
-            self.disarm(ossia)
-
-
-    def disarm(self, ossia = None):
-        if self.loaded is True:
-            self.loaded = False
-
-            if self in self._armed_list:
-                self._armed_list.remove(self)
-
-            return True
-        else:
-            return False
+            raise ValueError(f'Invalid timecode value type {type(value)}')
 
     def get_next_cue(self):
         if self.target:

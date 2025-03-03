@@ -1,11 +1,8 @@
-from time import sleep
-from threading import Thread
-
 from .Cue import Cue
-from ..log import logged, Logger
 
 class CueList(Cue):
     def __init__(self, init_dict = None):
+        self['contents'] = []
         super().__init__(init_dict)
 
     @property    
@@ -19,15 +16,11 @@ class CueList(Cue):
     @property
     def uuid(self):
         return super().__getitem__('uuid')
-    
-    def __add__(self, other):
-        new_contents = self['contents'].copy()
-        new_contents.append(other)
-        return new_contents
 
-    def __iadd__(self, other):
-        self['contents'].__iadd__(other)
-        return self
+    def append(self, item: Cue):
+        if not isinstance(item, Cue):
+            raise TypeError(f'Item {item} is not a Cue object')
+        self.contents.append(item)
 
     def times(self):
         timelist = list()
@@ -63,78 +56,6 @@ class CueList(Cue):
         
         return media_dict
 
-    def arm(self, conf, ossia_server, armed_list, init = False):
-        self.conf = conf
-        self.armed_list = armed_list
-
-        if self.enabled and self.loaded == init:
-            if not self in armed_list:
-                self.contents[0].arm(self.conf, ossia_server, self.armed_list, init)
-
-                self.loaded = True
-
-                armed_list.append(self)
-
-            if self.post_go == 'go':
-                self._target_object.arm(self.conf, ossia_server, self.armed_list, init)
-
-            return True
-        else:
-            return False
-
-    @logged
-    def go(self, ossia, mtc):
-        if not self.loaded:
-            raise Exception(f'{self.__class__.__name__} {self.uuid} not loaded to go')
-        else:
-            # THREADED GO
-            thread = Thread(name = f'GO:{self.__class__.__name__}:{self.uuid}', target = self.go_thread, args = [ossia, mtc])
-            thread.start()
-
-    @logged
-    def go_thread(self, ossia, mtc):
-        # ARM NEXT TARGET
-        if self._target_object:
-            self._target_object.arm(self.conf, ossia, self.armed_list)
-
-        # PREWAIT
-        if self.prewait > 0:
-            sleep(self.prewait.milliseconds / 1000)
-
-        # PLAY : specific go the first cue in the list
-        try:
-            if self.contents:
-                self.contents[0].go(ossia, mtc)
-        except Exception as e:
-            Logger.log_error(
-                f'GO failed for content {self.contents[0].uuid}: {e}',
-                extra = {"caller": self.__class__.__name__}
-            )
-
-        # POSTWAIT
-        if self.postwait > 0:
-            sleep(self.postwait.milliseconds / 1000)
-
-        if self.post_go == 'go':
-            self._target_object.go(ossia, mtc)
-
-        '''
-        if self.post_go == 'go_at_end':
-            self._target_object.go(ossia, mtc)
-        '''
-
-        if self in self.armed_list:
-            self.disarm(ossia)
-
-    def disarm(self):
-        try:
-            if self in self.armed_list:
-                self.armed_list.remove(self)
-        except:
-            pass
-        
-        self.loaded = False
-
     def get_next_cue(self):
         cue_to_return = None
         if self.contents:
@@ -155,7 +76,7 @@ class CueList(Cue):
             return None
 
     def check_mappings(self, settings):
-        # By now let's presume all CueList objects are _local
+        # DEV: By now let's presume all CueList objects are _local
         self._local = True
 
         return True
