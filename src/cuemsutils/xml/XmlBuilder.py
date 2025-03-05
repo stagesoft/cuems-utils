@@ -2,12 +2,13 @@ from enum import Enum
 from xml.etree.ElementTree import Element, ElementTree, SubElement, register_namespace
 
 from .DictParser import GenericDict
+from ..helpers import Uuid
 
 PARSER_SUFFIX = 'XmlBuilder'
 GENERIC_BUILDER = 'GenericCueXmlBuilder'
 
 SCHEMA_INSTANCE_URI = 'http://www.w3.org/2001/XMLSchema-instance'
-VALUE_TYPES = (str, bool, int, float, Enum)
+VALUE_TYPES = (str, bool, int, float, Enum, Uuid)
 
 class XmlBuilder():
     def __init__(self, _object, namespace, xsd_path, xml_tree = None, xml_root_tag='CuemsProject'):
@@ -17,7 +18,8 @@ class XmlBuilder():
         self.class_name = type(_object).__name__
         self.xsd_path = xsd_path
         self.namespace =  namespace
-        register_namespace(next(iter(self.namespace)), next(iter(self.namespace.values())))
+        if self.namespace:
+            register_namespace(next(iter(self.namespace)), next(iter(self.namespace.values())))
 
     def get_builder_class(self, _object):
         object_class_name = type(_object).__name__
@@ -65,8 +67,6 @@ class CuemsScriptXmlBuilder(XmlBuilder):
         return self.xml_tree
 
 class CueListXmlBuilder(CuemsScriptXmlBuilder):
-
-    
     def build(self):
         cuelist_element = SubElement(self.xml_tree, self.class_name)
         for key, value in self._object.items():
@@ -85,10 +85,8 @@ class CueListXmlBuilder(CuemsScriptXmlBuilder):
                 
 
         return self.xml_tree
-    
-        
+  
 class GenericCueXmlBuilder(CuemsScriptXmlBuilder):
-        
     def build(self):
         cue_element = SubElement(self.xml_tree, self.class_name)
         for key, value in self._object.items():

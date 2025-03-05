@@ -1,15 +1,15 @@
 """ For the moment it works with pip3 install xmlschema==1.2.2
  """
 from os import path
-from xmlschema import XMLSchema11
+from xmlschema import XMLSchema11, XMLSchemaConverter
 
 from .CMLCuemsConverter import CMLCuemsConverter
 from .DictParser import CuemsParser
 from .XmlBuilder import XmlBuilder
-from ..log import logged, Logger
+from ..log import logged
 
 @logged
-def get_schema(schema_name: str):
+def get_pkg_schema(schema_name: str):
     """Get the schema file from package resources"""
     schemas_dir = path.join(path.dirname(__file__), 'schemas')
     if not schema_name[len(schema_name)-4:] == '.xsd':
@@ -20,8 +20,8 @@ def get_schema(schema_name: str):
     return schema
 
 class CuemsXml():
-    def __init__(self, schema_name, xmlfile=None, namespace={'cms':'http://stagelab.coop/cuems'}, xml_root_tag='CuemsProject'):
-        self.converter = CMLCuemsConverter
+    def __init__(self, schema_name, xmlfile=None, namespace={'cms':'https://stagelab.coop/cuems/'}, xml_root_tag='CuemsProject'):
+        self.converter = XMLSchemaConverter # CMLCuemsConverter
         self.schema_object = None
         self._xmlfile = None
         self._schema = None
@@ -37,7 +37,7 @@ class CuemsXml():
 
     @schema.setter
     def schema(self, name):
-        self._schema = get_schema(name)
+        self._schema = get_pkg_schema(name)
         self.schema_object = XMLSchema11(self._schema, converter=self.converter)
 
     @property
@@ -52,7 +52,7 @@ class CuemsXml():
         return self.schema_object.validate(self.xmlfile)
     
 class XmlWriter(CuemsXml):
-    def write(self, xml_data, ):
+    def write(self, xml_data):
         self.schema_object.validate(xml_data)
         xml_data.write(self.xmlfile, encoding="utf-8", xml_declaration=True)
 
@@ -61,7 +61,12 @@ class XmlWriter(CuemsXml):
         self.write_from_object(project_object)
 
     def write_from_object(self, project_object):
-        xml_data = XmlBuilder(project_object, namespace=self.namespace, xsd_path=self.schema, xml_root_tag=self.xml_root_tag).build()
+        xml_data = XmlBuilder(
+            project_object,
+            namespace=self.namespace,
+            xsd_path=self.schema,
+            xml_root_tag=self.xml_root_tag
+        ).build()
         self.write(xml_data)
 
 class XmlReader(CuemsXml):
@@ -71,16 +76,6 @@ class XmlReader(CuemsXml):
             validation = 'strict',
             strip_namespaces = False
         )
-        # remove namespace info from xml 
-        try:
-            del xml_dict['xmlns:cms']
-            del xml_dict['xmlns:xsi']
-            del xml_dict['xsi:schemaLocation']
-        except KeyError:
-            Logger.log_warning(
-                'Error trying to remove namespace info on read',
-                extra = {"caller": self.__class__.__name__ + ":read"}
-            )
 
         return xml_dict
 
