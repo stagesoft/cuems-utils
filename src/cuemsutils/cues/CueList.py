@@ -1,8 +1,14 @@
 from .Cue import Cue
 
+from ..helpers import Uuid, ensure_items
+
+REQ_ITEMS = {
+    'contents': []
+}
+
 class CueList(Cue):
     def __init__(self, init_dict = None):
-        self['contents'] = []
+        init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
 
     @property    
@@ -28,7 +34,7 @@ class CueList(Cue):
             timelist.append(item.offset)
         return timelist
 
-    def find(self, uuid):
+    def find(self, uuid: Uuid):
         if self.uuid == uuid:
             return self
         else:

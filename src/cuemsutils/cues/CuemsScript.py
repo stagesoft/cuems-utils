@@ -1,10 +1,22 @@
 from .CueList import CueList
 from ..log import logged
+from ..helpers import ensure_items, new_uuid, new_datetime
+
+REQ_ITEMS = {
+    'uuid': new_uuid,
+    'unix_name': None,
+    'name': 'empty',
+    'description': None,
+    'created': new_datetime,
+    'modified': new_datetime,
+    'cuelist': CueList
+}
 
 class CuemsScript(dict):
     def __init__(self, init_dict = None):
+        init_dict = ensure_items(init_dict, REQ_ITEMS)
         if init_dict:
-            super().__init__(init_dict)       
+            super().__init__(init_dict)
 
     @property
     def uuid(self):
@@ -63,9 +75,10 @@ class CuemsScript(dict):
         if isinstance(cuelist, CueList):
             super().__setitem__('cuelist', cuelist)
         else:
-            raise NotImplementedError
+            raise ValueError(f'cuelist {cuelist} is not a CueList object')
 
-    # returns a dict of UNIQUE media (no duplicates)
+    def find(self, uuid):
+        return self.cuelist.find(uuid)
 
     @logged
     def get_media(self, cuelist = None):
@@ -94,7 +107,7 @@ class CuemsScript(dict):
     @logged
     def get_own_media(self, cuelist = None, config = None):
         '''Gets the media files list present on the script which are 
-        related to the specified node uuid, usually our local UUID,
+        related to the specified node uuid, usually our local identifier,
         as we are looking for our own needed media files'''
 
         media_dict = dict()
@@ -119,6 +132,3 @@ class CuemsScript(dict):
                         pass
                         # logger.debug("cue with no media")
         return media_dict
-
-    def find(self, uuid):
-        return self.cuelist.find(uuid)

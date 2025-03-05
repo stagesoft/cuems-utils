@@ -1,8 +1,27 @@
 from ..CTimecode import CTimecode
+from ..helpers import ensure_items, new_uuid
+
+REQ_ITEMS = {
+    'description': None,
+    'enabled': True,
+    'id': None,
+    'loaded': False,
+    'loop': 0,
+    'name': 'empty',
+    'offset': None,
+    'prewait': None,
+    'postwait': None,
+    'post_go': 'pause',
+    'target': new_uuid,
+    'timecode': False, # TODO: Should be more specific|explicit
+    'uuid': new_uuid,
+}
+    # 'ui_properties': None,
 
 class Cue(dict):
     def __init__(self, init_dict = None):
         if init_dict:
+            init_dict = ensure_items(init_dict, REQ_ITEMS)
             super().__init__(init_dict)
             
         self._target_object = None
