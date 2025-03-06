@@ -3,8 +3,9 @@ from .Cue import Cue
 
 class DmxCue(Cue):
     def __init__(self, init_dict = None):
-        super().__init__(init_dict)
-            
+        if init_dict:
+            super().__init__(init_dict)
+
         self._player = None
         self._osc_route = None
         self._offset_route = '/offset'

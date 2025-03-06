@@ -1,11 +1,19 @@
 from time import sleep
 
-from .Cue import Cue
+from .MediaCue import MediaCue
+from ..helpers import ensure_items
 from ..log import logged, Logger
 
-class AudioCue(Cue):
+REQ_ITEMS = {
+    'master_vol': 0
+}
+
+class AudioCue(MediaCue):
     def __init__(self, init_dict = None):
-        super().__init__(init_dict)
+        if init_dict:
+            init_dict = ensure_items(init_dict, REQ_ITEMS)
+            super().__init__(init_dict)
+
         self._player = None
         self._osc_route = None
 
@@ -17,13 +25,11 @@ class AudioCue(Cue):
     def master_vol(self, master_vol):
         super().__setitem__('master_vol', master_vol)
 
-    @property
-    def outputs(self):
-        return super().__getitem__('Outputs')
-
-    @outputs.setter
-    def outputs(self, outputs):
-        super().__setitem__('Outputs', outputs)
+    def items(self):
+        x = dict(super().items())
+        for k in REQ_ITEMS.keys():
+            x[k] = self[k]
+        return x.items()
 
     def player(self, player):
         self._player = player
@@ -49,7 +55,7 @@ class AudioCue(Cue):
                         key = f'{self._osc_route}/offset'
                         ossia.send_message(key, offset_to_go)
                     except KeyError:
-                        Logger.log_debug(
+                        Logger.debug(
                             f'Key error 3 in go_callback {key}',
                             extra = {"caller": self.__class__.__name__}
                         )
@@ -61,7 +67,7 @@ class AudioCue(Cue):
                     key = f'{self._osc_route}/mtcfollow'
                     ossia.send_message(key, 0)
                 except KeyError:
-                    Logger.log_debug(
+                    Logger.debug(
                         f'Key error 4 in go_callback {key}',
                         extra = {"caller": self.__class__.__name__}
                     )

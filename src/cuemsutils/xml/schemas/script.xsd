@@ -47,28 +47,29 @@
   </xs:complexType>
 
   <xs:complexType name="CommonPropertiesType">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="description" type="cms:DescriptionStringType" />
       <!-- A flag to disable to cue -->
       <xs:element name="enabled" type="cms:BoolType" />
       <xs:element name="id" type="xs:string" />
-      <xs:element name="name" type="cms:NameStringType" />
       <!-- A flag to indicate auto arming -->
       <xs:element name="loaded" type="cms:BoolType" />
       <xs:element name="loop" type="cms:LoopType" /> <!-- -1/0/n -->
       <!-- Its time mark -->
+      <xs:element name="name" type="cms:NameStringType" />
       <xs:element name="offset" type="cms:CTimecodeType" />
       <!-- Execution options -->
-      <xs:element name="prewait" type="cms:CTimecodeType" /> <!-- After go before play -->
-      <xs:element name="postwait" type="cms:CTimecodeType" /> <!-- After play before post go-->
       <xs:element name="post_go" type="cms:PostGoType" /> <!-- Types: pause/go/go_at_end -->
+      <xs:element name="postwait" type="cms:CTimecodeType" /> <!-- After play before post go-->
+      <xs:element name="prewait" type="cms:CTimecodeType" /> <!-- After go before play -->
+      <xs:element name="target" type="cms:TargetType" /> <!-- target uuid or none -->
       <!-- Timecode behaviour flag -->
       <xs:element name="timecode" type="cms:BoolType" />
-      <xs:element name="target" type="cms:UuidType" /> <!-- target uuid or none -->
       <!-- Its own uuid -->
+      <!-- <xs:element name="ui_properties" type="cms:UuidType" /> -->
       <xs:element name="uuid" type="cms:UuidType" />
       <!-- <xs:element name="ui_properties" type="cms:UiPropertiesType" /> -->
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
 
   <!-- CUELIST -->
@@ -97,14 +98,24 @@
     </xs:choice>
   </xs:complexType>
 
+  <!-- MediaCue -->
+    <xs:complexType name="MediaCueType">
+      <xs:complexContent>
+        <xs:extension base="cms:CueType">
+          <xs:sequence>
+            <xs:element name="media" type="cms:MediaType" />
+            <xs:element name="outputs" type="cms:OutputsType" />
+          </xs:sequence>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+
   <!-- AUDIO -->
   <xs:complexType name="AudioCueType">
     <xs:complexContent>
-      <xs:extension base="cms:CueType">
+      <xs:extension base="cms:MediaCueType">
         <xs:sequence>
-          <xs:element name="media" type="cms:MediaType" />
           <xs:element name="master_vol" type="cms:PercentType" />
-          <xs:element name="Outputs" type="cms:OutputsType" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
@@ -310,13 +321,6 @@
     </xs:sequence>
   </xs:complexType>
 
-  <xs:complexType name="TargetType">
-    <!-- Can be a uuid field or an empty NoneType field -->
-    <xs:choice minOccurs="0">
-      <xs:element name="Uuid" type="cms:UuidType" />
-    </xs:choice>
-  </xs:complexType>
-
   <xs:complexType name="UiPropertiesType">
     <xs:all minOccurs="0">
       <xs:element name="timeline_position" type="cms:Coordinates" />
@@ -385,6 +389,14 @@
       <xs:enumeration value="pause" />
       <xs:enumeration value="go" />
       <xs:enumeration value="go_at_end" />
+    </xs:restriction>
+  </xs:simpleType>
+
+ <xs:simpleType name="TargetType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})|()" />
+      <xs:maxLength value="36" />
+      <xs:minLength value="0" />
     </xs:restriction>
   </xs:simpleType>
 

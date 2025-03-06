@@ -28,7 +28,7 @@ def _(cue: CueList, ossia, mtc):
         if cue.contents:
             cue.contents[0].go(ossia, mtc)
     except Exception as e:
-        Logger.log_error(
+        Logger.error(
             f'GO failed for content {cue.contents[0].uuid}: {e}',
             extra = {"caller": cue.__class__.__name__}
         )
@@ -80,12 +80,12 @@ def _(cue: AudioCue, ossia, mtc):
             cue._end_mtc = cue._start_mtc + (cue.media.regions[0].out_time - cue.media.regions[0].in_time)
             offset_to_go = float(-(cue._start_mtc.milliseconds) + cue.media.regions[0].in_time.milliseconds)
             ossia.send_message(key, offset_to_go)
-            Logger.log_info(
+            Logger.info(
                 f"Sending offset {offset_to_go} to {key} {str(ossia._oscquery_registered_nodes[key][0].value)}",
                 extra = {"caller": cue.__class__.__name__}
             )
         except KeyError:
-            Logger.log_debug(
+            Logger.debug(
                 f'Key error 1 in go_callback {key}',
                 extra = {"caller": cue.__class__.__name__}
             )
@@ -95,7 +95,7 @@ def _(cue: AudioCue, ossia, mtc):
             key = f'{cue._osc_route}/mtcfollow'
             ossia.send_message(key, 1)
         except KeyError:
-            Logger.log_debug(
+            Logger.debug(
                 f'Key error 2 in go_callback {key}',
                 extra = {"caller": cue.__class__.__name__}
             )
@@ -108,12 +108,12 @@ def _(cue: DmxCue, ossia, mtc):
     try:
         key = f'{cue._osc_route}{cue._offset_route}'
         ossia.osc_registered_nodes[key][0].value = cue.review_offset(mtc)
-        Logger.log_info(
+        Logger.info(
             f"DMX play {cue.uuid}: {key} {str(ossia.osc_registered_nodes[key][0].value)}",
             extra = {"caller": cue.__class__.__name__}
         )
     except KeyError:
-        Logger.log_debug(
+        Logger.debug(
             f'OSC Key error 1 in go_callback {key}',
             extra = {"caller": cue.__class__.__name__}
         )
@@ -121,7 +121,7 @@ def _(cue: DmxCue, ossia, mtc):
         key = f'{cue._osc_route}/mtcfollow'
         ossia.osc_registered_nodes[key][0].value = True
     except KeyError:
-        Logger.log_debug(
+        Logger.debug(
             f'OSC Key error 2 in go_callback {key}',
             extra = {"caller": cue.__class__.__name__}
         )
@@ -146,12 +146,12 @@ def _(cue: VideoCue, ossia, mtc):
             
             offset_to_go, _ = find_timing(cue, mtc)
             ossia.send_message(key, offset_to_go)
-            Logger.log_info(
+            Logger.info(
                 key + " " + str(ossia._oscquery_registered_nodes[key][0].value),
                 extra = {"caller": cue.__class__.__name__}
             )
         except KeyError:
-            Logger.log_debug(
+            Logger.debug(
                 f'Key error 1 (offset) in go_callback {key}',
                 extra = {"caller": cue.__class__.__name__}
             )
@@ -160,7 +160,7 @@ def _(cue: VideoCue, ossia, mtc):
             key = f'{cue._osc_route}/jadeo/cmd'
             ossia.send_message(key, "midi connect Midi Through")
         except KeyError:
-            Logger.log_debug(
+            Logger.debug(
                 f'Key error 2 (connect) in go_callback {key}',
                 extra = {"caller": cue.__class__.__name__}
             )

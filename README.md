@@ -9,6 +9,7 @@ Reusable classes and methods for CueMS system
 ## Table of Contents
 
 - [Installation](#installation)
+- [Release notes](#v005)
 - [License](#license)
 
 ## Installation
@@ -16,6 +17,15 @@ Reusable classes and methods for CueMS system
 ```console
 pip install cuemsutils
 ```
+
+## Release notes
+
+### v0.0.5
+ - All properties of objects are lowercase (i.e. `media` and `outputs` at `MediaCue`). Camelcase used for classes, `region` is the only exception and will become deprecated on following versions.
+ - User facing classes can be exported directly (e.g. `from cuemsutils.cues import AudioCue, VideoCue`)
+
+### v0.0.4
+ - `Logger` fixed to allow empty `extra` parameter
 
 ## License
 

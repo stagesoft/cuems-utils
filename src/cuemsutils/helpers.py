@@ -4,6 +4,8 @@ from datetime import datetime
 from re import match
 from uuid import uuid4
 
+from .CTimecode import CTimecode
+
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 UUID4_REGEX = r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
 
@@ -23,9 +25,43 @@ def ensure_items(x: dict, requiered: dict) -> dict:
                 x[k] = v()
             else:
                 x[k] = v
+
+    ## Order the dictionary
+    x = {k: x[k] for k in sorted(x.keys())}
     
     return x
 
+def extract_items(x, keys: list) -> dict:
+    """Extract list of keys and values from a dictionary
+    
+    Args:
+        x (items): The dictionary items to extract from
+        keys (list): The keys to extract
+    """
+    d = dict(x)
+    return {k: d[k] for k in keys}.items()
+
+def format_timecode(self, value):
+        if not value or value == '':
+            raise ValueError(f'Invalid timecode value {value}')
+        if isinstance(value, CTimecode):
+            return value
+        elif isinstance(value, (int, float)):
+            ctime_value = CTimecode(start_seconds = value)
+            ctime_value.frames = ctime_value.frames + 1
+            return ctime_value
+        elif isinstance(value, str):
+            return CTimecode(value)
+        elif isinstance(value, dict):
+            dict_timecode = value.pop('CTimecode', None)
+            if dict_timecode is None:
+                return CTimecode()
+            elif isinstance(dict_timecode, int):
+                return CTimecode(start_seconds = dict_timecode)
+            else:
+                return CTimecode(dict_timecode)
+        else:
+            raise ValueError(f'Invalid timecode value type {type(value)}')
 
 def new_datetime():
     """Generate a new datetime string."""

@@ -4,7 +4,7 @@ from ..helpers import ensure_items, new_uuid, new_datetime
 
 REQ_ITEMS = {
     'uuid': new_uuid,
-    'unix_name': None,
+    # 'unix_name': None,
     'name': 'empty',
     'description': None,
     'created': new_datetime,
@@ -14,8 +14,8 @@ REQ_ITEMS = {
 
 class CuemsScript(dict):
     def __init__(self, init_dict = None):
-        init_dict = ensure_items(init_dict, REQ_ITEMS)
         if init_dict:
+            init_dict = ensure_items(init_dict, REQ_ITEMS)
             super().__init__(init_dict)
 
     @property

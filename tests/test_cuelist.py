@@ -1,7 +1,6 @@
 """Test CueList object generation and manipulation"""
-from cuemsutils.cues.CueList import CueList
+from cuemsutils.cues import AudioCue, CueList
 from cuemsutils.cues.Cue import Cue
-from cuemsutils.cues.AudioCue import AudioCue
 
 def test_simple_cuelist():
     ## Arrange

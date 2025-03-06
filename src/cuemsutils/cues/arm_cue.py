@@ -93,12 +93,12 @@ def _(cue: VideoCue, ossia):
         try:
             key = f'{cue._osc_route}/jadeo/cmd'
             ossia.send_message(key, 'midi disconnect')
-            Logger.log_info(
+            Logger.info(
                 key + " " + str(ossia._oscquery_registered_nodes[key][0].value),
                 extra = {"caller": cue.__class__.__name__}
             )
         except KeyError:
-            Logger.log_debug(
+            Logger.debug(
                 f'Key error 1 (disconnect) in arm_callback {key}',
                 extra = {"caller": cue.__class__.__name__}
             )
@@ -107,12 +107,12 @@ def _(cue: VideoCue, ossia):
             key = f'{cue._osc_route}/jadeo/load'
             value = str(path.join(cue._conf.library_path, 'media', cue.media.file_name))
             ossia.send_message(key, value)
-            Logger.log_info(
+            Logger.info(
                 key + " " + str(ossia._oscquery_registered_nodes[key][0].value),
                 extra = {"caller": cue.__class__.__name__}
             )
         except KeyError:
-            Logger.log_debug(
+            Logger.debug(
                 f'Key error 2 (load) in arm_callback {key}',
                 extra = {"caller": cue.__class__.__name__}
             )

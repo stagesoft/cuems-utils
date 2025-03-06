@@ -1,5 +1,5 @@
 from ..CTimecode import CTimecode
-from ..helpers import ensure_items, new_uuid
+from ..helpers import ensure_items, extract_items, format_timecode, new_uuid, Uuid
 
 REQ_ITEMS = {
     'description': None,
@@ -8,15 +8,15 @@ REQ_ITEMS = {
     'loaded': False,
     'loop': 0,
     'name': 'empty',
-    'offset': None,
-    'prewait': None,
-    'postwait': None,
+    'offset': CTimecode,
     'post_go': 'pause',
-    'target': new_uuid,
+    'postwait': None,
+    'prewait': None,
+    'target': None,
     'timecode': False, # TODO: Should be more specific|explicit
     'uuid': new_uuid,
+    # 'ui_properties': new_uuid,
 }
-    # 'ui_properties': None,
 
 class Cue(dict):
     def __init__(self, init_dict = None):
@@ -40,6 +40,7 @@ class Cue(dict):
 
     @uuid.setter
     def uuid(self, uuid):
+        uuid = Uuid(uuid)
         super().__setitem__('uuid', uuid)
 
     @property
@@ -98,7 +99,7 @@ class Cue(dict):
 
     @offset.setter
     def offset(self, offset):
-        offset = self._format_timecode(offset)
+        offset = format_timecode(offset)
         self.__setitem__('offset', offset)
 
     @property
@@ -115,7 +116,7 @@ class Cue(dict):
 
     @prewait.setter
     def prewait(self, prewait):
-        prewait = self._format_timecode(prewait)
+        prewait = format_timecode(prewait)
         super().__setitem__('prewait', prewait)
 
     @property
@@ -124,7 +125,7 @@ class Cue(dict):
 
     @postwait.setter
     def postwait(self, postwait):
-        postwait = self._format_timecode(postwait)
+        postwait = format_timecode(postwait)
         super().__setitem__('postwait', postwait)
 
     @property
@@ -141,6 +142,8 @@ class Cue(dict):
 
     @target.setter
     def target(self, target):
+        if target is not None:
+            target = Uuid(target)
         super().__setitem__('target', target)
 
     @property
@@ -151,42 +154,14 @@ class Cue(dict):
     def ui_properties(self, ui_properties):
         super().__setitem__('ui_properties', ui_properties)
 
-    @property
-    def media(self):
-        # TODO: # Why capital letters? (i.e. Media not media)
-        return super().__getitem__('Media')
-
-    @media.setter
-    def media(self, media):
-        super().__setitem__('Media', media)
+    def items(self):
+        return extract_items(super().items(), REQ_ITEMS.keys())
 
     def target_object(self, target_object):
         self._target_object = target_object
 
     def type(self):
         return type(self)
-
-    def _format_timecode(self, value):
-        if not value or value == '':
-            raise ValueError(f'Invalid timecode value {value}')
-        if isinstance(value, CTimecode):
-            return value
-        elif isinstance(value, (int, float)):
-            ctime_value = CTimecode(start_seconds = value)
-            ctime_value.frames = ctime_value.frames + 1
-            return ctime_value
-        elif isinstance(value, str):
-            return CTimecode(value)
-        elif isinstance(value, dict):
-            dict_timecode = value.pop('CTimecode', None)
-            if dict_timecode is None:
-                return CTimecode()
-            elif isinstance(dict_timecode, int):
-                return CTimecode(start_seconds = dict_timecode)
-            else:
-                return CTimecode(dict_timecode)
-        else:
-            raise ValueError(f'Invalid timecode value type {type(value)}')
 
     def get_next_cue(self):
         if self.target:

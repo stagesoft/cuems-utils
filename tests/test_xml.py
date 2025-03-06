@@ -1,24 +1,33 @@
 '''Integration test for the XML Builder and Parser classes'''
+from logging import DEBUG
 from os import path
 from xml.etree.ElementTree import ElementTree, Element
-from logging import DEBUG
 
+from cuemsutils.cues import AudioCue, DmxCue, CuemsScript, CueList
 from cuemsutils.cues.Cue import Cue
-from cuemsutils.cues.AudioCue import AudioCue
 from cuemsutils.cues.DmxCue import DmxCue
-from cuemsutils.cues.CuemsScript import CuemsScript
-from cuemsutils.cues.CueList import CueList
+from cuemsutils.cues.MediaCue import Media, region
 
+from cuemsutils.xml import XmlReader, XmlWriter
 from cuemsutils.xml.XmlBuilder import XmlBuilder
-from cuemsutils.xml.XmlReaderWriter import XmlReader, XmlWriter
 from cuemsutils.xml.DictParser import CuemsParser
-
-FOPO = int(DEBUG)
 
 def create_dummy_script():
     c = Cue({'id': 33, 'loop': 0})
     c2 = Cue({'id': None, 'loop': 0})
-    ac = AudioCue({'id': 45, 'loop': 2, 'media': {'file_name': 'file.ext'}, 'master_vol': 66} )
+    ac = AudioCue({
+        'id': 45,
+        'master_vol': 66,
+        'media': Media({
+            'file_name': 'file.ext',
+            'regions': {'region': region({
+                'id': 0,
+                'loop': 2,
+                'in_time': None,
+                'out_time': None,
+            })}
+        }),
+    })
     #ac.outputs = {'stereo': 1}
     #d_c = DmxCue(time=23, scene={0:{0:10, 1:50}, 1:{20:23, 21:255}, 2:{5:10, 6:23, 7:125, 8:200}}, init_dict={'loop' : 3})
     #d_c.outputs = {'universe0': 3}
@@ -77,9 +86,10 @@ def test_XmlBuilder():
     assert contents[1].find('id').text == None
     assert contents[1].tag == 'Cue'
     assert contents[2].tag == 'AudioCue'
-    assert contents[2].find('media').text == 'file.ext'
     assert contents[2].find('master_vol').text == '66'
-    assert contents[2].find('loop').text == '2'
+    assert contents[2].find('media').find('file_name').text == 'file.ext'
+    audio_media = contents[2].find('media')
+    assert audio_media.find('regions').find('region').find('loop').text == '2'
 
 def test_XmlWriter():
     script, _ = create_dummy_script()
@@ -93,6 +103,28 @@ def test_XmlWriter():
 
     # assert writer.validate() == True
     assert path.isfile(tmpfile) == True
+
+def testdev_XmlReader():
+    script, _ = create_dummy_script()
+    tmpfile = '/tmp/test_script.xml'
+
+    xml_data = XmlBuilder(
+        script,
+        {'cms':'https://stagelab.coop/'},
+        'script'
+    ).build()
+    direct = CuemsParser(xml_data).parse()
+
+    reader = XmlReader(
+        schema_name = 'script',
+        xmlfile = tmpfile
+    )
+    xml_dict = reader.read()
+    stored = CuemsParser(xml_dict).parse()
+
+    # target = xml_data.parse()
+    assert stored == direct
+    assert str(stored) == str(direct)
 
 """
 

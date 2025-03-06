@@ -1,7 +1,7 @@
 from datetime import datetime
 from re import match, Match
 
-from cuemsutils.helpers import ensure_items, new_uuid, new_datetime, DATETIME_FORMAT, Uuid
+from cuemsutils.helpers import ensure_items, extract_items, new_uuid, new_datetime, DATETIME_FORMAT, Uuid
 
 def test_ensure_items():
     ## ARRANGE
@@ -14,6 +14,17 @@ def test_ensure_items():
 
     ## ASSERT
     assert target == {'a': 1, 'b': 2, 'c': None, 'd': 0, 'e': ''}
+
+def test_extract_items():
+    ## ARRANGE
+    x = {'a': 1, 'b': 2, 'c': 3}
+    keys = ['a', 'c']
+
+    ## ACT
+    target = extract_items(x.items(), keys)
+
+    ## ASSERT
+    assert target == {'a': 1, 'c': 3}.items()
 
 def test_datetime():
     ## ARRANGE

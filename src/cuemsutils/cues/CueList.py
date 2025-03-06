@@ -8,8 +8,11 @@ REQ_ITEMS = {
 
 class CueList(Cue):
     def __init__(self, init_dict = None):
-        init_dict = ensure_items(init_dict, REQ_ITEMS)
-        super().__init__(init_dict)
+        if init_dict:
+            init_dict = ensure_items(init_dict, REQ_ITEMS)
+            super().__init__(init_dict)
+        else:
+            self['contents'] = []
 
     @property    
     def contents(self):
@@ -19,20 +22,16 @@ class CueList(Cue):
     def contents(self, contents):
         super().__setitem__('contents', contents)
 
-    @property
-    def uuid(self):
-        return super().__getitem__('uuid')
-
     def append(self, item: Cue):
         if not isinstance(item, Cue):
             raise TypeError(f'Item {item} is not a Cue object')
         self.contents.append(item)
 
-    def times(self):
-        timelist = list()
-        for item in self['contents']:
-            timelist.append(item.offset)
-        return timelist
+    def check_mappings(self, settings):
+        # DEV: By now let's presume all CueList objects are _local
+        self._local = True
+
+        return True
 
     def find(self, uuid: Uuid):
         if self.uuid == uuid:
@@ -81,8 +80,13 @@ class CueList(Cue):
         else:
             return None
 
-    def check_mappings(self, settings):
-        # DEV: By now let's presume all CueList objects are _local
-        self._local = True
+    def items(self):
+        x = dict(super().items())
+        x['contents'] = self.contents
+        return x.items()
 
-        return True
+    def times(self):
+        timelist = list()
+        for item in self['contents']:
+            timelist.append(item.offset)
+        return timelist

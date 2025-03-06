@@ -6,7 +6,8 @@ from ..log import logged, Logger
 
 class VideoCue(Cue):
     def __init__(self, init_dict = None):
-        super().__init__(init_dict)
+        if init_dict:
+            super().__init__(init_dict)
         self._player = None
         self._osc_route = None
         self._go_thread = None
@@ -49,12 +50,12 @@ class VideoCue(Cue):
                         self._end_mtc = self._start_mtc + duration
                         offset_to_go = in_time_adjusted.frame_number - self._start_mtc.frame_number
                         ossia.send_message(key, offset_to_go)
-                        Logger.log_info(
+                        Logger.info(
                             key + " " + str(ossia._oscquery_registered_nodes[key][0].value),
                             extra = {"caller": self.__class__.__name__}
                         )
                     except KeyError:
-                        Logger.log_debug(
+                        Logger.debug(
                             f'Key error 1 (offset) in go_callback {key}',
                             extra = {"caller": self.__class__.__name__}
                         )
@@ -65,12 +66,12 @@ class VideoCue(Cue):
                 try:
                     key = f'{self._osc_route}/jadeo/cmd'
                     ossia.send_message(key, 'midi disconnect')
-                    Logger.log_info(
+                    Logger.info(
                         key + " " + str(ossia._oscquery_registered_nodes[key][0].value),
                         extra = {"caller": self.__class__.__name__}
                     )
                 except KeyError:
-                    Logger.log_debug(
+                    Logger.debug(
                         f'Key error 1 (disconnect) in arm_callback {key}',
                         extra = {"caller": self.__class__.__name__}
                     )

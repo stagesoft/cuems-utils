@@ -8,7 +8,10 @@ PARSER_SUFFIX = 'XmlBuilder'
 GENERIC_BUILDER = 'GenericCueXmlBuilder'
 
 SCHEMA_INSTANCE_URI = 'http://www.w3.org/2001/XMLSchema-instance'
+# VALUE_TYPES = (str, bool, int, float, Enum)
 VALUE_TYPES = (str, bool, int, float, Enum, Uuid)
+
+## "<target /> | <target><Uuid>sadqaweasd-as-das-dasd</Uuid></target> | <uuid><Uuid>asdas-das-da-sd-asd</Uuid></uuid>"
 
 class XmlBuilder():
     def __init__(self, _object, namespace, xsd_path, xml_tree = None, xml_root_tag='CuemsProject'):
