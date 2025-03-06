@@ -16,15 +16,15 @@ class CuemsParser():
             if next(iter(init_dict)) != XML_ROOT_TAG:
                 root_value = init_dict[XML_ROOT_TAG]
                 self.init_dict = {XML_ROOT_TAG: root_value}
-                Logger.log_debug("Found root tag and is not the firs one, extracting")
-                Logger.log_debug(self.init_dict)
+                Logger.debug("Found root tag and is not the firs one, extracting")
+                Logger.debug(self.init_dict)
             else:
                 self.init_dict = init_dict
                 
         except KeyError:
             self.init_dict = init_dict
-            Logger.log_debug("No root tag found, using provided dictionary")
-            Logger.log_debug(self.init_dict)
+            Logger.debug("No root tag found, using provided dictionary")
+            Logger.debug(self.init_dict)
 
     def get_parser_class(self, class_string):
         parser_name = class_string + PARSER_SUFFIX

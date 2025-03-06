@@ -31,23 +31,23 @@ class Logger:
     logger = main_logger()
 
     @staticmethod
-    def log(level, message, extra):
-        Logger.logger.log(level, message, stacklevel = 4, extra = extra)
+    def log(level, message, **kwargs):
+        Logger.logger.log(level, message, stacklevel = 4, **kwargs)
     
     @staticmethod
-    def log_debug(message, **kwargs):
+    def debug(message, **kwargs):
         Logger.log(DEBUG, message, **kwargs)
     
     @staticmethod
-    def log_info(message, **kwargs):
+    def info(message, **kwargs):
         Logger.log(INFO, message, **kwargs)
 
     @staticmethod
-    def log_error(message, **kwargs):
+    def error(message, **kwargs):
         Logger.log(ERROR, message, **kwargs)
 
     @staticmethod
-    def log_warning(message, **kwargs):
+    def warning(message, **kwargs):
         Logger.log(WARNING, message, **kwargs)
 
 def logged(func):
@@ -62,16 +62,16 @@ def logged(func):
         """
         d = {"caller": func.__name__}
         Logger.logger = getLogger(func.__module__)
-        Logger.log_info(f"Call recieved", extra = d)
-        Logger.log_debug(f"Using args: {args} and kwargs: {kwargs}", extra = d)
+        Logger.info(f"Call recieved", extra = d)
+        Logger.debug(f"Using args: {args} and kwargs: {kwargs}", extra = d)
         try:
             result = func(*args, **kwargs)
-            Logger.log_debug(f"Finished with result: {result}", extra = d)
+            Logger.debug(f"Finished with result: {result}", extra = d)
         except Warning as w:
-            Logger.log_warning(f"Warning occurred: {w}", extra = d)
+            Logger.warning(f"Warning occurred: {w}", extra = d)
             return result
         except Exception as e:
-            Logger.log_error(f"Error occurred: {e}", extra = d)
+            Logger.error(f"Error occurred: {e}", extra = d)
             raise
         
         else:

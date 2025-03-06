@@ -1,5 +1,5 @@
 '''Test logging functions.'''
-from cuemsutils.log import logged
+from cuemsutils.log import logged, Logger
 from logging import DEBUG
 
 @logged
@@ -111,3 +111,24 @@ def test_syslog():
     for i in range(6):
         x = syslog_split[i][0]
         assert x.split("\t")[1][:15] == "FormitGo (PID: "
+
+def test_Logger(caplog):
+    """Test that the Logger class works."""
+    caplog.set_level(DEBUG)
+
+    Logger.debug("This is a debug message.")
+    Logger.info("This is an info message.") 
+    Logger.warning("This is a warning message.")
+    Logger.error("This is an error message.")
+    
+    assert len(caplog.records) == 4
+    for record in caplog.records:
+        assert record.name == "tests.test_logger"
+        if record.levelname == "DEBUG":
+            assert record.message == "This is a debug message."
+        elif record.levelname == "INFO":
+            assert record.message == "This is an info message."
+        elif record.levelname == "WARNING":
+            assert record.message == "This is a warning message."
+        elif record.levelname == "ERROR":
+            assert record.message == "This is an error message."

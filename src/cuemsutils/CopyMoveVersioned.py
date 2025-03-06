@@ -14,7 +14,7 @@ class CopyMoveVersioned():
         
         while True:     
             if not os.path.exists(os.path.join(dest_path, dest_filename)):
-                Logger.log_debug('moving file to: {}'.format(os.path.join(dest_path, dest_filename)))
+                Logger.debug('moving file to: {}'.format(os.path.join(dest_path, dest_filename)))
                 shutil.move( orig_path, os.path.join(dest_path, dest_filename))
                 break
             else:
@@ -29,7 +29,7 @@ class CopyMoveVersioned():
         orig_name = dest_dirname
         while True:     
             if not os.path.exists(os.path.join(dest_path, dest_dirname)):
-                Logger.log_debug('copyin dir to: {}'.format(os.path.join(dest_path, dest_dirname)))
+                Logger.debug('copyin dir to: {}'.format(os.path.join(dest_path, dest_dirname)))
                 shutil.copytree( orig_path, os.path.join(dest_path, dest_dirname))
                 break
             else:
