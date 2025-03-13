@@ -34,6 +34,16 @@ class Cue(dict):
         self._stop_requested = False
         self._local = False
 
+    def __hash__(self):
+        """Hash the cue by its uuid"""
+        return hash(self.uuid)
+    
+    def __eq__(self, other):
+        "Compare two cues by their uuid"
+        if isinstance(other, Cue):
+            return self.uuid == other.uuid
+        return False
+
     @property
     def uuid(self):
         return super().__getitem__('uuid')
@@ -177,3 +187,13 @@ class Cue(dict):
 
     def stop(self):
         pass
+
+class UI_properties(dict):
+    
+    def __init__(self, init_dict = None):
+        if init_dict:
+            super().__init__(init_dict)
+    
+    @property
+    def timeline_position(self):
+        return super().__getitem__('timeline_position')
