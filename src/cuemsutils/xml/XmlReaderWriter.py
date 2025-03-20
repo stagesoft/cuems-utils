@@ -2,9 +2,10 @@
  """
 from os import path
 from xmlschema import XMLSchema11, XMLSchemaConverter
+from xml.etree.ElementTree import ElementTree
 
 from .CMLCuemsConverter import CMLCuemsConverter
-from .DictParser import CuemsParser
+from .Parsers import CuemsParser
 from .XmlBuilder import XmlBuilder
 from ..log import logged
 
@@ -20,15 +21,13 @@ def get_pkg_schema(schema_name: str):
     return schema
 
 class CuemsXml():
-    def __init__(self, schema_name, xmlfile=None, namespace={'cms':'https://stagelab.coop/cuems/'}, xml_root_tag='CuemsProject'):
+    def __init__(self, schema_name, xmlfile, namespace={'cms':'https://stagelab.coop/cuems/'}, xml_root_tag='CuemsProject'):
         self.converter = XMLSchemaConverter # CMLCuemsConverter
-        self.schema_object = None
-        self._xmlfile = None
-        self._schema = None
+        self.xmldata = None
+
+        self.namespace = namespace
         self.schema = schema_name
         self.xmlfile = xmlfile
-        self.xmldata = None
-        self.namespace = namespace
         self.xml_root_tag = xml_root_tag
     
     @property
@@ -38,7 +37,10 @@ class CuemsXml():
     @schema.setter
     def schema(self, name):
         self._schema = get_pkg_schema(name)
-        self.schema_object = XMLSchema11(self._schema, converter=self.converter)
+        self.schema_object = XMLSchema11(
+            self.schema,
+            converter = self.converter
+        )
 
     @property
     def xmlfile(self):
@@ -52,9 +54,13 @@ class CuemsXml():
         return self.schema_object.validate(self.xmlfile)
     
 class XmlWriter(CuemsXml):
-    def write(self, xml_data):
+    def write(self, xml_data: ElementTree):
         self.schema_object.validate(xml_data)
-        xml_data.write(self.xmlfile, encoding="utf-8", xml_declaration=True)
+        xml_data.write(
+            self.xmlfile,
+            encoding = "utf-8",
+            xml_declaration = True
+        )
 
     def write_from_dict(self, project_dict):
         project_object = CuemsParser(project_dict).parse()
@@ -71,13 +77,11 @@ class XmlWriter(CuemsXml):
 
 class XmlReader(CuemsXml):
     def read(self):
-        xml_dict = self.schema_object.to_dict(
+        return self.schema_object.to_dict(
             self.xmlfile,
             validation = 'strict',
             strip_namespaces = False
         )
-
-        return xml_dict
 
     def read_to_objects(self):
         xml_dict = self.read()

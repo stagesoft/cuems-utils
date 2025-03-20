@@ -1,7 +1,7 @@
 from enum import Enum
 from xml.etree.ElementTree import Element, ElementTree, SubElement, register_namespace
 
-from .DictParser import GenericDict
+from .Parsers import GenericDict
 from ..helpers import Uuid
 
 PARSER_SUFFIX = 'XmlBuilder'
@@ -33,17 +33,14 @@ class XmlBuilder():
             #logger.debug("Could not find class {0}, reverting to generic builder class".format(err))
             builder_class = globals()[GENERIC_BUILDER]
         return builder_class
-    
-    def build(self):
 
+    def build(self):
         #xml_root = Element(f'{{{next(iter(self.namespace.values()))}}}CuemsProject')
         xml_root = Element(f'{{{next(iter(self.namespace.values()))}}}{self.xml_root_tag}')
         xml_root.attrib= {f'{{{SCHEMA_INSTANCE_URI}}}schemaLocation': next(iter(self.namespace.values())) + " " + self.xsd_path}   
         builder_class = self.get_builder_class(self._object)
         self.xml_tree = builder_class(self._object, xml_tree = xml_root).build()
-        
         self.xml_tree = ElementTree(self.xml_tree)
-
         return self.xml_tree
 
 class CuemsScriptXmlBuilder(XmlBuilder):
@@ -54,10 +51,7 @@ class CuemsScriptXmlBuilder(XmlBuilder):
 
     def build(self):
         cue_element = SubElement(self.xml_tree, self.class_name)
-        
-
         for key, value in self._object.items():
-            
             if isinstance(value, VALUE_TYPES):
                 cue_subelement = SubElement(cue_element, str(key))
                 cue_subelement.text = str(value)
@@ -85,8 +79,6 @@ class CueListXmlBuilder(CuemsScriptXmlBuilder):
             else:
                 builder_class = self.get_builder_class(value)
                 sub_object_element = builder_class(value, xml_tree = cue_subelement).build()
-                
-
         return self.xml_tree
   
 class GenericCueXmlBuilder(CuemsScriptXmlBuilder):
@@ -121,7 +113,6 @@ class DmxSceneXmlBuilder(CuemsScriptXmlBuilder):
         for universe in universe_list:
             builder_class = self.get_builder_class(universe[1])
             sub_object_element = builder_class(universe, xml_tree = cue_element).build()
-            
 
 class DmxUniverseXmlBuilder(CuemsScriptXmlBuilder):
         
@@ -133,21 +124,16 @@ class DmxUniverseXmlBuilder(CuemsScriptXmlBuilder):
             sub_object_element = builder_class(channel, xml_tree = cue_element).build()
     
 class DmxChannelXmlBuilder(CuemsScriptXmlBuilder):
-    
     def build(self):
         cue_element = SubElement(self.xml_tree, type(self._object[1]).__name__, id=str(self._object[0]))
         cue_element.text = str(self._object[1])
 
-
-
 class GenericSimpleSubObjectXmlBuilder(CuemsScriptXmlBuilder):
-    
     def build(self):
         cue_element = SubElement(self.xml_tree, self.class_name)
         cue_element.text = str(self._object)
 
 class GenericComplexSubObjectXmlBuilder(CuemsScriptXmlBuilder):
-    
     def build(self):
         if isinstance(self._object, dict):
             for key, value in self._object.items():
@@ -184,11 +170,7 @@ class CTimecodeXmlBuilder(GenericSimpleSubObjectXmlBuilder):
 
 class MediaXmlBuilder(GenericComplexSubObjectXmlBuilder):
     def build(self):
-        
-
         if isinstance(self._object, dict):
-            
-
             for key, value in self._object.items():
                 if isinstance(value, VALUE_TYPES):
                     cue_subelement = SubElement(self.xml_tree, key)
@@ -203,10 +185,6 @@ class MediaXmlBuilder(GenericComplexSubObjectXmlBuilder):
                     for list_item in value:
                         builder_class = self.get_builder_class(list_item)
                         sub_object_element = builder_class(list_item, xml_tree =cue_subelement).build()
-                    
-
-
-
 
 class UI_propertiesXmlBuilder(GenericComplexSubObjectXmlBuilder):
     pass
@@ -278,7 +256,6 @@ class CueOutputsXmlBuilder(GenericComplexSubObjectXmlBuilder):
         else:   
             cue_element.text = str(self._object)
 
-
 class AudioCueOutputXmlBuilder(CueOutputsXmlBuilder):
     pass
 
@@ -288,10 +265,8 @@ class VideoCueOutputXmlBuilder(CueOutputsXmlBuilder):
 class DmxCueOutputXmlBuilder(CueOutputsXmlBuilder):
     pass
 
-    
 class CuemsNodeDictXmlBuilder(CuemsScriptXmlBuilder):
     pass
 
-    
 class NoneTypeXmlBuilder(GenericSimpleSubObjectXmlBuilder): # TODO: clean, not need anymore? 
     pass

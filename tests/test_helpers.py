@@ -53,8 +53,8 @@ def test_new_uuid():
     assert match_uuid is not None
     assert type(match_uuid) is Match
     assert match_uuid.string == str(target_uuid)
-    assert match_uuid.pos is 0
-    assert match_uuid.endpos is 36
+    assert match_uuid.pos == 0
+    assert match_uuid.endpos == 36
     assert target_uuid.check() is True
 
 def test_given_uuid():

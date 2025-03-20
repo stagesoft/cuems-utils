@@ -31,12 +31,6 @@ dependencies = [
     "xmlschema==3.4.3"
 ]
 
-[project.optional-dependencies]
-test = [
-  "pytest",
-  "pytest-cov",
-]
-
 [project.urls]
 Documentation = "https://github.com/stagesoft/cuems-utils#readme"
 Issues = "https://github.com/stagesoft/cuems-utils/issues"
@@ -51,12 +45,16 @@ include = ["src/cuemsutils/xml/schemas"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/cuemsutils"]
 
-[tool.hatch.envs.types]
-extra-dependencies = [
-  "mypy>=1.0.0"
+[[tool.hatch.envs.hatch-test.matrix]]
+python = ["3.11"]
+
+[tool.hatch.envs.test]
+dependencies = [
+  "pytest",
+  "pytest-cov",
+  "pytest-mock",
+  "coverage[toml]"
 ]
-[tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/cuemsutils tests}"
 
 [tool.coverage.run]
 source_pkgs = ["cuemsutils", "tests"]
@@ -69,8 +67,16 @@ cuemsutils = ["src/cuemsutils", "*/cuems-utils/src/cuemsutils"]
 tests = ["tests", "*/cuems-utils/tests"]
 
 [tool.coverage.report]
+show_missing = true
 exclude_lines = [
   "no cov",
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
 ]
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0"
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/cuemsutils tests}"

@@ -5,12 +5,11 @@ from xml.etree.ElementTree import ElementTree, Element
 
 from cuemsutils.cues import AudioCue, DmxCue, CuemsScript, CueList
 from cuemsutils.cues.Cue import Cue
-from cuemsutils.cues.DmxCue import DmxCue
 from cuemsutils.cues.MediaCue import Media, region
 
 from cuemsutils.xml import XmlReader, XmlWriter
 from cuemsutils.xml.XmlBuilder import XmlBuilder
-from cuemsutils.xml.DictParser import CuemsParser
+from cuemsutils.xml.Parsers import CuemsParser
 
 def create_dummy_script():
     c = Cue({'id': 33, 'loop': 0})
@@ -104,55 +103,16 @@ def test_XmlWriter():
     # assert writer.validate() == True
     assert path.isfile(tmpfile) == True
 
-def testdev_XmlReader():
+def test_XmlReader():
     script, _ = create_dummy_script()
     tmpfile = '/tmp/test_script.xml'
-
-    xml_data = XmlBuilder(
-        script,
-        {'cms':'https://stagelab.coop/'},
-        'script'
-    ).build()
-    direct = CuemsParser(xml_data).parse()
+    assert path.isfile(tmpfile) == True
 
     reader = XmlReader(
         schema_name = 'script',
         xmlfile = tmpfile
     )
-    xml_dict = reader.read()
-    stored = CuemsParser(xml_dict).parse()
+    stored = reader.read_to_objects()
+    # assert script == stored
 
-    # target = xml_data.parse()
-    assert stored == direct
-    assert str(stored) == str(direct)
-
-"""
-
-reader = XmlReader(schema = '/home/ion/src/cuems/python/cuems-engine/src/cuems/cues.xsd', xmlfile = '/home/ion/src/cuems/python/cuems-engine/src/cuems/cues.xml')
-xml_dict = reader.read()
-print("-------++++++---------")
-print('DICT from XML:')
-print(xml_dict)
-print("-------++++++---------")
-store = CuemsParser(xml_dict).parse()
-print("--------------------")
-print('Re-build object from xml:')
-print(store)
-print("--------------------")
-
-if str(script) == str(store):
-    print('original object and rebuilt object are EQUAL :)')
-else:
-    print('original object and rebuilt object are NOT equal :(')
-
-
-
-print('xxxxxxxxxxxxxxxxxxxx')
-for o in store.cuelist.contents:
-    print(type(o))
-    print(o)
-    if isinstance(o, DmxCue):
-        print('Dmx scene, universe0, channel0, value : {}'.format(o.scene.universe(0).channel(0)))
-
-"""
 # %%
