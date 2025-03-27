@@ -73,7 +73,6 @@ class CuemsParser():
         parser_class, class_string = self.get_parser_class(
             self.get_first_key(self.init_dict)
         )
-        Logger.info(f"CuemsParser class: {parser_class}, class string: {class_string}")
         return parser_class(
             init_dict = self.get_contained_dict(self.init_dict),
             class_string = class_string
@@ -105,9 +104,7 @@ class CueListParser(CuemsScriptParser):
 
     def parse(self):
         for k, v in self.init_dict.items():
-            if isinstance(v, list) or k == 'contents':
-                Logger.debug(f"Found list {k}")
-                Logger.debug(v)
+            if isinstance(v, list):
                 local_list = []
                 for cue in v:
                     parser_class, unused_class_string = self.get_parser_class(self.get_first_key(cue))
