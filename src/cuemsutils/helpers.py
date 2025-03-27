@@ -102,6 +102,9 @@ class Uuid():
     
     def __str__(self):
         return self.uuid
+    
+    def __repr__(self):
+        return self.uuid
 
     def __call__(self):
         return self.uuid
@@ -115,12 +118,7 @@ class Uuid():
             return False
 
     def __ne__(self, other):
-        if isinstance(other, Uuid):
-            return self != other
-        elif isinstance(other, str):
-            return self.uuid != other
-        else:
-            return True
+        return not self.__eq__(other)
 
     def items(self):
         return [("uuid", self.uuid)]

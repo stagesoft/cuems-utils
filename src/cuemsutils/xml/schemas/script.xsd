@@ -89,7 +89,7 @@
       <!-- Can have any other cuelists, recursively -->
       <xs:element name="CueList" type="cms:CueListType" />
       <!-- Can have any cues -->
-      <xs:element name="Cue" type="cms:CueType" />
+      <!-- <xs:element name="Cue" type="cms:CueType" /> -->
       <!-- Can be also specific type cues -->
       <xs:element name="AudioCue" type="cms:AudioCueType" />
       <xs:element name="DmxCue" type="cms:DmxCueType" />
@@ -146,13 +146,7 @@
   <!-- VIDEO -->
   <xs:complexType name="VideoCueType">
     <xs:complexContent>
-      <xs:extension base="cms:CueType">
-        <xs:sequence>
-          <!-- A video media file path which can be none -->
-          <xs:element name="Media" type="cms:MediaType" />
-          <!-- An outputs section -->
-          <xs:element name="Outputs" type="cms:OutputsType" />
-        </xs:sequence>
+      <xs:extension base="cms:MediaCueType">
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>

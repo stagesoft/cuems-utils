@@ -23,6 +23,7 @@ pip install cuemsutils
 ### v0.0.5
  - All properties of objects are lowercase (i.e. `media` and `outputs` at `MediaCue`). Camelcase used for classes, `region` is the only exception and will become deprecated on following versions.
  - User facing classes can be exported directly (e.g. `from cuemsutils.cues import AudioCue, VideoCue`)
+ - `Cue` is not longer an accepted object for script validation
 
 ### v0.0.4
  - `Logger` fixed to allow empty `extra` parameter

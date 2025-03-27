@@ -1,10 +1,10 @@
 from time import sleep
 
-from .Cue import Cue
+from .MediaCue import MediaCue
 from ..CTimecode import CTimecode
 from ..log import logged, Logger
 
-class VideoCue(Cue):
+class VideoCue(MediaCue):
     def __init__(self, init_dict = None):
         if init_dict:
             super().__init__(init_dict)
@@ -16,19 +16,15 @@ class VideoCue(Cue):
         self._start_mtc = CTimecode(framerate=25)
         self._end_mtc = CTimecode(framerate=25)
 
-    @property
-    def outputs(self):
-        return super().__getitem__('Outputs')
-
-    @outputs.setter
-    def outputs(self, outputs):
-        super().__setitem__('Outputs', outputs)
-
     def player(self, player):
         self._player = player
 
     def osc_route(self, osc_route):
         self._osc_route = osc_route
+
+    def items(self):
+        x = dict(super().items())
+        return x.items()
 
     @logged
     def video_media_loop(self, ossia, mtc):
