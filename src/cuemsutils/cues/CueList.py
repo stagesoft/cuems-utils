@@ -8,11 +8,11 @@ REQ_ITEMS = {
 
 class CueList(Cue):
     def __init__(self, init_dict = None):
-        if init_dict:
-            init_dict = ensure_items(init_dict, REQ_ITEMS)
-            super().__init__(init_dict)
+        if not init_dict:
+            init_dict = REQ_ITEMS
         else:
-            self['contents'] = []
+            init_dict = ensure_items(init_dict, REQ_ITEMS)
+        super().__init__(init_dict)
 
     @property    
     def contents(self):

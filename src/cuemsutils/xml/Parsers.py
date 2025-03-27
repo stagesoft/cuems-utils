@@ -1,5 +1,11 @@
 from ..log import Logger
-from ..helpers import strtobool
+from ..helpers import strtobool, Uuid
+
+from ..cues import *
+from ..CTimecode import CTimecode
+from ..cues.Cue import Cue
+from ..cues.MediaCue import Media, region
+
 
 PARSER_SUFFIX = 'Parser'
 GENERIC_PARSER = 'GenericParser'
@@ -19,7 +25,6 @@ class CuemsParser():
                 Logger.debug(self.init_dict)
             else:
                 self.init_dict = init_dict
-                
         except KeyError:
             self.init_dict = init_dict
             Logger.debug("No root tag found, using provided dictionary")
@@ -56,20 +61,19 @@ class CuemsParser():
         if _string in ['none', 'null', '']:
             return None
         if _string.isdigit():
-            return int(_string)            
-
-        try:
-            return strtobool(_string)
-        except ValueError:
+            return int(_string)
+        for f in [float, strtobool, Uuid]:
             try:
-                return float(_string)
+                return f(_string)
             except ValueError:
-                return _string
+                pass
+        return _string
 
     def parse(self):
         parser_class, class_string = self.get_parser_class(
             self.get_first_key(self.init_dict)
         )
+        Logger.info(f"CuemsParser class: {parser_class}, class string: {class_string}")
         return parser_class(
             init_dict = self.get_contained_dict(self.init_dict),
             class_string = class_string
@@ -101,7 +105,9 @@ class CueListParser(CuemsScriptParser):
 
     def parse(self):
         for k, v in self.init_dict.items():
-            if isinstance(v, list):
+            if isinstance(v, list) or k == 'contents':
+                Logger.debug(f"Found list {k}")
+                Logger.debug(v)
                 local_list = []
                 for cue in v:
                     parser_class, unused_class_string = self.get_parser_class(self.get_first_key(cue))
@@ -113,7 +119,6 @@ class CueListParser(CuemsScriptParser):
                 key_parser_class, key_class_string = self.get_parser_class(k)
                 if key_parser_class == GenericParser:
                     value_parser_class, value_class_string = self.get_parser_class(self.get_first_key(v))
-                
                 if value_parser_class == GenericParser:
                     self.item_clp[k] = key_parser_class(init_dict=v, class_string=key_class_string).parse()
                 else:
@@ -159,21 +164,6 @@ class GenericParser(CuemsScriptParser):
                     dict_value = self.str_to_value(dict_value)
                     self.item_gp[dict_key] = dict_value
 
-        return self.item_gp
-
-class DmxUniverseParser(GenericParser):
-    def parse(self):
-        for class_string, class_item_list in self.init_dict.items():
-            if class_string != 'id':
-                for class_item in class_item_list:
-                    parser_class, class_string = self.get_parser_class(class_string)
-                    item_obj = parser_class(init_dict=class_item, class_string=class_string).parse()
-                    self.item_gp.set_channel(class_item['id'], item_obj)
-        return self.item_gp
-
-class DmxChannelParser(GenericParser):
-    def parse(self):
-        self.item_gp.value = self.init_dict['&']
         return self.item_gp
 
 class GenericSubObjectParser(GenericParser):

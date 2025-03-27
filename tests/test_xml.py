@@ -28,7 +28,17 @@ def create_dummy_script():
                 'in_time': None,
                 'out_time': None,
             })}
-        }),
+        })
+    })
+    c3 = VideoCue({
+        'id': None,
+        'loop': 0,
+        'media': Media({
+            'file_name': 'file_video.ext',
+            'regions' : {'region': region({
+                'id': 0, 'loop': 2, 'in_time': None, 'out_time': None
+            })}
+        })
     })
     #ac.outputs = {'stereo': 1}
     #d_c = DmxCue(time=23, scene={0:{0:10, 1:50}, 1:{20:23, 21:255}, 2:{5:10, 6:23, 7:125, 8:200}}, init_dict={'loop' : 3})
@@ -37,11 +47,12 @@ def create_dummy_script():
     custom_cue_list = CueList({'contents': [c]})
     custom_cue_list.append(c2)
     custom_cue_list.append(ac)
+    custom_cue_list.append(c3)
     
     script = CuemsScript({'cuelist': custom_cue_list})
     script.name = "Test Script"
     script.description = "This is a test script"
-    return script, [c, c2, ac]
+    return script, [c, c2, ac, c3]
 
 def test_cues():
     script, cues = create_dummy_script()
@@ -80,7 +91,7 @@ def test_XmlBuilder():
     assert type(cuelist.find('contents')) == Element
 
     contents = cuelist.find('contents')
-    assert contents.__len__() == 3
+    assert contents.__len__() == 4
     assert contents[0].tag == 'ActionCue'
     assert contents[0].find('id').text == '33'
     assert contents[0].find('loop').text == '0'
@@ -91,22 +102,25 @@ def test_XmlBuilder():
     assert contents[2].find('media').find('file_name').text == 'file.ext'
     audio_media = contents[2].find('media')
     assert audio_media.find('regions').find('region').find('loop').text == '2'
+    assert contents[3].tag == 'VideoCue'
+    assert contents[3].find('media').find('file_name').text == 'file_video.ext'
+
+reloaded_script, _ = create_dummy_script()
 
 def test_XmlWriter():
-    script, _ = create_dummy_script()
     tmpfile = TMP_FILE
     writer = XmlWriter(
         schema_name = 'script',
         xmlfile = tmpfile
     )
 
-    writer.write_from_object(script)
+    writer.write_from_object(reloaded_script)
 
     assert writer.validate() == None
     assert path.isfile(tmpfile) == True
 
-def test_XmlReader():
-    script, _ = create_dummy_script()
+def test_XmlReader(caplog):
+    caplog.set_level(DEBUG)
     tmpfile = TMP_FILE
     assert path.isfile(tmpfile) == True
 
@@ -114,7 +128,15 @@ def test_XmlReader():
         schema_name = 'script',
         xmlfile = tmpfile
     )
-    stored = reader.read_to_objects()
-    # assert script == stored
+    readed = reader.read_to_objects()
+    assert type(readed) == CuemsScript
+    assert type(readed.cuelist) == CueList
+    assert type(readed.cuelist.contents) == list
+    assert len(readed.cuelist.contents) == 4
+    assert type(readed.cuelist.contents[0]) == ActionCue
+    assert type(readed.cuelist.contents[1]) == VideoCue
+    assert type(readed.cuelist.contents[2]) == AudioCue
+    assert type(readed.cuelist.contents[3]) == VideoCue
+    assert reloaded_script == readed
 
 # %%

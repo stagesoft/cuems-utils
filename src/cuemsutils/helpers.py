@@ -41,7 +41,7 @@ def extract_items(x, keys: list) -> dict:
     d = dict(x)
     return {k: d[k] for k in keys}.items()
 
-def format_timecode(self, value):
+def format_timecode(value):
         if not value or value == '':
             raise ValueError(f'Invalid timecode value {value}')
         if isinstance(value, CTimecode):
@@ -111,7 +111,7 @@ class Uuid():
 
     def __eq__(self, other):
         if isinstance(other, Uuid):
-            return self is other
+            return self.uuid == other.uuid
         elif isinstance(other, str):
             return self.uuid == other
         else:

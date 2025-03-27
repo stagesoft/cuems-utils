@@ -22,7 +22,8 @@ def get_pkg_schema(schema_name: str):
 
 class CuemsXml():
     def __init__(self, schema_name, xmlfile, namespace={'cms':'https://stagelab.coop/cuems/'}, xml_root_tag='CuemsProject'):
-        self.converter = XMLSchemaConverter # CMLCuemsConverter
+        # Needed to implement to_dict respecting array elements
+        self.converter = CMLCuemsConverter
         self.xmldata = None
 
         self.namespace = namespace
