@@ -4,12 +4,10 @@ from os import path
 from xml.etree.ElementTree import ElementTree, Element
 
 from cuemsutils.cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
-# from cuemsutils.cues.Cue import Cue
 from cuemsutils.cues.MediaCue import Media, region
 
 from cuemsutils.xml import XmlReader, XmlWriter
 from cuemsutils.xml.XmlBuilder import XmlBuilder
-from cuemsutils.xml.Parsers import CuemsParser
 
 TMP_FILE = path.dirname(__file__) + '/tmp/test_script.xml'
 
@@ -138,5 +136,50 @@ def test_XmlReader(caplog):
     assert type(readed.cuelist.contents[2]) == AudioCue
     assert type(readed.cuelist.contents[3]) == VideoCue
     assert reloaded_script == readed
+
+# def test_jsondump(caplog):
+#     from cuemsutils.log import Logger
+#     import json
+#     caplog.set_level(DEBUG)
+
+#     json_string = json.dumps(reloaded_script)
+
+#     Logger.debug(json_string)
+#     assert type(json_string) == str
+#     assert json_string != None
+
+def test_jsonload(caplog):
+    from cuemsutils.log import Logger
+    from cuemsutils.xml.Parsers import CuemsParser
+    from cuemsutils.xml.XmlReaderWriter import XmlWriter
+    import json
+
+    TMP_FILE = path.dirname(__file__) + '/tmp/test_json_script.xml'
+    
+    TEST_JSON_FILE = path.dirname(__file__) + '/tmp/sample_script.json'
+    caplog.set_level(DEBUG)
+
+    with open(TEST_JSON_FILE) as json_file:
+        data = json.load(json_file)
+        Logger.debug(data)
+        assert type(data) == dict
+        assert data['action'] == 'project_save'
+        json_script = data['value']
+        assert json_script != None
+        assert json_script['CuemsScript']['name'] == 'Prueba'
+        assert json_script['CuemsScript']['description'] == None
+        parsed = CuemsParser(json_script).parse()
+        Logger.info(f'Parsed: {parsed}')
+
+        writer = XmlWriter(
+            schema_name = 'script',
+            xmlfile = TMP_FILE
+        )
+
+        writer.write_from_object(parsed)
+
+        assert True == False
+        assert type(parsed) == CuemsScript
+
 
 # %%

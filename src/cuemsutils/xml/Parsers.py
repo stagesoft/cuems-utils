@@ -107,13 +107,26 @@ class CueListParser(CuemsScriptParser):
             if isinstance(v, list):
                 local_list = []
                 for cue in v:
+                    Logger.debug(f"Parsing cue {next(iter(cue.keys()))}")
                     parser_class, unused_class_string = self.get_parser_class(self.get_first_key(cue))
-                    item_obj = parser_class(init_dict=self.get_contained_dict(cue), class_string=self.get_first_key(cue)).parse()
+                    item_obj = parser_class(
+                        init_dict=self.get_contained_dict(cue),
+                        class_string=self.get_first_key(cue)
+                    ).parse()
+                    Logger.debug(f"Item object: {item_obj}")
                     local_list.append(item_obj)
 
                 self.item_clp['contents'] = local_list
             elif isinstance(v, dict):
+                if k in ['prewait', 'dict', 'CTimecode']:
+                    Logger.debug(f"Parsing dict {k}")
+                    Logger.debug(f"Dict value: {v}")
                 key_parser_class, key_class_string = self.get_parser_class(k)
+                if k in ['prewait', 'dict', 'CTimecode']:
+                    Logger.debug(f"CueList Key: {k}")
+                    Logger.debug(f"CueList Value: {v}")
+                    Logger.debug(f"CueList Key parser class: {key_parser_class}")
+                    Logger.debug(f"CueList Key class string: {key_class_string}")
                 if key_parser_class == GenericParser:
                     value_parser_class, value_class_string = self.get_parser_class(self.get_first_key(v))
                 if value_parser_class == GenericParser:
@@ -136,14 +149,23 @@ class GenericParser(CuemsScriptParser):
         
     def parse(self):
         if self._class == GenericDict:
+            Logger.debug("GenericDict class found, using default dict")
             self.item_gp = self.init_dict
 
         elif isinstance(self.init_dict, dict):
             for dict_key, dict_value in self.init_dict.items():
                 if isinstance (dict_value, dict):
                     key_parser_class, key_class_string = self.get_parser_class(dict_key)
+                    if dict_key in ['prewait', 'dict', 'CTimecode']:
+                        Logger.debug(f"Key: {dict_key}")
+                        Logger.debug(f"Value: {dict_value}")
+                        Logger.debug(f"Key parser class: {key_parser_class}")
+                        Logger.debug(f"Key class string: {key_class_string}")
                     if key_parser_class == GenericParser:
                         value_parser_class, value_class_string = self.get_parser_class(self.get_first_key(dict_value))
+                        if dict_key in ['prewait', 'dict', 'CTimecode']:
+                            Logger.debug(f"Value parser class: {value_parser_class}")
+                            Logger.debug(f"Value class string: {value_class_string}")
 
                     if value_parser_class == GenericParser:
                         self.item_gp[dict_key] = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
