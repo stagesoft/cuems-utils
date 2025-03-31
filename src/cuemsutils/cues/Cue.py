@@ -1,5 +1,6 @@
 from ..CTimecode import CTimecode
-from ..helpers import ensure_items, extract_items, format_timecode, new_uuid, Uuid
+from ..helpers import ensure_items, extract_items, format_timecode, new_uuid
+from ..Uuid import Uuid
 
 REQ_ITEMS = {
     'description': None,
