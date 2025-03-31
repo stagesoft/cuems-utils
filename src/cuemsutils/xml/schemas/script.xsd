@@ -174,8 +174,8 @@
     <xs:sequence>
       <xs:element name="top_left" type="cms:Coordinates" />
       <xs:element name="top_right" type="cms:Coordinates" />
-      <xs:element name="bott_left" type="cms:Coordinates" />
-      <xs:element name="bott_right" type="cms:Coordinates" />
+      <xs:element name="bottom_left" type="cms:Coordinates" />
+      <xs:element name="bottom_right" type="cms:Coordinates" />
     </xs:sequence>
   </xs:complexType>
 
