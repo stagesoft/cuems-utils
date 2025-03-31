@@ -1,5 +1,5 @@
 from .Cue import Cue
-from ..helpers import ensure_items, format_timecode
+from ..helpers import CuemsDict, ensure_items, format_timecode
 
 REQ_ITEMS = {
     'media': None,
@@ -43,7 +43,7 @@ class MediaCue(Cue):
             x[k] = self[k]
         return x.items()
 
-class Media(dict):
+class Media(CuemsDict):
     def __init__(self, init_dict = None):
         if init_dict:
             super().__init__(init_dict)
@@ -69,8 +69,8 @@ class Media(dict):
                 r = Region(r)
         super().__setitem__('regions', regions)
 
-class Region(dict):
-    def __init__(self, init_dict=None):
+class Region(CuemsDict):
+    def __init__(self, init_dict = None):
         empty_keys= {"id": "0"}
         if (init_dict):
             super().__init__(init_dict)

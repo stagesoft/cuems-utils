@@ -7,6 +7,11 @@ from .Uuid import Uuid
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
+class CuemsDict(dict):
+    """Custom dictionary class to handle cuemsutils specific items."""
+    def __json__(self):
+        return {type(self).__name__: dict(self.items())}
+
 def ensure_items(x: dict, requiered: dict) -> dict:
     """Ensure that all the items are present in a dictionary
     

@@ -100,11 +100,12 @@ def test_XmlBuilder():
     assert type(xmlscript.find('modified')) == Element
     assert xmlscript.find('created').text == xmlscript.find('modified').text
 
-    cuelist = xmlscript.find('CueList')
+    cuelist = xmlscript.find('cuelist')
     assert type(cuelist) == Element
-    assert type(cuelist.find('contents')) == Element
+    assert type(cuelist.find('CueList')) == Element
+    assert type(cuelist.find('CueList').find('contents')) == Element
 
-    contents = cuelist.find('contents')
+    contents = cuelist.find('CueList').find('contents')
     assert contents.__len__() == 4
     assert contents[0].tag == 'ActionCue'
     assert contents[0].find('id').text == '33'
@@ -144,8 +145,8 @@ def test_XmlReader(caplog):
     )
     readed = reader.read_to_objects()
     assert type(readed) == CuemsScript
+    assert type(readed.created) == str
     assert type(readed.cuelist) == CueList
-    assert type(readed.cuelist.contents) == list
     assert len(readed.cuelist.contents) == 4
     assert type(readed.cuelist.contents[0]) == ActionCue
     assert type(readed.cuelist.contents[1]) == VideoCue
@@ -215,10 +216,16 @@ def test_json_readwrite():
         json_script = data['value']
 
     parsed = CuemsParser(json_script).parse()
-    json_parsed = parsed.to_json()
 
     with open(TMP_PARSED_FILE, 'w') as json_file:
-        json_file.write(json_parsed)
+        loaded_parsed = json.dumps({'action': 'project_save', 'value': {'CuemsScript': parsed}}, indent = 4)
+        json_file.write(loaded_parsed)
+
+    with open(TMP_PARSED_FILE) as tmp_json_file:
+        tmp_data = json.load(tmp_json_file)
+        assert type(tmp_data) == dict
+        assert tmp_data['action'] == 'project_save'
+        json_parsed = tmp_data['value']
 
     assert json_script == json_parsed
 
