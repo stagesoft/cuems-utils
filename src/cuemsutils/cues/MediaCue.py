@@ -62,9 +62,14 @@ class Media(dict):
 
     @regions.setter
     def regions(self, regions):
+        if not isinstance(regions, list):
+            regions = [regions]
+        for r in regions:
+            if not isinstance(r, Region):
+                r = Region(r)
         super().__setitem__('regions', regions)
 
-class region(dict):
+class Region(dict):
     def __init__(self, init_dict=None):
         empty_keys= {"id": "0"}
         if (init_dict):

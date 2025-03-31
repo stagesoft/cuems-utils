@@ -4,7 +4,8 @@ from ..helpers import strtobool, Uuid
 from ..cues import *
 from ..CTimecode import CTimecode
 from ..cues.Cue import Cue
-from ..cues.MediaCue import Media, region
+from ..cues.MediaCue import Media, Region
+from ..cues.CueOutput import AudioCueOutput, VideoCueOutput, DmxCueOutput
 
 
 PARSER_SUFFIX = 'Parser'
@@ -113,26 +114,18 @@ class CueListParser(CuemsScriptParser):
                         init_dict=self.get_contained_dict(cue),
                         class_string=self.get_first_key(cue)
                     ).parse()
-                    Logger.debug(f"Item object: {item_obj}")
+                    Logger.debug(f"Item object of class {type(item_obj)}: {item_obj}")
                     local_list.append(item_obj)
 
                 self.item_clp['contents'] = local_list
             elif isinstance(v, dict):
-                if k in ['prewait', 'dict', 'CTimecode']:
-                    Logger.debug(f"Parsing dict {k}")
-                    Logger.debug(f"Dict value: {v}")
                 key_parser_class, key_class_string = self.get_parser_class(k)
-                if k in ['prewait', 'dict', 'CTimecode']:
-                    Logger.debug(f"CueList Key: {k}")
-                    Logger.debug(f"CueList Value: {v}")
-                    Logger.debug(f"CueList Key parser class: {key_parser_class}")
-                    Logger.debug(f"CueList Key class string: {key_class_string}")
                 if key_parser_class == GenericParser:
                     value_parser_class, value_class_string = self.get_parser_class(self.get_first_key(v))
-                if value_parser_class == GenericParser:
-                    self.item_clp[k] = key_parser_class(init_dict=v, class_string=key_class_string).parse()
-                else:
-                    self.item_clp[k] = value_parser_class(init_dict=v, class_string=value_class_string).parse()
+                    if value_parser_class == GenericParser:
+                        self.item_clp[k] = key_parser_class(init_dict=v, class_string=key_class_string).parse()
+                    else:
+                        self.item_clp[k] = value_parser_class(init_dict=v, class_string=value_class_string).parse()
 
             else:
                 v = self.str_to_value(v)
@@ -156,21 +149,25 @@ class GenericParser(CuemsScriptParser):
             for dict_key, dict_value in self.init_dict.items():
                 if isinstance (dict_value, dict):
                     key_parser_class, key_class_string = self.get_parser_class(dict_key)
-                    if dict_key in ['prewait', 'dict', 'CTimecode']:
+                    if dict_key in ['media', 'Media']:
                         Logger.debug(f"Key: {dict_key}")
                         Logger.debug(f"Value: {dict_value}")
                         Logger.debug(f"Key parser class: {key_parser_class}")
                         Logger.debug(f"Key class string: {key_class_string}")
                     if key_parser_class == GenericParser:
                         value_parser_class, value_class_string = self.get_parser_class(self.get_first_key(dict_value))
-                        if dict_key in ['prewait', 'dict', 'CTimecode']:
+                        if dict_key in ['media', 'Media']:
                             Logger.debug(f"Value parser class: {value_parser_class}")
                             Logger.debug(f"Value class string: {value_class_string}")
 
-                    if value_parser_class == GenericParser:
-                        self.item_gp[dict_key] = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
+                        if value_parser_class == GenericParser:
+                            self.item_gp[dict_key] = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
+                        else:
+                            self.item_gp[dict_key] = value_parser_class(init_dict=dict_value, class_string=value_class_string).parse()
                     else:
-                        self.item_gp[dict_key] = value_parser_class(init_dict=dict_value, class_string=value_class_string).parse()
+                        Logger.debug(f"Key: {dict_key}")
+                        Logger.debug(f"Using specific parser with value: {dict_value}")
+                        self.item_gp[dict_key] = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
                 elif isinstance(dict_value, list):
                     local_list = []
                     parser_class, class_string = self.get_parser_class(dict_key)
@@ -195,32 +192,81 @@ class CTimecodeParser(GenericParser):
         self.item_gp = self.init_dict
         return self.item_gp
 
-class OutputsParser(GenericParser):
+class CTimecodeKeyParser(GenericParser):
+    def parse(self):
+        if not self.init_dict:
+            pass
+        if not "CTimecode" in self.init_dict.keys():
+            raise KeyError("CTimecode key not found in dictionary")
+        self.item_gp = CTimecode(self.init_dict["CTimecode"])
+        return self.item_gp
+
+class offsetParser(CTimecodeKeyParser):
+    pass
+
+class prewaitParser(CTimecodeKeyParser):
+    pass
+
+class postwaitParser(CTimecodeKeyParser):
+    pass
+
+class in_timeParser(CTimecodeKeyParser):
+    pass
+
+class out_timeParser(CTimecodeKeyParser):
+    pass
+
+class mediaParser(GenericParser):
+    def parse(self):
+        if not self.init_dict:
+            pass
+        if not "Media" in self.init_dict.keys():
+            try:
+                self.item_gp = Media(self.init_dict)
+            except:
+                raise KeyError("Media key not found in dictionary")
+        if not isinstance(self.item_gp, Media):
+            try:
+                regions = self.init_dict["Media"]["regions"]
+                if regions:
+                    parsed_regions = []
+                    for region in regions:
+                        parsed_regions.append(
+                            Region(GenericParser(self.get_contained_dict(region), "Region").parse())
+                        )
+                    self.init_dict["Media"]["regions"] = parsed_regions
+            except KeyError:
+                pass
+            self.item_gp = Media(self.init_dict["Media"])
+        return self.item_gp
+
+class outputsParser(GenericParser):
     def __init__(self, init_dict, class_string, parent_class=None):
         self.init_dict = init_dict
 
     def parse(self):
+        Logger.debug("Parsing Outputs")
         for dict_key, dict_value in self.init_dict.items():
             self._class = self.get_class(dict_key)
             self.item_op = self._class(dict_value)
 
         return self.item_op
 
-class regionsParser(GenericParser):
-    def __init__(self, init_dict, class_string, parent_class=None):
-        self.init_dict = init_dict
-        self.class_string = class_string
-        self._class = self.get_class(class_string)
-        self.item_rp = self._class()
+# class regionsParser(GenericParser):
+#     def __init__(self, init_dict, class_string, parent_class=None):
+#         self.init_dict = init_dict
+#         self.class_string = class_string
+#         self._class = self.get_class(class_string)
+#         self.item_rp = self._class()
         
-    def parse(self):
-        for dict_key, dict_value in self.init_dict.items():
-            key_parser_class, key_class_string = self.get_parser_class(dict_key)
-            self.item_rp = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
+#     def parse(self):
+#         for dict_key, dict_value in self.init_dict.items():
+#             key_parser_class, key_class_string = self.get_parser_class(dict_key)
+#             self.item_rp = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
 
-        return self.item_rp
+#         return self.item_rp
 
-class CuemsNodeDictParser(OutputsParser):
+class CuemsNodeDictParser(GenericParser):
     def parse(self):
         self.item_rp = list()
         for item in self.init_dict:

@@ -1,0 +1,174 @@
+{
+    "action": "project_save",
+    "value": {
+        "CuemsScript": {
+            "uuid": "91e6b65c-095b-41f0-99aa-0242ac110002",
+            "name": "Prueba",
+            "description": null,
+            "created": "2025-03-25T09:28:54.297580+00:00",
+            "modified": "2025-03-25T10:44:15.317247+00:00",
+            "CueList": {
+                "uuid": "91e36c40-095b-41f0-a2a5-ad2131162efc",
+                "id": "0",
+                "name": "root",
+                "description": null,
+                "enabled": "True",
+                "loaded": "False",
+                "timecode": "False",
+                "offset": null,
+                "loop": 1,
+                "prewait": {
+                    "CTimecode": "00:00:00.000"
+                },
+                "postwait": {
+                    "CTimecode": "00:00:00.000"
+                },
+                "post_go": "pause",
+                "target": null,
+                "UI_properties": null,
+                "contents": [
+                    {
+                        "AudioCue": {
+                            "uuid": "e4ea9c60-095b-41f0-b8a5-c51263c224e4",
+                            "id": null,
+                            "name": "New AudioCue",
+                            "description": null,
+                            "enabled": "True",
+                            "loaded": "False",
+                            "timecode": "False",
+                            "offset": null,
+                            "loop": 1,
+                            "prewait": {
+                                "CTimecode": "00:00:05.000"
+                            },
+                            "postwait": {
+                                "CTimecode": "00:00:01.000"
+                            },
+                            "post_go": "go",
+                            "target": null,
+                            "UI_properties": {
+                                "timeline_position": {
+                                    "x": 0,
+                                    "y": 0
+                                },
+                                "warning": 0
+                            },
+                            "media": {
+                                "Media": {
+                                    "file_name": "cembalo_1.wav",
+                                    "regions": [
+                                        {
+                                            "Region": {
+                                                "id": 0,
+                                                "loop": 1,
+                                                "in_time": {
+                                                    "CTimecode": "00:00:00.000"
+                                                },
+                                                "out_time": {
+                                                    "CTimecode": "00:00:00.000"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "master_vol": 80,
+                            "outputs": [
+                                {
+                                    "AudioCueOutput": {
+                                        "output_name": "0367f391-ebf4-48b2-9f26-000000000001_system:playback_1",
+                                        "output_vol": 80,
+                                        "channels": [
+                                            {
+                                                "channel": {
+                                                    "channel_num": 0,
+                                                    "channel_vol": 80
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "VideoCue": {
+                            "uuid": "0438d500-095c-41f0-b8a5-c51263c224e4",
+                            "id": null,
+                            "name": "New VideoCue",
+                            "description": null,
+                            "enabled": "True",
+                            "loaded": "False",
+                            "timecode": "False",
+                            "offset": null,
+                            "loop": 1,
+                            "prewait": {
+                                "CTimecode": "00:00:00.000"
+                            },
+                            "postwait": {
+                                "CTimecode": "00:00:00.000"
+                            },
+                            "post_go": "pause",
+                            "target": null,
+                            "UI_properties": {
+                                "timeline_position": {
+                                    "x": -25,
+                                    "y": 0
+                                },
+                                "warning": 0
+                            },
+                            "media": {
+                                "Media": {
+                                    "file_name": "black.mov",
+                                    "regions": [
+                                        {
+                                            "Region": {
+                                                "id": 0,
+                                                "loop": 1,
+                                                "in_time": {
+                                                    "CTimecode": "00:00:00.000"
+                                                },
+                                                "out_time": {
+                                                    "CTimecode": "00:00:00.000"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "outputs": [
+                                {
+                                    "VideoCueOutput": {
+                                        "output_name": "0367f391-ebf4-48b2-9f26-000000000001_0",
+                                        "output_geometry": {
+                                            "x_scale": 0,
+                                            "y_scale": 0,
+                                            "corners": {
+                                                "top_left": {
+                                                    "x": 0,
+                                                    "y": 0
+                                                },
+                                                "top_right": {
+                                                    "x": 0,
+                                                    "y": 0
+                                                },
+                                                "bott_left": {
+                                                    "x": 0,
+                                                    "y": 0
+                                                },
+                                                "bott_right": {
+                                                    "x": 0,
+                                                    "y": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

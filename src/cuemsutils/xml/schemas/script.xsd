@@ -302,7 +302,7 @@
 
   <xs:complexType name="RegionsType">
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
-      <xs:element name="region" type="cms:RegionType" />
+      <xs:element name="Region" type="cms:RegionType" />
     </xs:sequence>
   </xs:complexType>
 
