@@ -3,9 +3,9 @@ from ..helpers import strtobool, Uuid
 
 from ..cues import *
 from ..CTimecode import CTimecode
-from ..cues.Cue import Cue
 from ..cues.MediaCue import Media, region
-
+from ..cues.CueOutput import AudioCueOutput, VideoCueOutput
+from ..cues.Cue import UI_properties
 
 PARSER_SUFFIX = 'Parser'
 GENERIC_PARSER = 'GenericParser'
@@ -68,6 +68,7 @@ class CuemsParser():
             except ValueError:
                 pass
         return _string
+    
 
     def parse(self):
         parser_class, class_string = self.get_parser_class(
@@ -113,20 +114,13 @@ class CueListParser(CuemsScriptParser):
                         init_dict=self.get_contained_dict(cue),
                         class_string=self.get_first_key(cue)
                     ).parse()
-                    Logger.debug(f"Item object: {item_obj}")
                     local_list.append(item_obj)
 
                 self.item_clp['contents'] = local_list
             elif isinstance(v, dict):
-                if k in ['prewait', 'dict', 'CTimecode']:
-                    Logger.debug(f"Parsing dict {k}")
-                    Logger.debug(f"Dict value: {v}")
+
                 key_parser_class, key_class_string = self.get_parser_class(k)
-                if k in ['prewait', 'dict', 'CTimecode']:
-                    Logger.debug(f"CueList Key: {k}")
-                    Logger.debug(f"CueList Value: {v}")
-                    Logger.debug(f"CueList Key parser class: {key_parser_class}")
-                    Logger.debug(f"CueList Key class string: {key_class_string}")
+       
                 if key_parser_class == GenericParser:
                     value_parser_class, value_class_string = self.get_parser_class(self.get_first_key(v))
                 if value_parser_class == GenericParser:
@@ -137,7 +131,6 @@ class CueListParser(CuemsScriptParser):
             else:
                 v = self.str_to_value(v)
                 self.item_clp[k] = v
-                
         return self.item_clp
 
 class GenericParser(CuemsScriptParser): 
@@ -148,6 +141,7 @@ class GenericParser(CuemsScriptParser):
         self.item_gp = self._class()
         
     def parse(self):
+        Logger.debug(f"Parsing {self.class_string} with GenericParser")
         if self._class == GenericDict:
             Logger.debug("GenericDict class found, using default dict")
             self.item_gp = self.init_dict
@@ -156,21 +150,14 @@ class GenericParser(CuemsScriptParser):
             for dict_key, dict_value in self.init_dict.items():
                 if isinstance (dict_value, dict):
                     key_parser_class, key_class_string = self.get_parser_class(dict_key)
-                    if dict_key in ['prewait', 'dict', 'CTimecode']:
-                        Logger.debug(f"Key: {dict_key}")
-                        Logger.debug(f"Value: {dict_value}")
-                        Logger.debug(f"Key parser class: {key_parser_class}")
-                        Logger.debug(f"Key class string: {key_class_string}")
+                  
                     if key_parser_class == GenericParser:
                         value_parser_class, value_class_string = self.get_parser_class(self.get_first_key(dict_value))
-                        if dict_key in ['prewait', 'dict', 'CTimecode']:
-                            Logger.debug(f"Value parser class: {value_parser_class}")
-                            Logger.debug(f"Value class string: {value_class_string}")
 
-                    if value_parser_class == GenericParser:
-                        self.item_gp[dict_key] = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
-                    else:
-                        self.item_gp[dict_key] = value_parser_class(init_dict=dict_value, class_string=value_class_string).parse()
+                        if value_parser_class == GenericParser:
+                            self.item_gp[dict_key] = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
+                        else:
+                            self.item_gp[dict_key] = value_parser_class(init_dict=dict_value, class_string=value_class_string).parse()
                 elif isinstance(dict_value, list):
                     local_list = []
                     parser_class, class_string = self.get_parser_class(dict_key)
@@ -182,13 +169,14 @@ class GenericParser(CuemsScriptParser):
                 else:
                     dict_value = self.str_to_value(dict_value)
                     self.item_gp[dict_key] = dict_value
-
         return self.item_gp
 
 class GenericSubObjectParser(GenericParser):
     def parse(self):
         self.item_gp = self._class(self.init_dict)
         return self.item_gp
+    
+
 
 class CTimecodeParser(GenericParser):  
     def parse(self):
