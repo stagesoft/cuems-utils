@@ -3,11 +3,11 @@ from logging import DEBUG
 from os import path
 from xml.etree.ElementTree import ElementTree, Element
 
-from cuemsutils.cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
-from cuemsutils.cues.MediaCue import Media, Region
+from src.cuemsutils.cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
+from src.cuemsutils.cues.MediaCue import Media, Region
 
-from cuemsutils.xml import XmlReader, XmlWriter
-from cuemsutils.xml.XmlBuilder import XmlBuilder
+from src.cuemsutils.xml import XmlReader, XmlWriter
+from src.cuemsutils.xml.XmlBuilder import XmlBuilder
 
 TMP_FILE = path.dirname(__file__) + '/tmp/test_script.xml'
 
@@ -159,8 +159,8 @@ TMP_JSON_FILE = path.dirname(__file__) + '/tmp/test_json_script.xml'
 
 def test_jsonload():
     ## ARRANGE
-    from cuemsutils.xml.Parsers import CuemsParser
-    from cuemsutils.xml.XmlReaderWriter import XmlWriter
+    from src.cuemsutils.xml.Parsers import CuemsParser
+    from src.cuemsutils.xml.XmlReaderWriter import XmlWriter
     import json
 
     with open(TEST_JSON_FILE) as json_file:
@@ -185,7 +185,6 @@ def test_jsonload():
     assert type(parsed) == CuemsScript
 
 def test_json_dump():
-    from cuemsutils.log import Logger
     import json
 
     json_string = json.dumps(reloaded_script)
@@ -203,8 +202,7 @@ def test_json_dump():
 
 def test_json_readwrite():
     ## ARRANGE
-    from cuemsutils.xml.Parsers import CuemsParser
-    from cuemsutils.xml.XmlReaderWriter import XmlWriter
+    from src.cuemsutils.xml.Parsers import CuemsParser
     import json
 
     TMP_PARSED_FILE = path.dirname(__file__) + '/tmp/test_script.json'

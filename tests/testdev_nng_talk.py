@@ -1,5 +1,5 @@
 import asyncio
-from cuemsutils.ComunicatorServices import Comunicator
+from src.cuemsutils.ComunicatorServices import Comunicator
 
 address = "ipc:///tmp/libmtcmaster.sock"
 command = {'cmd': 'play'}
