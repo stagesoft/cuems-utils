@@ -161,6 +161,8 @@ def test_jsonload(caplog):
     ## ARRANGE
     from src.cuemsutils.xml.Parsers import CuemsParser
     from src.cuemsutils.xml.XmlReaderWriter import XmlWriter
+    from src.cuemsutils.cues import CuemsScript, CueList
+    from src.cuemsutils.CTimecode import CTimecode
     import json
 
     caplog.set_level(INFO)
@@ -185,22 +187,26 @@ def test_jsonload(caplog):
     assert json_script['CuemsScript']['name'] == 'Prueba'
     assert json_script['CuemsScript']['description'] == None
     assert type(parsed) == CuemsScript
+    assert type(parsed.cuelist) == CueList
+    assert len(parsed.cuelist.contents) == 2
+    assert parsed.cuelist.offset == None
+    assert type(parsed.cuelist.postwait) == CTimecode
+    assert type(parsed.cuelist.prewait) == CTimecode
 
 def test_json_dump():
     import json
 
     json_string = json.dumps(reloaded_script)
-
     json_string = '{"CuemsScript": ' + json_string + '}'
+    json_self_str = reloaded_script.to_json()
 
     assert json_string != None
     assert type(json_string) == str
 
-    json_self_str = reloaded_script.to_json()
     assert json_self_str != None
     assert type(json_self_str) == str
-    assert json_string == json_self_str
 
+    assert json_string == json_self_str
 
 def test_json_readwrite(caplog):
     ## ARRANGE

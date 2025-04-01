@@ -153,7 +153,8 @@ class CTimecode(Timecode):
         yield ('timecode', self.__str__())
         yield ('framerate', self.framerate)
     
-
+    def items(self):
+        return self.__json__()
 
 class CTimecodeError(Exception):
     """Raised when an error occurred in timecode calculation
