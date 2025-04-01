@@ -149,10 +149,10 @@ class GenericParser(CuemsScriptParser):
         self.item_gp = self._class()
         
     def parse(self):
+        Logger.info(self.init_dict)
         if self._class == GenericDict:
             Logger.debug("GenericDict class found, using default dict")
             self.item_gp = self.init_dict
-
         elif isinstance(self.init_dict, dict):
             for dict_key, dict_value in self.init_dict.items():
                 if isinstance (dict_value, dict):

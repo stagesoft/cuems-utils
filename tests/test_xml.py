@@ -1,5 +1,5 @@
 '''Integration test for the XML Builder and Parser classes'''
-from logging import DEBUG
+from logging import DEBUG, INFO
 from os import path
 from xml.etree.ElementTree import ElementTree, Element
 
@@ -157,11 +157,13 @@ def test_XmlReader(caplog):
 TEST_JSON_FILE = path.dirname(__file__) + '/data/sample_script.json'
 TMP_JSON_FILE = path.dirname(__file__) + '/tmp/test_json_script.xml'
 
-def test_jsonload():
+def test_jsonload(caplog):
     ## ARRANGE
     from src.cuemsutils.xml.Parsers import CuemsParser
     from src.cuemsutils.xml.XmlReaderWriter import XmlWriter
     import json
+
+    caplog.set_level(INFO)
 
     with open(TEST_JSON_FILE) as json_file:
         data = json.load(json_file)
@@ -200,11 +202,12 @@ def test_json_dump():
     assert json_string == json_self_str
 
 
-def test_json_readwrite():
+def test_json_readwrite(caplog):
     ## ARRANGE
     from src.cuemsutils.xml.Parsers import CuemsParser
     import json
 
+    caplog.set_level(DEBUG)
     TMP_PARSED_FILE = path.dirname(__file__) + '/tmp/test_script.json'
 
     with open(TEST_JSON_FILE) as json_file:
