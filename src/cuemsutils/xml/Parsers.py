@@ -36,7 +36,7 @@ class CuemsParser():
             parser_class = (globals()[parser_name], class_string)
         except KeyError:
             Logger.debug(
-                f"Could not find class {class_string}, reverting to generic parser class"
+                f"Could not find class {parser_name}, reverting to generic parser class"
             )
             parser_class = (globals()[GENERIC_PARSER], class_string)
         return parser_class
@@ -192,7 +192,8 @@ class GenericSubObjectParser(GenericParser):
 
 class CTimecodeParser(GenericParser):  
     def parse(self):
-        self.item_gp = self.init_dict
+        for dict_key, dict_value in self.init_dict.items():
+            self.item_gp = self._class(dict_value)
         return self.item_gp
 
 class OutputsParser(GenericParser):
@@ -229,6 +230,14 @@ class CuemsNodeDictParser(OutputsParser):
                 self.item_rp.append(key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()) 
 
         return self.item_rp
+
+class AudioCueOutputParser(OutputsParser):
+    pass
+
+class VideoCueOutputParser(OutputsParser):
+    pass
+class DmxCueOutputParser(OutputsParser):
+    pass
 
 class NoneTypeParser():
     def __init__(self, init_dict, class_string):
