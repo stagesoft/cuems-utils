@@ -4,9 +4,9 @@ from src.cuemsutils.cues.Cue import Cue
 
 def test_simple_cuelist():
     ## Arrange
-    c = Cue({'id': 33, 'loop': False})
-    c2 = Cue({'id': None, 'loop': False})
-    ac = AudioCue({'id': 45, 'loop': True, 'media': 'file.ext', 'master_vol': 66} )
+    c = Cue({'loop': False})
+    c2 = Cue({'loop': False})
+    ac = AudioCue({'loop': True, 'media': 'file.ext', 'master_vol': 66} )
     
     ## Act
     custom_cue_list = CueList({'contents': [c]})
@@ -23,8 +23,8 @@ def test_simple_cuelist():
 
 def test_cuelist_errors():
     ## Arrange
-    c = Cue({'id': 33, 'loop': False})
-    c2 = {'id': None, 'loop': False}
+    c = Cue({'loop': False})
+    c2 = {'loop': False}
 
     ## Act
     custom_cue_list = CueList({'contents': [c]})

@@ -17,17 +17,17 @@ class AudioCue(MediaCue):
         self._player = None
         self._osc_route = None
 
-    @property
-    def master_vol(self):
+    def get_master_vol(self):
         return super().__getitem__('master_vol')
 
-    @master_vol.setter
-    def master_vol(self, master_vol):
+    def set_master_vol(self, master_vol):
         super().__setitem__('master_vol', master_vol)
+
+    master_vol = property(get_master_vol, set_master_vol)
 
     def items(self):
         x = dict(super().items())
-        for k in REQ_ITEMS.keys():
+        for k in sorted(REQ_ITEMS.keys()):
             x[k] = self[k]
         return x.items()
 
