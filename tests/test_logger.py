@@ -1,5 +1,5 @@
 '''Test logging functions.'''
-from cuemsutils.log import logged, Logger
+from src.cuemsutils.log import logged, Logger
 from logging import DEBUG
 
 @logged
@@ -97,20 +97,21 @@ def test_syslog():
     assert result_hello == "Hello, World!"
     assert result_error is None
 
-    syslog = syslog_to_tempfile(rec_n = 6)
-    assert len(syslog) == 6
-    syslog_split = [i.split(")-(") for i in syslog]
+    if os.path.exists(JOURNAL_FILE):
+        syslog = syslog_to_tempfile(rec_n = 6)
+        assert len(syslog) == 6
+        syslog_split = [i.split(")-(") for i in syslog]
 
-    assert syslog_split[0][2] == "tests.test_logger:test_syslog:hello_with_arg)> Call recieved\n"
-    assert syslog_split[1][2] == "tests.test_logger:test_syslog:hello_with_arg)> Using args: ('World',) and kwargs: {}\n"
-    assert syslog_split[2][2] == "tests.test_logger:test_syslog:hello_with_arg)> Finished with result: Hello, World!\n"
-    assert syslog_split[3][2] == "tests.test_logger:test_syslog:error_func)> Call recieved\n"
-    assert syslog_split[4][2] == "tests.test_logger:test_syslog:error_func)> Using args: () and kwargs: {}\n"
-    assert syslog_split[5][2] == "tests.test_logger:test_syslog:error_func)> Error occurred: An error occurred.\n"
+        assert syslog_split[0][2] == "tests.test_logger:test_syslog:hello_with_arg)> Call recieved\n"
+        assert syslog_split[1][2] == "tests.test_logger:test_syslog:hello_with_arg)> Using args: ('World',) and kwargs: {}\n"
+        assert syslog_split[2][2] == "tests.test_logger:test_syslog:hello_with_arg)> Finished with result: Hello, World!\n"
+        assert syslog_split[3][2] == "tests.test_logger:test_syslog:error_func)> Call recieved\n"
+        assert syslog_split[4][2] == "tests.test_logger:test_syslog:error_func)> Using args: () and kwargs: {}\n"
+        assert syslog_split[5][2] == "tests.test_logger:test_syslog:error_func)> Error occurred: An error occurred.\n"
 
-    for i in range(6):
-        x = syslog_split[i][0]
-        assert x.split("\t")[1][:15] == "FormitGo (PID: "
+        for i in range(6):
+            x = syslog_split[i][0]
+            assert x.split("\t")[1][:15] == "FormitGo (PID: "
 
 def test_Logger(caplog):
     """Test that the Logger class works."""

@@ -1,13 +1,49 @@
 """Set of helper functions for the cuemsutils package."""
 
 from datetime import datetime
-from re import match
-from uuid import uuid4
 
 from .CTimecode import CTimecode
+from .Uuid import Uuid
+
+from xml.etree.ElementTree import Element, SubElement
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
-UUID4_REGEX = r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+
+class CuemsDict(dict):
+    """Custom dictionary class to handle cuemsutils specific items."""
+    def __json__(self):
+        return {type(self).__name__: dict(self.items())}
+
+    def build(self, parent: Element):
+        build_xml_dict(self, parent)
+
+def to_cuemsdict(x: dict) -> CuemsDict:
+    out = CuemsDict({})
+    for k,v in x.items():
+        if isinstance(v, dict):
+            out.update({k: to_cuemsdict(v)})
+        else:
+            out.update({k: v})
+    return out
+
+def build_xml_dict(x, parent: Element) -> None:
+    """Build an xml element from a dictionary"""
+    if not isinstance(x, dict):
+        raise AttributeError(f"Invalid type {type(x)}. Expected dict.")
+    if not isinstance(parent, Element):
+        raise AttributeError(f"Invalid type {type(parent)}. Expected ElementTree.")
+    for k, v in x.items():
+        if isinstance(v, list):
+            for item in v:
+                if hasattr(item, 'build'):
+                    item.build(parent)
+                else:
+                    SubElement(parent, k, {'text': str(item)})
+        elif hasattr(v, 'build'):
+            s = SubElement(parent, k)
+            v.build(s)
+        else:
+            SubElement(parent, k).text = str(v)
 
 def ensure_items(x: dict, requiered: dict) -> dict:
     """Ensure that all the items are present in a dictionary
@@ -84,47 +120,3 @@ def strtobool(val: str) -> bool:
         return False
     else:
         raise ValueError(f'Invalid truth value {val}')
-
-class Uuid():
-    """A class to interact with unique identifiers.
-        
-        Comparisions should be made based on memory allocation.
-
-        Calling or printing the instance will return the uuid4 string.
-    """
-    def __init__(self, uuid: str = None):
-        if not uuid:
-            self.uuid = str(uuid4())
-        else:
-            self.uuid = str(uuid)
-        if not self.check():
-            raise ValueError(f'uuid {uuid} is not valid')
-    
-    def __str__(self):
-        return self.uuid
-    
-    def __repr__(self):
-        return self.uuid
-
-    def __call__(self):
-        return self.uuid
-
-    def __eq__(self, other):
-        if isinstance(other, Uuid):
-            return self.uuid == other.uuid
-        elif isinstance(other, str):
-            return self.uuid == other
-        else:
-            return False
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def items(self):
-        return [("uuid", self.uuid)]
-    
-    def check(self):
-        m = match(UUID4_REGEX, self.uuid)
-        if m:
-            return m.span() == (0, 36)
-        return False

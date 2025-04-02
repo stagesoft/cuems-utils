@@ -30,7 +30,7 @@
               <xs:element name="created" type="cms:DateType" />
               <xs:element name="modified" type="cms:DateType" />
               <!-- The root cuelist of our project, mainly a cuelist at the root -->
-              <xs:element name="CueList" type="cms:CueListType" />
+              <xs:element name="cuelist" type="cms:CueListRequiredType" />
             </xs:all>
             <xs:assert test="modified &gt;= created" />
           </xs:complexType>
@@ -68,7 +68,7 @@
       <!-- Its own uuid -->
       <!-- <xs:element name="ui_properties" type="cms:UuidType" /> -->
       <xs:element name="uuid" type="cms:UuidType" />
-      <!-- <xs:element name="ui_properties" type="cms:UiPropertiesType" /> -->
+      <xs:element name="ui_properties" type="cms:UiPropertiesType" />
     </xs:sequence>
   </xs:complexType>
 
@@ -82,6 +82,13 @@
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="CueListRequiredType">
+    <xs:choice minOccurs="1" maxOccurs="1">
+      <!-- Must have one and only one CueList -->
+      <xs:element name="CueList" type="cms:CueListType" />
+    </xs:choice>
   </xs:complexType>
 
   <xs:complexType name="CueListContentsType">
@@ -174,8 +181,8 @@
     <xs:sequence>
       <xs:element name="top_left" type="cms:Coordinates" />
       <xs:element name="top_right" type="cms:Coordinates" />
-      <xs:element name="bott_left" type="cms:Coordinates" />
-      <xs:element name="bott_right" type="cms:Coordinates" />
+      <xs:element name="bottom_left" type="cms:Coordinates" />
+      <xs:element name="bottom_right" type="cms:Coordinates" />
     </xs:sequence>
   </xs:complexType>
 
@@ -302,7 +309,7 @@
 
   <xs:complexType name="RegionsType">
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
-      <xs:element name="region" type="cms:RegionType" />
+      <xs:element name="Region" type="cms:RegionType" />
     </xs:sequence>
   </xs:complexType>
 

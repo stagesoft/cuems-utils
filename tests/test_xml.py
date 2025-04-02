@@ -1,31 +1,45 @@
 '''Integration test for the XML Builder and Parser classes'''
-from logging import DEBUG
+from logging import DEBUG, INFO
 from os import path
 from xml.etree.ElementTree import ElementTree, Element
 
-from cuemsutils.cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
-from cuemsutils.cues.MediaCue import Media, region
+from src.cuemsutils.cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
+from src.cuemsutils.cues.MediaCue import Media, Region
 
-from cuemsutils.xml import XmlReader, XmlWriter
-from cuemsutils.xml.XmlBuilder import XmlBuilder
+from src.cuemsutils.xml import XmlReader, XmlWriter
+from src.cuemsutils.xml.XmlBuilder import XmlBuilder
 
 TMP_FILE = path.dirname(__file__) + '/tmp/test_script.xml'
 
 def create_dummy_script():
     target_uuid = '1f301cf8-dd03-4b40-ac17-ef0e5e7988be'
     c = ActionCue({'id': 33, 'loop': 0, 'action_target': target_uuid, 'action_type': 'play'})
-    c2 = VideoCue({'id': None, 'loop': 0, 'uuid': target_uuid})
+    c2 = VideoCue({
+        'id': None,
+        'loop': 0,
+        'media': Media({
+            'file_name': 'file_video.ext',
+            'regions' : [
+                Region({
+                    'id': 0, 'loop': 2, 'in_time': None, 'out_time': None
+                })
+            ]
+        }),
+        'uuid': target_uuid
+    })
     ac = AudioCue({
         'id': 45,
         'master_vol': 66,
         'media': Media({
             'file_name': 'file.ext',
-            'regions': {'region': region({
-                'id': 0,
-                'loop': 2,
-                'in_time': None,
-                'out_time': None,
-            })}
+            'regions': [
+                Region({
+                    'id': 0,
+                    'loop': 2,
+                    'in_time': None,
+                    'out_time': None
+                })
+            ]
         })
     })
     c3 = VideoCue({
@@ -33,9 +47,11 @@ def create_dummy_script():
         'loop': 0,
         'media': Media({
             'file_name': 'file_video.ext',
-            'regions' : {'region': region({
-                'id': 0, 'loop': 2, 'in_time': None, 'out_time': None
-            })}
+            'regions' : [
+                Region({
+                    'id': 0, 'loop': 2, 'in_time': None, 'out_time': None
+                })
+            ]
         })
     })
     #ac.outputs = {'stereo': 1}
@@ -84,11 +100,12 @@ def test_XmlBuilder():
     assert type(xmlscript.find('modified')) == Element
     assert xmlscript.find('created').text == xmlscript.find('modified').text
 
-    cuelist = xmlscript.find('CueList')
+    cuelist = xmlscript.find('cuelist')
     assert type(cuelist) == Element
-    assert type(cuelist.find('contents')) == Element
+    assert type(cuelist.find('CueList')) == Element
+    assert type(cuelist.find('CueList').find('contents')) == Element
 
-    contents = cuelist.find('contents')
+    contents = cuelist.find('CueList').find('contents')
     assert contents.__len__() == 4
     assert contents[0].tag == 'ActionCue'
     assert contents[0].find('id').text == '33'
@@ -99,7 +116,7 @@ def test_XmlBuilder():
     assert contents[2].find('master_vol').text == '66'
     assert contents[2].find('media').find('file_name').text == 'file.ext'
     audio_media = contents[2].find('media')
-    assert audio_media.find('regions').find('region').find('loop').text == '2'
+    assert audio_media.find('regions').find('Region').find('loop').text == '2'
     assert contents[3].tag == 'VideoCue'
     assert contents[3].find('media').find('file_name').text == 'file_video.ext'
 
@@ -128,8 +145,8 @@ def test_XmlReader(caplog):
     )
     readed = reader.read_to_objects()
     assert type(readed) == CuemsScript
+    assert type(readed.created) == str
     assert type(readed.cuelist) == CueList
-    assert type(readed.cuelist.contents) == list
     assert len(readed.cuelist.contents) == 4
     assert type(readed.cuelist.contents[0]) == ActionCue
     assert type(readed.cuelist.contents[1]) == VideoCue
@@ -137,49 +154,86 @@ def test_XmlReader(caplog):
     assert type(readed.cuelist.contents[3]) == VideoCue
     assert reloaded_script == readed
 
-# def test_jsondump(caplog):
-#     from cuemsutils.log import Logger
-#     import json
-#     caplog.set_level(DEBUG)
-
-#     json_string = json.dumps(reloaded_script)
-
-#     Logger.debug(json_string)
-#     assert type(json_string) == str
-#     assert json_string != None
+TEST_JSON_FILE = path.dirname(__file__) + '/data/sample_script.json'
+TMP_JSON_FILE = path.dirname(__file__) + '/tmp/test_json_script.xml'
 
 def test_jsonload(caplog):
-    from cuemsutils.log import Logger
-    from cuemsutils.xml.Parsers import CuemsParser
-    from cuemsutils.xml.XmlReaderWriter import XmlWriter
+    ## ARRANGE
+    from src.cuemsutils.xml.Parsers import CuemsParser
+    from src.cuemsutils.xml.XmlReaderWriter import XmlWriter
+    from src.cuemsutils.cues import CuemsScript, CueList
+    from src.cuemsutils.CTimecode import CTimecode
     import json
 
-    TMP_FILE = path.dirname(__file__) + '/tmp/test_json_script.xml'
-    
-    TEST_JSON_FILE = path.dirname(__file__) + '/tmp/sample_script.json'
-    caplog.set_level(DEBUG)
+    caplog.set_level(INFO)
 
     with open(TEST_JSON_FILE) as json_file:
         data = json.load(json_file)
-        Logger.debug(data)
         assert type(data) == dict
         assert data['action'] == 'project_save'
         json_script = data['value']
-        assert json_script != None
-        assert json_script['CuemsScript']['name'] == 'Prueba'
-        assert json_script['CuemsScript']['description'] == None
-        parsed = CuemsParser(json_script).parse()
-        Logger.info(f'Parsed: {parsed}')
 
-        writer = XmlWriter(
-            schema_name = 'script',
-            xmlfile = TMP_FILE
-        )
+    ## ACT
+    parsed = CuemsParser(json_script).parse()
+    writer = XmlWriter(
+        schema_name = 'script',
+        xmlfile = TMP_JSON_FILE
+    )
+    writer.write_from_object(parsed)
 
-        writer.write_from_object(parsed)
+    ## ASSERT
+    assert writer.validate() == None
+    assert json_script != None
+    assert json_script['CuemsScript']['name'] == 'Prueba'
+    assert json_script['CuemsScript']['description'] == None
+    assert type(parsed) == CuemsScript
+    assert type(parsed.cuelist) == CueList
+    assert len(parsed.cuelist.contents) == 2
+    assert parsed.cuelist.offset == None
+    assert type(parsed.cuelist.postwait) == CTimecode
+    assert type(parsed.cuelist.prewait) == CTimecode
 
-        assert True == False
-        assert type(parsed) == CuemsScript
+def test_json_dump():
+    import json
 
+    json_string = json.dumps(reloaded_script)
+    json_string = '{"CuemsScript": ' + json_string + '}'
+    json_self_str = reloaded_script.to_json()
+
+    assert json_string != None
+    assert type(json_string) == str
+
+    assert json_self_str != None
+    assert type(json_self_str) == str
+
+    assert json_string == json_self_str
+
+def test_json_readwrite(caplog):
+    ## ARRANGE
+    from src.cuemsutils.xml.Parsers import CuemsParser
+    import json
+
+    caplog.set_level(DEBUG)
+    TMP_PARSED_FILE = path.dirname(__file__) + '/tmp/test_script.json'
+
+    with open(TEST_JSON_FILE) as json_file:
+        data = json.load(json_file)
+        assert type(data) == dict
+        assert data['action'] == 'project_save'
+        json_script = data['value']
+
+    parsed = CuemsParser(json_script).parse()
+
+    with open(TMP_PARSED_FILE, 'w') as json_file:
+        loaded_parsed = json.dumps({'action': 'project_save', 'value': {'CuemsScript': parsed}}, indent = 4)
+        json_file.write(loaded_parsed)
+
+    with open(TMP_PARSED_FILE) as tmp_json_file:
+        tmp_data = json.load(tmp_json_file)
+        assert type(tmp_data) == dict
+        assert tmp_data['action'] == 'project_save'
+        json_parsed = tmp_data['value']
+
+    assert json_script == json_parsed
 
 # %%

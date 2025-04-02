@@ -1,3 +1,6 @@
+import json
+import json_fix
+
 from .CueList import CueList
 from ..log import logged
 from ..helpers import ensure_items, new_uuid, new_datetime
@@ -132,3 +135,6 @@ class CuemsScript(dict):
                         pass
                         # logger.debug("cue with no media")
         return media_dict
+
+    def to_json(self):
+        return json.dumps({'CuemsScript': self})
