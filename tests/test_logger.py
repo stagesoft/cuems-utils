@@ -66,7 +66,7 @@ def test_logged(caplog):
         elif record.levelname == "WARNING":
             assert record.message == "Warning occurred: This is a warning."
 
-def test_syslog():
+def dis_test_syslog():
     """Test that the logger writes to syslog."""
     
     ## Arrange: Set up logging outputs

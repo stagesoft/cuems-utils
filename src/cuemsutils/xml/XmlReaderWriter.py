@@ -7,7 +7,7 @@ from xml.etree.ElementTree import ElementTree
 from .CMLCuemsConverter import CMLCuemsConverter
 from .Parsers import CuemsParser
 from .XmlBuilder import XmlBuilder
-from ..log import logged
+from ..log import Logger, logged
 
 @logged
 def get_pkg_schema(schema_name: str):

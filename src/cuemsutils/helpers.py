@@ -128,3 +128,5 @@ class Uuid():
         if m:
             return m.span() == (0, 36)
         return False
+    def __json__(self):
+        return self.uuid

@@ -1,4 +1,5 @@
 from timecode import Timecode
+import json_fix
 
 #TODO: !IMPORTANT! fix milisecond parseing with more than 3 digits and leading 0's; Fix division returnig to 23:59...
 class CTimecode(Timecode):
@@ -149,6 +150,8 @@ class CTimecode(Timecode):
         yield ('timecode', self.__str__())
         yield ('framerate', self.framerate)
     
+    def __json__(self):
+        return {'CTimecode': self.__str__()}
 
 
 class CTimecodeError(Exception):

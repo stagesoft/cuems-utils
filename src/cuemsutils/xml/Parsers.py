@@ -3,7 +3,7 @@ from ..helpers import strtobool, Uuid
 
 from ..cues import *
 from ..CTimecode import CTimecode
-from ..cues.MediaCue import Media, region
+from ..cues.MediaCue import Media, Region
 from ..cues.CueOutput import AudioCueOutput, VideoCueOutput
 from ..cues.Cue import UI_properties
 
@@ -123,10 +123,10 @@ class CueListParser(CuemsScriptParser):
        
                 if key_parser_class == GenericParser:
                     value_parser_class, value_class_string = self.get_parser_class(self.get_first_key(v))
-                if value_parser_class == GenericParser:
-                    self.item_clp[k] = key_parser_class(init_dict=v, class_string=key_class_string).parse()
-                else:
-                    self.item_clp[k] = value_parser_class(init_dict=v, class_string=value_class_string).parse()
+                    if value_parser_class == GenericParser:
+                        self.item_clp[k] = key_parser_class(init_dict=v, class_string=key_class_string).parse()
+                    else:
+                        self.item_clp[k] = value_parser_class(init_dict=v, class_string=value_class_string).parse()
 
             else:
                 v = self.str_to_value(v)
@@ -195,17 +195,13 @@ class OutputsParser(GenericParser):
 
         return self.item_op
 
-class regionsParser(GenericParser):
-    def __init__(self, init_dict, class_string, parent_class=None):
-        self.init_dict = init_dict
-        self.class_string = class_string
-        self._class = self.get_class(class_string)
-        self.item_rp = self._class()
-        
+class regionsParser(CueListParser):
+
     def parse(self):
         for dict_key, dict_value in self.init_dict.items():
             key_parser_class, key_class_string = self.get_parser_class(dict_key)
             self.item_rp = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
+            Logger.debug(f"Parsed {key_class_string} with {key_parser_class}")
 
         return self.item_rp
 

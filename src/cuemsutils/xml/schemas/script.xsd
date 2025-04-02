@@ -68,7 +68,7 @@
       <!-- Its own uuid -->
       <!-- <xs:element name="ui_properties" type="cms:UuidType" /> -->
       <xs:element name="uuid" type="cms:UuidType" />
-      <!-- <xs:element name="ui_properties" type="cms:UiPropertiesType" /> -->
+      <xs:element name="UI_properties" type="cms:UiPropertiesType" />
     </xs:sequence>
   </xs:complexType>
 
@@ -103,8 +103,8 @@
       <xs:complexContent>
         <xs:extension base="cms:CueType">
           <xs:sequence>
-            <xs:element name="media" type="cms:MediaType" />
-            <xs:element name="outputs" type="cms:OutputsType" />
+            <xs:element name="Media" type="cms:MediaType" />
+            <xs:element name="Outputs" type="cms:OutputsType" />
           </xs:sequence>
         </xs:extension>
       </xs:complexContent>
@@ -302,7 +302,7 @@
 
   <xs:complexType name="RegionsType">
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
-      <xs:element name="region" type="cms:RegionType" />
+      <xs:element name="Region" type="cms:RegionType" />
     </xs:sequence>
   </xs:complexType>
 

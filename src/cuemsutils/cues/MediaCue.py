@@ -2,8 +2,8 @@ from .Cue import Cue
 from ..helpers import ensure_items, format_timecode
 
 REQ_ITEMS = {
-    'media': None,
-    'outputs': None
+    'Media': None,
+    'Outputs': None
 }
 
 REGION_REQ_ITEMS = {
@@ -21,21 +21,21 @@ class MediaCue(Cue):
     @property
     def media(self):
         # TODO: # Why capital letters? (i.e. Media not media)
-        return super().__getitem__('media')
+        return super().__getitem__('Media')
 
     @media.setter
     def media(self, media):
         if not isinstance(media, Media):
             media = Media(media)
-        super().__setitem__('media', media)
+        super().__setitem__('Media', media)
 
     @property
     def outputs(self):
-        return super().__getitem__('outputs')
+        return super().__getitem__('Outputs')
 
     @outputs.setter
     def outputs(self, outputs):
-        super().__setitem__('outputs', outputs)
+        super().__setitem__('Outputs', outputs)
 
     def items(self):
         x = dict(super().items())
@@ -64,7 +64,7 @@ class Media(dict):
     def regions(self, regions):
         super().__setitem__('regions', regions)
 
-class region(dict):
+class Region(dict):
     def __init__(self, init_dict=None):
         empty_keys= {"id": "0"}
         if (init_dict):

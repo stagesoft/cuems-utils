@@ -9,7 +9,7 @@ REQ_ITEMS = {
     'description': None,
     'created': new_datetime,
     'modified': new_datetime,
-    'cuelist': CueList
+    'CueList': CueList
 }
 
 class CuemsScript(dict):
@@ -68,14 +68,14 @@ class CuemsScript(dict):
 
     @property
     def cuelist(self):
-        return super().__getitem__('cuelist')
+        return super().__getitem__('CueList')
 
     @cuelist.setter
     def cuelist(self, cuelist):
         if isinstance(cuelist, CueList):
-            super().__setitem__('cuelist', cuelist)
+            super().__setitem__('CueList', cuelist)
         else:
-            raise ValueError(f'cuelist {cuelist} is not a CueList object')
+            raise ValueError(f'CueList {cuelist} is not a CueList object')
 
     def find(self, uuid):
         return self.cuelist.find(uuid)

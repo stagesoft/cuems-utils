@@ -15,7 +15,7 @@ REQ_ITEMS = {
     'target': None,
     'timecode': False, # TODO: Should be more specific|explicit
     'uuid': new_uuid,
-    # 'ui_properties': new_uuid,
+    'UI_properties': None,
 }
 
 class Cue(dict):
@@ -43,6 +43,7 @@ class Cue(dict):
         if isinstance(other, Cue):
             return self.uuid == other.uuid
         return False
+    
 
     @property
     def uuid(self):
