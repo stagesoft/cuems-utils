@@ -3,7 +3,7 @@ from ..helpers import strtobool, Uuid
 
 from ..cues import *
 from ..CTimecode import CTimecode
-from ..cues.MediaCue import Media, region
+from ..cues.MediaCue import Media, Region
 from ..cues.CueOutput import AudioCueOutput, VideoCueOutput
 from ..cues.Cue import Cue, UI_properties
 
@@ -92,7 +92,8 @@ class CuemsScriptParser(CuemsParser):
                 if k == 'cuelist':
                     Logger.debug(f"Parsing cuelist")
                     parser_class, class_string = self.get_parser_class('CueList')
-                    self.item_csp[k.lower()] = parser_class(
+                    # self.item_csp[k.lower()] = parser_class(
+                    self.item_csp[k] = parser_class(
                         init_dict=self.get_contained_dict(v),
                         class_string=class_string
                     ).parse()
@@ -187,29 +188,29 @@ class CTimecodeParser(GenericParser):
             self.item_gp = self._class(dict_value)
         return self.item_gp
 
-class CTimecodeKeyParser(GenericParser):
-    def parse(self):
-        if not self.init_dict:
-            pass
-        if not "CTimecode" in self.init_dict.keys():
-            raise KeyError("CTimecode key not found in dictionary")
-        self.item_gp = CTimecode(self.init_dict["CTimecode"])
-        return self.item_gp
+# class CTimecodeKeyParser(GenericParser):
+#     def parse(self):
+#         if not self.init_dict:
+#             pass
+#         if not "CTimecode" in self.init_dict.keys():
+#             raise KeyError("CTimecode key not found in dictionary")
+#         self.item_gp = CTimecode(self.init_dict["CTimecode"])
+#         return self.item_gp
 
-class offsetParser(CTimecodeKeyParser):
-    pass
+# class offsetParser(CTimecodeKeyParser):
+#     pass
 
-class prewaitParser(CTimecodeKeyParser):
-    pass
+# class prewaitParser(CTimecodeKeyParser):
+#     pass
 
-class postwaitParser(CTimecodeKeyParser):
-    pass
+# class postwaitParser(CTimecodeKeyParser):
+#     pass
 
-class in_timeParser(CTimecodeKeyParser):
-    pass
+# class in_timeParser(CTimecodeKeyParser):
+#     pass
 
-class out_timeParser(CTimecodeKeyParser):
-    pass
+# class out_timeParser(CTimecodeKeyParser):
+#     pass
 
 class mediaParser(GenericParser):
     def parse(self):
@@ -271,12 +272,12 @@ class CuemsNodeDictParser(GenericParser):
 
         return self.item_rp
 
-class AudioCueOutputParser(OutputsParser):
+class AudioCueOutputParser(outputsParser):
     pass
 
-class VideoCueOutputParser(OutputsParser):
+class VideoCueOutputParser(outputsParser):
     pass
-class DmxCueOutputParser(OutputsParser):
+class DmxCueOutputParser(outputsParser):
     pass
 
 class NoneTypeParser():
