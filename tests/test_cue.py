@@ -1,7 +1,7 @@
 """Unit testing for Cue objects generation"""
 
-from src.cuemsutils.cues.Cue import Cue
-from src.cuemsutils.helpers import new_uuid
+from cuemsutils.cues.Cue import Cue
+from cuemsutils.helpers import new_uuid
 
 def test_simple_cue():
     ## Arrange

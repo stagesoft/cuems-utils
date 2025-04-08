@@ -3,11 +3,11 @@ from logging import DEBUG, INFO
 from os import path
 from xml.etree.ElementTree import ElementTree, Element
 
-from src.cuemsutils.cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
-from src.cuemsutils.cues.MediaCue import Media, Region
+from cuemsutils.cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
+from cuemsutils.cues.MediaCue import Media, Region
 
-from src.cuemsutils.xml import XmlReader, XmlWriter
-from src.cuemsutils.xml.XmlBuilder import XmlBuilder
+from cuemsutils.xml import XmlReader, XmlWriter
+from cuemsutils.xml.XmlBuilder import XmlBuilder
 
 TMP_FILE = path.dirname(__file__) + '/tmp/test_script.xml'
 

@@ -53,11 +53,8 @@ def test_superproperty():
     import json
     assert json.dumps(child) == '{"_hello": "Goodbye, World!", "bye3": "See you later, alligator!", "bye4": "See you later, alligator!"}'
 
-def test_frominitdict(caplog):
-    from src.cuemsutils.log import Logger
-    from logging import DEBUG
-    caplog.set_level(DEBUG)
-
+def test_frominitdict():
+    """Test the proper initialization of a dict from a dictionary"""
     class Parent(dict):
         def __init__(self, init_dict = None):
             if init_dict:
@@ -82,7 +79,6 @@ def test_frominitdict(caplog):
             return str(super().__getitem__('a'))
         @a.setter
         def a(self, a):
-            # a =+ 1
             super().__setitem__('a', a)
 
         @property

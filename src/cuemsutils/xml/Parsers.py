@@ -90,14 +90,11 @@ class CuemsScriptParser(CuemsParser):
         for k, v in self.init_dict.items():
             if type(v) is dict:
                 if k == 'cuelist':
-                    Logger.debug(f"Parsing cuelist")
                     parser_class, class_string = self.get_parser_class('CueList')
-                    # self.item_csp[k.lower()] = parser_class(
                     self.item_csp[k] = parser_class(
                         init_dict=self.get_contained_dict(v),
                         class_string=class_string
                     ).parse()
-                    Logger.debug(f"Parsed cuelist: {self.item_csp[k.lower()]}")
                 elif (len(list(v))> 0):
                     parser_class, class_string = self.get_parser_class(k)
                     self.item_csp[k.lower()] = parser_class(init_dict=v, class_string=class_string).parse()                    

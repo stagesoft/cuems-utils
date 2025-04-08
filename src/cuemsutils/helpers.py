@@ -1,11 +1,10 @@
 """Set of helper functions for the cuemsutils package."""
 
 from datetime import datetime
+from xml.etree.ElementTree import Element, SubElement
 
 from .CTimecode import CTimecode
 from .Uuid import Uuid
-
-from xml.etree.ElementTree import Element, SubElement
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
@@ -75,8 +74,6 @@ def extract_items(x, keys: list) -> dict:
         keys (list): The keys to extract
     """
     d = dict(x)
-    from .log import Logger
-    Logger.info(f"Extracting {keys} from {d}")
     return {k: d[k] for k in keys}.items()
 
 def format_timecode(value):
