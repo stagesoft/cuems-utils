@@ -161,11 +161,11 @@
                                                     "x": 0,
                                                     "y": 0
                                                 },
-                                                "bott_left": {
+                                                "bottom_left": {
                                                     "x": 0,
                                                     "y": 0
                                                 },
-                                                "bott_right": {
+                                                "bottom_right": {
                                                     "x": 0,
                                                     "y": 0
                                                 }
@@ -174,7 +174,9 @@
                                     }
                                 }
                             ]
-                        },
+                        }
+                    },
+                    {
                         "AudioCue": {
                             "id": "e4ea9c60-095b-41f0-b8a5-c51263c224e4",
                             "name": "New AudioCue",
@@ -233,6 +235,35 @@
                                     }
                                 }
                             ]
+                        }
+                    },
+                    {
+                        "ActionCue": {
+                            "action_target": "e4ea9c60-095b-41f0-b8a5-c51263c224e4",
+                            "action_type": "play",
+                            "id": "3d12a13f-095b-41f0-b8a5-c51263c224e4",
+                            "name": "New ActionCue",
+                            "description": null,
+                            "enabled": true,
+                            "autoload": false,
+                            "timecode": false,
+                            "offset": null,
+                            "loop": 1,
+                            "prewait": {
+                                "CTimecode": "00:05:05.000"
+                            },
+                            "postwait": {
+                                "CTimecode": "00:04:01.000"
+                            },
+                            "post_go": "go",
+                            "target": null,
+                            "ui_properties": {
+                                "timeline_position": {
+                                    "x": 0,
+                                    "y": 0
+                                },
+                                "warning": 0
+                            }
                         }
                     }
                 ]

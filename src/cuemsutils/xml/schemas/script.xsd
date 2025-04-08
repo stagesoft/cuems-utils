@@ -152,9 +152,10 @@
   </xs:complexType>
 
   <xs:complexType name="UiPropertiesType">
-    <xs:all minOccurs="0">
-      <xs:element name="timeline_position" type="cms:Coordinates" />
-      <xs:element name="warning" type="xs:integer" />
+    <xs:all>
+      <xs:element name="id" type="xs:integer" minOccurs="0" />
+      <xs:element name="timeline_position" type="cms:Coordinates" minOccurs="0" />
+      <xs:element name="warning" type="xs:integer" minOccurs="0" />
     </xs:all>
   </xs:complexType>
 
@@ -163,8 +164,8 @@
     <xs:complexContent>
       <xs:extension base="cms:CueType">
         <xs:sequence>
-          <xs:element name="action_type" type="cms:ActionType" minOccurs="0" />
           <xs:element name="action_target" type="cms:TargetType" />
+          <xs:element name="action_type" type="cms:ActionType" minOccurs="0" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>

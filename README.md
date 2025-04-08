@@ -29,6 +29,7 @@ pip install cuemsutils
  - User facing classes can be exported directly (e.g. `from cuemsutils.cues import AudioCue, VideoCue`)
  - `Cue` is not longer an accepted object for script validation
  - `ui_properties` has become an `CuemsDict` object to facilitate modifications and requierements for UI development.
+ - `CuemsScript` object has method `to_json` to convert its contents to json format. Internally works via `json.dumps` and specific calls to methods `__json__` when available at class level.
 
 ### v0.0.4
  - `Logger` fixed to allow empty `extra` parameter

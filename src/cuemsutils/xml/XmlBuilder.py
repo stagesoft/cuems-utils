@@ -53,6 +53,9 @@ class CuemsScriptXmlBuilder(XmlBuilder):
     def build(self):
         cue_element = SubElement(self.xml_tree, self.class_name)
         for key, value in self._object.items():
+            if key == "CueList":
+                _ = CueListXmlBuilder(value, xml_tree = cue_element).build()
+                continue
             cue_subelement = SubElement(cue_element, str(key))
             if isinstance(value, VALUE_TYPES):
                 cue_subelement.text = str(value)

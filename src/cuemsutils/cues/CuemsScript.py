@@ -148,7 +148,17 @@ class CuemsScript(dict):
             except AttributeError:
                 pass
 
+    def __json__(self):
+        x = dict(super().items())
+        for k, v in x.items():
+            if hasattr(v, '__json__'):
+                x[k] = v.__json__()
+            else:
+                x[k] = v
+            if k.lower() != k:
+                x[k] = x[k][k]
+        return x
+
     def items(self):
         x = dict(super().items())
-        # x['contents'] = self.contents
         return x.items()
