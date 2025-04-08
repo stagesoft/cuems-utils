@@ -3,10 +3,10 @@ from ..helpers import CuemsDict, ensure_items, extract_items, format_timecode, n
 from ..Uuid import Uuid
 
 REQ_ITEMS = {
+    'autoload': False,
     'description': None,
     'enabled': True,
-    'id': None,
-    'loaded': False,
+    'id': new_uuid,
     'loop': 0,
     'name': 'empty',
     'offset': CTimecode,
@@ -15,7 +15,6 @@ REQ_ITEMS = {
     'prewait': None,
     'target': None,
     'timecode': False, # TODO: Should be more specific|explicit
-    'uuid': new_uuid,
     'ui_properties': None,
 }
 
@@ -23,8 +22,8 @@ class Cue(CuemsDict):
     def __init__(self, init_dict = None):
         if init_dict:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
-            super().__init__(init_dict)
-            
+            self.setter(init_dict)
+
         self._target_object = None
         self._conf = None
         self._armed_list = None
@@ -35,135 +34,141 @@ class Cue(CuemsDict):
         self._stop_requested = False
         self._local = False
 
-    def __hash__(self):
-        """Hash the cue by its uuid"""
-        return hash(self.uuid)
-    
-    def __eq__(self, other):
-        "Compare two cues by their uuid"
-        if isinstance(other, Cue):
-            return self.uuid == other.uuid
-        return False
-
-    @property
-    def uuid(self):
-        return super().__getitem__('uuid')
-
-    @uuid.setter
-    def uuid(self, uuid):
-        uuid = Uuid(uuid)
-        super().__setitem__('uuid', uuid)
-
-    @property
-    def id(self):
-        """"""
+    def get_id(self):
         return super().__getitem__('id')
 
-    @id.setter
-    def id(self, id):
+    def set_id(self, id):
         """Created by UI"""
+        id = Uuid(id)
         super().__setitem__('id', id)
 
-    @property
-    def name(self):
+    id = property(get_id, set_id)
+
+    def get_name(self):
         return super().__getitem__('name')
 
-    @name.setter
-    def name(self, name):
+    def set_name(self, name):
         super().__setitem__('name', name)
 
-    @property
-    def description(self):
+    name = property(get_name, set_name)
+
+    def get_description(self):
         return super().__getitem__('description')
 
-    @description.setter
-    def description(self, description):
+    def set_description(self, description):
         super().__setitem__('description', description)
 
-    @property
-    def enabled(self):
+    description = property(get_description, set_description)
+
+    def get_enabled(self):
         return super().__getitem__('enabled')
 
-    @enabled.setter
-    def enabled(self, enabled):
+    def set_enabled(self, enabled):
         super().__setitem__('enabled', enabled)
 
-    @property
-    def loaded(self):
-        return super().__getitem__('loaded')
+    enabled = property(get_enabled, set_enabled)
 
-    @loaded.setter
-    def loaded(self, loaded):
-        super().__setitem__('loaded', loaded)
+    def get_autoload(self):
+        return super().__getitem__('autoload')
 
-    @property
-    def timecode(self):
+    def set_autoload(self, autoload):
+        super().__setitem__('autoload', autoload)
+
+    autoload = property(get_autoload, set_autoload)
+
+    def get_timecode(self):
         return super().__getitem__('timecode')
 
-    @timecode.setter
-    def timecode(self, timecode):
+    def set_timecode(self, timecode):
         super().__setitem__('timecode', timecode)
 
-    @property
-    def offset(self):
+    timecode = property(get_timecode, set_timecode)
+
+    def get_offset(self):
         return super().__getitem__('offset')
 
-    @offset.setter
-    def offset(self, offset):
+    def set_offset(self, offset):
         offset = format_timecode(offset)
         self.__setitem__('offset', offset)
 
-    @property
-    def loop(self):
+    offset = property(get_offset, set_offset)
+
+    def get_loop(self):
         return super().__getitem__('loop')
 
-    @loop.setter
-    def loop(self, loop):
+    def set_loop(self, loop):
         super().__setitem__('loop', loop)
 
-    @property
-    def prewait(self):
+    loop = property(get_loop, set_loop)
+
+    def get_prewait(self):
         return super().__getitem__('prewait')
 
-    @prewait.setter
-    def prewait(self, prewait):
+    def set_prewait(self, prewait):
         prewait = format_timecode(prewait)
         super().__setitem__('prewait', prewait)
 
-    @property
-    def postwait(self):
+    prewait = property(get_prewait, set_prewait)
+
+    def get_postwait(self):
         return super().__getitem__('postwait')
 
-    @postwait.setter
-    def postwait(self, postwait):
+    def set_postwait(self, postwait):
         postwait = format_timecode(postwait)
         super().__setitem__('postwait', postwait)
 
-    @property
-    def post_go(self):
+    postwait = property(get_postwait, set_postwait)
+
+    def get_post_go(self):
         return super().__getitem__('post_go')
 
-    @post_go.setter
-    def post_go(self, post_go):
+    def set_post_go(self, post_go):
         super().__setitem__('post_go', post_go)
 
-    @property
-    def target(self):
+    post_go = property(get_post_go, set_post_go)
+
+    def get_target(self):
         return super().__getitem__('target')
 
-    @target.setter
-    def target(self, target):
+    def set_target(self, target):
         if target is not None:
             target = Uuid(target)
         super().__setitem__('target', target)
 
-    @property
-    def ui_properties(self):
+    target = property(get_target, set_target)
+
+    def get_ui_properties(self):
         return super().__getitem__('ui_properties')
 
-    @ui_properties.setter
-    def ui_properties(self, ui_properties):
-        super().__setitem__('ui_properties', to_cuemsdict(ui_properties))
+    def set_ui_properties(self, ui_properties):
+        ui_properties = to_cuemsdict(ui_properties)
+        super().__setitem__('ui_properties', ui_properties)
+
+    ui_properties = property(get_ui_properties, set_ui_properties)
+    
+    def __eq__(self, other):
+        "Compare two cues by their id"
+        if isinstance(other, Cue):
+            return self.id == other.id
+        return False
+
+    def __hash__(self):
+        """Hash the cue by its id"""
+        return hash(self.id)
+
+    def __json__(self):
+        return {type(self).__name__: dict(self.items())}
+
+    def setter(self, settings: dict):
+        """Set the object properties from a dictionary."""
+        if not isinstance(settings, dict):
+            raise AttributeError(f"Invalid type {type(settings)}. Expected dict.")
+        for k, v in settings.items():
+            try:
+                x = getattr(self, f"set_{k}")
+                x(v)
+            except AttributeError:
+                pass
 
     def items(self):
         return extract_items(super().items(), REQ_ITEMS.keys())
@@ -194,6 +199,5 @@ class UI_properties(CuemsDict):
         if init_dict:
             super().__init__(init_dict)
     
-    @property
-    def timeline_position(self):
+    def get_timeline_position(self):
         return super().__getitem__('timeline_position')

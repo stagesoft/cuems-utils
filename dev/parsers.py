@@ -1,4 +1,4 @@
-from src.cuemsutils.xml.Parsers import GenericParser, OutputsParser
+from cuemsutils.xml.Parsers import GenericParser, OutputsParser
 
 
 class DmxUniverseParser(GenericParser):

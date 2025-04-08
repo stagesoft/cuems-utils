@@ -2,7 +2,7 @@ from .Cue import Cue
 from ..helpers import CuemsDict, ensure_items, format_timecode
 
 REQ_ITEMS = {
-    'media': None,
+    'Media': None,
     'outputs': None
 }
 
@@ -15,27 +15,29 @@ REGION_REQ_ITEMS = {
 
 class MediaCue(Cue):
     def __init__(self, init_dict = None):
-        init_dict = ensure_items(init_dict, REQ_ITEMS)
+        if not init_dict:
+            init_dict = REQ_ITEMS
+        else:
+            init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
 
-    @property
-    def media(self):
-        # TODO: # Why capital letters? (i.e. Media not media)
-        return super().__getitem__('media')
+    def get_Media(self):
+        return super().__getitem__('Media')
 
-    @media.setter
-    def media(self, media):
-        if not isinstance(media, Media):
-            media = Media(media)
-        super().__setitem__('media', media)
+    def set_Media(self, value):
+        if not isinstance(value, Media):
+            value = Media(value)
+        super().__setitem__('Media', value)
 
-    @property
-    def outputs(self):
+    media = property(get_Media, set_Media)
+
+    def get_outputs(self):
         return super().__getitem__('outputs')
 
-    @outputs.setter
-    def outputs(self, outputs):
+    def set_outputs(self, outputs):
         super().__setitem__('outputs', outputs)
+
+    outputs = property(get_outputs, set_outputs)
 
     def items(self):
         x = dict(super().items())

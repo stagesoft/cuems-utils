@@ -1,5 +1,5 @@
 '''Test logging functions.'''
-from src.cuemsutils.log import logged, Logger
+from cuemsutils.log import logged, Logger
 from logging import DEBUG
 
 @logged

@@ -14,13 +14,13 @@ class CueList(Cue):
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
 
-    @property    
-    def contents(self):
+    def get_contents(self):
         return super().__getitem__('contents')
 
-    @contents.setter
-    def contents(self, contents):
+    def set_contents(self, contents):
         super().__setitem__('contents', contents)
+
+    contents = property(get_contents, set_contents)
 
     def append(self, item: Cue):
         if not isinstance(item, Cue):

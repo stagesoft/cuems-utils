@@ -1,23 +1,22 @@
 """Set of helper functions for the cuemsutils package."""
 
 from datetime import datetime
+from xml.etree.ElementTree import Element, SubElement
 
 from .CTimecode import CTimecode
 from .Uuid import Uuid
-
-from xml.etree.ElementTree import Element, SubElement
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 class CuemsDict(dict):
     """Custom dictionary class to handle cuemsutils specific items."""
-    def __json__(self):
-        return {type(self).__name__: dict(self.items())}
 
     def build(self, parent: Element):
         build_xml_dict(self, parent)
 
-def to_cuemsdict(x: dict) -> CuemsDict:
+def to_cuemsdict(x: dict) -> None | CuemsDict:
+    if not x:
+        return None
     out = CuemsDict({})
     for k,v in x.items():
         if isinstance(v, dict):
@@ -38,7 +37,7 @@ def build_xml_dict(x, parent: Element) -> None:
                 if hasattr(item, 'build'):
                     item.build(parent)
                 else:
-                    SubElement(parent, k, {'text': str(item)})
+                    SubElement(parent, k).text = str(item)
         elif hasattr(v, 'build'):
             s = SubElement(parent, k)
             v.build(s)
@@ -79,8 +78,8 @@ def extract_items(x, keys: list) -> dict:
 
 def format_timecode(value):
         if not value or value == '':
-            raise ValueError(f'Invalid timecode value {value}')
-        if isinstance(value, CTimecode):
+            return CTimecode()
+        elif isinstance(value, CTimecode):
             return value
         elif isinstance(value, (int, float)):
             ctime_value = CTimecode(start_seconds = value)

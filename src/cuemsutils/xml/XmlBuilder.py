@@ -53,14 +53,13 @@ class CuemsScriptXmlBuilder(XmlBuilder):
     def build(self):
         cue_element = SubElement(self.xml_tree, self.class_name)
         for key, value in self._object.items():
+            if key == "CueList":
+                _ = CueListXmlBuilder(value, xml_tree = cue_element).build()
+                continue
             cue_subelement = SubElement(cue_element, str(key))
             if isinstance(value, VALUE_TYPES):
                 cue_subelement.text = str(value)
-            #     cue_subelement = SubElement(cue_element, str(key))
-            #     cue_subelement = SubElement(cue_element, str(key))
-            # else:
             elif not isinstance(value, (type(None))):
-                # cue_subelement = cue_element
                 builder_class = self.get_builder_class(value)
                 sub_object_element = builder_class(value, xml_tree = cue_subelement).build()
         return self.xml_tree

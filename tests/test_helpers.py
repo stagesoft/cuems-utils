@@ -1,7 +1,7 @@
 from datetime import datetime
 from re import match, Match
 
-from src.cuemsutils.helpers import ensure_items, extract_items, new_uuid, new_datetime, DATETIME_FORMAT, Uuid
+from cuemsutils.helpers import ensure_items, extract_items, new_uuid, new_datetime, DATETIME_FORMAT, Uuid
 
 def test_ensure_items():
     ## ARRANGE
