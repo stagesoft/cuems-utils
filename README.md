@@ -21,7 +21,7 @@ pip install cuemsutils
 ## Release notes
 
 ### v0.0.5
- - All properties of objects are lowercase exept the ones representing classes (e.g. `CueList` at `CuemsScript` and `Media` at `MediaCue`).
+ - All properties of objects are lowercase except the ones representing classes (e.g. `CueList` at `CuemsScript` and `Media` at `MediaCue`).
  - Parameters renamed for clarity:
     - `uuid`    -> `id`
     - `loaded`  -> `autoload`
