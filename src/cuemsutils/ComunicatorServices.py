@@ -2,7 +2,10 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 import asyncio
 import json
+import os
+import sys
 from pynng import Req0, Rep0
+from .log import Logger
 
 class ComunicatorService(ABC):
     @abstractmethod
@@ -92,10 +95,28 @@ class Nng_request_response(ComunicatorService):
 
 class Comunicator(ComunicatorService):
     def __init__(self, address, comunicator_service = Nng_request_response, nng_mode=True):
-        self.address = address
+        try:
+            directory_path = os.path.dirname(os.path.realpath(address))
+            if os.path.exists(directory_path):
+                if not os.access(directory_path, os.R_OK) or not os.access(directory_path, os.W_OK):
+                    raise PermissionError(f"Permission denied for the directory: {directory_path}. Please check your permissions.")
+            else:
+                raise FileNotFoundError(f"The specified directory does not exist: {directory_path}. Please check the address.")
+            if os.path.exists(address):
+                if not os.access(address, os.R_OK) or not os.access(address, os.W_OK):
+                    raise PermissionError(f"Permission denied for the file: {address}. Please check your permissions.")
+            else:
+                raise FileNotFoundError(f"The specified file does not exist: {address}. Please check the address.")
+
+            
+        except Exception as e:
+            Logger.error(e)
+            sys.exit(1)
+
+        self.address = "ipc://" + address
         self.nng_mode = nng_mode
         self.comunicator_service = comunicator_service(self.address, resquester_dials=self.nng_mode)
-
+        
     async def send_request(self, request):
         response = await self.comunicator_service.send_request(request)
         return response
