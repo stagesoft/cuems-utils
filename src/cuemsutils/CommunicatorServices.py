@@ -7,7 +7,7 @@ import sys
 from pynng import Req0, Rep0
 from .log import Logger
 
-class ComunicatorService(ABC):
+class CommunicatorService(ABC):
     @abstractmethod
     def __init__(self, address:str):
         self.address = address
@@ -20,7 +20,7 @@ class ComunicatorService(ABC):
     def reply(self, request_processor:Callable[[dict], dict]) -> dict:
         """ Get request, give it to request processor, and return the response from it  """
 
-class Nng_request_response(ComunicatorService):
+class Nng_request_response(CommunicatorService):
     """ Communicates over NNG (nanomsg)  """,
 
     def __init__(self, address, resquester_dials=True):
@@ -93,8 +93,8 @@ class Nng_request_response(ComunicatorService):
     async def _respond(self, socket, encoded_response):
         await socket.asend(encoded_response)
 
-class Comunicator(ComunicatorService):
-    def __init__(self, address, comunicator_service = Nng_request_response, nng_mode=True):
+class Communicator(CommunicatorService):
+    def __init__(self, address, communicator_service = Nng_request_response, nng_mode=True):
         try:
             directory_path = os.path.dirname(os.path.realpath(address))
             if os.path.exists(directory_path):
@@ -115,11 +115,11 @@ class Comunicator(ComunicatorService):
 
         self.address = "ipc://" + address
         self.nng_mode = nng_mode
-        self.comunicator_service = comunicator_service(self.address, resquester_dials=self.nng_mode)
+        self.communicator_service = communicator_service(self.address, resquester_dials=self.nng_mode)
         
     async def send_request(self, request):
-        response = await self.comunicator_service.send_request(request)
+        response = await self.communicator_service.send_request(request)
         return response
 
     async def reply(self, request_processor):
-       await self.comunicator_service.reply(request_processor)
+       await self.communicator_service.reply(request_processor)
