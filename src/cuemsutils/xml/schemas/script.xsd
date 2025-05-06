@@ -31,6 +31,8 @@
               <!-- The date, Todo specify the date formant in a type-->
               <xs:element name="created" type="cms:DateType" />
               <xs:element name="modified" type="cms:DateType" />
+              <!-- Dictionary of options for UI settings -->
+              <xs:element name="ui_properties" type="cms:UiPropertiesType" />
             </xs:all>
             <xs:assert test="modified &gt;= created" />
           </xs:complexType>
