@@ -102,12 +102,6 @@ class Comunicator(ComunicatorService):
                     raise PermissionError(f"Permission denied for the directory: {directory_path}. Please check your permissions.")
             else:
                 raise FileNotFoundError(f"The specified directory does not exist: {directory_path}. Please check the address.")
-            if os.path.exists(address):
-                if not os.access(address, os.R_OK) or not os.access(address, os.W_OK):
-                    raise PermissionError(f"Permission denied for the file: {address}. Please check your permissions.")
-            else:
-                raise FileNotFoundError(f"The specified file does not exist: {address}. Please check the address.")
-
             
         except Exception as e:
             Logger.error(e)
