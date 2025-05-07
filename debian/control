@@ -2,7 +2,7 @@ Source: cuems-utils
 Section: misc
 Priority: optional
 Maintainer: Ion Reguera <ion@stagelab.coop>
-Build-Depends: debhelper (>=11~), dh-python, python3, python3.11-dev
+Build-Depends: debhelper (>=11~), python3, dh-virtualenv (>= 1.2), python3-setuptools, python3-pip, python3-dev
 Standards-Version: 4.1.4
 Homepage: https://github.com/stagesoft/stagesoft-project
 Vcs-Git: https://github.com/stagesoft/cuems-utils.git
@@ -11,6 +11,7 @@ X-Python3-Version: >= 3.11
 
 Package: cuems-utils
 Architecture: amd64
-Depends: ${misc:Depends}, ${python3:Depends}
+Pre-Depends: dpkg (>= 1.16.1), python3 (>= 3.11), python3 (<< 3.12), ${shlibs:Depends}, ${misc:Pre-Depends}
+Depends: ${misc:Depends}
 Description: Cuems utils
  Cuems utils is a set of utilities to work with the cuems project
