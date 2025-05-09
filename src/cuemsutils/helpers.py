@@ -1,5 +1,6 @@
 """Set of helper functions for the cuemsutils package."""
 
+import os
 from datetime import datetime
 from xml.etree.ElementTree import Element, SubElement
 
@@ -43,6 +44,36 @@ def build_xml_dict(x, parent: Element) -> None:
             v.build(s)
         else:
             SubElement(parent, k).text = str(v)
+
+def check_path(path: str, dir_only: bool = False) -> bool:
+    """Check if a path is valid. Raise an error if not."""
+    path = os.path.realpath(path)
+    dir_ok = _check_dir(os.path.dirname(path))
+    if dir_only:
+        return dir_ok
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Path {path} does not exist")
+    if not _readable(path) or not _writable(path):
+        raise PermissionError(f"Path {path} is not readable or writable")
+    return True
+
+def _check_dir(path: str) -> bool:
+    """Check if a path is a directory. Raise an error if not."""
+    if not os.path.isdir(path):
+        raise NotADirectoryError(f"Directory {path} does not exist")
+    if not _readable(path):
+        raise PermissionError(f"Directory {path} is not readable")
+    if not _writable(path):
+        raise PermissionError(f"Directory {path} is not writable")
+    return True
+
+def _readable(path: str) -> bool:
+    """Check if a path is readable."""
+    return os.access(path, os.R_OK)
+
+def _writable(path: str) -> bool:
+    """Check if a path is writable."""
+    return os.access(path, os.W_OK) 
 
 def ensure_items(x: dict, requiered: dict) -> dict:
     """Ensure that all the items are present in a dictionary
