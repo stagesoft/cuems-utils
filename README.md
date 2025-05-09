@@ -20,6 +20,11 @@ pip install cuemsutils
 
 ## Release notes
 
+### v0.0.6
+ - `CuemsScript` now includes `ui_properties` property to store UI related properties as a dictionary without restrictions.
+ - fixed misspelling at `Communicator` class
+ - internal method `to_cuemsdict` renamed to `as_cuemsdict` for clarity
+
 ### v0.0.5
  - All properties of objects are lowercase except the ones representing classes (e.g. `CueList` at `CuemsScript` and `Media` at `MediaCue`).
  - Parameters renamed for clarity:
