@@ -1,3 +1,10 @@
+cuems-utils (0.0.6-0) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.6 to match upstream
+  * Updadte upstream version
+    
+
+ -- Ion Reguera <ion@stagelab.coop>  Tue, 29 Apr 2025 19:18:13 +0200
 cuems-utils (0.0.1-0) UNRELEASED; urgency=low
 
   * create cuems-utils package with custom python and virtualenv
