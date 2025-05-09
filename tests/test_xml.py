@@ -11,7 +11,20 @@ from cuemsutils.xml.XmlBuilder import XmlBuilder
 
 def create_dummy_script():
     target_uuid = '1f301cf8-dd03-4b40-ac17-ef0e5e7988be'
-    c = ActionCue({'loop': 0, 'action_target': target_uuid, 'action_type': 'play'})
+    c = ActionCue({
+        'loop': 0,
+        'action_target': target_uuid,
+        'action_type': 'play',
+        'ui_properties': {
+            'icon': 'icon.png',
+            'color': '#ffffff',
+            'timeline_position': {
+                'x': 0,
+                'y': 0
+            },
+            'warning': 0
+        }
+    })
     c2 = VideoCue({
         'id': target_uuid,
         'loop': 0,
@@ -58,13 +71,19 @@ def create_dummy_script():
     custom_cue_list.append(ac)
     custom_cue_list.append(c3)
     
-    script = CuemsScript({'CueList': custom_cue_list})
+    script = CuemsScript({
+        'CueList': custom_cue_list,
+        'ui_properties': {'icon': 'icon.png', 'color': '#000000'}
+    })
     script.name = "Test Script"
     script.description = "This is a test script"
     return script, [c, c2, ac, c3]
 
 def test_cues():
     script, cues = create_dummy_script()
+
+    assert script.ui_properties['icon'] == 'icon.png'
+    assert script.ui_properties['color'] == '#000000'
 
     assert script.cuelist.contents[0] == cues[0]
     assert script.cuelist.contents[1] == cues[1]
@@ -97,6 +116,10 @@ def test_XmlBuilder(caplog):
     assert type(xmlscript.find('modified')) == Element
     assert xmlscript.find('created').text == xmlscript.find('modified').text
 
+    script_ui_properties = xmlscript.find('ui_properties')
+    assert script_ui_properties.find('icon').text == 'icon.png'
+    assert script_ui_properties.find('color').text == '#000000'
+
     cuelist = xmlscript.find('CueList')
     assert type(cuelist) == Element
     assert type(cuelist.find('contents')) == Element
@@ -105,6 +128,10 @@ def test_XmlBuilder(caplog):
     assert contents.__len__() == 4
     assert contents[0].tag == 'ActionCue'
     assert contents[0].find('loop').text == '0'
+    action_cue_ui_properties = contents[0].find('ui_properties')
+    assert type(action_cue_ui_properties) == Element
+    assert action_cue_ui_properties.find('icon').text == 'icon.png'
+    assert action_cue_ui_properties.find('color').text == '#ffffff'
     assert contents[1].tag == 'VideoCue'
     assert contents[2].tag == 'AudioCue'
     assert contents[2].find('master_vol').text == '66'
@@ -133,7 +160,7 @@ def test_XmlWriter(caplog):
 
 def test_XmlReader(caplog):
     from cuemsutils.log import Logger
-    caplog.set_level(DEBUG)
+    caplog.set_level(INFO)
     tmpfile = TMP_FILE
 
     reader = XmlReader(

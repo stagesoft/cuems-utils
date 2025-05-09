@@ -2,8 +2,8 @@ import json
 import json_fix
 
 from .CueList import CueList
-from ..log import logged
-from ..helpers import ensure_items, new_uuid, new_datetime
+from ..log import logged, Logger
+from ..helpers import as_cuemsdict, ensure_items, new_uuid, new_datetime
 from ..Uuid import Uuid
 
 REQ_ITEMS = {
@@ -12,7 +12,8 @@ REQ_ITEMS = {
     'description': None,
     'created': new_datetime,
     'modified': new_datetime,
-    'CueList': CueList({})
+    'CueList': CueList({}),
+    'ui_properties': None
 }
 
 class CuemsScript(dict):
@@ -77,6 +78,16 @@ class CuemsScript(dict):
         super().__setitem__('CueList', cuelist)
 
     cuelist = property(get_CueList, set_CueList)
+
+    def get_ui_properties(self):
+        return super().__getitem__('ui_properties')
+
+    def set_ui_properties(self, ui_properties):
+        Logger.debug(f"Setting ui_properties to {ui_properties}")
+        ui_properties = as_cuemsdict(ui_properties)
+        super().__setitem__('ui_properties', ui_properties)
+
+    ui_properties = property(get_ui_properties, set_ui_properties)
 
     def find(self, uuid):
         return self.cuelist.find(uuid)

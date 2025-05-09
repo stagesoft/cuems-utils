@@ -1,7 +1,8 @@
+import os
 from datetime import datetime
 from re import match, Match
 
-from cuemsutils.helpers import ensure_items, extract_items, new_uuid, new_datetime, DATETIME_FORMAT, Uuid
+from cuemsutils.helpers import ensure_items, extract_items, new_uuid, new_datetime, DATETIME_FORMAT, Uuid, check_path
 
 def test_ensure_items():
     ## ARRANGE
@@ -76,3 +77,73 @@ def test_given_uuid():
     assert target_uuid() == uuid
     assert type(failed_uuid) is ValueError
     assert str(failed_uuid) == f'uuid {not_uuid4} is not valid'
+
+class TestCheckPath:
+    own_path = os.path.abspath(__file__)
+    root_path = '/root/.ssh'
+    tmp_dir = os.path.join('/', 'tmp', 'cuemsutils')
+
+    def true_or_error(self, path, dir_only = False):
+        try:
+            check_path(path, dir_only)
+        except Exception as e:
+            return e
+        return True
+
+    def test_check_path_complete(self):
+        ## ARRANGE
+        fail_path = self.own_path + 'fail'
+
+        ## ACT
+        own_path_result = self.true_or_error(self.own_path)
+        fail_path_result = self.true_or_error(fail_path)
+        dir_path_result = self.true_or_error(fail_path, dir_only=True)
+
+        ## ASSERT
+        assert own_path_result is True
+        assert dir_path_result is True
+        assert isinstance(fail_path_result, Exception)
+        assert isinstance(fail_path_result, FileNotFoundError)
+        
+    def test_check_root_path(self):
+        ## ARRANGE
+        parent_dir = os.path.dirname(self.root_path)
+
+        ## ACT
+        target = self.true_or_error(self.root_path)
+
+        ## ASSERT
+        assert isinstance(target, Exception)
+        assert isinstance(target, PermissionError)
+        assert str(target) == f"Directory {parent_dir} is not readable"
+
+    def test_tmp_dir(self):
+        ## ARRANGE
+        os.makedirs(self.tmp_dir)
+
+        ## ACT
+        target = self.true_or_error(self.tmp_dir)
+
+        ## ASSERT
+        assert target is True
+
+        ## CLEANUP
+        os.rmdir(self.tmp_dir)
+
+    def test_tmp_file(self):
+        ## ARRANGE
+        tmp_file = os.path.join(self.tmp_dir, 'test.txt')
+        os.makedirs(self.tmp_dir, mode=0o444)
+
+        ## ACT
+        target = self.true_or_error(tmp_file)
+
+        ## ASSERT
+        assert isinstance(target, Exception)
+        assert isinstance(target, PermissionError)
+        assert str(target) == f"Directory {self.tmp_dir} is not writable"
+
+        ## CLEANUP
+        os.rmdir(self.tmp_dir)
+        
+        

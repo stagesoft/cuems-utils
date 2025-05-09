@@ -154,11 +154,16 @@
   </xs:complexType>
 
   <xs:complexType name="UiPropertiesType">
-    <xs:all>
+    <xs:complexContent>
+      <xs:extension base="xs:anyType"></xs:extension>
+    </xs:complexContent>
+    <!-- <xs:all>
       <xs:element name="id" type="xs:integer" minOccurs="0" />
+      <xs:element name="icon" type="xs:string" minOccurs="0" />
+      <xs:element name="color" type="xs:string" minOccurs="0" />
       <xs:element name="timeline_position" type="cms:Coordinates" minOccurs="0" />
       <xs:element name="warning" type="xs:integer" minOccurs="0" />
-    </xs:all>
+    </xs:all> -->
   </xs:complexType>
 
   <!-- ACTION -->

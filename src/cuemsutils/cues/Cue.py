@@ -1,5 +1,5 @@
 from ..CTimecode import CTimecode
-from ..helpers import CuemsDict, ensure_items, extract_items, format_timecode, new_uuid, to_cuemsdict
+from ..helpers import CuemsDict, ensure_items, extract_items, format_timecode, new_uuid, as_cuemsdict
 from ..Uuid import Uuid
 
 REQ_ITEMS = {
@@ -141,7 +141,7 @@ class Cue(CuemsDict):
         return super().__getitem__('ui_properties')
 
     def set_ui_properties(self, ui_properties):
-        ui_properties = to_cuemsdict(ui_properties)
+        ui_properties = as_cuemsdict(ui_properties)
         super().__setitem__('ui_properties', ui_properties)
 
     ui_properties = property(get_ui_properties, set_ui_properties)
