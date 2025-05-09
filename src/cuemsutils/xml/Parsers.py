@@ -21,7 +21,7 @@ class CuemsParser():
             if next(iter(init_dict)) != XML_ROOT_TAG:
                 root_value = init_dict[XML_ROOT_TAG]
                 self.init_dict = {XML_ROOT_TAG: root_value}
-                Logger.debug("Found root tag and is not the firs one, extracting")
+                Logger.debug("Found root tag and is not the first one, extracting")
                 Logger.debug(self.init_dict)
             else:
                 self.init_dict = init_dict

@@ -1,14 +1,15 @@
-import xmlschema
 from xml.etree.ElementTree import Element
 from xml.etree.ElementTree import register_namespace as etree_register_namespace
 from lxml.etree import Element as lxml_etree_element
 from lxml.etree import register_namespace as lxml_etree_register_namespace
+from xmlschema import XMLSchemaConverter
+from xmlschema.validators.wildcards import Xsd11AnyElement
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from collections import namedtuple
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
 
-class CMLCuemsConverter(xmlschema.XMLSchemaConverter):
+class CMLCuemsConverter(XMLSchemaConverter):
 
     def __init__(self, namespaces=None, dict_class=None, list_class=None,
                  etree_element_class=None, text_key='&', attr_prefix='',
@@ -22,7 +23,7 @@ class CMLCuemsConverter(xmlschema.XMLSchemaConverter):
         else:
             raise XMLSchemaTypeError("unsupported element class {!r}".format(etree_element_class))
 
-        super(CMLCuemsConverter, self).__init__(namespaces=None, register_namespace=register_namespace, strip_namespaces=strip_namespaces)
+        super().__init__(namespaces=None, register_namespace=register_namespace, strip_namespaces=strip_namespaces)
 
         self.dict = dict_class or dict
         self.list = list_class or list
@@ -65,14 +66,14 @@ class CMLCuemsConverter(xmlschema.XMLSchemaConverter):
             else:
                 return data.text if data.text != '' else None
         else:
-            if data.attributes:
-                result_dict.update(t for t in self.map_attributes(data.attributes))
-
 #            has_single_group = xsd_type.content_type.is_single()
             list_types = list if self.list is list else (self.list, list)
             dict_types = dict if self.dict is dict else (self.dict, dict)
             if data.content:
                 for name, value, xsd_child in self.map_content(data.content):
+                    if isinstance(xsd_child, Xsd11AnyElement):
+                        result_dict.update({name:value})
+                        continue
                     try:
                         if isinstance(result_dict, list_types):
                             result = result_dict
@@ -91,9 +92,14 @@ class CMLCuemsConverter(xmlschema.XMLSchemaConverter):
                         else:
                             result.append(value)
                   
+            elif data.content is None and data.text is not None and data.text != '':
+                result_dict = data.text
 
             elif data.text is not None and data.text != '':
                 result_dict[self.text_key] = data.text
+
+            if data.attributes:
+                result_dict.update(t for t in self.map_attributes(data.attributes))
 
             if level == 0 and self.preserve_root:
                 return self.dict(

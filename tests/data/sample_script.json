@@ -7,6 +7,16 @@
             "description": null,
             "created": "2025-03-25T09:28:54.297580+00:00",
             "modified": "2025-03-25T10:44:15.317247+00:00",
+            "ui_properties": {
+                "id": 0,
+                "icon": "icon.png",
+                "color": "#000000",
+                "timeline_position": {
+                    "x": 0,
+                    "y": 0
+                },
+                "warning": 0
+            },
             "CueList": {
                 "id": "91e36c40-095b-41f0-a2a5-ad2131162efc",
                 "name": "root",
