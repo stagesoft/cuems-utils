@@ -14,13 +14,13 @@ class CuemsDict(dict):
     def build(self, parent: Element):
         build_xml_dict(self, parent)
 
-def to_cuemsdict(x: dict) -> None | CuemsDict:
+def as_cuemsdict(x: dict) -> None | CuemsDict:
     if not x:
         return None
     out = CuemsDict({})
     for k,v in x.items():
         if isinstance(v, dict):
-            out.update({k: to_cuemsdict(v)})
+            out.update({k: as_cuemsdict(v)})
         else:
             out.update({k: v})
     return out
