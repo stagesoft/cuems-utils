@@ -102,10 +102,10 @@ class Communicator(CommunicatorService):
         except PermissionError as e:
             Logger.error(e)
             sys.exit(1)
-        else:
+        except FileNotFoundError:
             try:
                 check_path(address, dir_only = True)
-            except Exception as e:
+            except (NotADirectoryError, PermissionError) as e:
                 Logger.error(e)
                 sys.exit(1)
 

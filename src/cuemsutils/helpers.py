@@ -48,8 +48,8 @@ def build_xml_dict(x, parent: Element) -> None:
 def check_path(path: str, dir_only: bool = False) -> bool:
     """Check if a path is valid. Raise an error if not."""
     path = os.path.realpath(path)
-    dir_ok = _check_dir(os.path.dirname(path))
     if dir_only:
+        dir_ok = _check_dir(os.path.dirname(path))
         return dir_ok
     if not os.path.exists(path):
         raise FileNotFoundError(f"Path {path} does not exist")
