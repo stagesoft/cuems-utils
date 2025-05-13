@@ -21,8 +21,5 @@ jobs:
     - name: Install dependencies
       run: pip install mkdocs mkdocs-material mkdocstrings-python
 
-    - name: Build the site
-      run: PYTHONPATH=src mkdocs build
-
     - name: Deploy to GitHub Pages
-      run: mkdocs gh-deploy --force
+      run: PYTHONPATH=src mkdocs gh-deploy --force
