@@ -5,7 +5,19 @@ from ..CTimecode import CTimecode
 from ..log import logged, Logger
 
 class VideoCue(MediaCue):
+    """A cue for handling video playback and control.
+    
+    This class extends MediaCue to provide specific functionality for video playback,
+    including frame rate handling and OSC communication for video routing.
+    """
+    
     def __init__(self, init_dict = None):
+        """Initialize a VideoCue.
+        
+        Args:
+            init_dict (dict, optional): Dictionary containing initialization values.
+                If provided, will be used to set initial properties.
+        """
         if init_dict:
             super().__init__(init_dict)
         self._player = None
@@ -17,18 +29,41 @@ class VideoCue(MediaCue):
         self._end_mtc = CTimecode(framerate=25)
 
     def player(self, player):
+        """Set the video player instance.
+        
+        Args:
+            player: The video player instance to use.
+        """
         self._player = player
 
     def osc_route(self, osc_route):
+        """Set the OSC route for video control.
+        
+        Args:
+            osc_route (str): The OSC route to use for video control.
+        """
         self._osc_route = osc_route
 
     def items(self):
+        """Get all items in the cue as a dictionary.
+        
+        Returns:
+            dict_items: A view of the cue's items.
+        """
         x = dict(super().items())
         return x.items()
 
     @logged
     def video_media_loop(self, ossia, mtc):
-        """Specific logic for video media loop at the end of a go_thread  call"""
+        """Handle the video media playback loop.
+        
+        This method manages the playback loop for video media, including handling
+        looping behavior, frame rate conversion, and OSC communication for timing control.
+        
+        Args:
+            ossia: The OSC communication interface.
+            mtc: The MIDI Time Code interface.
+        """
         try:
             loop_counter = 0
             duration = self.media.regions[0].out_time - self.media.regions[0].in_time
@@ -76,9 +111,21 @@ class VideoCue(MediaCue):
             pass
 
     def stop(self):
+        """Stop the video playback.
+        
+        This method sets the stop request flag to halt video playback.
+        """
         self._stop_requested = True
 
     def check_mappings(self, settings):
+        """Check if the video output mappings are valid.
+        
+        Args:
+            settings: The settings containing project node mappings.
+            
+        Returns:
+            bool: True if the mappings are valid, False otherwise.
+        """
         if not settings.project_node_mappings:
             return True
 
