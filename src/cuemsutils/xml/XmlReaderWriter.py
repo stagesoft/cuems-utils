@@ -4,6 +4,7 @@ from os import path
 from xmlschema import XMLSchema11, XMLSchemaConverter
 from xml.etree.ElementTree import ElementTree
 
+from deprecated import deprecated
 from .CMLCuemsConverter import CMLCuemsConverter
 from .Parsers import CuemsParser
 from .XmlBuilder import XmlBuilder
@@ -53,9 +54,11 @@ class CuemsXml():
             
     def validate(self):
         return self.schema_object.validate(self.xmlfile)
-    
-class XmlWriter(CuemsXml):
-    def write(self, xml_data: ElementTree):
+
+class XmlReaderWriter(CuemsXml):
+    def write(self, xml_data: ElementTree = None):
+        if xml_data is None:
+            xml_data = self.xml_data
         self.schema_object.validate(xml_data)
         xml_data.write(
             self.xmlfile,
@@ -68,22 +71,36 @@ class XmlWriter(CuemsXml):
         self.write_from_object(project_object)
 
     def write_from_object(self, project_object):
-        xml_data = XmlBuilder(
+        self.xml_data = XmlBuilder(
             project_object,
             namespace=self.namespace,
             xsd_path=self.schema,
             xml_root_tag=self.xml_root_tag
         ).build()
-        self.write(xml_data)
+        self.write(self.xml_data)
 
-class XmlReader(CuemsXml):
-    def read(self):
+    def read(self, **kwargs):
         return self.schema_object.to_dict(
             self.xmlfile,
             validation = 'strict',
-            strip_namespaces = False
+            strip_namespaces = False,
+            **kwargs
         )
 
     def read_to_objects(self):
         xml_dict = self.read()
         return CuemsParser(xml_dict).parse()
+
+@deprecated(
+    reason="Use XmlReaderWriter instead",
+    version="0.0.7"
+)
+class XmlWriter(XmlReaderWriter):
+    pass
+
+@deprecated(
+    reason="Use XmlReaderWriter instead",
+    version="0.0.7"
+)
+class XmlReader(XmlReaderWriter):
+    pass
