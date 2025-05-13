@@ -9,7 +9,7 @@ Reusable classes and methods for CueMS system
 ## Table of Contents
 
 - [Installation](#installation)
-- [Release notes](#v005)
+- [Release notes](#release-notes)
 - [License](#license)
 
 ## Installation
@@ -19,6 +19,10 @@ pip install cuemsutils
 ```
 
 ## Release notes
+
+### v0.0.7
+ - `XmlReaderWriter` class added, previous classes `XmlReader` and `XmlWriter` marked as deprecated.
+ - fixed `Communicator` error handling on path checking.
 
 ### v0.0.6
  - `CuemsScript` now includes `ui_properties` property to store UI related properties as a dictionary without restrictions.
