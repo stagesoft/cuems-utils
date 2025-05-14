@@ -1,5 +1,5 @@
 import sys
-from logging import getLogger, LoggerAdapter, StreamHandler, Formatter, DEBUG, INFO, ERROR, WARNING
+from logging import getLogger, LoggerAdapter, StreamHandler, Formatter, DEBUG, INFO, ERROR, WARNING, CRITICAL
 from logging.handlers import SysLogHandler
 from functools import wraps
 
@@ -28,6 +28,12 @@ def main_logger(with_syslog = True, with_stdout = True):
     return logger_adapter
 
 class Logger:
+    """
+    A class for logging messages with different log levels.
+
+    This class provides static methods for logging messages with different log levels.
+    It uses the main_logger function to create a logger instance.
+    """
     logger = main_logger()
 
     @staticmethod
@@ -47,8 +53,16 @@ class Logger:
         Logger.log(ERROR, message, **kwargs)
 
     @staticmethod
+    def exception(message, **kwargs):
+        Logger.log(ERROR, message, **kwargs)
+
+    @staticmethod
     def warning(message, **kwargs):
         Logger.log(WARNING, message, **kwargs)
+
+    @staticmethod
+    def critical(message, **kwargs):
+        Logger.log(CRITICAL, message, **kwargs)
 
 def logged(func):
     """
