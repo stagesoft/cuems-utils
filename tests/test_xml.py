@@ -6,7 +6,7 @@ from xml.etree.ElementTree import ElementTree, Element
 from cuemsutils.cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
 from cuemsutils.cues.MediaCue import Media, Region
 
-from cuemsutils.xml import XmlReader, XmlWriter
+from cuemsutils.xml import XmlReaderWriter
 from cuemsutils.xml.XmlBuilder import XmlBuilder
 
 def create_dummy_script():
@@ -148,7 +148,7 @@ TMP_FILE = path.dirname(__file__) + '/tmp/test_script.xml'
 def test_XmlWriter(caplog):
     caplog.set_level(DEBUG)
     tmpfile = TMP_FILE
-    writer = XmlWriter(
+    writer = XmlReaderWriter(
         schema_name = 'script',
         xmlfile = tmpfile
     )
@@ -163,7 +163,7 @@ def test_XmlReader(caplog):
     caplog.set_level(INFO)
     tmpfile = TMP_FILE
 
-    reader = XmlReader(
+    reader = XmlReaderWriter(
         schema_name = 'script',
         xmlfile = tmpfile
     )
@@ -202,7 +202,7 @@ def test_jsonload(caplog):
 
     ## ACT
     parsed = CuemsParser(json_script).parse()
-    writer = XmlWriter(
+    writer = XmlReaderWriter(
         schema_name = 'script',
         xmlfile = TMP_JSON_FILE
     )

@@ -1,3 +1,3 @@
-from .XmlReaderWriter import XmlReader, XmlWriter
+from .XmlReaderWriter import XmlReaderWriter
 
-__all__ = [XmlReader, XmlWriter]
+__all__ = [XmlReaderWriter]
