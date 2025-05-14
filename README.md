@@ -23,6 +23,7 @@ pip install cuemsutils
 ### v0.0.7
  - `XmlReaderWriter` class added, previous classes `XmlReader` and `XmlWriter` marked as deprecated.
  - fixed `Communicator` error handling on path checking.
+ - `Logger.exception` and `Logger.critical` methods added.
 
 ### v0.0.6
  - `CuemsScript` now includes `ui_properties` property to store UI related properties as a dictionary without restrictions.
