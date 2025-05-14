@@ -111,14 +111,20 @@ class TestCheckPath:
 
         ## ACT
         target = self.true_or_error(self.root_path)
+        parent_target = self.true_or_error(parent_dir)
 
         ## ASSERT
         assert isinstance(target, Exception)
-        assert isinstance(target, PermissionError)
-        assert str(target) == f"Directory {parent_dir} is not readable"
+        assert isinstance(target, FileNotFoundError)
+        assert str(target) == f"Path {self.root_path} does not exist"
+        assert isinstance(parent_target, Exception)
+        assert isinstance(parent_target, PermissionError)
+        assert str(parent_target) == f"Path {parent_dir} is not readable or writable"
 
     def test_tmp_dir(self):
         ## ARRANGE
+        if os.path.exists(self.tmp_dir):
+            os.rmdir(self.tmp_dir)
         os.makedirs(self.tmp_dir)
 
         ## ACT
@@ -132,16 +138,23 @@ class TestCheckPath:
 
     def test_tmp_file(self):
         ## ARRANGE
+        if os.path.exists(self.tmp_dir):
+            os.rmdir(self.tmp_dir)
         tmp_file = os.path.join(self.tmp_dir, 'test.txt')
         os.makedirs(self.tmp_dir, mode=0o444)
 
         ## ACT
         target = self.true_or_error(tmp_file)
+        parent_target = self.true_or_error(tmp_file, dir_only=True)
 
         ## ASSERT
         assert isinstance(target, Exception)
-        assert isinstance(target, PermissionError)
-        assert str(target) == f"Directory {self.tmp_dir} is not writable"
+        assert isinstance(target, FileNotFoundError)
+        assert str(target) == f"Path {tmp_file} does not exist"
+
+        assert isinstance(parent_target, Exception)
+        assert isinstance(parent_target, PermissionError)
+        assert str(parent_target) == f"Directory {self.tmp_dir} is not writable"
 
         ## CLEANUP
         os.rmdir(self.tmp_dir)
