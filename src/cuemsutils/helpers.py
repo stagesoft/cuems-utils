@@ -14,6 +14,24 @@ class CuemsDict(dict):
 
     def build(self, parent: Element):
         build_xml_dict(self, parent)
+    
+    def setter(self, settings: dict):
+        """Set the object properties from a dictionary.
+        
+        Args:
+            settings (dict): Dictionary containing property values to set.
+            
+        Raises:
+            AttributeError: If settings is not a dictionary.
+        """
+        if not isinstance(settings, dict):
+            raise AttributeError(f"Invalid type {type(settings)}. Expected dict.")
+        for k, v in settings.items():
+            try:
+                x = getattr(self, f"set_{k}")
+                x(v)
+            except AttributeError:
+                pass
 
 def as_cuemsdict(x: dict) -> None | CuemsDict:
     if not x:

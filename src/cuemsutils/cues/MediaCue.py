@@ -93,10 +93,9 @@ class Media(CuemsDict):
                 If provided, will be used to set initial properties.
         """
         if init_dict:
-            super().__init__(init_dict)
+            self.setter(init_dict)
     
-    @property
-    def file_name(self):
+    def get_file_name(self):
         """Get the media file name.
         
         Returns:
@@ -104,8 +103,7 @@ class Media(CuemsDict):
         """
         return super().__getitem__('file_name')
 
-    @file_name.setter
-    def file_name(self, file_name):
+    def set_file_name(self, file_name):
         """Set the media file name.
         
         Args:
@@ -113,8 +111,9 @@ class Media(CuemsDict):
         """
         super().__setitem__('file_name', file_name)
 
-    @property
-    def regions(self):
+    file_name = property(get_file_name, set_file_name)
+
+    def get_regions(self):
         """Get the list of regions in the media file.
         
         Returns:
@@ -122,8 +121,7 @@ class Media(CuemsDict):
         """
         return super().__getitem__('regions')
 
-    @regions.setter
-    def regions(self, regions):
+    def set_regions(self, regions):
         """Set the list of regions in the media file.
         
         Args:
@@ -137,6 +135,8 @@ class Media(CuemsDict):
                 r = Region(r)
         super().__setitem__('regions', regions)
 
+    regions = property(get_regions, set_regions)
+
 class Region(CuemsDict):
     """A class representing a region within a media file."""
     
@@ -149,12 +149,11 @@ class Region(CuemsDict):
         """
         empty_keys= {"id": "0"}
         if (init_dict):
-            super().__init__(init_dict)
+            self.setter(init_dict)
         else:
-            super().__init__(empty_keys)
+            self.setter(empty_keys)
     
-    @property
-    def id(self):
+    def get_id(self):
         """Get the region ID.
         
         Returns:
@@ -162,8 +161,7 @@ class Region(CuemsDict):
         """
         return super().__getitem__('id')
 
-    @id.setter
-    def id(self, id):
+    def set_id(self, id):
         """Set the region ID.
         
         Args:
@@ -171,8 +169,9 @@ class Region(CuemsDict):
         """
         super().__setitem__('id', id)
 
-    @property
-    def loop(self):
+    id = property(get_id, set_id)
+
+    def get_loop(self):
         """Get the loop count for this region.
         
         Returns:
@@ -180,8 +179,7 @@ class Region(CuemsDict):
         """
         return super().__getitem__('loop')
 
-    @loop.setter
-    def loop(self, loop):
+    def set_loop(self, loop):
         """Set the loop count for this region.
         
         Args:
@@ -189,8 +187,9 @@ class Region(CuemsDict):
         """
         super().__setitem__('loop', loop)
 
-    @property
-    def in_time(self):
+    loop = property(get_loop, set_loop)
+
+    def get_in_time(self):
         """Get the in point of the region.
         
         Returns:
@@ -198,8 +197,7 @@ class Region(CuemsDict):
         """
         return super().__getitem__('in_time')
 
-    @in_time.setter
-    def in_time(self, in_time):
+    def set_in_time(self, in_time):
         """Set the in point of the region.
         
         Args:
@@ -208,8 +206,9 @@ class Region(CuemsDict):
         in_time = format_timecode(in_time)
         super().__setitem__('in_time', in_time)
 
-    @property
-    def out_time(self):
+    in_time = property(get_in_time, set_in_time)
+
+    def get_out_time(self):
         """Get the out point of the region.
         
         Returns:
@@ -217,8 +216,7 @@ class Region(CuemsDict):
         """
         return super().__getitem__('out_time')
 
-    @out_time.setter
-    def out_time(self, out_time):
+    def set_out_time(self, out_time):
         """Set the out point of the region.
         
         Args:
@@ -226,3 +224,5 @@ class Region(CuemsDict):
         """
         out_time = format_timecode(out_time)
         super().__setitem__('out_time', out_time)
+
+    out_time = property(get_out_time, set_out_time)
