@@ -2,27 +2,24 @@
  """
 
 import xml.etree.ElementTree as ET
-import xmlschema
 import os
 
-from cuemsutils.log import Logger
-from cuemsutils.CTimecode import CTimecode
-from cuemsutils.xml.CMLCuemsConverter import CMLCuemsConverter
-from .xml.XmlReaderWriter import XmlWriter
+from ..log import Logger
+from ..CTimecode import CTimecode
+from .XmlReaderWriter import XmlReaderWriter
 
 SETTINGS_DIR = '/etc/cuems'
 SETTINGS_FILE = 'settings.xml'
 SETTINGS_PATH = os.path.join(SETTINGS_DIR, SETTINGS_FILE)
 
-class Settings(XmlWriter):
+class Settings(XmlReaderWriter):
     """
-    Settings class that extends XmlWriter to handle configuration file operations.
+    Settings class that extends XmlReaderWriter to handle configuration file operations.
     """
-    def __init__(self, schema_name = 'settings', xmlfile = SETTINGS_PATH, *args, **kwargs):
+    def __init__(self, xmlfile = SETTINGS_PATH, schema_name = 'settings', **kwargs):
       super().__init__(
           schema_name = schema_name,
           xmlfile = xmlfile,
-          *args,
           **kwargs
       )
       self.loaded = False
@@ -30,7 +27,7 @@ class Settings(XmlWriter):
       if self.schema is not None and self.xmlfile is not None:
           self.read()
     
-    def __backup(self):
+    def backup(self):
         if os.path.isfile(self.xmlfile):
             Logger.info("File exist")
             try:
@@ -40,19 +37,16 @@ class Settings(XmlWriter):
         else:
             Logger.error("Settings file not found")
 
-    def read(self):
-        xml_dict = self.schema_object.to_dict(
+    def read(self) -> None:
+        self.xml_dict = self.schema_object.to_dict(
             self.xmlfile,
+            validation = 'strict',
             dict_class = dict,
             list_class = list,
-            validation = 'strict',
             strip_namespaces = True,
             attr_prefix = ''
         )
-
-        super().__init__(xml_dict)
         self.loaded = True
-        return self
 
     def data2xml(self, obj):
         xml_tree = ET.Element(type(obj).__name__)
@@ -89,3 +83,17 @@ class Settings(XmlWriter):
             s = ET.SubElement(xml_tree, type(d).__name__)
             self.buildxml(s, str(d))
         return xml_tree
+
+class NetworkMap(Settings):
+    """
+    NetworkMap class that extends Settings to handle network map operations.
+    """
+    def __init__(self, xmlfile, schema_name = 'network_map', **kwargs):
+        super().__init__(xmlfile, schema_name, **kwargs)
+        
+class ProjectMappings(Settings):
+    """
+    ProjectMappings class that extends Settings to handle project mappings operations.
+    """
+    def __init__(self, xmlfile, schema_name = 'project_mappings', **kwargs):
+        super().__init__(xmlfile, schema_name, **kwargs)
