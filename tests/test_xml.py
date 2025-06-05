@@ -268,3 +268,30 @@ def test_json_readwrite(caplog):
         json_parsed = tmp_data['value']
 
     assert json_script == json_parsed
+
+def test_settings():
+    from cuemsutils.xml import Settings
+    SETTINGS_PATH = path.dirname(__file__) + '/data/settings.xml'
+
+    settings = Settings(SETTINGS_PATH)
+    assert settings.validate() == None
+    assert settings.read() == None
+    assert settings.loaded == True
+
+def test_networkmap():
+    from cuemsutils.xml import NetworkMap
+    NETWORKMAP_PATH = path.dirname(__file__) + '/data/network_map.xml'
+    
+    networkmap = NetworkMap(NETWORKMAP_PATH)
+    assert networkmap.validate() == None
+    assert networkmap.read() == None
+    assert networkmap.loaded == True
+
+def test_projectmappings():
+    from cuemsutils.xml import ProjectMappings
+    PROJECTMAPPINGS_PATH = path.dirname(__file__) + '/data/project_mappings.xml'
+    
+    projectmappings = ProjectMappings(PROJECTMAPPINGS_PATH)
+    assert projectmappings.validate() == None
+    assert projectmappings.read() == None
+    assert projectmappings.loaded == True
