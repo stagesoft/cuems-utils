@@ -205,6 +205,7 @@ class CTimecodeParser(GenericParser):
 
 class mediaParser(GenericParser):
     def parse(self):
+        Logger.debug(f"Parsing with mediaParser {self.init_dict}")
         if not self.init_dict:
             pass
         if not "Media" in self.init_dict.keys():
@@ -268,6 +269,7 @@ class AudioCueOutputParser(outputsParser):
 
 class VideoCueOutputParser(outputsParser):
     pass
+
 class DmxCueOutputParser(outputsParser):
     pass
 

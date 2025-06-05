@@ -95,6 +95,9 @@ def test_cues():
     assert isinstance(script.cuelist.contents[1], VideoCue)
     assert isinstance(script.cuelist.contents[2], AudioCue)
 
+    assert script.cuelist.contents[0].action_target == script.cuelist.contents[1].id
+    assert script.cuelist.contents[0].action_type == 'play'
+
 def test_XmlBuilder(caplog):
 
     caplog.set_level(DEBUG)
