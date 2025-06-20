@@ -225,10 +225,13 @@ def test_jsonload(caplog):
 
 def test_json_dump():
     import json
+    from cuemsutils.create_script import create_script
 
-    json_string = json.dumps(reloaded_script)
+    script = create_script()
+    audio_cue = script.cuelist.contents[0]
+    json_string = json.dumps(script)
     json_string = '{"CuemsScript": ' + json_string + '}'
-    json_self_str = reloaded_script.to_json()
+    json_self_str = script.to_json()
 
     assert json_string != None
     assert type(json_string) == str
