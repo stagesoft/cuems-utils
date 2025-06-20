@@ -8,7 +8,7 @@ REQ_ITEMS = {
 
 REGION_REQ_ITEMS = {
     'id': 0,
-    'loop': 0,
+    'loop': 1,
     'in_time': None,
     'out_time': None
 }
