@@ -127,6 +127,8 @@
   <xs:complexType name="MediaType">
     <xs:sequence minOccurs="0" maxOccurs="1">
       <xs:element name="file_name" type="xs:string" />
+      <xs:element name="id" type="cms:TargetType" />
+      <xs:element name="duration" type="xs:string" />
       <xs:element name="regions" type="cms:RegionsType" />
     </xs:sequence>
   </xs:complexType>

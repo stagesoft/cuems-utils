@@ -30,6 +30,8 @@ def create_dummy_script():
         'loop': 0,
         'Media': Media({
             'file_name': 'file_video.ext',
+            'id': '',
+            'duration': '00:00:00.000',
             'regions' : [
                 Region({
                     'id': 0, 'loop': 2, 'in_time': None, 'out_time': None
@@ -41,6 +43,8 @@ def create_dummy_script():
         'master_vol': 66,
         'Media': Media({
             'file_name': 'file.ext',
+            'id': '',
+            'duration': '00:00:00.000',
             'regions': [
                 Region({
                     'id': 0,
@@ -55,6 +59,8 @@ def create_dummy_script():
         'loop': 0,
         'Media': Media({
             'file_name': 'file_video.ext',
+            'id': '',
+            'duration': '00:00:00.000',
             'regions' : [
                 Region({
                     'id': 0, 'loop': 2, 'in_time': None, 'out_time': None

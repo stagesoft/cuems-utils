@@ -1,5 +1,6 @@
 from .Cue import Cue
 from ..helpers import CuemsDict, ensure_items, format_timecode
+from ..helpers import Uuid
 
 REQ_ITEMS = {
     'Media': None,
@@ -112,6 +113,43 @@ class Media(CuemsDict):
         super().__setitem__('file_name', file_name)
 
     file_name = property(get_file_name, set_file_name)
+
+    def get_id(self):
+        """Get the UUID of the media file.
+        
+        Returns:
+            str: The UUID of the media file.
+        """
+        return super().__getitem__('id')
+
+    def set_id(self, id):
+        """Set the UUID of the media file.
+        
+        Args:
+            id (str): The new UUID of the media file.
+        """
+        id = Uuid(id)
+        super().__setitem__('id', id)
+
+    id = property(get_id, set_id)
+
+    def get_duration(self):
+        """Get the duration of the media file.
+        
+        Returns:
+            str: The duration of the media file.
+        """
+        return super().__getitem__('duration')
+    
+    def set_duration(self, duration):
+        """Set the duration of the media file.
+        
+        Args:
+            duration (str): The new duration of the media file.
+        """
+        super().__setitem__('duration', duration)
+
+    duration = property(get_duration, set_duration)
 
     def get_regions(self):
         """Get the list of regions in the media file.
