@@ -1,3 +1,8 @@
+cuems-utils (0.0.7-3) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.7-3 to match upstream
+  * Updadte upstream version
+
 cuems-utils (0.0.7-2) UNRELEASED; urgency=low
 
   * Bump version to 0.0.7-2 to match upstream
