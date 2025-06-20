@@ -241,6 +241,13 @@ def test_json_dump():
 
     assert json_string == json_self_str
 
+    assert isinstance(audio_cue, AudioCue)
+    assert isinstance(audio_cue.media, Media)
+    assert isinstance(audio_cue.media.regions, list)
+    assert isinstance(audio_cue.media.regions[0], Region)
+
+    assert "Region" in json_self_str
+
 def test_json_readwrite(caplog):
     ## ARRANGE
     from cuemsutils.xml.Parsers import CuemsParser

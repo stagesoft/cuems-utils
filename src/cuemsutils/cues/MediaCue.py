@@ -226,3 +226,11 @@ class Region(CuemsDict):
         super().__setitem__('out_time', out_time)
 
     out_time = property(get_out_time, set_out_time)
+
+    def __json__(self):
+        """Convert the region to a JSON-compatible dictionary.
+        
+        Returns:
+            dict: A dictionary representation of the region.
+        """
+        return {type(self).__name__: dict(self.items())}
