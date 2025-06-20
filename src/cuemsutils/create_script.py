@@ -1,7 +1,12 @@
 from .cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
 from .cues.MediaCue import Media, Region
 from .cues.CueOutput import AudioCueOutput, VideoCueOutput
+from .helpers import new_datetime, new_uuid
+from .xml import XmlReaderWriter
+from .log import Logger
+import xmlschema.validators.exceptions as xmlschema_exceptions
 
+now = new_datetime()
 def create_script():
     """Create a minimal script with available cues.
 
@@ -98,15 +103,41 @@ def create_script():
     script = CuemsScript({'CueList': custom_cue_list})
     script.name = "Test Script"
     script.description = "This is a test script"
-    script.created = None
-    script.modified = None
-    script['id'] = None
 
-    script['CueList']['id'] = None
-    script.cuelist['contents'][0]['id'] = None
-    script.cuelist['contents'][1]['id'] = None
-    script.cuelist['contents'][2]['id'] = None
+    # set dates and ids so it can be validated
+    script.created = now
+    script.modified = now
+    script['id'] = new_uuid()
+    script['CueList']['id'] = new_uuid()
+    script.cuelist['contents'][0]['id'] = new_uuid()
+    script.cuelist['contents'][1]['id'] = new_uuid()
+    script.cuelist['contents'][2]['id'] = new_uuid()
     script['ui_properties'] = {
         'warning': 0,
     }
-    return script
+
+    try:
+        validate_template(script)
+    except xmlschema_exceptions.XMLSchemaValidationError as e:
+        Logger.error("Script validation failed. Please check the template.")
+        Logger.error(f"Validation error: {e}")
+    finally:
+        # remove dates and ids so we send it empty
+        script.created = None
+        script.modified = None
+        script['id'] = None
+        script['CueList']['id'] = None
+        script.cuelist['contents'][0]['id'] = None
+        script.cuelist['contents'][1]['id'] = None
+        script.cuelist['contents'][2]['id'] = None
+
+        return script
+
+    
+def validate_template(project_template):
+    writer = XmlReaderWriter(schema_name = "script", xmlfile = None)
+    result=writer.validate_object(project_template)
+    Logger.debug(f'initial template validation result: {result}')
+
+
+    
