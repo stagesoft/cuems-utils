@@ -7,7 +7,7 @@ REQ_ITEMS = {
     'description': None,
     'enabled': True,
     'id': new_uuid,
-    'loop': 0,
+    'loop': 1,
     'name': 'empty',
     'offset': CTimecode,
     'post_go': 'pause',

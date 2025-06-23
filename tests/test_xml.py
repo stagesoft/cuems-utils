@@ -30,6 +30,8 @@ def create_dummy_script():
         'loop': 0,
         'Media': Media({
             'file_name': 'file_video.ext',
+            'id': '',
+            'duration': '00:00:00.000',
             'regions' : [
                 Region({
                     'id': 0, 'loop': 2, 'in_time': None, 'out_time': None
@@ -41,6 +43,8 @@ def create_dummy_script():
         'master_vol': 66,
         'Media': Media({
             'file_name': 'file.ext',
+            'id': '',
+            'duration': '00:00:00.000',
             'regions': [
                 Region({
                     'id': 0,
@@ -55,6 +59,8 @@ def create_dummy_script():
         'loop': 0,
         'Media': Media({
             'file_name': 'file_video.ext',
+            'id': '',
+            'duration': '00:00:00.000',
             'regions' : [
                 Region({
                     'id': 0, 'loop': 2, 'in_time': None, 'out_time': None
@@ -225,10 +231,13 @@ def test_jsonload(caplog):
 
 def test_json_dump():
     import json
+    from cuemsutils.create_script import create_script
 
-    json_string = json.dumps(reloaded_script)
+    script = create_script()
+    audio_cue = script.cuelist.contents[0]
+    json_string = json.dumps(script)
     json_string = '{"CuemsScript": ' + json_string + '}'
-    json_self_str = reloaded_script.to_json()
+    json_self_str = script.to_json()
 
     assert json_string != None
     assert type(json_string) == str
@@ -237,6 +246,13 @@ def test_json_dump():
     assert type(json_self_str) == str
 
     assert json_string == json_self_str
+
+    assert isinstance(audio_cue, AudioCue)
+    assert isinstance(audio_cue.media, Media)
+    assert isinstance(audio_cue.media.regions, list)
+    assert isinstance(audio_cue.media.regions[0], Region)
+
+    assert "Region" in json_self_str
 
 def test_json_readwrite(caplog):
     ## ARRANGE

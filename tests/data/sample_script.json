@@ -66,6 +66,8 @@
                             },
                             "Media": {
                                 "file_name": "cembalo_1.wav",
+                                "id": "00000000-0000-0000-0000-000000000000",
+                                "duration": "00:03:01.000",
                                 "regions": [
                                     {
                                         "Region": {
@@ -140,6 +142,8 @@
                             },
                             "Media": {
                                 "file_name": "black.mov",
+                                "id": "00000000-0000-0000-0000-000000000000",
+                                "duration": "00:03:01.000",
                                 "regions": [
                                     {
                                         "Region": {
@@ -213,6 +217,8 @@
                             },
                             "Media": {
                                 "file_name": "cembalo_1.wav",
+                                "id": "00000000-0000-0000-0000-000000000000",
+                                "duration": "00:03:01.000",
                                 "regions": [
                                     {
                                         "Region": {

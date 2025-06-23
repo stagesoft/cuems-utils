@@ -70,14 +70,25 @@ class XmlReaderWriter(CuemsXml):
         project_object = CuemsParser(project_dict).parse()
         self.write_from_object(project_object)
 
-    def write_from_object(self, project_object):
-        self.xml_data = XmlBuilder(
+    def build_xml_from_object(self, project_object):
+        """Build XML data from a project object"""
+        xml_data = XmlBuilder(
             project_object,
             namespace=self.namespace,
             xsd_path=self.schema,
             xml_root_tag=self.xml_root_tag
         ).build()
-        self.write(self.xml_data)
+        return xml_data
+
+    def write_from_object(self, project_object):
+        """Write a project object to an XML file"""
+        xml_data = self.build_xml_from_object(project_object)
+        self.write(xml_data)
+
+    def validate_object(self, project_object):
+        """Validate a project object against the schema"""
+        xml_data = self.build_xml_from_object(project_object)
+        return self.schema_object.validate(xml_data)
 
     def read(self, **kwargs):
         return self.schema_object.to_dict(
