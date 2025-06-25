@@ -211,7 +211,7 @@ class CuemsScript(dict):
                     try:
                         if cue.media:
                             media_dict[cue.media.file_name] = cue
-                    except KeyError:
+                    except (KeyError, AttributeError):
                         pass
                         # logger.debug("cue with no media")
         return media_dict
