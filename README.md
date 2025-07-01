@@ -20,6 +20,15 @@ pip install cuemsutils
 
 ## Release notes
 
+### v0.0.8
+ - `Settings` class added to xml module. Allows for easy access to configuration files.
+ - Child classes `NetworkMap` and `ProjectMappings` inherit from `Settings` class.
+ - `CueList.get_media` method fixed to create usable dictionaries
+ - `CuemsScript.get_media` as a wrapper for `CueList.get_media`
+ - `CueList.get_[own_]media_filenames` method now returns a sorted list of filenames
+ - `Region` class improved to support proper `Media` recreation from json
+ - `setter` method moved up to `CuemsDict` class
+
 ### v0.0.7
  - `XmlReaderWriter` class added, previous classes `XmlReader` and `XmlWriter` marked as deprecated.
  - fixed `Communicator` error handling on path checking.
