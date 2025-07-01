@@ -1,5 +1,5 @@
 from .Cue import Cue
-
+from .MediaCue import MediaCue
 from ..helpers import Uuid, ensure_items
 
 REQ_ITEMS = {
@@ -96,22 +96,18 @@ class CueList(Cue):
         return None
 
     def get_media(self):
-        """Get a dictionary of all media files referenced in this cue list.
+        """Get a dictionary of all media files present inside contents.
         
         Returns:
             dict: A dictionary mapping cue UUIDs to their media information.
                 Each entry contains the media file name and cue type.
         """
         media_dict = dict()
-        for item in self.contents:
-            if isinstance(item, CueList):
-                media_dict.update( item.get_media() )
-            else:
-                try:
-                    if item.media:
-                        media_dict[item.uuid] = [item.media.file_name, item.__class__.__name__]
-                except KeyError:
-                        media_dict[item.uuid] = {'media' : None, 'type' : item.__class__.__name__}
+        for cue in self.contents:
+            if isinstance(cue, CueList):
+                media_dict.update(cue.get_media())
+            elif isinstance(cue, MediaCue) and hasattr(cue.media, 'file_name'):
+                media_dict[str(cue.id)] = cue.media.file_name
         
         return media_dict
 

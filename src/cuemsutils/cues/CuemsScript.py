@@ -2,8 +2,9 @@ import json
 import json_fix
 
 from .CueList import CueList
+from .MediaCue import MediaCue
 from ..log import logged, Logger
-from ..helpers import as_cuemsdict, ensure_items, new_uuid, new_datetime
+from ..helpers import as_cuemsdict, ensure_items, new_uuid, new_datetime, unique_values_to_list
 from ..Uuid import Uuid
 
 REQ_ITEMS = {
@@ -185,7 +186,7 @@ class CuemsScript(dict):
         return self.cuelist.find(uuid)
 
     @logged
-    def get_media(self, cuelist = None):
+    def get_media(self) -> dict:
         """Get all media files referenced in a CueList.
         
         Args:
@@ -193,31 +194,21 @@ class CuemsScript(dict):
                 If not provided, uses the script's main cue list.
                 
         Returns:
-            dict: A dictionary mapping media file names to their associated cues.
+            dict: A dictionary mapping Cue UUIDs to their media information.
         """
-        media_dict = dict()
-
-        # If no cuelist is specified we are looking inside our own
-        # script object, so our cuelist is our self cuelist
-        if not cuelist:
-            cuelist = self.cuelist
-
-        if cuelist.contents:
-            for cue in cuelist.contents:
-                if type(cue) == CueList:
-                    # If the cue is a cuelist, let's recurse
-                    media_dict.update(self.get_media(cuelist=cue))
-                else:
-                    try:
-                        if cue.media:
-                            media_dict[cue.media.file_name] = cue
-                    except (KeyError, AttributeError):
-                        pass
-                        # logger.debug("cue with no media")
-        return media_dict
+        return self.cuelist.get_media()
+    
+    @logged
+    def get_media_filenames(self) -> list:
+        """Get all media filenames referenced in a CueList.
+        
+        Returns:
+            list: A list of media filenames.
+        """
+        return unique_values_to_list(self.get_media())
 
     @logged
-    def get_own_media(self, cuelist = None, config = None):
+    def get_own_media(self, config: dict, cuelist: CueList = None) -> dict:
         """Get media files that are local to the current node.
         
         Args:
@@ -236,21 +227,27 @@ class CuemsScript(dict):
         if not cuelist:
             cuelist = self.cuelist
 
-        if cuelist.contents:
-            for cue in cuelist.contents:
-                if type(cue)==CueList:
-                    # If the cue is a cuelist, let's recurse
-                    media_dict.update(self.get_own_media(cuelist=cue, config=config))
-                else:
-                    try:
-                        if cue.media:
-                            cue.check_mappings(config)
-                            if cue._local:
-                                media_dict[cue.media.file_name] = cue
-                    except KeyError:
-                        pass
-                        # logger.debug("cue with no media")
+        for cue in cuelist.contents:
+            if type(cue) == CueList:
+                media_dict.update(
+                    self.get_own_media(config=config, cuelist=cue)
+                )
+            elif isinstance(cue, MediaCue) and hasattr(cue.media, 'file_name'):
+                cue.check_mappings(config)
+                if cue._local:
+                    media_dict[cue.id] = cue.media.file_name
         return media_dict
+
+    @logged
+    def get_own_media_filenames(self, config: dict, cuelist: CueList = None) -> list:
+        """Get all media filenames that are local to the current node.
+        
+        Returns:
+            list: A list of media filenames.
+        """
+        return unique_values_to_list(
+            self.get_own_media(config=config, cuelist=cuelist)
+        )
 
     def to_json(self):
         """Convert the script to a JSON string.

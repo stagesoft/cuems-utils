@@ -168,3 +168,11 @@ def strtobool(val: str) -> bool:
         return False
     else:
         raise ValueError(f'Invalid truth value {val}')
+
+def unique_values_to_list(x: dict) -> list:
+    """Convert a dictionary to a sorted list of its unique values.
+    
+    Args:
+        x (dict): The dictionary to convert
+    """
+    return sorted(list(set(x.values())))
