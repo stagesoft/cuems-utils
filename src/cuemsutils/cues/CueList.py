@@ -107,7 +107,7 @@ class CueList(Cue):
             if isinstance(cue, CueList):
                 media_dict.update(cue.get_media())
             elif isinstance(cue, MediaCue) and hasattr(cue.media, 'file_name'):
-                media_dict[str(cue.id)] = cue.media.file_name
+                media_dict[str(cue.id)] = {str(cue.media.id) : cue.media.file_name }
         
         return media_dict
 
