@@ -205,12 +205,8 @@ class CuemsScript(dict):
         Returns:
             list: A list of media filenames.
         """
-        media_dict = self.get_media()
-        new_media_dict = dict()
-        for cue_uuid, media in media_dict.items():
-            for media_uuid, media_name in media.items():
-                new_media_dict[cue_uuid] = media_name
-        return unique_values_to_list(new_media_dict)
+        media_dict = {k: list(v.values())[0] for k, v in self.get_media().items()}
+        return unique_values_to_list(media_dict)
 
     @logged
     def get_own_media(self, config: dict, cuelist: CueList = None) -> dict:
