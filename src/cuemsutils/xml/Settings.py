@@ -60,7 +60,7 @@ class Settings(XmlReaderWriter):
                     
                 elif isinstance(k, (dict)):
                     s = ET.SubElement(xml_tree, type(k).__name__)
-                    s.text = k
+                    s.text = str(k)
                 elif isinstance(k, (int, float)):
                     s = ET.SubElement(xml_tree, type(v).__name__, id=str(k))
                     if not isinstance(v, dict):

@@ -248,9 +248,9 @@ class OutputsXmlBuilder(GenericComplexSubObjectXmlBuilder):
                         self.recurser(item, output_subelement)
         elif isinstance(group, list):
             for item in group:
-                if isinstance(value, VALUE_TYPES):
+                if isinstance(item, VALUE_TYPES):
                     xml_tree.text = str(item)
-                if isinstance(item, dict):
+                elif isinstance(item, dict):
                     self.recurser(item, xml_tree)
         elif isinstance(group, VALUE_TYPES):
             xml_tree.text = str(group)

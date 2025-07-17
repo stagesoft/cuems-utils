@@ -83,11 +83,11 @@ class CueList(Cue):
         Returns:
             Cue or None: The found cue, or None if not found.
         """
-        if self.uuid == uuid:
+        if self.id == uuid:
             return self
         else:
             for item in self.contents:
-                if item.uuid == uuid:
+                if item.id == uuid:
                     return item
                 elif isinstance(item, CueList):
                     recursive = item.find(uuid)
