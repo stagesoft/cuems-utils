@@ -2,7 +2,8 @@ from enum import Enum
 from xml.etree.ElementTree import Element, ElementTree, SubElement, register_namespace
 
 from .Parsers import GenericDict
-from ..helpers import Uuid, as_cuemsdict
+from ..helpers import as_cuemsdict
+from ..tools.Uuid import Uuid
 from ..log import Logger
 
 PARSER_SUFFIX = 'XmlBuilder'

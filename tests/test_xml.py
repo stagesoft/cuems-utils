@@ -198,7 +198,7 @@ def test_jsonload(caplog):
     from cuemsutils.xml.Parsers import CuemsParser
     from cuemsutils.xml.XmlReaderWriter import XmlWriter
     from cuemsutils.cues import CuemsScript, CueList
-    from cuemsutils.CTimecode import CTimecode
+    from cuemsutils.tools.CTimecode import CTimecode
     import json
 
     caplog.set_level(DEBUG)

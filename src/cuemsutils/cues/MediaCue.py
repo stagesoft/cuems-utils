@@ -1,6 +1,6 @@
 from .Cue import Cue
 from ..helpers import CuemsDict, ensure_items, format_timecode
-from ..helpers import Uuid
+from ..tools.Uuid import Uuid
 
 REQ_ITEMS = {
     'Media': None,

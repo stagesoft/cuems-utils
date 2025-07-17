@@ -1,6 +1,7 @@
 from .Cue import Cue
 from .MediaCue import MediaCue
-from ..helpers import Uuid, ensure_items
+from ..helpers import ensure_items
+from ..tools.Uuid import Uuid
 
 REQ_ITEMS = {
     'contents': []

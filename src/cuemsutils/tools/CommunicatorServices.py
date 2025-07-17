@@ -6,8 +6,8 @@ import os
 import sys
 from pynng import Req0, Rep0
 
-from .log import Logger
-from .helpers import check_path
+from ..log import Logger
+from ..helpers import check_path
 
 class CommunicatorService(ABC):
     @abstractmethod

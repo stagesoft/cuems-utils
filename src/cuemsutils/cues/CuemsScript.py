@@ -5,7 +5,7 @@ from .CueList import CueList
 from .MediaCue import MediaCue
 from ..log import logged, Logger
 from ..helpers import as_cuemsdict, ensure_items, new_uuid, new_datetime, unique_values_to_list
-from ..Uuid import Uuid
+from ..tools.Uuid import Uuid
 
 REQ_ITEMS = {
     'id': new_uuid,

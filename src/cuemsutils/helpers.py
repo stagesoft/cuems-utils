@@ -4,8 +4,8 @@ import os
 from datetime import datetime
 from xml.etree.ElementTree import Element, SubElement
 
-from .CTimecode import CTimecode
-from .Uuid import Uuid
+from .tools.CTimecode import CTimecode
+from .tools.Uuid import Uuid
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 

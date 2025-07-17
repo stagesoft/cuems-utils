@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import os
 
 from ..log import Logger
-from ..CTimecode import CTimecode
+from ..tools.CTimecode import CTimecode
 from .XmlReaderWriter import XmlReaderWriter
 
 SETTINGS_DIR = '/etc/cuems'

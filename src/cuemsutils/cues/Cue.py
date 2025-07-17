@@ -1,6 +1,6 @@
-from ..CTimecode import CTimecode
+from ..tools.CTimecode import CTimecode
+from ..tools.Uuid import Uuid
 from ..helpers import CuemsDict, ensure_items, extract_items, format_timecode, new_uuid, as_cuemsdict
-from ..Uuid import Uuid
 
 REQ_ITEMS = {
     'autoload': False,

@@ -1,7 +1,6 @@
 from re import match
 from uuid import uuid4
 
-
 UUID4_REGEX = r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
 
 class Uuid():
@@ -11,7 +10,7 @@ class Uuid():
 
         Calling or printing the instance will return the uuid4 string.
     """
-    def __init__(self, uuid: str = None):
+    def __init__(self, uuid: str | None = None):
         if not uuid:
             self.uuid = str(uuid4())
         else:
