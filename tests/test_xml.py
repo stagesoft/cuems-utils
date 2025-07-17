@@ -1,4 +1,5 @@
 '''Integration test for the XML Builder and Parser classes'''
+import typing
 from logging import DEBUG, INFO
 from os import path
 from xml.etree.ElementTree import ElementTree, Element
@@ -104,6 +105,7 @@ def test_cues():
     assert script.cuelist.contents[0].action_target == script.cuelist.contents[1].id
     assert script.cuelist.contents[0].action_type == 'play'
 
+@typing.no_type_check
 def test_XmlBuilder(caplog):
 
     caplog.set_level(DEBUG)

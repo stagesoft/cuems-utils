@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from cuemsutils.log import Logger
+from .log import Logger
 
 def run_daemon(engine_instance: Any, pid_name: str) -> None:
     """

@@ -2,6 +2,8 @@
 
 import os
 from datetime import datetime
+from typing import Any
+from collections.abc import ItemsView, KeysView
 from xml.etree.ElementTree import Element, SubElement
 
 from .tools.CTimecode import CTimecode
@@ -33,7 +35,7 @@ class CuemsDict(dict):
             except AttributeError:
                 pass
 
-def as_cuemsdict(x: dict) -> None | CuemsDict:
+def as_cuemsdict(x: dict) -> CuemsDict | None:
     if not x:
         return None
     out = CuemsDict({})
@@ -115,7 +117,7 @@ def ensure_items(x: dict, requiered: dict) -> dict:
     
     return x
 
-def extract_items(x, keys: list) -> dict:
+def extract_items(x, keys: list[str] | KeysView[str]) -> ItemsView[str, Any]:
     """Extract list of keys and values from a dictionary
     
     Args:

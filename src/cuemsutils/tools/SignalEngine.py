@@ -1,9 +1,9 @@
 import signal
-from systemd.daemon import notify
+from os import getpid
+from systemd.daemon import notify as notify_systemd_daemon
 from time import sleep
 
-from cuemsutils.log import Logger, logged
-from os import getpid, path, remove
+from ..log import Logger, logged
 
 class SignalEngine:
     """
@@ -13,7 +13,6 @@ class SignalEngine:
         self.pid = getpid()
         Logger.info(f"Starting {self.__class__.__name__} with PID {self.pid}")
         self.running = False
-        self.show_locked = False
 
         if with_signals:
             self.register_signals()
@@ -54,7 +53,7 @@ class SignalEngine:
     ### COMMUNICATE WITH SYSTEMD ###
     def notify_systemd(self, status: str = 'READY'):
         Logger.debug('Startup complete, notifying systemd')
-        notify(f'{status.upper()}=1')
+        notify_systemd_daemon(f'{status.upper()}=1')
 
     ### SIGNALS HANDLERS ###
     def register_signals(self) -> None:

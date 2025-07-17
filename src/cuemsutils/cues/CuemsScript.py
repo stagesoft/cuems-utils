@@ -126,7 +126,7 @@ class CuemsScript(dict):
 
     modified = property(get_modified, set_modified)
 
-    def get_CueList(self):
+    def get_CueList(self) -> CueList:
         """Get the main cue list of the script.
         
         Returns:
@@ -134,7 +134,7 @@ class CuemsScript(dict):
         """
         return super().__getitem__('CueList')
 
-    def set_CueList(self, cuelist):
+    def set_CueList(self, cuelist: CueList | dict):
         """Set the main cue list of the script.
         
         Args:
@@ -209,7 +209,7 @@ class CuemsScript(dict):
         return unique_values_to_list(media_dict)
 
     @logged
-    def get_own_media(self, config: dict, cuelist: CueList = None) -> dict:
+    def get_own_media(self, config: dict, cuelist: CueList | None = None) -> dict:
         """Get media files that are local to the current node.
         
         Args:
@@ -228,7 +228,7 @@ class CuemsScript(dict):
         if not cuelist:
             cuelist = self.cuelist
 
-        for cue in cuelist.contents:
+        for cue in cuelist.contents:  # type: ignore[union-attr]
             if type(cue) == CueList:
                 media_dict.update(
                     self.get_own_media(config=config, cuelist=cue)
@@ -240,7 +240,7 @@ class CuemsScript(dict):
         return media_dict
 
     @logged
-    def get_own_media_filenames(self, config: dict, cuelist: CueList = None) -> list:
+    def get_own_media_filenames(self, config: dict, cuelist: CueList | None = None) -> list:
         """Get all media filenames that are local to the current node.
         
         Returns:

@@ -104,7 +104,7 @@ class GenericCueXmlBuilder(CuemsScriptXmlBuilder):
         if self.class_name == "dict" or self.class_name == "CuemsDict":
             Logger.info("dict class recieved")
             sub_element = as_cuemsdict(self._object)
-            sub_element.build(self.xml_tree)
+            sub_element.build(self.xml_tree)  # type: ignore[attr-union]
             return
         cue_element = SubElement(self.xml_tree, self.class_name)
         for key, value in self._object.items():

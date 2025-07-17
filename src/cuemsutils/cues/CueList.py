@@ -27,7 +27,7 @@ class CueList(Cue):
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
 
-    def get_contents(self):
+    def get_contents(self) -> list[Cue]:
         """Get the list of cues in this cue list.
         
         Returns:
@@ -35,7 +35,7 @@ class CueList(Cue):
         """
         return super().__getitem__('contents')
 
-    def set_contents(self, contents):
+    def set_contents(self, contents: list[Cue]):
         """Set the list of cues in this cue list.
         
         Args:
