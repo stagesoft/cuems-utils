@@ -74,8 +74,8 @@ def logged(func):
         """
         The wrapper function that logs function calls and their results.
         """
-        d = {"caller": func.__name__}
-        Logger.logger = getLogger(func.__module__)
+        d = {"funcName": func.__module__, "caller": func.__name__}
+        # Logger.logger = getLogger(func.__module__)
         Logger.info(f"Call recieved", extra = d)
         Logger.debug(f"Using args: {args} and kwargs: {kwargs}", extra = d)
         try:
