@@ -21,7 +21,7 @@ class CTimecode(Timecode):
         """returns time as milliseconds
         """
         #TODO: float math for other framerates                               
-        millis_per_frame = 1000 / float(self._framerate)
+        millis_per_frame = 1000 / float(self.framerate)
         return int(millis_per_frame * self.frame_number)
 
     def return_in_other_framerate(self, framerate):
@@ -87,7 +87,7 @@ class CTimecode(Timecode):
         added to this one
         """
         # duplicate current one
-        tc = CTimecode(framerate=self._framerate, frames=self.frames)
+        tc = CTimecode(framerate=self.framerate, frames=self.frames)
 
         if isinstance(other, CTimecode):
             tc.add_frames(other.frames)
@@ -113,7 +113,7 @@ class CTimecode(Timecode):
                 other.__class__.__name__
             )
 
-        return CTimecode(framerate=self._framerate, frames=subtracted_frames)
+        return CTimecode(framerate=self.framerate, frames=subtracted_frames)
 
     def __mul__(self, other):
         """returns new CTimecode instance with multiplied value"""
@@ -127,7 +127,7 @@ class CTimecode(Timecode):
                 other.__class__.__name__
             )
 
-        return CTimecode(framerate=self._framerate, frames=multiplied_frames)
+        return CTimecode(framerate=self.framerate, frames=multiplied_frames)
 
     def __truediv__(self, other):
         """returns new CTimecode instance with divided value"""
@@ -141,7 +141,7 @@ class CTimecode(Timecode):
                 other.__class__.__name__
             )
 
-        return CTimecode(framerate=self._framerate, frames=div_frames)
+        return CTimecode(framerate=self.framerate, frames=div_frames)
 
     def __json__(self):
         return {'CTimecode': self.__str__()}
