@@ -128,13 +128,7 @@ class CueList(Cue):
             if cue_to_return:
                 return cue_to_return       
 
-        if self.target:
-            if self.post_go == 'pause':
-                return self._target_object
-            else:
-                return self._target_object.get_next_cue()
-        else:
-            return None
+        return super().get_next_cue()
 
     def items(self):
         """Get all items in the cue list as a dictionary.

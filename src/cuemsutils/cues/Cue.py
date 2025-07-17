@@ -346,13 +346,11 @@ class Cue(CuemsDict):
         Returns:
             Cue or None: The next cue to execute, or None if there is no next cue.
         """
-        if self.target:
-            if self.post_go == 'pause':
-                return self._target_object
-            else:
-                return self._target_object.get_next_cue()
-        else:
+        if not self.target:
             return None
+        if self.post_go == 'pause':
+            return self._target_object
+        return self._target_object.get_next_cue() # type: ignore[union-attr]
 
     def check_mappings(self, settings):
         """Check if the given settings are valid for this cue.
