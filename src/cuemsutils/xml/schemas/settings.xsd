@@ -6,10 +6,17 @@
                 <xs:element name="Settings">
                     <xs:complexType>
                         <xs:sequence>
+                            <xs:element name="conf_path" type="xs:string" minOccurs="1" maxOccurs="1" />
                             <xs:element name="library_path" type="xs:string" minOccurs="1" maxOccurs="1" />
                             <xs:element name="tmp_path" type="xs:string" minOccurs="1" maxOccurs="1" />
                             <xs:element name="database_name" type="xs:string" minOccurs="1" maxOccurs="1" />
                             <xs:element name="show_lock_file" type="xs:string" minOccurs="1" maxOccurs="1" />
+                            <xs:element name="editor_url" type="xs:string" minOccurs="1" maxOccurs="1" />
+                            <xs:element name="controller_url" type="xs:string" minOccurs="1" maxOccurs="1" />
+                            <xs:element name="templates_path" type="xs:string" minOccurs="1" maxOccurs="1" />
+                            <xs:element name="controller_interfaces_template" type="xs:string" minOccurs="1" maxOccurs="1" />
+                            <xs:element name="node_interfaces_template" type="xs:string" minOccurs="1" maxOccurs="1" />
+                            <xs:element name="controller_lock_file" type="xs:string" minOccurs="1" maxOccurs="1" />
                             <!-- Node settings -->
                             <xs:element name="node" type="cms:NodeConfType" minOccurs="1" maxOccurs="1"></xs:element>
                         </xs:sequence>
