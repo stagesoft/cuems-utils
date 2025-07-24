@@ -1,9 +1,9 @@
 # API Documentation
 
-::: cuemsutils.CommunicatorServices
-::: cuemsutils.ConfigManager
-::: cuemsutils.CopyMoveVersioned
-::: cuemsutils.CTimecode
-::: cuemsutils.SignalEngine
-::: cuemsutils.StringSanitizer
-::: cuemsutils.Uuid
+::: cuemsutils.tools.CommunicatorServices
+::: cuemsutils.tools.ConfigManager
+::: cuemsutils.tools.CopyMoveVersioned
+::: cuemsutils.tools.CTimecode
+::: cuemsutils.tools.SignalEngine
+::: cuemsutils.tools.StringSanitizer
+::: cuemsutils.tools.Uuid
