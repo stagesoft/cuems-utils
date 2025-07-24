@@ -298,6 +298,7 @@ def test_settings():
     assert settings.validate() == None
     assert settings.read() == None
     assert settings.loaded == True
+    assert isinstance(settings.get_dict(), dict)
 
 def test_networkmap():
     from cuemsutils.xml import NetworkMap
@@ -307,6 +308,7 @@ def test_networkmap():
     assert networkmap.validate() == None
     assert networkmap.read() == None
     assert networkmap.loaded == True
+    assert isinstance(networkmap.processed, list)
 
 def test_projectmappings():
     from cuemsutils.xml import ProjectMappings

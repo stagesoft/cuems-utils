@@ -1,4 +1,4 @@
-from os import path, mkdir, environ, remove
+from os import path, mkdir, environ
 
 from ..log import Logger, logged
 from ..xml import Settings, NetworkMap, ProjectMappings
@@ -26,7 +26,13 @@ class ConfigManager():
             Exception: If the configuration files are not found.
         """
         # Initialize with default values
+        if config_dir == CUEMS_CONF_PATH:
+            try:
+                config_dir = environ['CUEMS_CONF_PATH']
+            except KeyError:
+                pass
         self.config_dir = config_dir
+
         self.library_path = path.join(environ['HOME'], LIBRARY_PATH)
         self.tmp_path = TMP_PATH
         self.set_dir_hierarchy()
@@ -40,6 +46,16 @@ class ConfigManager():
         self.project_name = ''
 
         self.load_config()
+
+    @property
+    def config_dir(self):
+        return self._config_dir
+    
+    @config_dir.setter
+    def config_dir(self, value):
+        if not path.exists(value):
+            raise FileNotFoundError(f'Configuration directory {value} not found')
+        self._config_dir = value
 
     @property
     def library_path(self):
@@ -75,7 +91,7 @@ class ConfigManager():
     def _load_network_map(self):
         try:
             netmap = NetworkMap(self.conf_path('network_map.xml'))
-            self.network_map = netmap.xml_dict['CuemsNodeDict']
+            self.network_map = netmap.get_dict()
         except Exception as e:
             Logger.exception(f'Exception catched while load_network_map: {e}')
             raise e
@@ -83,7 +99,7 @@ class ConfigManager():
     def _load_node_conf(self):
         try:
             engine_settings = Settings(self.conf_path('settings.xml'))
-            engine_settings = engine_settings.xml_dict['Settings']
+            engine_settings = engine_settings.get_dict()
         except Exception as e:
             Logger.exception(f'Exception catched while load_node_conf: {e}')
             raise e
@@ -119,20 +135,12 @@ class ConfigManager():
             settings_file = self.conf_path('default_mappings.xml')
 
         try:
-            self.network_mappings = ProjectMappings(settings_file)
-            self.network_mappings = self.network_mappings.xml_dict
+            project_mappings = ProjectMappings(settings_file)
+            self.network_mappings = project_mappings.processed
         except Exception as e:
             Logger.exception(f'Exception in load_net_and_node_mappings: {e}')
 
-        self.network_mappings = self.process_network_mappings(self.network_mappings.copy())
-
-        for node in self.network_mappings['nodes']:
-            if node['uuid'] == self.node_conf['uuid']:
-                self.node_mappings = node
-                break
-
-        if not self.node_mappings:
-            raise Exception('Node uuid could not be recognised in the network outputs map')
+        self.node_mappings = project_mappings.get_node(self.node_conf['uuid'])
 
         # Select just output names for node_hw_outputs var
         for section, value in self.node_mappings.items():
@@ -159,7 +167,6 @@ class ConfigManager():
         self._load_project_mappings(project_uname)
 
     def _load_project_settings(self, project_uname):
-        conf = {}
         try:
             settings_path = self.project_path(project_uname, 'settings.xml')
             conf = Settings(
@@ -167,10 +174,15 @@ class ConfigManager():
                 xmlfile=settings_path
             )
         except FileNotFoundError as e:
-            raise e
+            Logger.info(
+                f'Project {project_uname} settings not found. Keeping default settings.'
+            )
+            return
         except Exception as e:
-            Logger.exception(e)
-        self.project_conf = conf.copy()
+            Logger.exception(f'Exception in _load_project_settings: {e}')
+            raise e
+
+        self.project_conf = conf.get_dict()
         for key, value in self.project_conf.items():
             corrected_dict = {}
             if value:
@@ -183,8 +195,14 @@ class ConfigManager():
     def _load_project_mappings(self, project_uname):
         try:
             mappings_path = self.project_path(project_uname, 'mappings.xml')
-            self.project_mappings = ProjectMappings(mappings_path)
-            self.project_mappings = self.project_mappings.xml_dict
+            project_mappings = ProjectMappings(mappings_path)
+            self.project_mappings = project_mappings.processed
+            try:
+                self.project_node_mappings = project_mappings.get_node(self.node_conf['uuid'])
+            except ValueError:
+                Logger.warning(
+                    f'No mappings assigned for this node in project {project_uname}'
+                )
         except FileNotFoundError as e:
             Logger.info(f'Project mappings not found. Adopting default mappings.')
             self.project_mappings = self.node_mappings
@@ -193,20 +211,7 @@ class ConfigManager():
             Logger.exception(f'Exception in _load_project_mappings: {e}')
             raise e
 
-        self.number_of_nodes = int(self.project_mappings['number_of_nodes'])
-        # By now we need to correct the data structure from the xml
-        # the converter is not getting what we really intended but we'll
-        # correct it here by the moment
-
-        self.project_mappings = self.process_network_mappings(self.project_mappings.copy())
-
-        for node in self.project_mappings['nodes']:
-            if node['uuid'] == self.node_conf['uuid']:
-                self.project_node_mappings = node
-                break
-        if not self.project_node_mappings:
-            Logger.warning(f'No mappings assigned for this node in project {project_uname}')
-            
+        self.number_of_nodes = int(self.project_mappings['number_of_nodes']) # type: ignore[index]
         Logger.info(f'Project {project_uname} mappings loaded')
 
     def get_video_player_id(self, mapping_name):
@@ -225,7 +230,7 @@ class ConfigManager():
         if mapping_name == 'default':
             return self.node_conf['default_audio_output']
         else:
-            for each_out in self.project_mappings['audio']['outputs']:
+            for each_out in self.project_mappings['audio']['outputs']: # type: ignore[index]
                 for each_map in each_out[0]['mappings']:
                     if mapping_name == each_map['mapped_to']:
                         return each_out[0]['name']
@@ -247,29 +252,6 @@ class ConfigManager():
                                 Logger.error(err_str)
                                 raise Exception(err_str)
         return True
-
-    def process_network_mappings(self, mappings):
-        '''Temporary process instead of reviewing xml read and convert to objects'''
-        temp_nodes = []
-        
-        for node in mappings['nodes']:
-            temp_node = {}
-            for section, contents in node['node'].items():
-                if not isinstance(contents, list):
-                    temp_node[section] = contents
-                else:
-                    temp_node[section] = {}
-                    for item in contents:
-                        for key, values in item.items():
-                            temp_node[section][key] = []
-                            if values:
-                                for elem in values:
-                                    for subkey, subvalue in elem.items():
-                                        temp_node[section][key].append(subvalue)
-            temp_nodes.append(temp_node)
-        
-        mappings['nodes'] = temp_nodes
-        return mappings
 
     ## helper functions
     def project_path(self, project_uname: str, file_name: str) -> str:
@@ -325,23 +307,6 @@ class ConfigManager():
                 self.mkdir_recursive(each_path)
         except Exception as e:
             Logger.error("error: {} {}".format(type(e), e))
-    
-    def set_show_lock(self) -> None:
-        """
-        Sets the show lock file.
-        """
-        file_path = path.join(self.library_path, self.show_lock_file)
-        if not path.exists(file_path):
-            with open(file_path, 'w') as f:
-                f.write('')
-
-    def remove_show_lock(self) -> None:
-        """
-        Removes the show lock file.
-        """
-        file_path = path.join(self.library_path, self.show_lock_file)
-        if path.exists(file_path):
-            remove(file_path)
 
     def mkdir_recursive(self, folder: str) -> None:
         """
