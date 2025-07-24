@@ -20,6 +20,14 @@ pip install cuemsutils
 
 ## Release notes
 
+### v0.0.9
+ - Extended `Settings` parameters class
+ - New `tools` submodule for clarity with documentation
+ - Added class `SignalEngine` and `run_daemon` method for running daemons
+ - Improved `ProjectMappings` and `NetworkMap` content processing
+ - Added class `Timeoutloop` for running methods with timeout
+ - `get_media` methods return extended information
+
 ### v0.0.8
  - `Settings` class added to xml module. Allows for easy access to configuration files.
  - Child classes `NetworkMap` and `ProjectMappings` inherit from `Settings` class.
