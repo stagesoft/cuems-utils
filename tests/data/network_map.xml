@@ -10,6 +10,7 @@
             <node_type>NodeType.master</node_type>
             <ip>192.168.1.10</ip>
             <port>9000</port>
+            <online>True</online>
         </CuemsNode>
         <CuemsNode>
             <uuid>0367f391-ebf4-48b2-9f26-000000000003</uuid>
@@ -18,6 +19,7 @@
             <node_type>NodeType.slave</node_type>
             <ip>192.168.1.101</ip>
             <port>9000</port>
+            <online>False</online>
         </CuemsNode>
     </CuemsNodeDict>
 </cms:CuemsNetworkMap>
