@@ -1,7 +1,8 @@
-from os import path, mkdir, environ
+from os import path, environ
 
 from ..log import Logger, logged
 from ..xml import Settings, NetworkMap, ProjectMappings
+from ..helpers import mkdir_recursive
 
 CUEMS_CONF_PATH = '/etc/cuems/'
 LIBRARY_PATH = '.local/share/cuems/'
@@ -11,7 +12,7 @@ SHOW_LOCK_FILE = '.lock_file'
 CUEMS_MASTER_LOCK_FILE = 'master.lock'
 
 class ConfigManager():
-    def __init__(self, config_dir: str = CUEMS_CONF_PATH):
+    def __init__(self, config_dir: str = CUEMS_CONF_PATH, load_all: bool = True):
         """
         ConfigManager constructor.
         This class is responsible for loading the configuration files and providing
@@ -19,40 +20,47 @@ class ConfigManager():
 
         It also provides methods to check the project files and to load them on demand.
 
+        If load_all is True, the configuration files will be loaded and the configuration
+        will be available for the rest of the application on object initialization.
+        If load_all is False, the configuration will be loaded on demand.
+
+        Base configuration directory is set to /etc/cuems/ by default.
+        If the environment variable CUEMS_CONF_PATH is set, it will be used instead.
+        If config_dir parameter is set, it will override the default value.
+
+        Specifically, base configuration directory precedence is:
+        - Environment variable CUEMS_CONF_PATH
+        - config_dir parameter
+        - /etc/cuems/ (i.e. CUEMS_CONF_PATH constant value) (default value)
+
         Args:
             config_dir (str): The directory containing the configuration files.
+            load_all (bool): Whether to load all the configuration files.
 
         Raises:
             Exception: If the configuration files are not found.
         """
         # Initialize with default values
-        if config_dir == CUEMS_CONF_PATH:
-            try:
-                config_dir = environ['CUEMS_CONF_PATH']
-            except KeyError:
-                pass
-        self.config_dir = config_dir
+        self.load_base_settings(config_dir)
 
-        self.library_path = path.join(environ['HOME'], LIBRARY_PATH)
-        self.tmp_path = TMP_PATH
-        self.set_dir_hierarchy()
+        if load_all:
+            self.library_path = path.join(environ['HOME'], LIBRARY_PATH)
+            self.tmp_path = TMP_PATH
+            self.database_name = DATABASE_NAME
+            self.show_lock_file = SHOW_LOCK_FILE
 
-        self.database_name = DATABASE_NAME
-        self.show_lock_file = SHOW_LOCK_FILE
+            self.using_default_mappings = False
+            self.number_of_nodes = 1
+            self.project_name = ''
 
-        self.using_default_mappings = False
-
-        self.number_of_nodes = 1
-        self.project_name = ''
-
-        self.load_config()
+            self.load_config()
 
     @property
     def config_dir(self):
         return self._config_dir
     
     @config_dir.setter
-    def config_dir(self, value):
+    def config_dir(self, value: str):
         if not path.exists(value):
             raise FileNotFoundError(f'Configuration directory {value} not found')
         self._config_dir = value
@@ -62,8 +70,22 @@ class ConfigManager():
         return self._library_path
 
     @library_path.setter
-    def library_path(self, value):
+    def library_path(self, value: str):
         self._library_path = value
+
+    def load_base_settings(self, base_dir: str):
+        try:
+            dir = environ['CUEMS_CONF_PATH']
+        except KeyError:
+            dir = base_dir
+        self.config_dir = dir
+
+        try:
+            settings = Settings(self.conf_path('settings.xml'))
+            self.settings = settings.get_dict()
+        except Exception as e:
+            Logger.exception(f'Exception catched while load_node_conf: {e}')
+            raise e
 
     @logged
     def load_config(self) -> None:
@@ -84,11 +106,14 @@ class ConfigManager():
             'dmx_outputs':[]
         }
         
-        self._load_node_conf()
-        self._load_network_map()
-        self._load_net_and_node_mappings()
+        self.load_node_conf()
+        self.load_network_map()
+        self.load_net_and_node_mappings()
 
-    def _load_network_map(self):
+    def load_network_map(self):
+        """
+        Loads the network map from the base configuration file.
+        """
         try:
             netmap = NetworkMap(self.conf_path('network_map.xml'))
             self.network_map = netmap.get_dict()
@@ -96,36 +121,32 @@ class ConfigManager():
             Logger.exception(f'Exception catched while load_network_map: {e}')
             raise e
 
-    def _load_node_conf(self):
-        try:
-            engine_settings = Settings(self.conf_path('settings.xml'))
-            engine_settings = engine_settings.get_dict()
-        except Exception as e:
-            Logger.exception(f'Exception catched while load_node_conf: {e}')
-            raise e
-
-        if engine_settings['library_path'] != '':
-            self.library_path = engine_settings['library_path']
+    def load_node_conf(self):
+        """
+        Loads the node configuration from the base configuration file.
+        """
+        if self.settings['library_path'] != '':
+            self.library_path = self.settings['library_path']
     
-        if engine_settings['tmp_path'] != '':
-            self.tmp_path = engine_settings['tmp_path']
+        if self.settings['tmp_path'] != '':
+            self.tmp_path = self.settings['tmp_path']
 
-        if engine_settings['database_name'] != '':
-            self.database_name = engine_settings['database_name']
+        if self.settings['database_name'] != '':
+            self.database_name = self.settings['database_name']
 
-        if engine_settings['show_lock_file'] != '':
-            self.show_lock_file = engine_settings['show_lock_file']
+        if self.settings['show_lock_file'] != '':
+            self.show_lock_file = self.settings['show_lock_file']
 
         # Now we know where the library is, let's check it out
         self.set_dir_hierarchy()
 
-        self.node_conf = engine_settings['node']
+        self.node_conf = self.settings['node']
         self.osc_initial_port = self.node_conf['osc_in_port_base']
         self.host_name = f"{self.node_conf['uuid'].split('-')[-1]}.local"
 
         Logger.info(f'Cuems node_{self.node_conf["uuid"]} config loaded')
 
-    def _load_net_and_node_mappings(self):
+    def load_net_and_node_mappings(self):
         """
         Loads the network and node mappings.
         """
@@ -163,10 +184,13 @@ class ConfigManager():
         self.project_node_mappings = {}
         self.project_default_outputs = {}
 
-        self._load_project_settings(project_uname)
-        self._load_project_mappings(project_uname)
+        self.load_project_settings(project_uname)
+        self.load_project_mappings(project_uname)
 
-    def _load_project_settings(self, project_uname):
+    def load_project_settings(self, project_uname: str):
+        """
+        Loads the project settings from the project file.
+        """
         try:
             settings_path = self.project_path(project_uname, 'settings.xml')
             conf = Settings(
@@ -179,7 +203,7 @@ class ConfigManager():
             )
             return
         except Exception as e:
-            Logger.exception(f'Exception in _load_project_settings: {e}')
+            Logger.exception(f'Exception in load_project_settings: {e}')
             raise e
 
         self.project_conf = conf.get_dict()
@@ -192,7 +216,10 @@ class ConfigManager():
 
         Logger.info(f'Project {project_uname} settings loaded')
 
-    def _load_project_mappings(self, project_uname):
+    def load_project_mappings(self, project_uname: str):
+        """
+        Loads the project mappings from the project file.
+        """
         try:
             mappings_path = self.project_path(project_uname, 'mappings.xml')
             project_mappings = ProjectMappings(mappings_path)
@@ -208,13 +235,16 @@ class ConfigManager():
             self.project_mappings = self.node_mappings
             self.project_node_mappings = self.node_mappings
         except Exception as e:
-            Logger.exception(f'Exception in _load_project_mappings: {e}')
+            Logger.exception(f'Exception in load_project_mappings: {e}')
             raise e
 
         self.number_of_nodes = int(self.project_mappings['number_of_nodes']) # type: ignore[index]
         Logger.info(f'Project {project_uname} mappings loaded')
 
-    def get_video_player_id(self, mapping_name):
+    def get_video_player_id(self, mapping_name: str):
+        """
+        Returns the video player id for the given mapping name.
+        """
         if mapping_name == 'default':
             return self.node_conf['default_video_output']
         else:
@@ -226,7 +256,10 @@ class ConfigManager():
 
         raise Exception(f'Video output wrongly mapped')
 
-    def get_audio_output_id(self, mapping_name):
+    def get_audio_output_id(self, mapping_name: str):
+        """
+        Returns the audio output id for the given mapping name.
+        """
         if mapping_name == 'default':
             return self.node_conf['default_audio_output']
         else:
@@ -237,7 +270,10 @@ class ConfigManager():
 
         raise Exception(f'Audio output wrongly mapped')
 
-    def check_project_mappings(self):
+    def check_project_mappings(self) -> bool:
+        """
+        Checks if the project mappings are correct.
+        """
         if self.using_default_mappings:
             return True
 
@@ -295,28 +331,25 @@ class ConfigManager():
         """
         Sets the directory hierarchy for the library path.
         """
-        paths_to_check = [
-            path.join(self.library_path, 'projects'),
-            path.join(self.library_path, 'media'),
-            path.join(self.library_path, 'trash', 'projects'),
-            path.join(self.library_path, 'trash', 'media'),
-            self.tmp_path
+        if not self.library_path:
+            raise AttributeError('Library path not set')
+        if not self.tmp_path:
+            raise AttributeError('Temporary path not set')
+       
+        dirs = [
+            'projects',
+            'media',
+            path.join('media', 'waveforms'),
+            path.join('media', 'thumbnails')
         ]
+        trash = [path.join('trash', i) for i in dirs]
+        dirs.extend(trash)
+
+        paths_to_check = [path.join(self.library_path, i) for i in dirs]
+        paths_to_check.append(self.tmp_path)
+
         try:
             for each_path in paths_to_check:
-                self.mkdir_recursive(each_path)
+                mkdir_recursive(each_path)
         except Exception as e:
             Logger.error("error: {} {}".format(type(e), e))
-
-    def mkdir_recursive(self, folder: str) -> None:
-        """
-        Creates a directory recursively.
-
-        Args:
-            folder (str): The folder to be created.
-        """
-        if path.exists(folder):
-            return
-        if not path.exists(path.dirname(folder)):
-            self.mkdir_recursive(path.dirname(folder))
-        mkdir(folder)

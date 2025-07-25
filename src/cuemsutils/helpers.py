@@ -1,6 +1,6 @@
 """Set of helper functions for the cuemsutils package."""
 
-import os
+from os import access, mkdir, path, R_OK, W_OK
 from datetime import datetime
 from typing import Any
 from collections.abc import ItemsView, KeysView
@@ -65,35 +65,17 @@ def build_xml_dict(x, parent: Element) -> None:
         else:
             SubElement(parent, k).text = str(v)
 
-def check_path(path: str, dir_only: bool = False) -> bool:
+def check_path(x: str, dir_only: bool = False) -> bool:
     """Check if a path is valid. Raise an error if not."""
-    path = os.path.realpath(path)
+    x = path.realpath(x)
     if dir_only:
-        dir_ok = _check_dir(os.path.dirname(path))
+        dir_ok = _check_dir(path.dirname(x))
         return dir_ok
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Path {path} does not exist")
-    if not _readable(path) or not _writable(path):
-        raise PermissionError(f"Path {path} is not readable or writable")
+    if not path.exists(x):
+        raise FileNotFoundError(f"Path {x} does not exist")
+    if not _readable(x) or not _writable(x):
+        raise PermissionError(f"Path {x} is not readable or writable")
     return True
-
-def _check_dir(path: str) -> bool:
-    """Check if a path is a directory. Raise an error if not."""
-    if not os.path.isdir(path):
-        raise NotADirectoryError(f"Directory {path} does not exist")
-    if not _readable(path):
-        raise PermissionError(f"Directory {path} is not readable")
-    if not _writable(path):
-        raise PermissionError(f"Directory {path} is not writable")
-    return True
-
-def _readable(path: str) -> bool:
-    """Check if a path is readable."""
-    return os.access(path, os.R_OK)
-
-def _writable(path: str) -> bool:
-    """Check if a path is writable."""
-    return os.access(path, os.W_OK) 
 
 def ensure_items(x: dict, requiered: dict) -> dict:
     """Ensure that all the items are present in a dictionary
@@ -149,6 +131,19 @@ def format_timecode(value):
         else:
             raise ValueError(f'Invalid timecode value type {type(value)}')
 
+def mkdir_recursive(folder: str) -> None:
+    """
+    Creates a directory recursively.
+
+    Args:
+        folder (str): The folder to be created.
+    """
+    if path.exists(folder):
+        return
+    if not path.exists(path.dirname(folder)):
+        mkdir_recursive(path.dirname(folder))
+    mkdir(folder)
+
 def new_datetime():
     """Generate a new datetime string."""
     return datetime.now().strftime(DATETIME_FORMAT)
@@ -178,3 +173,21 @@ def unique_values_to_list(x: dict) -> list:
         x (dict): The dictionary to convert
     """
     return sorted(list(set(x.values())))
+
+def _check_dir(x: str) -> bool:
+    """Check if a path is a directory. Raise an error if not."""
+    if not path.isdir(x):
+        raise NotADirectoryError(f"Directory {x} does not exist")
+    if not _readable(x):
+        raise PermissionError(f"Directory {x} is not readable")
+    if not _writable(x):
+        raise PermissionError(f"Directory {x} is not writable")
+    return True
+
+def _readable(path: str) -> bool:
+    """Check if a path is readable."""
+    return access(path, R_OK)
+
+def _writable(path: str) -> bool:
+    """Check if a path is writable."""
+    return access(path, W_OK) 

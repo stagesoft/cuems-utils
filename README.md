@@ -27,6 +27,7 @@ pip install cuemsutils
  - Improved `ProjectMappings` and `NetworkMap` content processing
  - Added class `Timeoutloop` for running methods with timeout
  - `get_media` methods return extended information
+ - Conditional load of xml files at `ConfigManager` initialization, all class methods made public
 
 ### v0.0.8
  - `Settings` class added to xml module. Allows for easy access to configuration files.
