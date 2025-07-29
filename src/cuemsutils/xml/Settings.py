@@ -101,6 +101,7 @@ class NetworkMap(Settings):
     def get_node(self, uuid):
         out = None
         for node in self.processed['nodes']:
+            node = node['node']
             if node['uuid'] == uuid:
                 out = node
                 break
@@ -150,3 +151,12 @@ class ProjectMappings(NetworkMap):
         
         mappings['nodes'] = temp_nodes
         return mappings
+
+class ProjectSettings(Settings):
+    """
+    ProjectSettings class that extends Settings to handle project settings operations.
+    """
+    def __init__(self, xmlfile, schema_name = 'project_settings', **kwargs):
+        if not hasattr(self, 'main_key'):
+            self.main_key = 'CuemsProjectSettings'
+        super().__init__(xmlfile, schema_name, **kwargs)
