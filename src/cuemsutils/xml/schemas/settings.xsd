@@ -33,14 +33,14 @@
             <xs:element name="uuid" type="cms:NonEmptyString" />
             <xs:element name="mac" type="cms:NonEmptyString" />
             <xs:element name="osc_dest_host" type="cms:NonEmptyString" />
-            <xs:element name="oscquery_ws_port" type="xs:positiveInteger" />
-            <xs:element name="oscquery_osc_port" type="xs:positiveInteger" />
-            <xs:element name="websocket_port" type="xs:positiveInteger" />
+            <xs:element name="oscquery_ws_port" type="cms:NonPrivilegedPort" />
+            <xs:element name="oscquery_osc_port" type="cms:NonPrivilegedPort" />
+            <xs:element name="websocket_port" type="cms:NonPrivilegedPort" />
             <xs:element name="load_timeout" type="xs:positiveInteger" />
             <xs:element name="nodeconf_timeout" type="xs:positiveInteger" />
             <xs:element name="discovery_timeout" type="xs:positiveInteger" />
             <xs:element name="mtc_port" type="xs:string" />
-            <xs:element name="osc_in_port_base" type="xs:positiveInteger" />
+            <xs:element name="osc_in_port_base" type="cms:NonPrivilegedPort" />
             <xs:element name="videoplayer" type="cms:VideoPlayerType" minOccurs="0" maxOccurs="1" />
             <xs:element name="audioplayer" type="cms:AudioPlayerType" minOccurs="0" maxOccurs="1" />
             <xs:element name="dmxplayer" type="cms:DmxPlayerType" minOccurs="0" maxOccurs="1" />
@@ -117,4 +117,10 @@
         </xs:restriction>
     </xs:simpleType>
 
+    <xs:simpleType name="NonPrivilegedPort">
+        <xs:restriction base="xs:int">
+            <xs:minInclusive value="1024" />
+            <xs:maxInclusive value="65535" />
+        </xs:restriction>
+    </xs:simpleType>
 </xs:schema>

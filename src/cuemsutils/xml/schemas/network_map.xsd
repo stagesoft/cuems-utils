@@ -23,7 +23,7 @@
             <xs:element name="name" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
             <xs:element name="node_type" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
             <xs:element name="ip" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
-            <xs:element name="port" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
+            <xs:element name="port" minOccurs="1" maxOccurs="1" type="cms:NonPrivilegedPort"/>
             <xs:element name="online" minOccurs="1" maxOccurs="1" type="cms:BoolType"/>
         </xs:sequence>
     </xs:complexType>
@@ -52,6 +52,13 @@
         <xs:restriction base="xs:string">
             <xs:minLength value="1" />
             <xs:pattern value=".*[^\s].*" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NonPrivilegedPort">
+        <xs:restriction base="xs:int">
+            <xs:minInclusive value="1024" />
+            <xs:maxInclusive value="65535" />
         </xs:restriction>
     </xs:simpleType>
 </xs:schema>
