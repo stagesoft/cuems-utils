@@ -54,7 +54,7 @@ class Settings(XmlReaderWriter):
         self.loaded = True
 
     def data2xml(self, obj):
-        xml_tree = ET.Element(type(obj).__name__)
+        xml_tree = ET.Element(self.main_key)
         self.xmldata = self.buildxml(xml_tree, obj)
 
     def buildxml(self, xml_tree, d): #TODO: clean variable names, simplify¿
