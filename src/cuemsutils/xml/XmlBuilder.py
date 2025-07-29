@@ -2,7 +2,8 @@ from enum import Enum
 from xml.etree.ElementTree import Element, ElementTree, SubElement, register_namespace
 
 from .Parsers import GenericDict
-from ..helpers import Uuid, as_cuemsdict
+from ..helpers import as_cuemsdict
+from ..tools.Uuid import Uuid
 from ..log import Logger
 
 PARSER_SUFFIX = 'XmlBuilder'
@@ -103,7 +104,7 @@ class GenericCueXmlBuilder(CuemsScriptXmlBuilder):
         if self.class_name == "dict" or self.class_name == "CuemsDict":
             Logger.info("dict class recieved")
             sub_element = as_cuemsdict(self._object)
-            sub_element.build(self.xml_tree)
+            sub_element.build(self.xml_tree)  # type: ignore[attr-union]
             return
         cue_element = SubElement(self.xml_tree, self.class_name)
         for key, value in self._object.items():
@@ -247,9 +248,9 @@ class OutputsXmlBuilder(GenericComplexSubObjectXmlBuilder):
                         self.recurser(item, output_subelement)
         elif isinstance(group, list):
             for item in group:
-                if isinstance(value, VALUE_TYPES):
+                if isinstance(item, VALUE_TYPES):
                     xml_tree.text = str(item)
-                if isinstance(item, dict):
+                elif isinstance(item, dict):
                     self.recurser(item, xml_tree)
         elif isinstance(group, VALUE_TYPES):
             xml_tree.text = str(group)

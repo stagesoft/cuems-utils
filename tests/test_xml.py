@@ -1,4 +1,5 @@
 '''Integration test for the XML Builder and Parser classes'''
+import typing
 from logging import DEBUG, INFO
 from os import path
 from xml.etree.ElementTree import ElementTree, Element
@@ -104,6 +105,7 @@ def test_cues():
     assert script.cuelist.contents[0].action_target == script.cuelist.contents[1].id
     assert script.cuelist.contents[0].action_type == 'play'
 
+@typing.no_type_check
 def test_XmlBuilder(caplog):
 
     caplog.set_level(DEBUG)
@@ -198,7 +200,7 @@ def test_jsonload(caplog):
     from cuemsutils.xml.Parsers import CuemsParser
     from cuemsutils.xml.XmlReaderWriter import XmlWriter
     from cuemsutils.cues import CuemsScript, CueList
-    from cuemsutils.CTimecode import CTimecode
+    from cuemsutils.tools.CTimecode import CTimecode
     import json
 
     caplog.set_level(DEBUG)
@@ -296,6 +298,7 @@ def test_settings():
     assert settings.validate() == None
     assert settings.read() == None
     assert settings.loaded == True
+    assert isinstance(settings.get_dict(), dict)
 
 def test_networkmap():
     from cuemsutils.xml import NetworkMap
@@ -305,6 +308,7 @@ def test_networkmap():
     assert networkmap.validate() == None
     assert networkmap.read() == None
     assert networkmap.loaded == True
+    assert isinstance(networkmap.processed, list)
 
 def test_projectmappings():
     from cuemsutils.xml import ProjectMappings

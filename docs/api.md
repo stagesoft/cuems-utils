@@ -2,10 +2,8 @@
 
 This API is still in development and may change without notice.
 
+::: cuemsutils.create_script
+::: cuemsutils.daemon
 ::: cuemsutils.log
 ::: cuemsutils.helpers
-::: cuemsutils.CopyMoveVersioned
-::: cuemsutils.CommunicatorServices
-::: cuemsutils.CTimecode
-::: cuemsutils.StringSanitizer
-::: cuemsutils.Uuid
+::: cuemsutils.timeoutloop

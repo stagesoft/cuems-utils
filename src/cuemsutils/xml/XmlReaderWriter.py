@@ -25,8 +25,6 @@ class CuemsXml():
     def __init__(self, schema_name, xmlfile, namespace={'cms':'https://stagelab.coop/cuems/'}, xml_root_tag='CuemsProject'):
         # Needed to implement to_dict respecting array elements
         self.converter = CMLCuemsConverter
-        self.xmldata = None
-
         self.namespace = namespace
         self.schema = schema_name
         self.xmlfile = xmlfile
@@ -56,9 +54,7 @@ class CuemsXml():
         return self.schema_object.validate(self.xmlfile)
 
 class XmlReaderWriter(CuemsXml):
-    def write(self, xml_data: ElementTree = None):
-        if xml_data is None:
-            xml_data = self.xml_data
+    def write(self, xml_data: ElementTree):
         self.schema_object.validate(xml_data)
         xml_data.write(
             self.xmlfile,

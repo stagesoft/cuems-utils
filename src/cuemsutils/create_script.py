@@ -125,11 +125,11 @@ def create_script():
         # remove dates and ids so we send it empty
         script.created = None
         script.modified = None
-        script['id'] = None
-        script['CueList']['id'] = None
-        script.cuelist['contents'][0]['id'] = None
-        script.cuelist['contents'][1]['id'] = None
-        script.cuelist['contents'][2]['id'] = None
+        script.id = None
+        script.cuelist.id = None
+        script.cuelist.contents[0]['id'] = None
+        script.cuelist.contents[1]['id'] = None
+        script.cuelist.contents[2]['id'] = None
 
         return script
 

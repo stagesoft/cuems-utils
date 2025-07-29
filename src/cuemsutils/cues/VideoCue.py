@@ -1,7 +1,7 @@
 from time import sleep
 
 from .MediaCue import MediaCue
-from ..CTimecode import CTimecode
+from ..tools.CTimecode import CTimecode
 from ..log import logged, Logger
 
 class VideoCue(MediaCue):

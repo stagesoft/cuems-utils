@@ -34,8 +34,12 @@ dependencies = [
     "xmlschema==3.4.3",
     "websockets==14.1",
     "peewee==3.17.8",
-    "aiofiles==24.1.0"
+    "aiofiles==24.1.0",
+]
 
+[project.optional-dependencies]
+systemd = [
+    "systemd==235",
 ]
 
 [project.urls]
@@ -52,6 +56,9 @@ include = ["src/cuemsutils/xml/schemas"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/cuemsutils"]
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.11"]
 
@@ -60,7 +67,7 @@ dependencies = [
   "pytest",
   "pytest-cov",
   "pytest-mock",
-  "coverage[toml]"
+  "coverage[toml]",
 ]
 
 [tool.coverage.run]

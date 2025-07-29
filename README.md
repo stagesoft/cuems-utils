@@ -20,6 +20,24 @@ pip install cuemsutils
 
 ## Release notes
 
+### v0.0.9
+ - Extended `Settings` parameters class
+ - New `tools` submodule for clarity with documentation
+ - Added class `SignalEngine` and `run_daemon` method for running daemons
+ - Improved `ProjectMappings` and `NetworkMap` content processing
+ - Added class `Timeoutloop` for running methods with timeout
+ - `get_media` methods return extended information
+ - Conditional load of xml files at `ConfigManager` initialization, all class methods made public
+
+### v0.0.8
+ - `Settings` class added to xml module. Allows for easy access to configuration files.
+ - Child classes `NetworkMap` and `ProjectMappings` inherit from `Settings` class.
+ - `CueList.get_media` method fixed to create usable dictionaries
+ - `CuemsScript.get_media` as a wrapper for `CueList.get_media`
+ - `CueList.get_[own_]media_filenames` method now returns a sorted list of filenames
+ - `Region` class improved to support proper `Media` recreation from json
+ - `setter` method moved up to `CuemsDict` class
+
 ### v0.0.7
  - `XmlReaderWriter` class added, previous classes `XmlReader` and `XmlWriter` marked as deprecated.
  - fixed `Communicator` error handling on path checking.

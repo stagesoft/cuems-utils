@@ -1,11 +1,11 @@
-from ..log import Logger
-from ..helpers import strtobool, Uuid
-
 from ..cues import *
-from ..CTimecode import CTimecode
 from ..cues.MediaCue import Media, Region
 from ..cues.CueOutput import AudioCueOutput, VideoCueOutput
 from ..cues.Cue import Cue, UI_properties
+from ..log import Logger
+from ..helpers import strtobool
+from ..tools.CTimecode import CTimecode
+from ..tools.Uuid import Uuid
 
 PARSER_SUFFIX = 'Parser'
 GENERIC_PARSER = 'GenericParser'

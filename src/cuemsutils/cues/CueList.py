@@ -1,6 +1,7 @@
 from .Cue import Cue
-
-from ..helpers import Uuid, ensure_items
+from .MediaCue import MediaCue
+from ..helpers import ensure_items
+from ..tools.Uuid import Uuid
 
 REQ_ITEMS = {
     'contents': []
@@ -26,7 +27,7 @@ class CueList(Cue):
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
 
-    def get_contents(self):
+    def get_contents(self) -> list[Cue]:
         """Get the list of cues in this cue list.
         
         Returns:
@@ -34,7 +35,7 @@ class CueList(Cue):
         """
         return super().__getitem__('contents')
 
-    def set_contents(self, contents):
+    def set_contents(self, contents: list[Cue]):
         """Set the list of cues in this cue list.
         
         Args:
@@ -82,11 +83,11 @@ class CueList(Cue):
         Returns:
             Cue or None: The found cue, or None if not found.
         """
-        if self.uuid == uuid:
+        if self.id == uuid:
             return self
         else:
             for item in self.contents:
-                if item.uuid == uuid:
+                if item.id == uuid:
                     return item
                 elif isinstance(item, CueList):
                     recursive = item.find(uuid)
@@ -96,22 +97,18 @@ class CueList(Cue):
         return None
 
     def get_media(self):
-        """Get a dictionary of all media files referenced in this cue list.
+        """Get a dictionary of all media files present inside contents.
         
         Returns:
             dict: A dictionary mapping cue UUIDs to their media information.
                 Each entry contains the media file name and cue type.
         """
         media_dict = dict()
-        for item in self.contents:
-            if isinstance(item, CueList):
-                media_dict.update( item.get_media() )
-            else:
-                try:
-                    if item.media:
-                        media_dict[item.uuid] = [item.media.file_name, item.__class__.__name__]
-                except KeyError:
-                        media_dict[item.uuid] = {'media' : None, 'type' : item.__class__.__name__}
+        for cue in self.contents:
+            if isinstance(cue, CueList):
+                media_dict.update(cue.get_media())
+            elif isinstance(cue, MediaCue) and hasattr(cue.media, 'file_name'):
+                media_dict[str(cue.id)] = {str(cue.media.id) : cue.media.file_name }
         
         return media_dict
 
@@ -131,13 +128,7 @@ class CueList(Cue):
             if cue_to_return:
                 return cue_to_return       
 
-        if self.target:
-            if self.post_go == 'pause':
-                return self._target_object
-            else:
-                return self._target_object.get_next_cue()
-        else:
-            return None
+        return super().get_next_cue()
 
     def items(self):
         """Get all items in the cue list as a dictionary.

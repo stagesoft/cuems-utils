@@ -1,6 +1,6 @@
 import os
 import shutil
-from .log import Logger
+from ..log import Logger
 
 class CopyMoveVersioned():
 
