@@ -1,4 +1,5 @@
-from os import path, environ
+from os import path
+from typing import Any
 
 from .ConfigBase import ConfigBase
 from ..log import Logger, logged
@@ -55,11 +56,30 @@ class ConfigManager(ConfigBase):
             self.load_config()
 
     @property
+    def network_map(self):
+        return self._network_map
+
+    @network_map.setter
+    def network_map(self, value: dict[str, Any]):
+        self._network_map = value
+
+    @property
+    def node_network_map(self):
+        return self._node_network_map
+    
+    @node_network_map.setter
+    def node_network_map(self, value: NetworkMap | dict):
+        if isinstance(value, NetworkMap):
+            self._node_network_map = value.get_node(self.node_uuid)
+        else:
+            self._node_network_map = value
+
+    @property
     def mappings(self):
         return self._mappings
 
     @mappings.setter
-    def mappings(self, value: dict):
+    def mappings(self, value: dict[str, Any]):
         self._mappings = value
     
     @property
@@ -67,24 +87,11 @@ class ConfigManager(ConfigBase):
         return self._node_mappings
 
     @node_mappings.setter
-    def node_mappings(self, value: dict):
-        self._node_mappings = value
-
-    @property
-    def project_mappings(self):
-        return self._project_mappings
-
-    @project_mappings.setter
-    def project_mappings(self, value: dict):
-        self._project_mappings = value
-
-    @property
-    def project_node_mappings(self):
-        return self._project_node_mappings
-
-    @project_node_mappings.setter
-    def project_node_mappings(self, value: dict):
-        self._project_node_mappings = value
+    def node_mappings(self, value: ProjectMappings | dict[str, Any]):
+        if isinstance(value, ProjectMappings):
+            self._node_mappings = value.get_node(self.node_uuid)
+        else:
+            self._node_mappings = value
 
     @logged
     def load_config(self) -> None:
@@ -115,6 +122,7 @@ class ConfigManager(ConfigBase):
         try:
             netmap = NetworkMap(self.conf_path('network_map.xml'))
             self.network_map = netmap.get_dict()
+            self.node_network_map = netmap
         except Exception as e:
             Logger.exception(f'Exception catched while loading network map: {e}')
             raise e
@@ -130,7 +138,7 @@ class ConfigManager(ConfigBase):
 
         try:
             project_mappings = ProjectMappings(mappings_file)
-            self.network_mappings = project_mappings.processed
+            self.mappings = project_mappings.processed # type: ignore[attr-defined]
         except Exception as e:
             Logger.exception(f'Exception catched while loading mappings file: {e}')
             raise e
@@ -157,6 +165,8 @@ class ConfigManager(ConfigBase):
         self.project_mappings = {}
         self.project_node_mappings = {}
         self.project_default_outputs = {}
+
+        self.project_name = project_uname
 
         self.load_project_settings(project_uname)
         self.load_project_mappings(project_uname)
@@ -199,20 +209,20 @@ class ConfigManager(ConfigBase):
             project_mappings = ProjectMappings(mappings_path)
             self.project_mappings = project_mappings.processed
             try:
-                self.project_node_mappings = project_mappings.get_node(self.node_conf['uuid'])
+                self.project_node_mappings = project_mappings.get_node(self.node_uuid)
             except ValueError:
                 Logger.warning(
                     f'No mappings assigned for this node in project {project_uname}'
                 )
         except FileNotFoundError as e:
             Logger.info(f'Project mappings not found. Adopting default mappings.')
-            self.project_mappings = self.node_mappings
+            self.project_mappings = self.mappings
             self.project_node_mappings = self.node_mappings
         except Exception as e:
             Logger.exception(f'Exception in load_project_mappings: {e}')
             raise e
 
-        self.number_of_nodes = int(self.project_mappings['number_of_nodes']) # type: ignore[index]
+        self.number_of_nodes = int(self.mappings['number_of_nodes']) # type: ignore[index]
         Logger.info(f'Project {project_uname} mappings loaded')
 
     def get_video_player_id(self, mapping_name: str):
