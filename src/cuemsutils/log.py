@@ -2,15 +2,32 @@ import sys
 from logging import getLogger, LoggerAdapter, StreamHandler, Formatter, DEBUG, INFO, ERROR, WARNING, CRITICAL
 from logging.handlers import SysLogHandler
 from functools import wraps
+from os import environ
 
 cuemsFormatter = Formatter('[%(asctime)s][%(levelname)s] \tFormitGo (PID: %(process)d)-(%(threadName)-9s)-(%(name)s:%(funcName)s:%(caller)s)> %(message)s')
+
+def log_level_to_obj(log_level):
+    """
+    Convert a log level string to a logging level object.
+    """
+    return {
+        'DEBUG': DEBUG,
+        'INFO': INFO,
+        'WARNING': WARNING,
+        'ERROR': ERROR,
+        'CRITICAL': CRITICAL
+    }[log_level]
 
 def main_logger(with_syslog = True, with_stdout = True):
     """
     Create a root logger with a custom formatter.
     """
     logger = getLogger(__name__)
-    logger.setLevel(DEBUG)
+    try:
+        log_level = log_level_to_obj(environ['CUEMS_LOG_LEVEL'].upper())
+    except KeyError:
+        log_level = DEBUG
+    logger.setLevel(log_level)
 
     if with_stdout:
         sh = StreamHandler(sys.stdout)
