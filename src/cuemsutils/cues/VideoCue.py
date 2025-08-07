@@ -132,9 +132,14 @@ class VideoCue(MediaCue):
         found = True
         map_list = ['default']
 
-        if settings.project_node_mappings['video']['outputs']:
-            for elem in settings.project_node_mappings['video']['outputs']:
+        # DEV: List first index is an artifact of the way the mappings are parsed
+        Logger.debug(f'VideoCue check_mappings: {settings.project_node_mappings}')
+        if settings.project_node_mappings['video'][0]['outputs']:
+            for elem in settings.project_node_mappings['video'][0]['outputs']:
+                elem = elem['output']
+                Logger.debug(f'VideoCue elem: {elem}')
                 for map in elem['mappings']:
+                    Logger.debug(f'VideoCue map: {map}')
                     map_list.append(map['mapped_to'])
 
         for output in self.outputs:

@@ -19,7 +19,10 @@ def test_simple_cuelist():
     assert custom_cue_list.contents[1] == c2
     assert custom_cue_list.contents[2] == ac
 
+    assert custom_cue_list.has_contents()
     assert isinstance(custom_cue_list.contents[0], Cue)
+    assert isinstance(custom_cue_list.contents[1], Cue)
+    assert isinstance(custom_cue_list.contents[2], AudioCue)
 
 
 def test_cuelist_errors():

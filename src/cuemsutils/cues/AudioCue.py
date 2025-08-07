@@ -145,9 +145,13 @@ class AudioCue(MediaCue):
         found = True
         map_list = ['default']
 
-        if settings.project_node_mappings['audio']['outputs']:
-            for elem in settings.project_node_mappings['audio']['outputs']:
+        Logger.debug(f'AudioCue check_mappings: {settings.project_node_mappings}')
+        if settings.project_node_mappings['audio'][0]['outputs']:
+            for elem in settings.project_node_mappings['audio'][0]['outputs']:
+                Logger.debug(f'AudioCue elem: {elem}')
+                elem = elem['output']
                 for map in elem['mappings']:
+                    Logger.debug(f'AudioCue map: {map}')
                     map_list.append(map['mapped_to'])
         
         for output in self.outputs:
