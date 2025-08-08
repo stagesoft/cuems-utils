@@ -146,6 +146,7 @@ class ConfigManager(ConfigBase):
         self.node_mappings = project_mappings.get_node(self.node_conf['uuid'])
 
         # Select just output names for node_hw_outputs var
+        # e.g: node_hw_outputs["audio_outputs"] = ["system:playback_1", "system:playback_2"]
         for section, value in self.node_mappings.items():
             if isinstance(value, dict):
                 for subsection, subvalue in value.items():
