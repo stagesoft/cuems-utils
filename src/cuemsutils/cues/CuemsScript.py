@@ -242,7 +242,7 @@ class CuemsScript(dict):
                 Logger.debug(f'get_own_media media cue at {pos}')
                 cue.check_mappings(config)
                 if cue._local:
-                    media_dict[cue.id] = cue.media.file_name
+                    media_dict[str(cue.id)] = cue.media.file_name
             pos += 1
         return media_dict
 
