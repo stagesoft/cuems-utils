@@ -11,6 +11,6 @@ X-Python3-Version: >= 3.11
 
 Package: cuems-utils
 Architecture: amd64
-Depends: python3 (>= 3.11), python3 (<< 3.12), ${shlibs:Depends}, ${misc:Depends}
+Depends: python3 (>= 3.11), python3 (<< 3.12), ${shlibs:Depends}, ${misc:Depends}, python3-systemd
 Description: Cuems utils
  Cuems utils is a set of utilities to work with the cuems project
