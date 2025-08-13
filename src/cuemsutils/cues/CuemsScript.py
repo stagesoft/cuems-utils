@@ -228,15 +228,22 @@ class CuemsScript(dict):
         if not cuelist:
             cuelist = self.cuelist
 
+        if not cuelist.has_contents():
+            return media_dict
+
+        pos = 0
         for cue in cuelist.contents:  # type: ignore[union-attr]
+            Logger.debug(f'CuemsScript get_own_media: {pos} {cue}')
             if type(cue) == CueList:
                 media_dict.update(
                     self.get_own_media(config=config, cuelist=cue)
                 )
             elif isinstance(cue, MediaCue) and hasattr(cue.media, 'file_name'):
+                Logger.debug(f'get_own_media media cue at {pos}')
                 cue.check_mappings(config)
                 if cue._local:
-                    media_dict[cue.id] = cue.media.file_name
+                    media_dict[str(cue.id)] = cue.media.file_name
+            pos += 1
         return media_dict
 
     @logged

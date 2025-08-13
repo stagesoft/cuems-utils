@@ -85,6 +85,8 @@ class CueList(Cue):
         """
         if self.id == uuid:
             return self
+        elif not self.has_contents():
+            return None
         else:
             for item in self.contents:
                 if item.id == uuid:
@@ -104,6 +106,10 @@ class CueList(Cue):
                 Each entry contains the media file name and cue type.
         """
         media_dict = dict()
+
+        if not self.has_contents():
+            return media_dict
+
         for cue in self.contents:
             if isinstance(cue, CueList):
                 media_dict.update(cue.get_media())
@@ -119,7 +125,8 @@ class CueList(Cue):
             Cue or None: The next cue to execute, or None if there is no next cue.
         """
         cue_to_return = None
-        if self.contents:
+        if self.has_contents():
+            # DEV: Always return the first cue in the list is correct?
             if self.contents[0].post_go == 'pause':
                 cue_to_return = self.contents[0]._target_object
             else:
@@ -150,3 +157,11 @@ class CueList(Cue):
         for item in self['contents']:
             timelist.append(item.offset)
         return timelist
+
+    def has_contents(self):
+        """Check if the cue list has contents.
+        
+        Returns:
+            bool: True if the cue list has contents, False otherwise.
+        """
+        return isinstance(self.contents, list) and len(self.contents) > 0

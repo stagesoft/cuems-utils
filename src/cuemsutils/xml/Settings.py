@@ -3,6 +3,7 @@
 
 import xml.etree.ElementTree as ET
 import os
+from typing import Any
 
 from ..log import Logger
 from ..tools.CTimecode import CTimecode
@@ -13,6 +14,8 @@ class Settings(XmlReaderWriter):
     Settings class that extends XmlReaderWriter to handle configuration file operations.
     """
     def __init__(self, xmlfile, schema_name = 'settings', **kwargs):
+      if 'xml_root_tag' not in kwargs:
+        kwargs['xml_root_tag'] = "CuemsSettings"
       super().__init__(
           schema_name = schema_name,
           xmlfile = xmlfile,
@@ -27,7 +30,9 @@ class Settings(XmlReaderWriter):
       if self.schema is not None and self.xmlfile is not None:
           self.read()
     
-    def get_dict(self):
+    def get_dict(self) -> dict[str, Any] | Any:
+        if self.main_key == '':
+            return self.xml_dict
         return self.xml_dict[self.main_key] # type: ignore[index]
 
     def backup(self):
@@ -54,7 +59,7 @@ class Settings(XmlReaderWriter):
         self.loaded = True
 
     def data2xml(self, obj):
-        xml_tree = ET.Element(type(obj).__name__)
+        xml_tree = ET.Element(self.main_key)
         self.xmldata = self.buildxml(xml_tree, obj)
 
     def buildxml(self, xml_tree, d): #TODO: clean variable names, simplify¿
@@ -96,12 +101,18 @@ class NetworkMap(Settings):
     def __init__(self, xmlfile, schema_name = 'network_map', **kwargs):
         if not hasattr(self, 'main_key'):
             self.main_key = 'CuemsNodeDict'
-        super().__init__(xmlfile, schema_name, **kwargs)
+        super().__init__(
+            xmlfile,
+            schema_name,
+            xml_root_tag='CuemsNetworkMap',
+            **kwargs
+        )
 
     def get_node(self, uuid):
         out = None
-        for node in self.processed['nodes']:
-            if node['uuid'] == uuid:
+        for node in self.processed: # type: ignore[index]
+            node = node['CuemsNode'] # type: ignore[index]
+            if node['uuid'] == uuid: # type: ignore[index]
                 out = node
                 break
         if not out:
@@ -111,17 +122,33 @@ class NetworkMap(Settings):
     def process_xml_dict(self):
         self.processed = self.get_dict()
 
-class ProjectMappings(NetworkMap):
+class ProjectMappings(Settings):
     """
-    ProjectMappings class that extends NetworkMap to handle project mappings operations.
+    Mappings class that extends Settings to handle hardware mappings operations.
     """
     def __init__(self, xmlfile, schema_name = 'project_mappings', **kwargs):
         if not hasattr(self, 'main_key'):
-            self.main_key = 'CuemsProjectMappings'
-        super().__init__(xmlfile, schema_name, **kwargs)
+            self.main_key = ''
+        super().__init__(
+            xmlfile,
+            schema_name,
+            xml_root_tag='CuemsProjectMappings',
+            **kwargs
+        )
 
-    def get_dict(self):
-        return self.xml_dict
+    def get_node(self, uuid):
+        out = None
+        for node in self.processed['nodes']: # type: ignore[index]
+            node = node['node']
+            if node['uuid'] == uuid:
+                out = node
+                break
+        if not out:
+            raise ValueError(f'Node with uuid {uuid} not found')
+        return out
+
+    def process_xml_dict(self):
+        self.processed = self.get_dict()
 
     def process_network_mappings(self, mappings):
         '''Temporary process instead of reviewing xml read and convert to objects'''
@@ -150,3 +177,17 @@ class ProjectMappings(NetworkMap):
         
         mappings['nodes'] = temp_nodes
         return mappings
+
+class ProjectSettings(Settings):
+    """
+    ProjectSettings class that extends Settings to handle project settings operations and override system-wide settings.
+    """
+    def __init__(self, xmlfile, schema_name = 'project_settings', **kwargs):
+        if not hasattr(self, 'main_key'):
+            self.main_key = 'CuemsProjectSettings'
+        super().__init__(
+            xmlfile,
+            schema_name,
+            xml_root_tag='CuemsProjectSettings',
+            **kwargs
+        )

@@ -309,6 +309,7 @@ def test_networkmap():
     assert networkmap.read() == None
     assert networkmap.loaded == True
     assert isinstance(networkmap.processed, list)
+    assert networkmap.processed[0]['CuemsNode']['online'] == 'True'
 
 def test_projectmappings():
     from cuemsutils.xml import ProjectMappings
