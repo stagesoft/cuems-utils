@@ -5,6 +5,7 @@ import json
 import os
 import sys
 from pynng import Req0, Rep0
+from functools import partial
 
 from ..log import Logger
 from ..helpers import check_path
@@ -70,6 +71,7 @@ class Nng_request_response(CommunicatorService):
         return response
 
 
+
     async def reply(self, request_processor):
         """
         Asynchronously handle incoming requests and respond using the provided request processor.
@@ -88,12 +90,40 @@ class Nng_request_response(CommunicatorService):
                 request = await socket.arecv()
                 decoded_request = json.loads(request.decode())  # Parse the JSON request
                 Logger.debug(f"Received: {decoded_request}")
-                response = request_processor(decoded_request)
-                encoded_response = json.dumps(response).encode()
-                await self._respond(socket, encoded_response)
+                if asyncio.iscoroutinefunction(request_processor):
+                   response = await request_processor(decoded_request)
+                else:
+                    loop = asyncio.get_event_loop()
+                    response = await loop.run_in_executor(None, partial(request_processor, decoded_request))
+                await self._respond(socket, response)
 
-    async def _respond(self, socket, encoded_response):
+    async def _respond(self, socket, response):
+        encoded_response = json.dumps(response).encode()
         await socket.asend(encoded_response)
+
+    async def responder_connect(self):
+        self.responder = Rep0(**self.params_reply)
+
+    async def responder_get_request(self, callback):
+        
+        context = self.responder.new_context()
+        request = await context.arecv()
+        decoded_request = json.loads(request.decode())  # Parse the JSON request
+        Logger.debug(f"Received: {decoded_request}")
+        if asyncio.iscoroutinefunction(callback):
+            Logger.debug(f"Calling callback function async")
+            await callback(decoded_request, context)
+        else:
+            loop = asyncio.get_event_loop()
+            Logger.debug(f"Calling sync callback function in executor")
+            await loop.run_in_executor(None, partial(callback, decoded_request, context))
+
+
+    async def responder_post_reply(self, response, context):
+        await self._respond(context, response)
+        context.close()
+
+
 
 class Communicator(CommunicatorService):
     def __init__(self, address, communicator_service = Nng_request_response, nng_mode=True):
@@ -121,3 +151,9 @@ class Communicator(CommunicatorService):
 
     async def reply(self, request_processor):
        await self.communicator_service.reply(request_processor)
+
+    async def responder_get_request(self, callback):
+        await self.communicator_service.responder_get_request(callback)
+
+    async def responder_post_reply(self, response, context):
+        await self.communicator_service.responder_post_reply(response, context)
