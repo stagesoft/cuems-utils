@@ -5,12 +5,13 @@ from .Cue import Cue, CuemsDict
 
 REQ_ITEMS = {
     'fadein_time': 0.0,
-    'Scene': None
+    'fadeout_time': 0.0,
+    'DmxScene': None
 }
 
 SCENE_REQ_ITEMS = {
     'id': 0,
-    'Universe': None
+    'DmxUniverse': None
 }
 
 UNIVERSE_REQ_ITEMS = {
@@ -19,7 +20,7 @@ UNIVERSE_REQ_ITEMS = {
 }
 
 DMXCHANNEL_REQ_ITEMS = {
-    'num': 0,
+    'channel': 0,
     'value': 0
 }
 
@@ -84,29 +85,29 @@ class DmxCue(Cue):
 
     fadeout_time = property(get_fadeout_time, set_fadeout_time)
 
-    def get_Scene(self):
+    def get_DmxScene(self):
         """Get the DMX scene for this cue.
         
         Returns:
             DmxScene: The current DMX scene.
         """
-        return super().__getitem__('Scene')
+        return super().__getitem__('DmxScene')
 
     
-    def set_Scene(self, scene):
+    def set_DmxScene(self, dmxscene):
         """Set the DMX scene for this cue.
         
         Args:
-            scene (DmxScene or dict): The new DMX scene or a dictionary to create one.
+            dmxscene (DmxScene or dict): The new DMX scene or a dictionary to create one.
             
         Raises:
             NotImplementedError: If the scene type is not supported.
         """
-        if not isinstance(scene, DmxScene):
-            scene = DmxScene(scene)
-        super().__setitem__('Scene', scene)
+        if not isinstance(dmxscene, DmxScene):
+            dmxscene = DmxScene(dmxscene)
+        super().__setitem__('DmxScene', dmxscene)
         
-    scene = property(get_Scene, set_Scene)
+    DmxScene = property(get_DmxScene, set_DmxScene)
 
     def osc_route(self, osc_route):
         """Set the OSC route for DMX control.
@@ -168,9 +169,26 @@ class DmxScene(CuemsDict):
             init_dict = SCENE_REQ_ITEMS
         else:
             init_dict = ensure_items(init_dict, SCENE_REQ_ITEMS)
-        super().__init__(init_dict)
+        if init_dict:
+            self.setter(init_dict)
 
-    def get_Universe(self, num=None):
+    def get_id(self):
+        """Get the scene ID.
+        
+        Returns:
+            int: The scene ID.
+        """
+        return super().__getitem__('id')
+    
+    def set_id(self, scene_id):
+        """Set the scene ID.
+        
+        Args:
+            scene_id (int): The new scene ID.
+        """
+        super().__setitem__('id', scene_id)
+    id = property(get_id, set_id)
+    def get_DmxUniverse(self):
         """Get a specific DMX universe.
         
         Args:
@@ -180,12 +198,11 @@ class DmxScene(CuemsDict):
         Returns:
             DmxUniverse or None: The requested universe or None if not found.
         """
-        if num is not None:
-            return super().__getitem__('Universe')
+        return super().__getitem__('DmxUniverse')
 
 
       
-    def set_Universe(self, universe):
+    def set_DmxUniverse(self, universe):
         """Set a DMX universe at a specific number.
         
         Args:
@@ -194,9 +211,9 @@ class DmxScene(CuemsDict):
         """
         if not isinstance(universe, DmxUniverse):
             universe = DmxUniverse(universe)
-        super().__setitem__('Universe', universe)
+        super().__setitem__('DmxUniverse', universe)
         
-    universe = property(get_Universe, set_Universe)
+    DmxUniverse = property(get_DmxUniverse, set_DmxUniverse)
 
     # def merge_universe(self, universe, num=0):
     #     """Merge two universes, with priority given to the new universe.
@@ -221,26 +238,62 @@ class DmxUniverse(CuemsDict):
             init_dict = UNIVERSE_REQ_ITEMS
         else:
             init_dict = ensure_items(init_dict, UNIVERSE_REQ_ITEMS)
-        super().__init__(init_dict)
+        if init_dict:
+            self.setter(init_dict)
 
-    def get_channels(self, channels):
+    def get_universe_num(self):
+        """Get the universe number.
+        
+        Returns:
+            int: The universe number.
+        """
+        return super().__getitem__('universe_num')
+    
+    def set_universe_num(self, universe_num):
+        """Set the universe number.
+        
+        Args:
+            universe_num (int): The new universe number.
+        """
+        super().__setitem__('universe_num', universe_num)
+    universe_num = property(get_universe_num, set_universe_num)
+
+    def get_dmx_channels(self):
         """Get the dmx channel for the scene.
         
         Returns:
             list: The list of dmx channels.
         """
-        return super().__getitem__(channels)
+        return super().__getitem__('dmx_channels')
 
-    def set_channels(self, channels):
+    def set_dmx_channels(self, channels):
         """Set the output routing configuration.
         
         Args:
             channels (list): The list of output configurations.
         """
+        Logger.info("DmxUniverse set_channels called with channels: {}".format(channels))
+        if not isinstance(channels, list):
+            channels = [channels]
+        channel_list = []
+        Logger.debug(f'Channels to process: {channels} Type: {type(channels)}')
+        try:
+            for r in channels:
+                    Logger.debug(f'Processing channel: {r}')
+                    if not isinstance(r, DmxChannel):
+                        Logger.debug(f"Converting to DmxChannel: {r['DmxChannel']}")
+                        new_dmxchannel = DmxChannel(r['DmxChannel'])
+                        channel_list.append(new_dmxchannel)
+                        super().__setitem__('dmx_channels', channel_list)
+                    else:
+                        super().__setitem__('dmx_channels', channels)
+        except Exception as e:
+            Logger.error(f"Error converting channels to DmxChannel: {e}")
+            super().__setitem__('dmx_channels', channels)
+        
 
-        super().__setitem__( 'dmx_channels', channels)
+    dmx_channels = property(get_dmx_channels, set_dmx_channels)
 
-    dmx_channels = property(get_channels, set_channels)
 
     # def setall(self, value):
     #     """Set all channels in the universe to the same value.
@@ -271,7 +324,7 @@ class DmxUniverse(CuemsDict):
 class DmxChannel(CuemsDict):
     """A class representing a single DMX channel."""
     
-    def __init__(self, value=None, init_dict = None):
+    def __init__(self, init_dict = None):
         """Initialize a DMX channel.
         
         Args:
@@ -282,26 +335,27 @@ class DmxChannel(CuemsDict):
             init_dict = DMXCHANNEL_REQ_ITEMS
         else:
             init_dict = ensure_items(init_dict, DMXCHANNEL_REQ_ITEMS)
-        super().__init__(init_dict)
+        if init_dict:
+            self.setter(init_dict)
 
 
 
-    def get_channel(self, num):
+    def get_channel(self):
         """Get the channel number.
         
         Returns:
             int: The channel number.
         """
-        return super().__getitem__('num')
+        return super().__getitem__('channel')
     
-    def set_channel(self, num):
+    def set_channel(self, channel):
         """Set the channel number.
         
         Args:
             num (int): The new channel number.
         """
-        super().__setitem__('num', num)
-    num = property(get_channel, set_channel)
+        super().__setitem__('channel', channel)
+    channel = property(get_channel, set_channel)
 
     def get_value(self):
         """Get the channel value.
@@ -319,3 +373,11 @@ class DmxChannel(CuemsDict):
         """
         super().__setitem__('value', value)
     value = property(get_value, set_value)
+
+    def __json__(self):
+        """Convert the region to a JSON-compatible dictionary.
+        
+        Returns:
+            dict: A dictionary representation of the region.
+        """
+        return {type(self).__name__: dict(self.items())}

@@ -128,28 +128,7 @@ class GenericCueXmlBuilder(CuemsScriptXmlBuilder):
                 builder_class = self.get_builder_class(value)
                 sub_object_element = builder_class(value, xml_tree = cue_subelement).build()
 
-class DmxSceneXmlBuilder(CuemsScriptXmlBuilder):
- 
-    def build(self):
-        cue_element = SubElement(self.xml_tree, self.class_name)
-        universe_list = list(self._object.items())
-        for universe in universe_list:
-            builder_class = self.get_builder_class(universe[1])
-            sub_object_element = builder_class(universe, xml_tree = cue_element).build()
 
-class DmxUniverseXmlBuilder(CuemsScriptXmlBuilder):
-        
-    def build(self):
-        cue_element = SubElement(self.xml_tree, type(self._object[1]).__name__, id=str(self._object[0]))
-        channel_list = list(self._object[1].items())
-        for channel in channel_list:
-            builder_class = self.get_builder_class(channel[1])
-            sub_object_element = builder_class(channel, xml_tree = cue_element).build()
-    
-class DmxChannelXmlBuilder(CuemsScriptXmlBuilder):
-    def build(self):
-        cue_element = SubElement(self.xml_tree, type(self._object[1]).__name__, id=str(self._object[0]))
-        cue_element.text = str(self._object[1])
 
 class GenericSimpleSubObjectXmlBuilder(CuemsScriptXmlBuilder):
     def build(self):
@@ -285,8 +264,28 @@ class AudioCueOutputXmlBuilder(CueOutputsXmlBuilder):
 class VideoCueOutputXmlBuilder(CueOutputsXmlBuilder):
     pass
 
-class DmxCueOutputXmlBuilder(CueOutputsXmlBuilder):
-    pass
+
+class DmxSceneXmlBuilder(GenericComplexSubObjectXmlBuilder):
+ 
+    def build(self):
+        try:
+            Logger.debug(f"Building using DmxSceneXmlBuilder with {self._object}")
+            for key, value in self._object.items():
+                Logger.debug(f"Key: {key}, Value: {value}, Type of value: {type(value)}")
+                if isinstance(value, VALUE_TYPES):
+                    cue_subelement = SubElement(self.xml_tree, key)
+                    cue_subelement.text = str(value)
+                elif isinstance(value, GenericDict):
+                    Logger.debug(f"recursing into dict for key: {key}")
+                    cue_subelement = SubElement(self.xml_tree, key)
+                    self.recurser(value, cue_subelement)
+                else:
+                    builder_class = self.get_builder_class(value)
+                    Logger.debug(f"Building with {builder_class} and content {value}")
+                    sub_object_element = builder_class(value, xml_tree = self.xml_tree).build()  
+        except Exception as e:
+            Logger.error(f"Error building DmxSceneXmlBuilder: {str(e)} {type(e)}")
+
 
 class NoneTypeXmlBuilder(GenericSimpleSubObjectXmlBuilder): # TODO: clean, not need anymore? 
     pass

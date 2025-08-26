@@ -57,13 +57,13 @@ def create_script():
     dc = DmxCue({
         'fadein_time':0.0,
         'fadeout_time':0.0,
-        'Scene': DmxScene({
+        'DmxScene': DmxScene({
             'id': 0,
-            'Universe': DmxUniverse({
+            'DmxUniverse': DmxUniverse({
                 'universe_num': 0,
                 'dmx_channels': [
                     DmxChannel({
-                        'num': 0,
+                        'channel': 0,
                         'value': 0
                     })
                 ]
@@ -115,8 +115,7 @@ def create_script():
         }
     })]
 
-                            
-    
+                                
     custom_cue_list = CueList({'contents': [ac]})
     custom_cue_list.append(vc)
     custom_cue_list.append(dc)
