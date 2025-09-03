@@ -1,4 +1,5 @@
 from time import sleep
+from deprecated import deprecated
 
 from .MediaCue import MediaCue
 from ..helpers import ensure_items
@@ -74,6 +75,10 @@ class AudioCue(MediaCue):
         """
         self._osc_route = osc_route
 
+    @deprecated(
+        reason="Use loop_cue from CueHandler instead",
+        version="0.0.9rc5"
+    )
     @logged
     def audio_media_loop(self, ossia, mtc):
         """Handle the audio media playback loop.

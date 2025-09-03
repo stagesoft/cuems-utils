@@ -1,4 +1,5 @@
 from time import sleep
+from deprecated import deprecated
 
 from .MediaCue import MediaCue
 from ..tools.CTimecode import CTimecode
@@ -54,6 +55,10 @@ class VideoCue(MediaCue):
         return x.items()
 
     @logged
+    @deprecated(
+        reason="Use loop_cue from CueHandler instead",
+        version="0.0.9rc5"
+    )
     def video_media_loop(self, ossia, mtc):
         """Handle the video media playback loop.
         
