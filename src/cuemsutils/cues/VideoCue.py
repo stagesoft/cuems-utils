@@ -5,6 +5,8 @@ from .MediaCue import MediaCue
 from ..tools.CTimecode import CTimecode
 from ..log import logged, Logger
 
+
+
 class VideoCue(MediaCue):
     """A cue for handling video playback and control.
     
@@ -19,8 +21,11 @@ class VideoCue(MediaCue):
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to set initial properties.
         """
-        if init_dict:
+        if not init_dict:
+            super().__init__()
+        else:
             super().__init__(init_dict)
+
         self._player = None
         self._osc_route = None
         self._go_thread = None

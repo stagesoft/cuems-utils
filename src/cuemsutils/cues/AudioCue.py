@@ -23,9 +23,11 @@ class AudioCue(MediaCue):
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to set initial properties.
         """
-        if init_dict:
+        if not init_dict:
+            init_dict = REQ_ITEMS
+        else:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
-            super().__init__(init_dict)
+        super().__init__(init_dict)
 
         self._player = None
         self._osc_route = None
