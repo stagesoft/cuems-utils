@@ -27,6 +27,9 @@ class Uuid():
     def __call__(self):
         return self.uuid
 
+    def __hash__(self):
+        return hash(self.uuid)
+
     def __eq__(self, other):
         if isinstance(other, Uuid):
             return self.uuid == other.uuid

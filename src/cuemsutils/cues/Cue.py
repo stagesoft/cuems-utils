@@ -306,7 +306,7 @@ class Cue(CuemsDict):
         Returns:
             int: The hash value of the cue's id.
         """
-        return hash(str(self.id))
+        return hash(self.id)
 
     def __json__(self):
         """Convert the cue to a JSON-compatible dictionary.
