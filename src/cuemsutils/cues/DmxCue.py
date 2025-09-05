@@ -279,14 +279,15 @@ class DmxUniverse(CuemsDict):
         Logger.debug(f'Channels to process: {channels} Type: {type(channels)}')
         try:
             for r in channels:
-                    Logger.debug(f'Processing channel: {r}')
-                    if not isinstance(r, DmxChannel):
-                        Logger.debug(f"Converting to DmxChannel: {r['DmxChannel']}")
-                        new_dmxchannel = DmxChannel(r['DmxChannel'])
-                        channel_list.append(new_dmxchannel)
-                        super().__setitem__('dmx_channels', channel_list)
-                    else:
-                        super().__setitem__('dmx_channels', channels)
+                    if r is not None:
+                        Logger.debug(f'Processing channel: {r}')
+                        if not isinstance(r, DmxChannel):
+                            Logger.debug(f"Converting to DmxChannel: {r['DmxChannel']}")
+                            new_dmxchannel = DmxChannel(r['DmxChannel'])
+                            channel_list.append(new_dmxchannel)
+                            super().__setitem__('dmx_channels', channel_list)
+                        else:
+                            super().__setitem__('dmx_channels', channels)
         except Exception as e:
             Logger.error(f"Error converting channels to DmxChannel: {e}")
             super().__setitem__('dmx_channels', channels)
