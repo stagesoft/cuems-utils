@@ -40,8 +40,8 @@ def test_base_settings(config_manager):
     assert config_manager.node_uuid == config_manager.node_conf['uuid']
     assert config_manager.node_conf['mac'] == '2cf05d21cca3'
     assert config_manager.node_conf['osc_dest_host'] == 'localhost'
-    assert config_manager.node_conf['oscquery_ws_port'] == 9090
-    assert config_manager.node_conf['oscquery_osc_port'] == 9091
+    assert config_manager.node_conf['oscquery_ws_port'] == 9190
+    assert config_manager.node_conf['oscquery_osc_port'] == 9191
     assert config_manager.node_conf['websocket_port'] == 9092
     assert config_manager.node_conf['load_timeout'] == 15000
     assert config_manager.node_conf['nodeconf_timeout'] == 5000
