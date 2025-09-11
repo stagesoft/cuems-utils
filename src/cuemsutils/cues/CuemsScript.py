@@ -4,7 +4,7 @@ import json_fix
 from .CueList import CueList
 from .MediaCue import MediaCue
 from ..log import logged, Logger
-from ..helpers import as_cuemsdict, ensure_items, new_uuid, new_datetime, unique_values_to_list
+from ..helpers import as_cuemsdict, ensure_items, new_uuid, new_datetime, unique_values_to_list, CuemsDict
 from ..tools.Uuid import Uuid
 
 REQ_ITEMS = {
@@ -52,7 +52,7 @@ class CuemsScript(dict):
         id = Uuid(id)
         super().__setitem__('id', id)
 
-    id = property(get_id, set_id)
+    id: Uuid = property(get_id, set_id)
 
     def get_name(self):
         """Get the name of the script.
@@ -70,7 +70,7 @@ class CuemsScript(dict):
         """
         super().__setitem__('name', name)
 
-    name = property(get_name, set_name)
+    name: str = property(get_name, set_name)
 
     def get_description(self):
         """Get the description of the script.
@@ -88,7 +88,7 @@ class CuemsScript(dict):
         """
         super().__setitem__('description', description)
 
-    description = property(get_description, set_description)
+    description: str = property(get_description, set_description)
 
     def get_created(self):
         """Get the creation timestamp of the script.
@@ -152,9 +152,9 @@ class CuemsScript(dict):
                 )
         super().__setitem__('CueList', cuelist)
 
-    cuelist = property(get_CueList, set_CueList)
+    cuelist: CueList = property(get_CueList, set_CueList)
 
-    def get_ui_properties(self):
+    def get_ui_properties(self) -> CuemsDict:
         """Get the UI properties of the script.
         
         Returns:
@@ -162,7 +162,7 @@ class CuemsScript(dict):
         """
         return super().__getitem__('ui_properties')
 
-    def set_ui_properties(self, ui_properties):
+    def set_ui_properties(self, ui_properties: dict | CuemsDict):
         """Set the UI properties of the script.
         
         Args:
@@ -172,7 +172,7 @@ class CuemsScript(dict):
         ui_properties = as_cuemsdict(ui_properties)
         super().__setitem__('ui_properties', ui_properties)
 
-    ui_properties = property(get_ui_properties, set_ui_properties)
+    ui_properties: CuemsDict = property(get_ui_properties, set_ui_properties)
 
     def find(self, uuid):
         """Find a cue by its UUID in the script.
