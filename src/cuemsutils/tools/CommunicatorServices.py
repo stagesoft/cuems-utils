@@ -5,6 +5,7 @@ import json
 import os
 import sys
 from pynng import Req0, Rep0
+from functools import partial
 
 from ..log import Logger
 from ..helpers import check_path
@@ -55,19 +56,24 @@ class Nng_request_response(CommunicatorService):
         Returns:
         - dict: The response received from the address. It will be a dictionary.
         """
-        with Req0(**self.params_request) as socket:
-            while await asyncio.sleep(0, result=True):
-                print(f"Sending: {request}")
-                encoded_request = json.dumps(request).encode()
-                await socket.asend(encoded_request)
-                response = await self._get_response(socket)
-                decoded_response = json.loads(response.decode())
-                print(f"receiving: {decoded_response}")
-                return decoded_response
+        try:
+            with Req0(**self.params_request) as socket:
+                while await asyncio.sleep(0, result=True):
+                    print(f"Sending: {request}")
+                    encoded_request = json.dumps(request).encode()
+                    await socket.asend(encoded_request)
+                    response = await self._get_response(socket)
+                    decoded_response = json.loads(response.decode())
+                    print(f"receiving: {decoded_response}")
+                    return decoded_response
+        except Exception as e:
+            Logger.error(f"Error occurred while sending request: {e}")
+            return None
 
     async def _get_response(self, socket):
         response = await socket.arecv()
         return response
+
 
 
     async def reply(self, request_processor):
@@ -83,17 +89,58 @@ class Nng_request_response(CommunicatorService):
         Returns:
         - None: This function is designed to run indefinitely, handling incoming requests and responses.
         """
-        with Rep0(**self.params_reply) as socket:
-            while await asyncio.sleep(0, result=True):
-                request = await socket.arecv()
-                decoded_request = json.loads(request.decode())  # Parse the JSON request
-                Logger.debug(f"Received: {decoded_request}")
-                response = request_processor(decoded_request)
-                encoded_response = json.dumps(response).encode()
-                await self._respond(socket, encoded_response)
+        try:
+            with Rep0(**self.params_reply) as socket:
+                while await asyncio.sleep(0, result=True):
+                    request = await socket.arecv()
+                    decoded_request = json.loads(request.decode())  # Parse the JSON request
+                    Logger.debug(f"Received: {decoded_request}")
+                    if asyncio.iscoroutinefunction(request_processor):
+                        response = await request_processor(decoded_request)
+                    else:
+                        loop = asyncio.get_event_loop()
+                        response = await loop.run_in_executor(None, partial(request_processor, decoded_request))
+                    await self._respond(socket, response)
+        except Exception as e:
+            Logger.error(f"Error occurred while handling request: {e}")
 
-    async def _respond(self, socket, encoded_response):
-        await socket.asend(encoded_response)
+    async def _respond(self, socket, response):
+        try:
+            encoded_response = json.dumps(response).encode()
+            Logger.debug(f"Sending: {encoded_response}")
+            await socket.asend(encoded_response)
+        except Exception as e:
+            Logger.error(f"Error occurred while sending response: {e}")
+
+    async def responder_connect(self):
+        self.responder = Rep0(**self.params_reply)
+
+    async def responder_get_request(self, callback):
+        try:
+            context = self.responder.new_context()
+            request = await context.arecv()
+            decoded_request = json.loads(request.decode())  # Parse the JSON request
+            Logger.debug(f"Received: {decoded_request}")
+            if asyncio.iscoroutinefunction(callback):
+                Logger.debug(f"Calling callback function async")
+                await callback(decoded_request, context)
+            else:
+                loop = asyncio.get_event_loop()
+                Logger.debug(f"Calling sync callback function in executor")
+                await loop.run_in_executor(None, partial(callback, decoded_request, context))
+        except Exception as e:
+            Logger.error(f"Error occurred while handling request: {e}")
+
+
+    async def responder_post_reply(self, response, context):
+        try:
+            await self._respond(context, response)
+        except Exception as e:
+            Logger.error(f"Error occurred while sending response: {e}")
+        finally:
+            context.close()
+
+
 
 class Communicator(CommunicatorService):
     def __init__(self, address, communicator_service = Nng_request_response, nng_mode=True):
@@ -121,3 +168,12 @@ class Communicator(CommunicatorService):
 
     async def reply(self, request_processor):
        await self.communicator_service.reply(request_processor)
+
+    async def responder_connect(self):
+        await self.communicator_service.responder_connect()
+
+    async def responder_get_request(self, callback):
+        await self.communicator_service.responder_get_request(callback)
+
+    async def responder_post_reply(self, response, context):
+        await self.communicator_service.responder_post_reply(response, context)

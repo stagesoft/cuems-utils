@@ -43,7 +43,7 @@ class CueList(Cue):
         """
         super().__setitem__('contents', contents)
 
-    contents = property(get_contents, set_contents)
+    contents: list[Cue] = property(get_contents, set_contents)
 
     def append(self, item: Cue):
         """Add a cue to the end of the list.

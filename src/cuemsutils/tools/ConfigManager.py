@@ -144,14 +144,19 @@ class ConfigManager(ConfigBase):
             raise e
 
         self.node_mappings = project_mappings.get_node(self.node_conf['uuid'])
-
+        Logger.debug(f"Node uuid is: {self.node_conf['uuid']}")
         # Select just output names for node_hw_outputs var
         # e.g: node_hw_outputs["audio_outputs"] = ["system:playback_1", "system:playback_2"]
-        for section, value in self.node_mappings.items():
-            if isinstance(value, dict):
-                for subsection, subvalue in value.items():
-                    for subitem in subvalue:
-                        self.node_hw_outputs[section+'_'+subsection].append(subitem['name'])
+        for section, content in self.node_mappings.items():
+            if isinstance(content, list):
+                for port_type_dict in content:
+                    for port_types, port_type_list in port_type_dict.items():
+                        for port in port_type_list:
+                            for port_type, port_type_content in port.items():
+                                name = port_type_content['name']
+                                self.node_hw_outputs[section+'_'+port_types].append(name)
+        
+        Logger.debug(f"Node hardware outputs are: {self.node_hw_outputs}")
 
     @logged
     def load_project_config(self, project_uname: str) -> None:

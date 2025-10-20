@@ -270,9 +270,12 @@ class AudioCueOutputParser(outputsParser):
 class VideoCueOutputParser(outputsParser):
     pass
 
-class DmxCueOutputParser(outputsParser):
-    pass
-
+class DmxCueParser(CuemsScriptParser):
+    def parse(self):
+        Logger.debug(f"Parsing DmxCue with DmxCueParser, {self._class}, {self.init_dict}")
+        self.item_gp = self._class(self.init_dict)
+        return self.item_gp
+    
 class NoneTypeParser():
     def __init__(self, init_dict, class_string):
         pass

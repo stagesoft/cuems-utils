@@ -18,3 +18,4 @@
         with raises(ValueError):
             networkmap.write(xml_data)
     ```
+- implement `check_mappings` as `@singledispatch`

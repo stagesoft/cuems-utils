@@ -1,4 +1,5 @@
 from .cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
+from .cues.DmxCue import DmxScene, DmxUniverse, DmxChannel
 from .cues.MediaCue import Media, Region
 from .cues.CueOutput import AudioCueOutput, VideoCueOutput
 from .helpers import new_datetime, new_uuid
@@ -53,6 +54,28 @@ def create_script():
             'warning': None
             }
     })
+    dc = DmxCue({
+        'fadein_time':0.0,
+        'fadeout_time':0.0,
+        'DmxScene': DmxScene({
+            'id': 0,
+            'DmxUniverse': DmxUniverse({
+                'universe_num': 0,
+                'dmx_channels': [
+                    DmxChannel({
+                        'channel': 0,
+                        'value': 0
+                    })
+                ]
+                
+            })    
+
+        }),
+        'time': 0,
+        'ui_properties' : {
+            'warning': None
+            }
+    })
     ac.outputs = [AudioCueOutput({
         "output_name": "0367f391-ebf4-48b2-9f26-000000000001_system:playback_1",
         "output_vol": 80,
@@ -92,12 +115,10 @@ def create_script():
         }
     })]
 
-                            
-    #d_c = DmxCue(time=23, scene={0:{0:10, 1:50}, 1:{20:23, 21:255}, 2:{5:10, 6:23, 7:125, 8:200}}, init_dict={'loop' : 3})
-    #d_c.outputs = {'universe0': 3}
-    
+                                
     custom_cue_list = CueList({'contents': [ac]})
     custom_cue_list.append(vc)
+    custom_cue_list.append(dc)
     custom_cue_list.append(act)
     
     script = CuemsScript({'CueList': custom_cue_list})
@@ -112,9 +133,11 @@ def create_script():
     script.cuelist['contents'][0]['id'] = new_uuid()
     script.cuelist['contents'][1]['id'] = new_uuid()
     script.cuelist['contents'][2]['id'] = new_uuid()
+    script.cuelist['contents'][3]['id'] = new_uuid()
     script['ui_properties'] = {
         'warning': 0,
     }
+    Logger.debug(f'Created test script: {script.cuelist}')
 
     try:
         validate_template(script)
@@ -130,6 +153,7 @@ def create_script():
         script.cuelist.contents[0]['id'] = None
         script.cuelist.contents[1]['id'] = None
         script.cuelist.contents[2]['id'] = None
+        script.cuelist.contents[3]['id'] = None
 
         return script
 

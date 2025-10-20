@@ -1,4 +1,5 @@
 from time import sleep
+from deprecated import deprecated
 
 from .MediaCue import MediaCue
 from ..helpers import ensure_items
@@ -22,9 +23,11 @@ class AudioCue(MediaCue):
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to set initial properties.
         """
-        if init_dict:
+        if not init_dict:
+            init_dict = REQ_ITEMS
+        else:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
-            super().__init__(init_dict)
+        super().__init__(init_dict)
 
         self._player = None
         self._osc_route = None
@@ -74,6 +77,10 @@ class AudioCue(MediaCue):
         """
         self._osc_route = osc_route
 
+    @deprecated(
+        reason="Use loop_cue from CueHandler instead",
+        version="0.0.9rc5"
+    )
     @logged
     def audio_media_loop(self, ossia, mtc):
         """Handle the audio media playback loop.
