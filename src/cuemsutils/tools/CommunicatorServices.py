@@ -50,12 +50,12 @@ class HubService(ABC):
         self.address = address
 
     @abstractmethod
-    def send_message(self, message) -> None:
-        """ add message to the queue to be sent to hub """
+    def send_message(self, message: dict | Message) -> None:
+        """ Add message (dict or Message) to the queue to be sent to hub """
 
     @abstractmethod
     def get_message(self) -> Message:
-        """ get message stored in the queue from nodes"""
+        """ Get message from the queue. Message.data is already JSON-decoded as dict """
 
 
 class Nng_request_response(CommunicatorService):
@@ -288,36 +288,40 @@ class Nng_bus_hub(HubService):
         self.connection = Bus0(dial=self.address, recv_timeout=100)
         self._add_callbacks()
 
-    async def send_message(self, message):
+    async def send_message(self, message: dict | Message):
         """
         Queue a message to be sent to the bus.
 
         Parameters:
-        - message (Message | str | dict | any): The message to be sent. Can be a Message object, 
-          string, dictionary, or any other type that can be converted to a string.
+        - message (dict | Message): The message to be sent. Must be a dict or Message object with dict data.
 
-        The message is placed in the outgoing queue and will be sent by the sender handler.
+        Raises:
+        - TypeError: If message is not a dict or Message object, or if Message.data is not a dict.
+
+        The message is JSON-encoded and placed in the outgoing queue to be sent by the sender handler.
         """
         # Extract data from Message object or use raw data
         if isinstance(message, Message):
             data = message.data
-        else:
+            if not isinstance(data, dict):
+                raise TypeError(f"Message.data must be a dict, got {type(data).__name__}")
+        elif isinstance(message, dict):
             data = message
+        else:
+            raise TypeError(f"send_message requires dict or Message, got {type(message).__name__}")
         
-        # Convert to string format for encoding
-        if isinstance(data, dict):
-            data = json.dumps(data)
-        elif not isinstance(data, str):
-            data = str(data)
+        # JSON-encode the dict
+        json_data = json.dumps(data)
         
-        await self.outgoing.put(data)
+        await self.outgoing.put(json_data)
 
     async def get_message(self) -> Message:
         """
         Retrieve a message from the incoming queue.
 
         Returns:
-        - dict: The next message received from the bus. This method blocks until a message is available.
+        - Message: The next message received from the bus. The `data` field is already JSON-decoded as a dict.
+                   This method blocks until a message is available.
         """
         return await self.incoming.get()
 
@@ -501,7 +505,16 @@ class Nng_bus_hub(HubService):
                 
                 # Extract sender information from the message pipe
                 sender = self._extract_sender_info(pynng_message.pipe)
-                message = Message(data=pynng_message.bytes.decode(), sender=sender)
+                
+                # Decode bytes to string, then parse JSON to dict
+                decoded_string = pynng_message.bytes.decode()
+                try:
+                    data_dict = json.loads(decoded_string)
+                except json.JSONDecodeError:
+                    Logger.warning(f"Received non-JSON message from {sender}: {decoded_string}")
+                    data_dict = {"raw_data": decoded_string}
+                
+                message = Message(data=data_dict, sender=sender)
                 
                 # Track message receipt for connection health
                 self._last_message_received = datetime.now()
@@ -532,11 +545,8 @@ class Nng_bus_hub(HubService):
         - bool: True if message was handled (ping/pong), False if it's a normal message
         """
         try:
-            # Try to parse message as JSON to check for ping/pong
+            # Data is already parsed as dict
             data = message.data
-            if isinstance(data, str):
-                data = json.loads(data)
-            
             message_type = data.get("__type__")
             
             if message_type == "ping":
@@ -559,8 +569,8 @@ class Nng_bus_hub(HubService):
                 Logger.debug(f"Received pong from {sender}")
                 return True
                 
-        except (json.JSONDecodeError, AttributeError, TypeError):
-            # Not a JSON message or doesn't have __type__ - treat as normal message
+        except (AttributeError, TypeError, KeyError):
+            # Doesn't have __type__ or invalid structure - treat as normal message
             pass
         
         return False
