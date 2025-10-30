@@ -21,6 +21,7 @@ pip install cuemsutils
 ## Release notes
 
 ### v0.0.9
+ - New `HubServices` for multiple dialers communication
  - Extended `Settings` parameters class
  - New `tools` submodule for clarity with documentation
  - Added class `SignalEngine` and `run_daemon` method for running daemons
