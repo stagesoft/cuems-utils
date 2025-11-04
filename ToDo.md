@@ -1,3 +1,5 @@
+## TO develop for stable version
+
 ## Changes to develop
 - leave `loaded` flag to be used only for `arm()`
 - `unix_name` is missing on `script.xsd` for `CuemsScript` class
@@ -19,3 +21,9 @@
             networkmap.write(xml_data)
     ```
 - implement `check_mappings` as `@singledispatch`
+
+
+## Settings additional info
+- "nng_hub_port"
+- revisar osc puertos hub
+- crear xml schema de audiomixer
