@@ -2,10 +2,12 @@ from collections.abc import Mapping
 from cuemsutils.log import Logger
 from ..helpers import ensure_items
 from .Cue import Cue, CuemsDict
+from .CueOutput import DmxCueOutput
 
 REQ_ITEMS = {
     'fadein_time': 0.0,
     'fadeout_time': 0.0,
+    'outputs': None,
     'DmxScene': None
 }
 
@@ -84,6 +86,49 @@ class DmxCue(Cue):
         super().__setitem__('fadeout_time', fadeout_time)
 
     fadeout_time = property(get_fadeout_time, set_fadeout_time)
+
+    def get_outputs(self):
+        """Get the output routing configuration.
+        
+        Returns:
+            list: The list of output configurations.
+        """
+        return super().__getitem__('outputs')
+
+    def set_outputs(self, outputs):
+        """Set the output routing configuration.
+        
+        Args:
+            outputs (list): The list of output configurations. Each item can be
+                a DmxCueOutput object or a dict that will be converted to DmxCueOutput.
+        """
+        if outputs is None:
+            super().__setitem__('outputs', None)
+            return
+        
+        if not isinstance(outputs, list):
+            outputs = [outputs]
+        
+        converted_outputs = []
+        for output in outputs:
+            if output is None:
+                continue
+            if not isinstance(output, DmxCueOutput):
+                # Convert dict to DmxCueOutput
+                if isinstance(output, dict):
+                    # Handle nested dict structure like {"DmxCueOutput": {...}}
+                    if 'DmxCueOutput' in output:
+                        converted_outputs.append(DmxCueOutput(output['DmxCueOutput']))
+                    else:
+                        converted_outputs.append(DmxCueOutput(output))
+                else:
+                    converted_outputs.append(output)
+            else:
+                converted_outputs.append(output)
+        
+        super().__setitem__('outputs', converted_outputs)
+
+    outputs = property(get_outputs, set_outputs)
 
     def get_DmxScene(self):
         """Get the DMX scene for this cue.
