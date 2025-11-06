@@ -189,6 +189,47 @@ class DmxCue(Cue):
         """
         return -(float(timecode.milliseconds))
     
+    def check_mappings(self, settings):
+        """Check if the DMX output mappings are valid.
+        
+        For DMX cues, the output_name format is "{node_uuid}" (just the node UUID).
+        A DMX cue can have multiple outputs (one per target node). This method
+        iterates through all outputs and sets _local=True if ANY output_name
+        matches the current node UUID. Other outputs are ignored.
+        
+        Args:
+            settings: The settings containing project node mappings.
+            
+        Returns:
+            bool: True if the mappings are valid, False otherwise.
+        """
+        if not settings.project_node_mappings:
+            return True
+        
+        # Initialize _local to False (will be set to True if any output matches)
+        self._local = False
+        
+        # Get current node UUID
+        current_node_uuid = settings.node_conf['uuid']
+        
+        # Check each output
+        if self.outputs:
+            for output in self.outputs:
+                # For DMX cues, output_name is just the node UUID (not {node_uuid}_{output_name})
+                output_name = output['output_name']
+                
+                # Compare entire output_name with current node UUID
+                if output_name == current_node_uuid:
+                    self._local = True
+                    Logger.debug(
+                        f'DmxCue {self.id} output_name {output_name} matches current node, setting _local=True'
+                    )
+                    break  # Found a match, no need to check other outputs
+                else:
+                    self._local = False
+        
+        return True
+    
     def items(self):
         """Get all items in the cue as a dictionary.
         
