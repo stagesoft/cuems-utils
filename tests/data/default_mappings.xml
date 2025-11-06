@@ -59,11 +59,22 @@
                     </output>
                 </outputs>
             </video>
-            <dmx />
+            <dmx>
+                <outputs>
+                    <output>
+                        <name>0</name>
+                        <mappings>
+                            <mapped_to>salida_dmx_1</mapped_to>
+                        </mappings>
+                    </output>
+                </outputs>
+            </dmx>
         </node>
+    </nodes>
+    <new_nodes>
         <node>
             <uuid>0367f391-ebf4-48b2-9f26-000000000002</uuid>
-            <mac>2cf05d21cca3</mac>
+            <mac>2cf05d21cca4</mac>
             <audio>
                 <outputs>
                     <output>
@@ -110,7 +121,20 @@
                     </output>
                 </outputs>
             </video>
-            <dmx />
+            <dmx>
+                <outputs>
+                    <output>
+                        <name>0</name>
+                        <mappings>
+                            <mapped_to>salida_dmx_1</mapped_to>
+                        </mappings>
+                    </output>
+                </outputs>
+            </dmx>
         </node>
-    </nodes>
+        <node>
+            <uuid>0367f391-ebf4-48b2-9f26-000000000003</uuid>
+            <mac>2cf05d21cca5</mac>
+        </node>
+    </new_nodes>
 </cms:CuemsProjectMappings>
