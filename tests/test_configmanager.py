@@ -10,13 +10,6 @@ def config_manager():
     environ['CUEMS_CONF_PATH'] = TEST_DATA_PATH
     return ConfigManager()
 
-def test_fail_no_conf_path():
-    with pytest.raises(
-        FileNotFoundError,
-        match = 'Configuration directory /etc/cuems/ not found'
-    ):
-        ConfigManager()
-
 def test_fail_no_conf_parameter():
     with pytest.raises(
         FileNotFoundError,

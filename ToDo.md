@@ -24,6 +24,5 @@
 
 
 ## Settings additional info
-- "nng_hub_port"
 - revisar osc puertos hub
 - crear xml schema de audiomixer

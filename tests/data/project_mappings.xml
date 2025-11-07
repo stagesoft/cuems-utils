@@ -90,4 +90,5 @@
             <dmx />
         </node>
     </nodes>
+    <new_nodes></new_nodes>
 </cms:CuemsProjectMappings>
