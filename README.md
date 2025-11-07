@@ -19,6 +19,13 @@ pip install cuemsutils
 ```
 
 ## Release notes
+### v0.1.0
+ - First stable version
+ - `nng_hub_port` added to settings
+ - outputs and mappings checks added to `DmxCue`
+ - `AddressIpc` misspelling corrected. `AdressIpc` no longer exists
+ - `Nng_request_response` deprecated in favor of `NngRequestResponse` for naming coherence
+ - `Nng_bus_hub` deprecated in favor of `NngBusHub` for naming coherence
 
 ### v0.0.9
  - New `HubServices` for multiple dialers communication
