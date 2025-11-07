@@ -4,7 +4,7 @@ import json
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
 
-from cuemsutils.tools.HubServices import Message, ConnectionInfo, Nng_bus_hub
+from cuemsutils.tools.HubServices import Message, ConnectionInfo, NngBusHub
 
 
 class TestMessage:
@@ -50,37 +50,37 @@ class TestConnectionInfo:
 
 
 class TestNngBusHub:
-    """Test the Nng_bus_hub class."""
+    """Test the NngBusHub class."""
     
     @pytest.fixture
     def hub_controller(self):
         """Create a controller hub for testing."""
-        return Nng_bus_hub("tcp://127.0.0.1:5555", Nng_bus_hub.Mode.CONTROLLER)
+        return NngBusHub("tcp://127.0.0.1:5555", NngBusHub.Mode.LISTENER)
     
     @pytest.fixture
     def hub_node(self):
         """Create a node hub for testing."""
-        return Nng_bus_hub("tcp://127.0.0.1:5555", Nng_bus_hub.Mode.NODE)
+        return NngBusHub("tcp://127.0.0.1:5555", NngBusHub.Mode.DIALER)
     
-    def test_hub_initialization_controller(self, hub_controller: Nng_bus_hub):
+    def test_hub_initialization_controller(self, hub_controller: NngBusHub):
         """Test controller hub initialization."""
         assert hub_controller.address == "tcp://127.0.0.1:5555"
-        assert hub_controller.mode == Nng_bus_hub.Mode.CONTROLLER
+        assert hub_controller.mode == NngBusHub.Mode.LISTENER
         assert hub_controller.active_connections == {}
         assert hub_controller._messages_received_count == 0
         assert hub_controller._messages_sent_count == 0
         assert hub_controller._auto_ping_enabled == False
         assert hub_controller._auto_pong_enabled == True
     
-    def test_hub_initialization_node(self, hub_node: Nng_bus_hub):
+    def test_hub_initialization_node(self, hub_node: NngBusHub):
         """Test node hub initialization."""
         assert hub_node.address == "tcp://127.0.0.1:5555"
-        assert hub_node.mode == Nng_bus_hub.Mode.NODE
+        assert hub_node.mode == NngBusHub.Mode.DIALER
         assert hub_node.active_connections == {}
         assert hub_node._messages_received_count == 0
         assert hub_node._messages_sent_count == 0
     
-    def test_send_message_dict(self, hub_controller: Nng_bus_hub):
+    def test_send_message_dict(self, hub_controller: NngBusHub):
         """Test sending a dict message."""
         message = {"test": "value", "number": 42}
         
@@ -95,7 +95,7 @@ class TestNngBusHub:
         call_args = hub_controller.outgoing.put.call_args[0][0]
         assert call_args == json.dumps(message)
     
-    def test_send_message_message_object(self, hub_controller: Nng_bus_hub):
+    def test_send_message_message_object(self, hub_controller: NngBusHub):
         """Test sending a Message object."""
         data = {"test": "value"}
         sender = "test_sender"
@@ -112,7 +112,7 @@ class TestNngBusHub:
         call_args = hub_controller.outgoing.put.call_args[0][0]
         assert call_args == json.dumps(data)
     
-    def test_send_message_invalid_type(self, hub_controller: Nng_bus_hub):
+    def test_send_message_invalid_type(self, hub_controller: NngBusHub):
         """Test sending invalid message types raises TypeError."""
         with pytest.raises(TypeError, match="send_message requires dict or Message"):
             asyncio.run(hub_controller.send_message("invalid_string"))
@@ -120,14 +120,14 @@ class TestNngBusHub:
         with pytest.raises(TypeError, match="send_message requires dict or Message"):
             asyncio.run(hub_controller.send_message(123))
     
-    def test_send_message_invalid_message_data(self, hub_controller: Nng_bus_hub):
+    def test_send_message_invalid_message_data(self, hub_controller: NngBusHub):
         """Test sending Message with invalid data raises TypeError."""
         invalid_message = Message(data="not_a_dict", sender="test")
         
         with pytest.raises(TypeError, match="Message.data must be a dict"):
             asyncio.run(hub_controller.send_message(invalid_message))
     
-    def test_get_message(self, hub_controller: Nng_bus_hub):
+    def test_get_message(self, hub_controller: NngBusHub):
         """Test getting a message from the queue."""
         expected_message = Message(data={"test": "value"}, sender="test_sender")
         
@@ -141,7 +141,7 @@ class TestNngBusHub:
         assert result == expected_message
         hub_controller.incoming.get.assert_called_once()
     
-    def test_get_active_connections(self, hub_controller: Nng_bus_hub):
+    def test_get_active_connections(self, hub_controller: NngBusHub):
         """Test getting active connections."""
         # Add some test connections
         conn1 = ConnectionInfo(pipe_id=1, sender="sender1", connected_at=datetime.now())
@@ -154,7 +154,7 @@ class TestNngBusHub:
         assert conn1 in connections
         assert conn2 in connections
     
-    def test_get_connection_count(self, hub_controller: Nng_bus_hub):
+    def test_get_connection_count(self, hub_controller: NngBusHub):
         """Test getting connection count."""
         # Add some test connections
         hub_controller.active_connections = {
@@ -165,7 +165,7 @@ class TestNngBusHub:
         count = hub_controller.get_connection_count()
         assert count == 2
     
-    def test_connection_health_info_no_activity(self, hub_controller: Nng_bus_hub):
+    def test_connection_health_info_no_activity(self, hub_controller: NngBusHub):
         """Test connection health info with no activity."""
         health = hub_controller.get_connection_health_info()
         
@@ -176,7 +176,7 @@ class TestNngBusHub:
         assert health['messages_received'] == 0
         assert health['messages_sent'] == 0
     
-    def test_connection_health_info_with_activity(self, hub_controller: Nng_bus_hub):
+    def test_connection_health_info_with_activity(self, hub_controller: NngBusHub):
         """Test connection health info with recent activity."""
         now = datetime.now()
         hub_controller._last_message_received = now
@@ -193,7 +193,7 @@ class TestNngBusHub:
         assert health['messages_received'] == 5
         assert health['messages_sent'] == 3
     
-    def test_connection_health_info_old_activity(self, hub_controller: Nng_bus_hub):
+    def test_connection_health_info_old_activity(self, hub_controller: NngBusHub):
         """Test connection health info with old activity."""
         old_time = datetime(2020, 1, 1)  # Very old
         hub_controller._last_message_received = old_time
@@ -215,7 +215,7 @@ class TestNngBusHub:
         hub_controller._last_message_received = datetime(2020, 1, 1)
         assert hub_controller.is_connection_healthy() == False
     
-    def test_enable_disable_auto_ping(self, hub_controller: Nng_bus_hub):
+    def test_enable_disable_auto_ping(self, hub_controller: NngBusHub):
         """Test enabling and disabling auto-ping."""
         assert hub_controller._auto_ping_enabled == False
         
@@ -227,7 +227,7 @@ class TestNngBusHub:
         hub_controller.disable_auto_ping()
         assert hub_controller._auto_ping_enabled == False
     
-    def test_enable_disable_auto_pong(self, hub_controller: Nng_bus_hub):
+    def test_enable_disable_auto_pong(self, hub_controller: NngBusHub):
         """Test enabling and disabling auto-pong."""
         assert hub_controller._auto_pong_enabled == True
         
@@ -237,7 +237,7 @@ class TestNngBusHub:
         hub_controller.enable_auto_pong()
         assert hub_controller._auto_pong_enabled == True
     
-    def test_send_ping(self, hub_controller: Nng_bus_hub):
+    def test_send_ping(self, hub_controller: NngBusHub):
         """Test sending ping message."""
         hub_controller.outgoing = AsyncMock()
         
@@ -253,7 +253,7 @@ class TestNngBusHub:
         assert ping_data["__type__"] == "ping"
         assert "timestamp" in ping_data
     
-    def test_handle_ping_pong_ping(self, hub_controller: Nng_bus_hub):
+    def test_handle_ping_pong_ping(self, hub_controller: NngBusHub):
         """Test handling ping messages."""
         ping_message = Message(
             data={"__type__": "ping", "timestamp": "2023-01-01T00:00:00"},
@@ -275,7 +275,7 @@ class TestNngBusHub:
         assert "timestamp" in pong_data
         assert pong_data["ping_timestamp"] == "2023-01-01T00:00:00"
     
-    def test_handle_ping_pong_pong(self, hub_controller: Nng_bus_hub):
+    def test_handle_ping_pong_pong(self, hub_controller: NngBusHub):
         """Test handling pong messages."""
         pong_message = Message(
             data={"__type__": "pong", "timestamp": "2023-01-01T00:00:00"},
@@ -286,7 +286,7 @@ class TestNngBusHub:
         
         assert result == True
     
-    def test_handle_ping_pong_non_ping_pong(self, hub_controller: Nng_bus_hub):
+    def test_handle_ping_pong_non_ping_pong(self, hub_controller: NngBusHub):
         """Test handling non-ping/pong messages."""
         normal_message = Message(
             data={"__type__": "normal", "content": "test"},
@@ -297,7 +297,7 @@ class TestNngBusHub:
         
         assert result == False
     
-    def test_handle_ping_pong_no_type(self, hub_controller: Nng_bus_hub):
+    def test_handle_ping_pong_no_type(self, hub_controller: NngBusHub):
         """Test handling messages without __type__ field."""
         message = Message(data={"content": "test"}, sender="test_sender")
         
@@ -305,7 +305,7 @@ class TestNngBusHub:
         
         assert result == False
     
-    def test_extract_sender_info_tcp(self, hub_controller: Nng_bus_hub):
+    def test_extract_sender_info_tcp(self, hub_controller: NngBusHub):
         """Test extracting sender info from TCP connection."""
         # Mock pipe with TCP address
         mock_pipe = Mock()
@@ -319,7 +319,7 @@ class TestNngBusHub:
         # The actual implementation returns the IP in reverse order due to byte packing
         assert sender == ("1.0.0.127", 14640)  # This is what the actual implementation returns
     
-    def test_extract_sender_info_ipc(self, hub_controller: Nng_bus_hub):
+    def test_extract_sender_info_ipc(self, hub_controller: NngBusHub):
         """Test extracting sender info from IPC connection."""
         # Mock pipe with IPC address
         mock_pipe = Mock()
@@ -330,7 +330,7 @@ class TestNngBusHub:
         
         assert sender == "ipc:///tmp/test"
     
-    def test_extract_sender_info_unknown(self, hub_controller: Nng_bus_hub):
+    def test_extract_sender_info_unknown(self, hub_controller: NngBusHub):
         """Test extracting sender info from unknown connection type."""
         # Mock pipe with no remote_address
         mock_pipe = Mock()
@@ -341,7 +341,7 @@ class TestNngBusHub:
         
         assert sender == "None"  # The actual implementation returns str(None)
     
-    def test_add_callbacks(self, hub_controller: Nng_bus_hub):
+    def test_add_callbacks(self, hub_controller: NngBusHub):
         """Test adding connection callbacks."""
         mock_connection = Mock()
         hub_controller.connection = mock_connection
@@ -351,7 +351,7 @@ class TestNngBusHub:
         mock_connection.add_post_pipe_connect_cb.assert_called_once()
         mock_connection.add_post_pipe_remove_cb.assert_called_once()
     
-    def test_post_connect_callback(self, hub_controller: Nng_bus_hub):
+    def test_post_connect_callback(self, hub_controller: NngBusHub):
         """Test post-connect callback."""
         mock_pipe = Mock()
         mock_pipe.id = 123
@@ -367,7 +367,7 @@ class TestNngBusHub:
         assert conn_info.sender == ("1.0.0.127", 14640)  # Actual implementation result
         assert isinstance(conn_info.connected_at, datetime)
     
-    def test_post_remove_callback(self, hub_controller: Nng_bus_hub):
+    def test_post_remove_callback(self, hub_controller: NngBusHub):
         """Test post-remove callback."""
         # Add a connection first
         conn_info = ConnectionInfo(pipe_id=123, sender="test", connected_at=datetime.now())
@@ -386,7 +386,7 @@ class TestHubIntegration:
     def test_message_serialization_roundtrip(self):
         """Test message serialization and deserialization."""
         # Test that we can send a dict and it gets JSON-encoded
-        hub = Nng_bus_hub("tcp://127.0.0.1:5555", Nng_bus_hub.Mode.CONTROLLER)
+        hub = NngBusHub("tcp://127.0.0.1:5555", NngBusHub.Mode.LISTENER)
         
         # Mock the outgoing queue to capture the message
         hub.outgoing = Mock()

@@ -5,12 +5,14 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from enum import Enum
 from functools import partial
+from deprecated import deprecated
 from pynng import Req0, Rep0
 
 from ..log import Logger
 from ..helpers import check_path
 
-class IpcAdress(Enum):
+class IpcAddress(Enum):
+    """ IPC addresses for the different services """
     HWDISCOVERY = '/tmp/hwdiscovery.ipc'
     NODECONF = '/tmp/nodeconf.ipc'
     EDITOR = '/tmp/editor.ipc'
@@ -29,11 +31,11 @@ class CommunicatorService(ABC):
         """ Get request, give it to request processor, and return the response from it  """
 
 
-class Nng_request_response(CommunicatorService):
+class NngRequestResponse(CommunicatorService):
     """ Communicates over NNG (nanomsg) using a Request-Response protocol"""
     def __init__(self, address, requester_dials=True):
         """
-        Initialize Nng_request_response instance with address and dialing/listening mode.
+        Initialize NngRequestResponse instance with address and dialing/listening mode.
 
         Parameters:
         - address (str): The address to connect or listen for connections.
@@ -62,18 +64,27 @@ class Nng_request_response(CommunicatorService):
         try:
             with Req0(**self.params_request) as socket:
                 while await asyncio.sleep(0, result=True):
-                    print(f"Sending: {request}")
+                    Logger.debug(f"Sending: {request}")
                     encoded_request = json.dumps(request).encode()
                     await socket.asend(encoded_request)
                     response = await self._get_response(socket)
                     decoded_response = json.loads(response.decode())
-                    print(f"receiving: {decoded_response}")
+                    Logger.debug(f"receiving: {decoded_response}")
                     return decoded_response
         except Exception as e:
             Logger.error(f"Error occurred while sending request: {e}")
             return None
 
-    async def _get_response(self, socket):
+    async def _get_response(self, socket: Req0):
+        """
+        Get the response from the socket.
+
+        Parameters:
+        - socket (Req0): The socket to get the response from.
+
+        Returns:
+        - bytes: The response from the socket.
+        """
         response = await socket.arecv()
         return response
 
@@ -141,11 +152,18 @@ class Nng_request_response(CommunicatorService):
             context.close()
 
 
+@deprecated(
+    reason="This is an alias, use NngRequestResponse instead",
+    version="0.1.0rc1"
+)
+class Nng_request_response(NngRequestResponse):
+    pass
+
 class Communicator(CommunicatorService):
     def __init__(
         self,
         address:str,
-        communicator_service:CommunicatorService = Nng_request_response,
+        communicator_service:CommunicatorService = NngRequestResponse,
         requester_dials:bool = True
     ):
         """

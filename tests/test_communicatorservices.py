@@ -2,19 +2,19 @@ import pytest
 import asyncio
 from unittest.mock import Mock, patch
 
-from cuemsutils.tools.CommunicatorServices import Nng_request_response, Communicator
+from cuemsutils.tools.CommunicatorServices import NngRequestResponse, Communicator
 
 class TestNngRequestResponse:
-    """Test the Nng_request_response class."""
+    """Test the NngRequestResponse class."""
     
     @pytest.fixture
     def nng_rr(self):
-        """Create a Nng_request_response instance for testing."""
-        return Nng_request_response("tcp://127.0.0.1:5555")
+        """Create a NngRequestResponse instance for testing."""
+        return NngRequestResponse("tcp://127.0.0.1:5555")
     
     def test_initialization_requester_dials_true(self):
         """Test initialization with requester_dials=True."""
-        nng = Nng_request_response("tcp://127.0.0.1:5555", requester_dials=True)
+        nng = NngRequestResponse("tcp://127.0.0.1:5555", requester_dials=True)
         
         assert nng.address == "tcp://127.0.0.1:5555"
         assert nng.params_request == {'dial': 'tcp://127.0.0.1:5555'}
@@ -22,7 +22,7 @@ class TestNngRequestResponse:
     
     def test_initialization_requester_dials_false(self):
         """Test initialization with requester_dials=False."""
-        nng = Nng_request_response("tcp://127.0.0.1:5555", requester_dials=False)
+        nng = NngRequestResponse("tcp://127.0.0.1:5555", requester_dials=False)
         
         assert nng.address == "tcp://127.0.0.1:5555"
         assert nng.params_request == {'listen': 'tcp://127.0.0.1:5555'}

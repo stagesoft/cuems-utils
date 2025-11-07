@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from dataclasses import dataclass
 from datetime import datetime
+from deprecated import deprecated
 from pynng import Bus0
 from pynng import exceptions as pynng_exceptions
 from typing import Optional, Dict, List
@@ -41,7 +42,7 @@ class HubService(ABC):
         """ Get message from the queue. Message.data is already JSON-decoded as dict """
 
 
-class Nng_bus_hub(HubService):
+class NngBusHub(HubService):
     """ Communicates over NNG (nanomsg) using Bus topology for many-to-one, one-to-many messaging """
 
     class Mode(Enum):
@@ -515,3 +516,11 @@ class Nng_bus_hub(HubService):
         except Exception as e:
             Logger.debug(f"Error extracting sender info: {e}")
             return "unknown"
+
+
+@deprecated(
+    reason="This is an alias, use NngBusHub instead",
+    version="0.1.0rc1"
+)
+class Nng_bus_hub(NngBusHub):
+    pass
