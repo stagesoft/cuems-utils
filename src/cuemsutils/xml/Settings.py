@@ -119,6 +119,37 @@ class NetworkMap(Settings):
             raise ValueError(f'Node with uuid {uuid} not found')
         return out
 
+    def get_nodes_by_adoption(self):
+        nodes = []
+        new_nodes = []
+        network_map_dict = self.get_dict()
+        
+        if network_map_dict and 'CuemsNodeDict' in network_map_dict:
+            nodes_list = network_map_dict['CuemsNodeDict']
+            if isinstance(nodes_list, list):
+                for node_item in nodes_list:
+                    if 'CuemsNode' in node_item:
+                        node_data = node_item['CuemsNode']
+                        online = node_data.get('online', 'False') == 'True'
+                        adopted = node_data.get('adopted', 'False') == 'True'
+                        
+                        node_info = {
+                            'uuid': node_data.get('uuid'),
+                            'mac': node_data.get('mac'),
+                            'name': node_data.get('name'),
+                            'node_type': node_data.get('node_type'),
+                            'ip': node_data.get('ip'),
+                            'port': node_data.get('port'),
+                            'online': online
+                        }
+                        
+                        if adopted:
+                            nodes.append(node_info)
+                        else:
+                            new_nodes.append(node_info)
+        
+        return nodes, new_nodes
+
     def process_xml_dict(self):
         self.processed = self.get_dict()
 
