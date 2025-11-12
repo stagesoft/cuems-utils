@@ -139,7 +139,6 @@ class NetworkMap(Settings):
                             'name': node_data.get('name'),
                             'node_type': node_data.get('node_type'),
                             'ip': node_data.get('ip'),
-                            'port': node_data.get('port'),
                             'online': online
                         }
                         

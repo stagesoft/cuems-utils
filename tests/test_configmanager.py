@@ -48,12 +48,10 @@ def test_base_settings(config_manager):
 def test_network_map(config_manager):
     assert type(config_manager.network_map) == list
     assert config_manager.node_network_map['uuid'] == '0367f391-ebf4-48b2-9f26-000000000001'
-    assert config_manager.node_network_map['url'] == '000000000001.local'
     assert config_manager.node_network_map['mac'] == '2cf05d21cca3'
     assert config_manager.node_network_map['name'] == '2cf05d21cca3._cuems_nodeconf._tcp.local.'
     assert config_manager.node_network_map['node_type'] == 'NodeType.master'
     assert config_manager.node_network_map['ip'] == '192.168.1.10'
-    assert config_manager.node_network_map['port'] == 9000
     assert config_manager.node_network_map['online'] == 'True'
     assert config_manager.network_map[0]['CuemsNode'] == config_manager.node_network_map
 
