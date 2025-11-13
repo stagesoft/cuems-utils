@@ -134,19 +134,15 @@ class NetworkMap(Settings):
                 online = node_data.get('online', 'False') == 'True'
                 adopted = node_data.get('adopted', 'False') == 'True'
                 
-                node_info = {
-                    'uuid': node_data.get('uuid'),
-                    'mac': node_data.get('mac'),
-                    'name': node_data.get('name'),
-                    'node_type': node_data.get('node_type'),
-                    'ip': node_data.get('ip'),
-                    'online': online
-                }
+                # Update the node_data with converted boolean values
+                node_data['online'] = online
+                node_data['adopted'] = adopted
                 
+                # Preserve the {'node': {...}} structure for consistency
                 if adopted:
-                    nodes.append(node_info)
+                    nodes.append(node_item)
                 else:
-                    new_nodes.append(node_info)
+                    new_nodes.append(node_item)
         
         return nodes, new_nodes
 

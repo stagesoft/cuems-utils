@@ -53,7 +53,7 @@ def test_network_map(config_manager):
     assert config_manager.node_network_map['node_type'] == 'NodeType.master'
     assert config_manager.node_network_map['ip'] == '192.168.1.10'
     assert config_manager.node_network_map['online'] == 'True'
-    assert config_manager.network_map[0]['CuemsNode'] == config_manager.node_network_map
+    assert config_manager.network_map[0]['node'] == config_manager.node_network_map
 
 def test_project_load(config_manager):
     config_manager.load_project_config('test_project')
