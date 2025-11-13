@@ -111,7 +111,7 @@ class NetworkMap(Settings):
     def get_node(self, uuid):
         out = None
         for node in self.processed: # type: ignore[index]
-            node = node['CuemsNode'] # type: ignore[index]
+            node = node['node'] # type: ignore[index]
             if node['uuid'] == uuid: # type: ignore[index]
                 out = node
                 break
@@ -119,33 +119,34 @@ class NetworkMap(Settings):
             raise ValueError(f'Node with uuid {uuid} not found')
         return out
 
-    def get_nodes_by_adoption(self):
+    @staticmethod
+    def get_nodes_by_adoption(nodes_list: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         nodes = []
         new_nodes = []
-        network_map_dict = self.get_dict()
         
-        if network_map_dict and 'CuemsNodeDict' in network_map_dict:
-            nodes_list = network_map_dict['CuemsNodeDict']
-            if isinstance(nodes_list, list):
-                for node_item in nodes_list:
-                    if 'CuemsNode' in node_item:
-                        node_data = node_item['CuemsNode']
-                        online = node_data.get('online', 'False') == 'True'
-                        adopted = node_data.get('adopted', 'False') == 'True'
-                        
-                        node_info = {
-                            'uuid': node_data.get('uuid'),
-                            'mac': node_data.get('mac'),
-                            'name': node_data.get('name'),
-                            'node_type': node_data.get('node_type'),
-                            'ip': node_data.get('ip'),
-                            'online': online
-                        }
-                        
-                        if adopted:
-                            nodes.append(node_info)
-                        else:
-                            new_nodes.append(node_info)
+        if not isinstance(nodes_list, list):
+            Logger.warning(f'get_nodes_by_adoption() expected a list, got {type(nodes_list).__name__}')
+            return nodes, new_nodes
+        
+        for node_item in nodes_list:
+            if 'node' in node_item:
+                node_data = node_item['node']
+                online = node_data.get('online', 'False') == 'True'
+                adopted = node_data.get('adopted', 'False') == 'True'
+                
+                node_info = {
+                    'uuid': node_data.get('uuid'),
+                    'mac': node_data.get('mac'),
+                    'name': node_data.get('name'),
+                    'node_type': node_data.get('node_type'),
+                    'ip': node_data.get('ip'),
+                    'online': online
+                }
+                
+                if adopted:
+                    nodes.append(node_info)
+                else:
+                    new_nodes.append(node_info)
         
         return nodes, new_nodes
 
