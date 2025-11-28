@@ -3,8 +3,12 @@ from logging import getLogger, LoggerAdapter, StreamHandler, Formatter, DEBUG, I
 from logging.handlers import SysLogHandler
 from functools import wraps
 from os import environ
+import inspect
 
 cuemsFormatter = Formatter('[%(asctime)s][%(levelname)s] \tFormitGo (PID: %(process)d)-(%(threadName)-9s)-(%(name)s:%(funcName)s:%(caller)s)> %(message)s')
+
+# Cache for module-specific loggers to avoid duplicate handlers
+_logger_cache = {}
 
 def log_level_to_obj(log_level):
     """
@@ -18,11 +22,23 @@ def log_level_to_obj(log_level):
         'CRITICAL': CRITICAL
     }[log_level]
 
-def main_logger(with_syslog = True, with_stdout = True):
+def main_logger(module_name = None, with_syslog = True, with_stdout = True):
     """
     Create a root logger with a custom formatter.
+    
+    Args:
+        module_name: Name of the module to create logger for. Defaults to __name__ if None.
+        with_syslog: Whether to add syslog handler.
+        with_stdout: Whether to add stdout handler.
     """
-    logger = getLogger(__name__)
+    if module_name is None:
+        module_name = __name__
+    
+    # Return cached logger if it exists
+    if module_name in _logger_cache:
+        return _logger_cache[module_name]
+    
+    logger = getLogger(module_name)
     try:
         log_level = log_level_to_obj(environ['CUEMS_LOG_LEVEL'].upper())
     except KeyError:
@@ -42,6 +58,7 @@ def main_logger(with_syslog = True, with_stdout = True):
         logger.addHandler(syslog_handler)
 
     logger_adapter = LoggerAdapter(logger, {"caller": ''})
+    _logger_cache[module_name] = logger_adapter
     return logger_adapter
 
 class Logger:
@@ -49,13 +66,28 @@ class Logger:
     A class for logging messages with different log levels.
 
     This class provides static methods for logging messages with different log levels.
-    It uses the main_logger function to create a logger instance.
+    It dynamically detects the calling module to use the appropriate logger.
     """
-    logger = main_logger()
+
+    @staticmethod
+    def _get_caller_module():
+        """
+        Get the module name of the caller by inspecting the call stack.
+        """
+        frame = inspect.currentframe()
+        try:
+            # Go up the stack: _get_caller_module -> log/debug/info/etc -> actual caller
+            caller_frame = frame.f_back.f_back.f_back
+            module_name = caller_frame.f_globals.get('__name__', __name__)
+            return module_name
+        finally:
+            del frame
 
     @staticmethod
     def log(level, message, **kwargs):
-        Logger.logger.log(level, message, stacklevel = 4, **kwargs)
+        module_name = Logger._get_caller_module()
+        logger = main_logger(module_name=module_name)
+        logger.log(level, message, stacklevel = 4, **kwargs)
     
     @staticmethod
     def debug(message, **kwargs):
@@ -85,6 +117,8 @@ def logged(func):
     """
     A decorator function to log information about function calls and their results.
     """
+    # Get logger for the function's module
+    func_logger = main_logger(module_name=func.__module__)
 
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -92,17 +126,16 @@ def logged(func):
         The wrapper function that logs function calls and their results.
         """
         d = {"funcName": func.__module__, "caller": func.__name__}
-        # Logger.logger = getLogger(func.__module__)
-        Logger.info(f"Call recieved", extra = d)
-        Logger.debug(f"Using args: {args} and kwargs: {kwargs}", extra = d)
+        func_logger.info(f"Call recieved", extra = d)
+        func_logger.debug(f"Using args: {args} and kwargs: {kwargs}", extra = d)
         try:
             result = func(*args, **kwargs)
-            Logger.debug(f"Finished with result: {result}", extra = d)
+            func_logger.debug(f"Finished with result: {result}", extra = d)
         except Warning as w:
-            Logger.warning(f"Warning occurred: {w}", extra = d)
+            func_logger.warning(f"Warning occurred: {w}", extra = d)
             return result
         except Exception as e:
-            Logger.error(f"Error occurred: {e}", extra = d)
+            func_logger.error(f"Error occurred: {e}", extra = d)
             raise
         
         else:

@@ -56,8 +56,7 @@ def test_logged(caplog):
 
     assert len(caplog.records) == 18
     for record in caplog.records:
-        # assert record.name == "tests.test_logger"
-        assert record.name == "cuemsutils.log"
+        assert record.name == "tests.test_logger"
         if record.levelname == "INFO":
             assert record.message == "Call recieved"
         elif record.levelname == "ERROR":
@@ -102,13 +101,12 @@ def test_syslog():
         syslog = syslog_to_tempfile(rec_n = 6)
         assert len(syslog) == 6
         syslog_split = [i.split(")-(") for i in syslog]
-        # TODO: Fix this to use the correct name of the function (tests.test_logger)
-        assert syslog_split[0][2] == "cuemsutils.log:test_syslog:hello_with_arg)> Call recieved\n"
-        assert syslog_split[1][2] == "cuemsutils.log:test_syslog:hello_with_arg)> Using args: ('World',) and kwargs: {}\n"
-        assert syslog_split[2][2] == "cuemsutils.log:test_syslog:hello_with_arg)> Finished with result: Hello, World!\n"
-        assert syslog_split[3][2] == "cuemsutils.log:test_syslog:error_func)> Call recieved\n"
-        assert syslog_split[4][2] == "cuemsutils.log:test_syslog:error_func)> Using args: () and kwargs: {}\n"
-        assert syslog_split[5][2] == "cuemsutils.log:test_syslog:error_func)> Error occurred: An error occurred.\n"
+        assert syslog_split[0][2] == "tests.test_logger:test_syslog:hello_with_arg)> Call recieved\n"
+        assert syslog_split[1][2] == "tests.test_logger:test_syslog:hello_with_arg)> Using args: ('World',) and kwargs: {}\n"
+        assert syslog_split[2][2] == "tests.test_logger:test_syslog:hello_with_arg)> Finished with result: Hello, World!\n"
+        assert syslog_split[3][2] == "tests.test_logger:test_syslog:error_func)> Call recieved\n"
+        assert syslog_split[4][2] == "tests.test_logger:test_syslog:error_func)> Using args: () and kwargs: {}\n"
+        assert syslog_split[5][2] == "tests.test_logger:test_syslog:error_func)> Error occurred: An error occurred.\n"
 
         for i in range(6):
             x = syslog_split[i][0]
@@ -125,8 +123,7 @@ def test_Logger(caplog):
     
     assert len(caplog.records) == 4
     for record in caplog.records:
-        # assert record.name == "tests.test_logger"
-        assert record.name == "cuemsutils.log"
+        assert record.name == "tests.test_logger"
         if record.levelname == "DEBUG":
             assert record.message == "This is a debug message."
         elif record.levelname == "INFO":
@@ -135,3 +132,49 @@ def test_Logger(caplog):
             assert record.message == "This is a warning message."
         elif record.levelname == "ERROR":
             assert record.message == "This is an error message."
+
+def test_logger_module_detection(caplog):
+    """Test that Logger correctly detects the calling module name."""
+    caplog.set_level(DEBUG)
+    
+    Logger.info("Module detection test")
+    
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.name == "tests.test_logger"
+    assert record.message == "Module detection test"
+    assert record.levelname == "INFO"
+
+def test_logged_module_detection(caplog):
+    """Test that @logged decorator uses the decorated function's module name."""
+    caplog.set_level(DEBUG)
+    
+    @logged
+    def test_function():
+        return "test result"
+    
+    result = test_function()
+    
+    assert result == "test result"
+    assert len(caplog.records) == 3  # info (call received), debug (args), debug (result)
+    
+    for record in caplog.records:
+        assert record.name == "tests.test_logger", f"Expected 'tests.test_logger', got '{record.name}'"
+
+def test_logger_from_different_module(caplog):
+    """Test that logger works correctly when called from different contexts."""
+    caplog.set_level(DEBUG)
+    
+    # Test direct Logger calls
+    Logger.debug("Debug from test")
+    Logger.info("Info from test")
+    
+    # Test with decorated function
+    result = hello()
+    
+    assert result == "Hello, World!"
+    assert len(caplog.records) >= 5  # 2 direct calls + 3 from decorated function
+    
+    # All records should have the test module name
+    for record in caplog.records:
+        assert record.name == "tests.test_logger"
