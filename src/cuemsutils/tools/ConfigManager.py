@@ -231,9 +231,9 @@ class ConfigManager(ConfigBase):
         self.number_of_nodes = int(self.mappings['number_of_nodes']) # type: ignore[index]
         Logger.info(f'Project {project_uname} mappings loaded')
 
-    def get_video_player_id(self, mapping_name: str):
+    def get_video_output_id(self, mapping_name: str):
         """
-        Returns the video player id for the given mapping name.
+        Returns the video output id for the given mapping name.
         """
         if mapping_name == 'default':
             return self.node_conf['default_video_output']

@@ -24,6 +24,7 @@ pip install cuemsutils
  - Compatibility for Python 3.13 with tests (`$> hatch test --show`)
  - `localize_cue` method added to define `_local` cue attribute
  - `check_mappings` method is been deprecated in favor of future mapping logic. Returns always `True` with a warning
+ - `ConfigManager.get_video_player_id` renamed to `get_video_output_id` for clarity
  - `nng_hub_port` added to settings
  - outputs and mappings checks added to `DmxCue`
  - `AddressIpc` misspelling corrected. `AdressIpc` no longer exists
