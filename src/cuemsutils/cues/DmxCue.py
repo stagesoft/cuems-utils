@@ -203,6 +203,8 @@ class DmxCue(Cue):
         Returns:
             bool: True if the mappings are valid, False otherwise.
         """
+        return super().check_mappings(settings)
+
         if not settings.project_node_mappings:
             return True
         

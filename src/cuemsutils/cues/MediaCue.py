@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from .Cue import Cue
 from ..helpers import CuemsDict, ensure_items, format_timecode
 from ..tools.Uuid import Uuid
@@ -261,6 +263,27 @@ class MediaCue(Cue):
         super().__setitem__('outputs', outputs)
 
     outputs = property(get_outputs, set_outputs)
+
+    def get_all_output_names(self) -> list[Tuple[str, str]]:
+        """Get all output names splitted into node and output ids for the media cue.
+        Returns:
+            list: The list of output names.
+        """
+        # DEV: To allow proper mapping, we need to split the output name into node and output ids.
+        # Additional logic in case mapping is developed and generalized output names (without node id) are used.
+        # e.g: [(None,'generalized_output_id'), ('node_uuid','output_id'), ...]
+        return [(output['output_name'][:36], output['output_name'][37:]) for output in self.outputs]
+
+    def localize_cue(self, node_id: str) -> None:
+        """Localize the cue outputs to the given node UUID.
+
+        Sets the _local attribute to True if any of the cue outputs are local to the given node UUID, False otherwise.
+
+        Args:
+            node_id: The ID of the node to localize the cue to.
+        """
+        self._local = any(x[0] == node_id for x in self.get_all_output_names())
+        
 
     def items(self):
         """Get all items in the cue as a dictionary.

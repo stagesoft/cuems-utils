@@ -22,6 +22,8 @@ pip install cuemsutils
 ### v0.1.0
  - First stable version
  - Compatibility for Python 3.13 with tests (`$> hatch test --show`)
+ - `localize_cue` method added to define `_local` cue attribute
+ - `check_mappings` method is been deprecated in favor of future mapping logic. Returns always `True` with a warning
  - `nng_hub_port` added to settings
  - outputs and mappings checks added to `DmxCue`
  - `AddressIpc` misspelling corrected. `AdressIpc` no longer exists
