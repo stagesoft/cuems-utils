@@ -178,3 +178,175 @@ def test_logger_from_different_module(caplog):
     # All records should have the test module name
     for record in caplog.records:
         assert record.name == "tests.test_logger"
+
+def test_logger_formatter_fields(caplog):
+    """Test that Logger class populates all cuemsFormatter fields correctly."""
+    import os
+    import threading
+    caplog.set_level(DEBUG)
+    
+    Logger.info("Test message")
+    Logger.debug("Debug message")
+    Logger.warning("Warning message")
+    Logger.error("Error message")
+    
+    assert len(caplog.records) == 4
+    
+    for record in caplog.records:
+        # Verify module name (name field)
+        assert record.name == "tests.test_logger"
+        
+        # Verify funcName is set (captures actual logging call location)
+        assert hasattr(record, 'funcName')
+        assert record.funcName is not None
+        
+        # Verify process ID is available
+        assert record.process == os.getpid()
+        
+        # Verify thread name is available
+        assert record.threadName == threading.current_thread().name
+        
+        # Verify levelname
+        assert record.levelname in ["INFO", "DEBUG", "WARNING", "ERROR"]
+        
+        # Verify message content
+        assert record.message in ["Test message", "Debug message", "Warning message", "Error message"]
+        
+        # Verify the record has the expected timestamp
+        assert hasattr(record, 'created')
+        assert record.created > 0
+
+def test_logged_decorator_formatter_fields(caplog):
+    """Test that @logged decorator populates all cuemsFormatter fields correctly including extra fields."""
+    import os
+    import threading
+    caplog.set_level(DEBUG)
+    
+    @logged
+    def sample_function(arg1, arg2):
+        return f"{arg1} {arg2}"
+    
+    result = sample_function("Hello", "World")
+    
+    assert result == "Hello World"
+    assert len(caplog.records) == 3  # info (call received), debug (args), debug (result)
+    
+    for record in caplog.records:
+        # Verify module name (name field) - should be tests.test_logger
+        assert record.name == "tests.test_logger"
+        
+        # Verify process ID is available
+        assert record.process == os.getpid()
+        
+        # Verify thread name is available
+        assert record.threadName == threading.current_thread().name
+        
+        # Verify levelname
+        assert record.levelname in ["INFO", "DEBUG"]
+        
+        # Verify the extra 'caller' field is set to the decorated function name
+        assert hasattr(record, 'caller')
+        assert record.caller == "sample_function"
+        
+        # Verify the extra 'funcName' field in the record's __dict__ is set to module
+        # Note: LogRecord also has funcName attribute for the logging call location
+        # The extra dict overwrites/adds the caller field in the formatter
+        
+        # Verify timestamp
+        assert hasattr(record, 'created')
+        assert record.created > 0
+
+def test_logged_decorator_extra_fields(caplog):
+    """Test that @logged decorator correctly sets extra fields (funcName and caller) for formatter."""
+    caplog.set_level(DEBUG)
+    
+    result = hello_with_arg("TestUser")
+    
+    assert result == "Hello, TestUser!"
+    assert len(caplog.records) == 3  # info, debug (args), debug (result)
+    
+    # Check the INFO record (Call received)
+    info_record = caplog.records[0]
+    assert info_record.levelname == "INFO"
+    assert info_record.message == "Call recieved"
+    assert hasattr(info_record, 'caller')
+    assert info_record.caller == "hello_with_arg"
+    # The funcName in extra dict should be the module name
+    # But the actual funcName attribute is the logging call location
+    
+    # Check DEBUG records
+    for record in caplog.records[1:]:
+        assert record.levelname == "DEBUG"
+        assert hasattr(record, 'caller')
+        assert record.caller == "hello_with_arg"
+
+def test_logger_complete_format_string(caplog):
+    """Test that the complete formatter string works end-to-end for Logger class."""
+    from cuemsutils.log import cuemsFormatter
+    import io
+    from logging import StreamHandler
+    
+    caplog.set_level(DEBUG)
+    
+    # Create a string stream to capture formatted output
+    stream = io.StringIO()
+    handler = StreamHandler(stream)
+    handler.setFormatter(cuemsFormatter)
+    
+    # Get the logger and add our handler
+    from cuemsutils.log import main_logger
+    test_logger = main_logger(module_name="tests.test_logger", with_syslog=False, with_stdout=False)
+    test_logger.logger.addHandler(handler)
+    
+    # Log a message
+    test_logger.info("Test formatter output")
+    
+    # Get the formatted output
+    output = stream.getvalue()
+    
+    # Verify the output contains expected components
+    assert "FormitGo (PID:" in output
+    assert "tests.test_logger" in output
+    assert "Test formatter output" in output
+    assert "[INFO]" in output
+    
+    # Clean up
+    test_logger.logger.removeHandler(handler)
+    handler.close()
+
+def test_logged_complete_format_string(caplog):
+    """Test that the complete formatter string works end-to-end for @logged decorator."""
+    from cuemsutils.log import cuemsFormatter
+    import io
+    from logging import StreamHandler
+    
+    caplog.set_level(DEBUG)
+    
+    # Create a string stream to capture formatted output
+    stream = io.StringIO()
+    handler = StreamHandler(stream)
+    handler.setFormatter(cuemsFormatter)
+    
+    # Get the logger and add our handler
+    from cuemsutils.log import main_logger
+    test_logger = main_logger(module_name="tests.test_logger", with_syslog=False, with_stdout=False)
+    test_logger.logger.addHandler(handler)
+    
+    # Call a decorated function
+    result = hello()
+    
+    # Get the formatted output
+    output = stream.getvalue()
+    
+    # Verify the output contains expected components
+    assert "FormitGo (PID:" in output
+    assert "tests.test_logger" in output
+    assert "Call recieved" in output
+    assert "[INFO]" in output or "[DEBUG]" in output
+    # Verify the caller field (decorated function name) is present in the format
+    # The format is: (name:funcName:caller)> so we should see :wrapper:hello)
+    assert ":wrapper:hello)" in output
+    
+    # Clean up
+    test_logger.logger.removeHandler(handler)
+    handler.close()

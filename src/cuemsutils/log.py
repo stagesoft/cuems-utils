@@ -22,6 +22,25 @@ def log_level_to_obj(log_level):
         'CRITICAL': CRITICAL
     }[log_level]
 
+class CuemsLoggerAdapter(LoggerAdapter):
+    """Custom LoggerAdapter that properly merges extra dictionaries."""
+    
+    def process(self, msg, kwargs):
+        """
+        Process the logging call to merge extra dictionaries.
+        Ensures that both adapter-level and call-level extra dicts are merged.
+        """
+        # Start with a copy of the adapter's extra dict (with default caller='')
+        extra = {'caller': ''}
+        extra.update(self.extra)
+        
+        # Merge in any extra dict from the logging call
+        if 'extra' in kwargs:
+            extra.update(kwargs['extra'])
+        
+        kwargs['extra'] = extra
+        return msg, kwargs
+
 def main_logger(module_name = None, with_syslog = True, with_stdout = True):
     """
     Create a root logger with a custom formatter.
@@ -57,7 +76,7 @@ def main_logger(module_name = None, with_syslog = True, with_stdout = True):
         syslog_handler.setFormatter(cuemsFormatter)
         logger.addHandler(syslog_handler)
 
-    logger_adapter = LoggerAdapter(logger, {"caller": ''})
+    logger_adapter = CuemsLoggerAdapter(logger, {})
     _logger_cache[module_name] = logger_adapter
     return logger_adapter
 
@@ -125,8 +144,10 @@ def logged(func):
         """
         The wrapper function that logs function calls and their results.
         """
-        d = {"funcName": func.__module__, "caller": func.__name__}
-        func_logger.info(f"Call recieved", extra = d)
+        # Only set caller field (the decorated function name)
+        # funcName is automatically set by logging to the actual calling function (wrapper)
+        d = {"caller": func.__name__}
+        func_logger.debug(f"Call recieved", extra = d)
         func_logger.debug(f"Using args: {args} and kwargs: {kwargs}", extra = d)
         try:
             result = func(*args, **kwargs)
