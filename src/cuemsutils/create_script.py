@@ -1,7 +1,7 @@
 from .cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
 from .cues.DmxCue import DmxScene, DmxUniverse, DmxChannel
 from .cues.MediaCue import Media, Region
-from .cues.CueOutput import AudioCueOutput, VideoCueOutput
+from .cues.CueOutput import AudioCueOutput, VideoCueOutput, DmxCueOutput
 from .helpers import new_datetime, new_uuid
 from .xml import XmlReaderWriter
 from .log import Logger
@@ -113,6 +113,10 @@ def create_script():
                 }
             }
         }
+    })]
+    
+    dc.outputs = [DmxCueOutput({
+        "output_name": "0367f391-ebf4-48b2-9f26-000000000001"
     })]
 
                                 

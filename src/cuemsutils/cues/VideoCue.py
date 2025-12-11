@@ -136,6 +136,8 @@ class VideoCue(MediaCue):
         Returns:
             bool: True if the mappings are valid, False otherwise.
         """
+        return super().check_mappings()
+
         if not settings.project_node_mappings:
             return True
 

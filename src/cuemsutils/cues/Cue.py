@@ -1,3 +1,5 @@
+from deprecated import deprecated
+
 from ..tools.CTimecode import CTimecode
 from ..tools.Uuid import Uuid
 from ..helpers import CuemsDict, ensure_items, extract_items, format_timecode, new_uuid, as_cuemsdict
@@ -352,6 +354,7 @@ class Cue(CuemsDict):
             return self._target_object
         return self._target_object.get_next_cue() # type: ignore[union-attr]
 
+    @deprecated(reason="This method is deprecated in favor of new mapping logic. Use localize_cue instead.", version="0.1.0rc4")
     def check_mappings(self, settings):
         """Check if the given settings are valid for this cue.
         
@@ -362,6 +365,16 @@ class Cue(CuemsDict):
             bool: True if the settings are valid, False otherwise.
         """
         return True
+
+    def localize_cue(self, node_id: str | None = None) -> None:
+        """Fallback method to set the _local attribute to True.
+
+        This method is a fallback for cues that do not implement their own localization logic.
+        
+        Args:
+            node_id: The ID of the node to localize the cue to.
+        """
+        self._local = True
 
     def stop(self):
         """Stop the execution of the cue."""

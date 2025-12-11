@@ -70,9 +70,7 @@ class CueList(Cue):
             bool: Always returns True for CueList objects.
         """
         # DEV: By now let's presume all CueList objects are _local
-        self._local = True
-
-        return True
+        return super().check_mappings()
 
     def find(self, uuid: Uuid):
         """Find a cue by its UUID in this cue list or its nested lists.

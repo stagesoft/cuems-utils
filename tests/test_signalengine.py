@@ -42,6 +42,7 @@ def test_engine_can_start_and_stop():
     engine.stop()
     assert engine.running == False
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning") # py3.12 and py3.13 @Process
 def test_signal_handling_graceful_exit(daemon):
     from multiprocessing import Process
     from time import sleep

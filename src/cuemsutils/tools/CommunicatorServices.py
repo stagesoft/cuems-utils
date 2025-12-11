@@ -1,14 +1,21 @@
-from abc import ABC, abstractmethod
-from collections.abc import Callable
 import asyncio
 import json
-import os
 import sys
-from pynng import Req0, Rep0
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from enum import Enum
 from functools import partial
+from deprecated import deprecated
+from pynng import Req0, Rep0
 
 from ..log import Logger
 from ..helpers import check_path
+
+class IpcAddress(Enum):
+    """ IPC addresses for the different services """
+    HWDISCOVERY = '/tmp/hwdiscovery.ipc'
+    NODECONF = '/tmp/nodeconf.ipc'
+    EDITOR = '/tmp/editor.ipc'
 
 class CommunicatorService(ABC):
     @abstractmethod
@@ -16,35 +23,33 @@ class CommunicatorService(ABC):
         self.address = address
 
     @abstractmethod
-    def send_request(self, resquest:dict) -> dict:
+    def send_request(self, request:dict) -> dict:
         """ Send request dic and return response dict  """
 
     @abstractmethod
     def reply(self, request_processor:Callable[[dict], dict]) -> dict:
         """ Get request, give it to request processor, and return the response from it  """
 
-class Nng_request_response(CommunicatorService):
-    """ Communicates over NNG (nanomsg)  """,
 
-    def __init__(self, address, resquester_dials=True):
+class NngRequestResponse(CommunicatorService):
+    """ Communicates over NNG (nanomsg) using a Request-Response protocol"""
+    def __init__(self, address, requester_dials=True):
         """
-        Initialize Nng_request_resopone instance with address and dialing/listening mode.
+        Initialize NngRequestResponse instance with address and dialing/listening mode.
 
         Parameters:
         - address (str): The address to connect or listen for connections.
-        - resquester_dials (bool, optional): If True, the instance requester will dial the address and replier will listen. If False, it will be the oposite way, requester listens and replier dials. Default is True.
+        - requester_dials (bool, optional): If True, the instance requester will dial the address and replier will listen. If False, it will be the opposite way, requester listens and replier dials. Default is True.
 
-        The instance will set up the parameters for request and reply sockets based on the resquester_dials value.
+        The instance will set up the parameters for request and reply sockets based on the requester_dials value.
         """
         self.address = address
-        if resquester_dials:
+        if requester_dials:
             self.params_request = {'dial': self.address}
             self.params_reply = {'listen': self.address}
         else: 
             self.params_request = {'listen': self.address}
             self.params_reply = {'dial': self.address}
-
-
 
     async def send_request(self, request):
         """
@@ -59,22 +64,29 @@ class Nng_request_response(CommunicatorService):
         try:
             with Req0(**self.params_request) as socket:
                 while await asyncio.sleep(0, result=True):
-                    print(f"Sending: {request}")
+                    Logger.debug(f"Sending: {request}")
                     encoded_request = json.dumps(request).encode()
                     await socket.asend(encoded_request)
                     response = await self._get_response(socket)
                     decoded_response = json.loads(response.decode())
-                    print(f"receiving: {decoded_response}")
+                    Logger.debug(f"receiving: {decoded_response}")
                     return decoded_response
         except Exception as e:
             Logger.error(f"Error occurred while sending request: {e}")
             return None
 
-    async def _get_response(self, socket):
+    async def _get_response(self, socket: Req0):
+        """
+        Get the response from the socket.
+
+        Parameters:
+        - socket (Req0): The socket to get the response from.
+
+        Returns:
+        - bytes: The response from the socket.
+        """
         response = await socket.arecv()
         return response
-
-
 
     async def reply(self, request_processor):
         """
@@ -131,7 +143,6 @@ class Nng_request_response(CommunicatorService):
         except Exception as e:
             Logger.error(f"Error occurred while handling request: {e}")
 
-
     async def responder_post_reply(self, response, context):
         try:
             await self._respond(context, response)
@@ -141,9 +152,28 @@ class Nng_request_response(CommunicatorService):
             context.close()
 
 
+@deprecated(
+    reason="This is an alias, use NngRequestResponse instead",
+    version="0.1.0rc1"
+)
+class Nng_request_response(NngRequestResponse):
+    pass
 
 class Communicator(CommunicatorService):
-    def __init__(self, address, communicator_service = Nng_request_response, nng_mode=True):
+    def __init__(
+        self,
+        address:str,
+        communicator_service:CommunicatorService = NngRequestResponse,
+        requester_dials:bool = True
+    ):
+        """
+        Initialize Communicator instance with address and communicator service.
+
+        Parameters:
+        - address (str): The address to connect or listen for connections.
+        - communicator_service (Callable[[str, bool], CommunicatorService]): The communicator service to use.
+        - requester_dials (bool): If True, the instance will dial the address. If False, it will listen for connections.
+        """
         try:
             check_path(address)
         except PermissionError as e:
@@ -159,8 +189,8 @@ class Communicator(CommunicatorService):
         if address[0:6] != 'ipc://':
             address = "ipc://" + address
         self.address = address
-        self.nng_mode = nng_mode
-        self.communicator_service = communicator_service(self.address, resquester_dials=self.nng_mode)
+        self.requester_dials = requester_dials
+        self.communicator_service:CommunicatorService = communicator_service(self.address, requester_dials=self.requester_dials)
         
     async def send_request(self, request):
         response = await self.communicator_service.send_request(request)
@@ -170,10 +200,20 @@ class Communicator(CommunicatorService):
        await self.communicator_service.reply(request_processor)
 
     async def responder_connect(self):
+        self._has_callable('responder_connect')
         await self.communicator_service.responder_connect()
 
     async def responder_get_request(self, callback):
+        self._has_callable('responder_get_request')
         await self.communicator_service.responder_get_request(callback)
 
-    async def responder_post_reply(self, response, context):
+    async def responder_post_reply(self, response, context): 
+        self._has_callable('responder_post_reply')
         await self.communicator_service.responder_post_reply(response, context)
+    
+    def _has_callable(self, name):
+        """Check if communicator_service has callable attribute of the given name"""
+        if not hasattr(self.communicator_service, name):
+            raise AttributeError(f"{name} is not an attribute of {type(self.communicator_service)}")
+        if not callable(getattr(self.communicator_service, name)):
+            raise AttributeError(f"{name} is not a callable attribute of {type(self.communicator_service)}")

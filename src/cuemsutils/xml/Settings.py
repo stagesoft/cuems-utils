@@ -7,6 +7,7 @@ from typing import Any
 
 from ..log import Logger
 from ..tools.CTimecode import CTimecode
+from ..helpers import strtobool
 from .XmlReaderWriter import XmlReaderWriter
 
 class Settings(XmlReaderWriter):
@@ -30,10 +31,14 @@ class Settings(XmlReaderWriter):
       if self.schema is not None and self.xmlfile is not None:
           self.read()
     
-    def get_dict(self) -> dict[str, Any] | Any:
+    def get_dict(self) -> dict[str, Any]:
         if self.main_key == '':
-            return self.xml_dict
-        return self.xml_dict[self.main_key] # type: ignore[index]
+            return self.xml_dict if isinstance(self.xml_dict, dict) else {}
+        value = self.xml_dict.get(self.main_key) # type: ignore[index]
+        if isinstance(value, dict):
+            return value
+        # If main_key value is not a dict (e.g., list), wrap it in a dict
+        return {self.main_key: value} if value is not None else {}
 
     def backup(self):
         if os.path.isfile(self.xmlfile):
@@ -100,7 +105,7 @@ class NetworkMap(Settings):
     """
     def __init__(self, xmlfile, schema_name = 'network_map', **kwargs):
         if not hasattr(self, 'main_key'):
-            self.main_key = 'CuemsNodeDict'
+            self.main_key = ''
         super().__init__(
             xmlfile,
             schema_name,
@@ -110,17 +115,40 @@ class NetworkMap(Settings):
 
     def get_node(self, uuid):
         out = None
-        for node in self.processed: # type: ignore[index]
-            node = node['CuemsNode'] # type: ignore[index]
-            if node['uuid'] == uuid: # type: ignore[index]
+        network_dict = self.get_dict()
+        nodes_list = network_dict.get('node_list')
+        for node_item in nodes_list:
+            node = node_item.get('node')
+            if node.get('uuid') == uuid:
                 out = node
                 break
         if not out:
             raise ValueError(f'Node with uuid {uuid} not found')
         return out
 
-    def process_xml_dict(self):
-        self.processed = self.get_dict()
+    @staticmethod
+    def get_nodes_by_adoption(network_map_dict: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        nodes = []
+        new_nodes = []
+        
+        if not network_map_dict:
+            raise ValueError('No network map dictionary found')
+        node_list = network_map_dict.get('node_list', [])
+        if not node_list:
+            raise ValueError('No node list found in network map dictionary')
+        for node_item in node_list:
+            if 'node' in node_item:
+                # Convert boolean strings directly in the node_item structure
+                node_item['node']['online'] = strtobool(node_item['node'].get('online', 'False'))
+                node_item['node']['adopted'] = strtobool(node_item['node'].get('adopted', 'False'))
+                
+                # Append the node_item directly (it already has the wrapper structure)
+                if node_item['node']['adopted']:
+                    nodes.append(node_item)
+                else:
+                    new_nodes.append(node_item)
+        
+        return nodes, new_nodes
 
 class ProjectMappings(Settings):
     """

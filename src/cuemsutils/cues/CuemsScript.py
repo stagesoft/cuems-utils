@@ -240,7 +240,7 @@ class CuemsScript(dict):
                 )
             elif isinstance(cue, MediaCue) and hasattr(cue.media, 'file_name'):
                 Logger.debug(f'get_own_media media cue at {pos}')
-                cue.check_mappings(config)
+                cue.localize_cue(config.node_conf['uuid'])
                 if cue._local:
                     media_dict[str(cue.id)] = cue.media.file_name
             pos += 1

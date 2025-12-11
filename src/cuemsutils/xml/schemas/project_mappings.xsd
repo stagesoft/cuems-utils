@@ -11,9 +11,16 @@
                 <xs:element name="default_dmx_input" minOccurs="1" maxOccurs="1" type="xs:string" />
                 <xs:element name="default_dmx_output" minOccurs="1" maxOccurs="1" type="xs:string" />
                 <xs:element name="nodes" minOccurs="1" maxOccurs="1" type="cms:NodesType" />
+                <xs:element name="new_nodes" minOccurs="1" maxOccurs="1" type="cms:NewNodesType" />
             </xs:sequence>
         </xs:complexType>
     </xs:element>
+
+    <xs:complexType name="NewNodesType">
+        <xs:sequence>
+            <xs:element name="node" minOccurs="0" maxOccurs="unbounded" type="cms:NodeType" />
+        </xs:sequence>
+    </xs:complexType>
 
     <xs:complexType name="NodesType">
         <xs:sequence>

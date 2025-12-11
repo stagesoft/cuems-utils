@@ -137,6 +137,7 @@
     <xs:choice minOccurs="0" maxOccurs="unbounded">
       <xs:element name="AudioCueOutput" type="cms:AudioCueOutputsType" />
       <xs:element name="VideoCueOutput" type="cms:VideoCueOutputsType" />
+      <xs:element name="DmxCueOutput" type="cms:DmxCueOutputsType" />
     </xs:choice>
   </xs:complexType>
 
@@ -274,10 +275,18 @@
         <xs:sequence>
           <xs:element name="fadein_time" type="xs:float" />
           <xs:element name="fadeout_time" type="xs:float" />
+          <xs:element name="outputs" type="cms:OutputsType" />
           <xs:element name="DmxScene" type="cms:DmxSceneType" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="DmxCueOutputsType">
+    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <!-- <xs:element name="node_uuid" type="cms:UuidType" /> -->
+      <xs:element name="output_name" type="cms:NameStringType" />
+    </xs:sequence>
   </xs:complexType>
 
   <!-- Dmx scene type -->

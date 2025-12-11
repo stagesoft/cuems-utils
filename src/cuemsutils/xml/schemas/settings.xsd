@@ -41,8 +41,10 @@
             <xs:element name="discovery_timeout" type="xs:positiveInteger" />
             <xs:element name="mtc_port" type="xs:string" />
             <xs:element name="osc_in_port_base" type="cms:NonPrivilegedPort" />
+            <xs:element name="nng_hub_port" type="cms:NonPrivilegedPort" />
             <xs:element name="videoplayer" type="cms:VideoPlayerType" minOccurs="0" maxOccurs="1" />
             <xs:element name="audioplayer" type="cms:AudioPlayerType" minOccurs="0" maxOccurs="1" />
+            <xs:element name="audiomixer" type="cms:AudioMixerType" minOccurs="0" maxOccurs="1" />
             <xs:element name="dmxplayer" type="cms:DmxPlayerType" minOccurs="0" maxOccurs="1" />
         </xs:sequence>
     </xs:complexType>
@@ -70,6 +72,13 @@
                 <xs:sequence>
                     <xs:element name="audio_cards" type="xs:positiveInteger"></xs:element>
                 </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="AudioMixerType">
+        <xs:complexContent>
+            <xs:extension base="cms:PlayerType">
             </xs:extension>
         </xs:complexContent>
     </xs:complexType>

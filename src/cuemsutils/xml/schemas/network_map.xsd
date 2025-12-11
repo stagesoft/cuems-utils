@@ -3,36 +3,29 @@
     <xs:element name="CuemsNetworkMap">
         <xs:complexType>
             <xs:sequence>
-                <xs:element name="CuemsNodeDict" minOccurs="0" maxOccurs="1" type="cms:NodeDictType" />
+                <xs:element name="node_list" minOccurs="0" maxOccurs="1" type="cms:NodeDictType" />
             </xs:sequence>
         </xs:complexType>
     </xs:element>
 
     <xs:complexType name="NodeDictType">
         <xs:sequence>
-            <xs:element name="CuemsNode" minOccurs="0" maxOccurs="unbounded" type="cms:NodeType" />
+            <xs:element name="node" minOccurs="0" maxOccurs="unbounded" type="cms:NodeType" />
         </xs:sequence>
     </xs:complexType>
 
     <xs:complexType name="NodeType">
         <xs:sequence>
             <!-- <xs:element name="present" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/> -->
-            <xs:element name="uuid" minOccurs="1" maxOccurs="1" type="xs:string"/>
+            <xs:element name="uuid" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
             <xs:element name="mac" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
             <xs:element name="name" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
             <xs:element name="node_type" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
             <xs:element name="ip" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
-            <xs:element name="port" minOccurs="1" maxOccurs="1" type="cms:NonPrivilegedPort"/>
-            <xs:element name="online" minOccurs="1" maxOccurs="1" type="cms:BoolType"/>
+            <xs:element name="adopted" minOccurs="0" maxOccurs="1" type="cms:BoolType"/>
+            <xs:element name="online" minOccurs="0" maxOccurs="1" type="cms:BoolType"/>
         </xs:sequence>
     </xs:complexType>
-
-    <xs:simpleType name="BoolType">
-        <xs:restriction base="xs:string">
-            <xs:enumeration value="True" />
-            <xs:enumeration value="False" />
-        </xs:restriction>
-    </xs:simpleType>
 
     <xs:complexType name="PutType">
         <xs:sequence>
@@ -54,10 +47,10 @@
         </xs:restriction>
     </xs:simpleType>
 
-    <xs:simpleType name="NonPrivilegedPort">
-        <xs:restriction base="xs:int">
-            <xs:minInclusive value="1024" />
-            <xs:maxInclusive value="65535" />
+    <xs:simpleType name="BoolType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="True" />
+            <xs:enumeration value="False" />
         </xs:restriction>
     </xs:simpleType>
 </xs:schema>

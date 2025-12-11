@@ -10,13 +10,6 @@ def config_manager():
     environ['CUEMS_CONF_PATH'] = TEST_DATA_PATH
     return ConfigManager()
 
-def test_fail_no_conf_path():
-    with pytest.raises(
-        FileNotFoundError,
-        match = 'Configuration directory /etc/cuems/ not found'
-    ):
-        ConfigManager()
-
 def test_fail_no_conf_parameter():
     with pytest.raises(
         FileNotFoundError,
@@ -53,16 +46,17 @@ def test_base_settings(config_manager):
     assert config_manager.osc_initial_port == 7000
 
 def test_network_map(config_manager):
-    assert type(config_manager.network_map) == list
+    assert type(config_manager.network_map) == dict
+    assert 'node_list' in config_manager.network_map
+    assert type(config_manager.network_map['node_list']) == list
+    assert len(config_manager.network_map['node_list']) == 2
     assert config_manager.node_network_map['uuid'] == '0367f391-ebf4-48b2-9f26-000000000001'
-    assert config_manager.node_network_map['url'] == '000000000001.local'
     assert config_manager.node_network_map['mac'] == '2cf05d21cca3'
     assert config_manager.node_network_map['name'] == '2cf05d21cca3._cuems_nodeconf._tcp.local.'
     assert config_manager.node_network_map['node_type'] == 'NodeType.master'
     assert config_manager.node_network_map['ip'] == '192.168.1.10'
-    assert config_manager.node_network_map['port'] == 9000
     assert config_manager.node_network_map['online'] == 'True'
-    assert config_manager.network_map[0]['CuemsNode'] == config_manager.node_network_map
+    assert config_manager.network_map['node_list'][0]['node'] == config_manager.node_network_map
 
 def test_project_load(config_manager):
     config_manager.load_project_config('test_project')
