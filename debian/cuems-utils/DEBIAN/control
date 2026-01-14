@@ -1,0 +1,11 @@
+Package: cuems-utils
+Version: 0.1.0rc4
+Architecture: amd64
+Maintainer: Ion Reguera <ion@stagelab.coop>
+Installed-Size: 40813
+Depends: python3 (>= 3.11), python3 (<< 3.12), libc6 (>= 2.34), libsqlite3-0 (>= 3.7.4), python3-systemd
+Section: misc
+Priority: optional
+Homepage: https://github.com/stagesoft/stagesoft-project
+Description: Cuems utils
+ Cuems utils is a set of utilities to work with the cuems project

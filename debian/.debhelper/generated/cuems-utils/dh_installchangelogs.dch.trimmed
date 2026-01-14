@@ -1,0 +1,50 @@
+cuems-utils (0.1.0rc4) UNRELEASED; urgency=low
+
+  * Update network_map structure: get_nodes_by_adoption now returns list of node dicts
+  * Refactor: Make get_nodes_by_adoption static method
+  * Fix: Ensure get_dict() always returns dictionary
+  * Update: Change network_map.xsd from CuemsNodeDict to node_list
+  * Fix: Use strtobool for boolean conversions in Settings
+  * Update: NetworkMap.main_key changed to empty string
+  * Remove: process_xml_dict function, use get_dict() directly
+  * Update: get_nodes_by_adoption expects dict containing node_list
+  * Fix: Update cuems-engine and cuems-editor to use new network_map structure
+  * Test: Update tests to reflect new node_list structure
+
+ -- Ion Reguera <ion@stagelab.coop>  Thu, 11 Dec 2025 11:52:15 +0100
+
+cuems-utils (0.0.9rc2) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.9rc2 to match upstream
+  * Updadte upstream version
+
+
+cuems-utils (0.0.7-31) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.7-31 to match upstream
+  * Updadte upstream version
+
+
+cuems-utils (0.0.7-3) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.7-3 to match upstream
+  * Updadte upstream version
+
+cuems-utils (0.0.7-2) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.7-2 to match upstream
+  * Updadte upstream version
+
+cuems-utils (0.0.6-0) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.6 to match upstream
+  * Updadte upstream version
+    
+
+ -- Ion Reguera <ion@stagelab.coop>  Tue, 29 Apr 2025 19:18:13 +0200
+cuems-utils (0.0.1-0) UNRELEASED; urgency=low
+
+  * create cuems-utils package with custom python and virtualenv
+    
+
+ -- Ion Reguera <ion@stagelab.coop>  Tue, 29 Apr 2025 19:18:13 +0200

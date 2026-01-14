@@ -1,0 +1,12 @@
+Package: cuems-utils-dbgsym
+Source: cuems-utils
+Version: 0.1.0rc4
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: Ion Reguera <ion@stagelab.coop>
+Installed-Size: 3094
+Depends: cuems-utils (= 0.1.0rc4)
+Section: debug
+Priority: optional
+Description: debug symbols for cuems-utils
+Build-Ids: 0b637a58e9071826de6fb7d446a7878c4baf5ca8 27ed0174c53e6c6f5ee91a2b0d3b4a56551fa079 91b0ef9a8b78ad87d11fc6cef803ce750206847b 9dbd6756de135c8c7b48c480a28b99cf7b4d522d fbd5e483fe5115b00f9c2f5f5462e8c28d5260b0 ffdd0a88a72dae9af465641b0a67b341bb68361a 686f4bcbd7e7c402c9da2cd778d9a846a793d3f2 7f79fff1fb5fe0fc4aa8e0f0bddad1a2df6d9b2f 338a08ba3b5fc506c98ded6efcf1c1d0628e2f7a 4e56e639e7566ea90f0fd69ed50d68266539693c 7a87b24f7a239f95550eb5d0a55bc3f5f07eeb86 b01548237c24d5b18be3b2d45b930d23d7dbb42c
