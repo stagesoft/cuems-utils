@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import daemon as daemon
 import sys
 from pathlib import Path
 from typing import Any
+from daemon import DaemonContext
 
 from .log import Logger
 
@@ -19,7 +19,7 @@ def run_daemon(engine_instance: Any, pid_name: str) -> None:
     Path('/var/log/cuems').mkdir(parents=True, exist_ok=True)
     
     # Create daemon context
-    context = daemon.DaemonContext(
+    context = DaemonContext(
         working_directory='/',
         umask=0o002,
         pidfile=Path(f'/var/run/cuems/{pid_name}.pid'),
