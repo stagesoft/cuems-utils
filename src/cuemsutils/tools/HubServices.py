@@ -447,7 +447,17 @@ class NngBusHub(HubService):
         them to the bus connection. Any exceptions during sending are logged.
 
         The loop runs until cancelled or an unhandled exception occurs.
+        
+        Note: In LISTENER mode, waits for at least one connection before sending
+        to avoid losing messages due to BUS protocol's best-effort delivery.
         """
+        # Wait for at least one connection in LISTENER mode before sending
+        if self.mode == self.Mode.LISTENER:
+            Logger.info("LISTENER mode: waiting for node connections before sending...")
+            while len(self.active_connections) == 0:
+                await asyncio.sleep(0.1)
+            Logger.info(f"Node connected, sender ready ({len(self.active_connections)} connections)")
+        
         while await asyncio.sleep(0, result=True):
             try:
                 message = await self.outgoing.get()
