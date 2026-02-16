@@ -114,11 +114,16 @@ class DmxCue(Cue):
             if output is None:
                 continue
             if not isinstance(output, DmxCueOutput):
-                # Convert dict to DmxCueOutput
                 if isinstance(output, dict):
-                    # Handle nested dict structure like {"DmxCueOutput": {...}}
                     if 'DmxCueOutput' in output:
-                        converted_outputs.append(DmxCueOutput(output['DmxCueOutput']))
+                        inner = output['DmxCueOutput']
+                        # XML converter may produce a list of dicts for the inner value
+                        if isinstance(inner, list):
+                            for item in inner:
+                                if isinstance(item, dict):
+                                    converted_outputs.append(DmxCueOutput(item))
+                        elif isinstance(inner, dict):
+                            converted_outputs.append(DmxCueOutput(inner))
                     else:
                         converted_outputs.append(DmxCueOutput(output))
                 else:
@@ -203,7 +208,9 @@ class DmxCue(Cue):
         Returns:
             bool: True if the mappings are valid, False otherwise.
         """
-        return super().check_mappings(settings)
+        # Call parent check_mappings first
+        if not super().check_mappings(settings):
+            return False
 
         if not settings.project_node_mappings:
             return True
@@ -212,13 +219,16 @@ class DmxCue(Cue):
         self._local = False
         
         # Get current node UUID
-        current_node_uuid = settings.node_conf['uuid']
+        current_node_uuid = settings.node_conf.get('uuid')
+        if not current_node_uuid:
+            Logger.warning(f'DmxCue {self.id}: No node UUID found in settings')
+            return True
         
         # Check each output
         if self.outputs:
             for output in self.outputs:
                 # For DMX cues, output_name is just the node UUID (not {node_uuid}_{output_name})
-                output_name = output['output_name']
+                output_name = output.get('output_name', '')
                 
                 # Compare entire output_name with current node UUID
                 if output_name == current_node_uuid:
@@ -227,8 +237,6 @@ class DmxCue(Cue):
                         f'DmxCue {self.id} output_name {output_name} matches current node, setting _local=True'
                     )
                     break  # Found a match, no need to check other outputs
-                else:
-                    self._local = False
         
         return True
     
