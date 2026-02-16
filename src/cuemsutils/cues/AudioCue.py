@@ -6,7 +6,7 @@ from ..helpers import ensure_items
 from ..log import logged, Logger
 
 REQ_ITEMS = {
-    'master_vol': 0
+    'master_vol': 1  # Default to full volume (0.0-1.0 range)
 }
 
 class AudioCue(MediaCue):
