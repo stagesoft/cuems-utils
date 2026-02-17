@@ -40,8 +40,8 @@
                 <args></args>
             </audiomixer>
             <dmxplayer>
-                <path>/usr/local/bin/dmxplayer-cuems</path>
-                <args></args>
+                <path>/usr/bin/dmxplayer-cuems</path>
+                <args>--mtcfollow</args>
                 <universes>1</universes>
             </dmxplayer>
         </node>
