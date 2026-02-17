@@ -1,6 +1,6 @@
 from ..cues import *
 from ..cues.MediaCue import Media, Region
-from ..cues.CueOutput import AudioCueOutput, VideoCueOutput
+from ..cues.CueOutput import AudioCueOutput, VideoCueOutput, DmxCueOutput
 from ..cues.Cue import Cue, UI_properties
 from ..log import Logger
 from ..helpers import strtobool
@@ -236,7 +236,11 @@ class outputsParser(GenericParser):
         Logger.debug("Parsing Outputs")
         for dict_key, dict_value in self.init_dict.items():
             self._class = self.get_class(dict_key)
-            self.item_op = self._class(dict_value)
+            # Schema may produce a list when multiple outputs (e.g. DmxCueOutput maxOccurs)
+            if isinstance(dict_value, list):
+                self.item_op = [self._class(item) for item in dict_value if isinstance(item, dict)]
+            else:
+                self.item_op = self._class(dict_value)
 
         return self.item_op
 
@@ -268,6 +272,9 @@ class AudioCueOutputParser(outputsParser):
     pass
 
 class VideoCueOutputParser(outputsParser):
+    pass
+
+class DmxCueOutputParser(outputsParser):
     pass
 
 class DmxCueParser(CuemsScriptParser):
