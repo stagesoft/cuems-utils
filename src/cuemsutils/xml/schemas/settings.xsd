@@ -60,7 +60,8 @@
         <xs:complexContent>
             <xs:extension base="cms:PlayerType">
                 <xs:sequence>
-                    <xs:element name="outputs" type="xs:positiveInteger"></xs:element>
+                    <xs:element name="outputs" type="xs:positiveInteger" />
+                    <xs:element name="osc_port" type="cms:NonPrivilegedPort" minOccurs="0" />
                 </xs:sequence>
             </xs:extension>
         </xs:complexContent>

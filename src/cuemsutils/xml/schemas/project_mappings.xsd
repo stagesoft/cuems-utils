@@ -55,6 +55,7 @@
     <xs:complexType name="PutType">
         <xs:sequence>
             <xs:element name="name" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"></xs:element>
+            <xs:element name="canvas_region" minOccurs="0" maxOccurs="1" type="cms:CanvasRegionType" />
             <xs:element name="mappings">
                 <xs:complexType>
                     <xs:sequence>
@@ -62,6 +63,15 @@
                     </xs:sequence>
                 </xs:complexType>
             </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="CanvasRegionType">
+        <xs:sequence>
+            <xs:element name="x" type="xs:integer" />
+            <xs:element name="y" type="xs:integer" />
+            <xs:element name="width" type="xs:positiveInteger" />
+            <xs:element name="height" type="xs:positiveInteger" />
         </xs:sequence>
     </xs:complexType>
 
