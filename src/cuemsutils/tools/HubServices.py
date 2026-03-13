@@ -59,11 +59,19 @@ class NngBusHub(HubService):
 
         The instance will set up incoming and outgoing message queues for asynchronous message handling.
         """
-        self.active_connections: dict[int, ConnectionInfo] = {}  # pipe_id -> ConnectionInfo
+        self.active_connections: dict[int, ConnectionInfo] = {}  # key -> ConnectionInfo
+        self._next_conn_key: int = 0  # monotonic key; avoids calling pipe.id in callbacks
         self.address = hub_address
         self.mode = mode
         self.incoming = asyncio.Queue()
         self.outgoing = asyncio.Queue()
+        self.connection = None
+        
+        # Set to True at the very start of teardown so pipe callbacks become no-ops.
+        # NNG fires post_pipe_remove callbacks from its internal C threads during socket
+        # close; if those callbacks call any pynng C function (e.g. pipe.id) while NNG
+        # internals are being freed, a SIGFPE or SIGABRT results.
+        self._closing: bool = False
         
         # Connection health tracking
         self._last_message_received: Optional[datetime] = None
@@ -100,6 +108,9 @@ class NngBusHub(HubService):
             case _:
                 raise ValueError(f"Unknown mode: {self.mode}")
 
+        sender_task = None
+        receiver_task = None
+        ping_task = None
         try:
             sender_task = asyncio.create_task(self._send_handler(), name="sender")
             receiver_task = asyncio.create_task(self._receiver_handler(), name="receiver")
@@ -140,13 +151,34 @@ class NngBusHub(HubService):
             Logger.error(f"Error occurred while starting tasks: {e} type: {type(e)}")
             # Cancel any running tasks
             for task in [sender_task, receiver_task, ping_task]:
-                if not task.done():
+                if task is not None and not task.done():
                     task.cancel()
                     try:
                         await task
-                    except asyncio.CancelledError:
+                    except (asyncio.CancelledError, Exception):
                         pass
             raise
+        finally:
+            # Set _closing=True FIRST so any pipe callbacks that fire during
+            # task cancellation or socket close become immediate no-ops.
+            # Accessing pipe.id inside a NNG pipe callback during teardown can
+            # trigger SIGFPE/SIGABRT in NNG's C code — _closing prevents that.
+            self._closing = True
+
+            # Cancel all inner tasks before closing the socket.
+            for task in [sender_task, receiver_task, ping_task]:
+                if task is not None and not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+            if hasattr(self, 'connection') and self.connection is not None:
+                try:
+                    self.connection.close()
+                except Exception:
+                    pass
+                self.connection = None
 
     async def start_listener(self):
         """
@@ -522,54 +554,43 @@ class NngBusHub(HubService):
 
     def _post_connect_callback(self, pipe):
         """Internal callback when a new pipe connects."""
-        # IMMEDIATE logging to verify callback is being called
-        print(f"[CALLBACK] _post_connect_callback ENTERED for pipe {pipe}", flush=True)
-        Logger.warning(f"[CALLBACK] _post_connect_callback ENTERED for pipe {pipe}")
+        if self._closing:
+            return
+        # Use a monotonic counter as key — avoids calling pipe.id (a pynng C
+        # call) which can trigger SIGFPE/SIGABRT during NNG teardown.
         try:
-            sender = self._extract_sender_info(pipe)
+            key = self._next_conn_key
+            self._next_conn_key += 1
             conn_info = ConnectionInfo(
-                pipe_id=pipe.id,
-                sender=sender,
+                pipe_id=key,
+                sender="unknown",
                 connected_at=datetime.now()
             )
-            self.active_connections[pipe.id] = conn_info
-            # Enhanced logging with pipe details
-            Logger.info(f"Connection established - Pipe ID: {pipe.id}, Sender: {sender}, "
-                       f"Local: {pipe.local_address}, Remote: {pipe.remote_address}")
-            Logger.debug(f"Active connections after connect: {len(self.active_connections)} - "
-                        f"IDs: {list(self.active_connections.keys())}")
+            self.active_connections[key] = conn_info
+            Logger.info(f"Connection established (key={key}), "
+                        f"total={len(self.active_connections)}")
         except Exception as e:
-            import traceback
             Logger.error(f"Error in connect callback: {e}")
-            Logger.error(f"Traceback: {traceback.format_exc()}")
 
     def _post_remove_callback(self, pipe):
         """Internal callback when a pipe disconnects."""
-        # IMMEDIATE logging to verify callback is being called
-        import traceback
-        stack = traceback.format_stack()
-        print(f"[CALLBACK] _post_remove_callback ENTERED for pipe {pipe}", flush=True)
-        Logger.warning(f"[CALLBACK] _post_remove_callback ENTERED for pipe {pipe}")
-        Logger.warning(f"[CALLBACK] Call stack:\n{''.join(stack[-5:])}")  # Last 5 frames
+        if self._closing:
+            return
+        # Pop the oldest tracked connection (FIFO) — we cannot call pipe.id
+        # here because that is a pynng C call that triggers SIGFPE/SIGABRT
+        # when NNG is tearing down the pipe concurrently.
         try:
-            conn_info = self.active_connections.pop(pipe.id, None)
-            if conn_info:
-                duration = datetime.now() - conn_info.connected_at
-                # Include message stats for debugging connection issues
-                Logger.warning(f"CONNECTION CLOSED - Pipe ID: {pipe.id}, Sender: {conn_info.sender}, "
-                              f"Duration: {duration.total_seconds():.2f}s, "
-                              f"Messages sent: {self._messages_sent_count}, "
-                              f"Messages received: {self._messages_received_count}")
-            else:
-                Logger.warning(f"Pipe {pipe.id} disconnected but not found in active connections")
-            
-            remaining = len(self.active_connections)
-            Logger.info(f"Active connections after disconnect: {remaining} - "
-                       f"IDs: {list(self.active_connections.keys())}")
-            
-            # Warn if this was the last connection for a DIALER (node)
-            if remaining == 0 and self.mode == self.Mode.DIALER:
-                Logger.warning(f"DIALER has no active connections - waiting for reconnection")
+            if self.active_connections:
+                key = next(iter(self.active_connections))
+                conn_info = self.active_connections.pop(key, None)
+                if conn_info:
+                    duration = datetime.now() - conn_info.connected_at
+                    Logger.info(f"Connection closed (key={key}), "
+                                f"duration={duration.total_seconds():.2f}s, "
+                                f"remaining={len(self.active_connections)}")
+
+            if len(self.active_connections) == 0 and self.mode == self.Mode.DIALER:
+                Logger.warning("DIALER has no active connections - waiting for reconnection")
         except Exception as e:
             Logger.error(f"Error in disconnect callback: {e}")
             

@@ -145,7 +145,10 @@ class ConfigManager(ConfigBase):
 
         self.node_mappings = project_mappings.get_node(self.node_conf['uuid'])
         Logger.debug(f"Node uuid is: {self.node_conf['uuid']}")
-        # Select just output names for node_hw_outputs var
+        # Build node_hw_outputs: the physical port name (mapped_to) is what the
+        # engine needs (e.g. the JACK port for audio, DRM connector for video).
+        # <name> is now a human-readable label; <mapped_to> is the real target.
+        # Fall back to <name> for legacy entries that have no mappings.
         # e.g: node_hw_outputs["audio_outputs"] = ["system:playback_1", "system:playback_2"]
         for section, content in self.node_mappings.items():
             if isinstance(content, list):
@@ -153,8 +156,12 @@ class ConfigManager(ConfigBase):
                     for port_types, port_type_list in port_type_dict.items():
                         for port in port_type_list:
                             for port_type, port_type_content in port.items():
-                                name = port_type_content['name']
-                                self.node_hw_outputs[section+'_'+port_types].append(name)
+                                mappings = port_type_content.get('mappings', [])
+                                if mappings:
+                                    hw_name = mappings[0]['mapped_to']
+                                else:
+                                    hw_name = port_type_content['name']
+                                self.node_hw_outputs[section+'_'+port_types].append(hw_name)
         
         Logger.debug(f"Node hardware outputs are: {self.node_hw_outputs}")
 
