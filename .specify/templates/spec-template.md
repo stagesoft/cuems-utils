@@ -89,6 +89,10 @@
 - **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
+- **FR-UX-001**: User-facing wording, prompts, and defaults MUST match established
+  project conventions or include a documented migration plan.
+- **FR-PERF-001**: Feature MUST define measurable performance budgets and how they
+  will be validated.
 
 *Example of marking unclear requirements:*
 
@@ -113,3 +117,5 @@
 - **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+- **SC-QUALITY-001**: [Quality gate metric, e.g., "No new lint/type warnings introduced"]
+- **SC-TEST-001**: [Testing gate metric, e.g., "Required unit/integration tests fail before and pass after implementation"]

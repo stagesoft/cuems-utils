@@ -31,7 +31,14 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- **Code Quality**: Define linting/type/static analysis gates and confirm no new
+  warnings are introduced.
+- **Testing Standards**: Define required unit/integration/contract coverage for
+  this feature and list fail-before-pass validation steps.
+- **UX Consistency**: Identify user-facing surfaces (CLI/docs/errors) and
+  specify conventions this feature must follow.
+- **Performance Requirements**: Declare measurable budgets (latency,
+  throughput, memory, startup, or N/A with rationale) and validation approach.
 
 ## Project Structure
 
