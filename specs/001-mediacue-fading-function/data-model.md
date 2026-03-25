@@ -1,16 +1,16 @@
 # Data Model: MediaCue Parametric Fades
 
-## Entity: MediaCueFadeProfile
+## Entity: FadeProfile
 
-- **Description**: Fade definition attached to one `MediaCue` direction.
+- **Description**: Typed fade definition attached to one `MediaCue`.
 - **Fields**:
-  - `direction` (enum: `fade_in` | `fade_out`) - required
+  - `type` (enum: `in` | `out`) - required
   - `mode` (enum: `preset` | `parametric`) - required
   - `function_id` (string) - required; identifies the fade function
   - `parameters` (list[`FadeFunctionParameter`]) - optional for `preset`,
     required for `parametric` when function needs inputs
 - **Validation rules**:
-  - `direction` MUST be one of `fade_in` or `fade_out`.
+  - `type` MUST be one of `in` or `out`.
   - `mode` MUST be one of the allowed values.
   - `function_id` MUST be non-empty.
   - `preset` mode MUST allow empty `parameters`.
@@ -28,7 +28,7 @@
   - Parameter values MUST be finite numeric values.
   - Value ranges MAY be function-specific and enforced at validation/runtime.
 
-## Entity: MediaCueXmlFadeBlock
+## Entity: FadeXmlBlock
 
 - **Description**: XML representation under `MediaCueType` for schema validation
   and serialization.
@@ -43,9 +43,9 @@
 
 ## Relationships
 
-- One `MediaCue` has zero, one, or two `MediaCueFadeProfile` entries.
+- One `MediaCue` has zero, one, or two `FadeProfile` entries.
 - At most one profile of type `in` and at most one profile of type `out`.
-- One `MediaCueFadeProfile` has zero or many `FadeFunctionParameter`.
+- One `FadeProfile` has zero or many `FadeFunctionParameter`.
 - `AudioCue` and `VideoCue` inherit `MediaCue` behavior and therefore inherit
   fade-profile support without separate model duplication.
 

@@ -72,11 +72,13 @@ specs/001-mediacue-fading-function/
 ```text
 src/cuemsutils/
 ├── cues/
+│   ├── FadeProfile.py
 │   ├── MediaCue.py
 │   ├── AudioCue.py
 │   └── VideoCue.py
 ├── xml/
 │   ├── Parsers.py
+│   ├── XmlBuilder.py
 │   └── schemas/
 │       └── script.xsd
 └── create_script.py
@@ -90,10 +92,11 @@ tests/
     └── test_mediacue_fade_profile.py
 ```
 
-**Structure Decision**: Single Python library layout. Model updates happen in
-`src/cuemsutils/cues`, schema updates in `src/cuemsutils/xml/schemas`, parsing
-updates in `src/cuemsutils/xml/Parsers.py`, with dedicated unit/integration/
-contract tests under `tests/`.
+**Structure Decision**: Single Python library layout. New fade model classes live
+in `src/cuemsutils/cues/FadeProfile.py`, `MediaCue` imports from it. Schema
+updates in `src/cuemsutils/xml/schemas`, parsing updates in
+`src/cuemsutils/xml/Parsers.py`, with dedicated unit/integration/contract tests
+under `tests/`.
 
 ## Complexity Tracking
 

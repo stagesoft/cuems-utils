@@ -70,28 +70,31 @@ is defined.
 ### Edge Cases
 
 - Fade function parameters are incomplete, out of bounds, or non-numeric.
-- Fade duration is zero or exceeds available cue playback duration.
-- Multiple fade definitions are provided where only one is allowed.
-- Fade definition exists but action requests no fade execution.
-- Only one direction (`fade_in` or `fade_out`) is defined while the other is
-  missing for a workflow that requires both.
+- *(deferred — runtime)* Fade duration is zero or exceeds available cue playback
+  duration.
+- Duplicate fade profiles with the same `type` value are provided.
+- *(deferred — runtime)* Fade definition exists but action requests no fade
+  execution.
+- Only one direction (`in` or `out`) is defined while the other is missing for a
+  workflow that requires both.
 - Legacy media cue payloads omit all new fade-function fields.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST allow a media cue to store one parameterized fade
-  function definition.
+- **FR-001**: The system MUST allow a media cue to store zero, one, or two typed
+  fade function definitions (at most one per direction).
 - **FR-002**: The fade function definition MUST include all required parameters
   needed to evaluate fade progression over time.
 - **FR-002A**: The system MUST allow selecting a predefined system fade function
   that requires no user-provided fade parameters.
-- **FR-002B**: The system MUST accept zero, one, or two `MediaCueFadeProfile`
+- **FR-002B**: The system MUST accept zero, one, or two `FadeProfile`
   entries on `MediaCue`, using profile `type` values `in` and `out`, with at
   most one profile per type.
-- **FR-003**: The system MUST apply the `fade_in` or `fade_out` definition that
-  matches the requested fade operation for that media cue.
+- **FR-003**: The system MUST allow retrieval of the `in` or `out` fade profile
+  that matches the requested fade direction for that media cue. Runtime fade
+  application is deferred to a future increment.
 - **FR-004**: The system MUST serialize and deserialize media-cue fade-function
   data without changing semantic meaning.
 - **FR-005**: The XML schema MUST define and enforce required fade-function
@@ -107,11 +110,11 @@ is defined.
 
 ### Key Entities *(include if feature involves data)*
 
-- **MediaCueFadeProfile**: Fade metadata attached to a media cue profile `type`
+- **FadeProfile**: Fade metadata attached to a media cue profile `type`
   (`in` or `out`), including function mode and function parameters.
-- **FadeFunctionParameters**: Named values that control fade curve behavior and
-  timing.
-- **MediaCueXmlFadeBlock**: XML representation of fade profile data used for
+- **FadeFunctionParameter**: Named numeric value that controls fade curve
+  behavior and timing.
+- **FadeXmlBlock**: XML representation of fade profile data used for
   schema validation and interchange.
 
 ## Success Criteria *(mandatory)*
@@ -122,10 +125,10 @@ is defined.
   through save/load with no data loss in validation tests.
 - **SC-002**: 100% of XML samples missing required fade-function fields are
   rejected by schema validation.
-- **SC-003**: At least 95% of fade-enabled cue executions produce expected fade
-  progression values in acceptance tests.
-- **SC-003A**: 100% of acceptance tests that request `fade_in` and `fade_out`
-  select and apply the matching directional fade function.
+- **SC-003**: 100% of fade-enabled media cues return the correct stored fade
+  profile data when queried by direction (`in` or `out`).
+- **SC-003A**: 100% of tests that request a specific fade direction retrieve the
+  matching typed fade profile without ambiguity.
 - **SC-004**: 100% of regression samples for legacy scripts (without fade data)
   load and run without behavior change.
 - **SC-QUALITY-001**: No new lint/type warnings are introduced in changed files.
