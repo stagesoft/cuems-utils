@@ -26,8 +26,8 @@ description: "Task list for MediaCue Parametric Fades"
 
 **Purpose**: Create test directory structure for this feature
 
-- [ ] T001 Create test directories `tests/unit/`, `tests/integration/`, `tests/contract/` if they do not exist
-- [ ] T002 [P] Verify pytest discovers tests from `tests/` by running `pytest --collect-only`
+- [X] T001 Create test directories `tests/unit/`, `tests/integration/`, `tests/contract/` if they do not exist
+- [X] T002 [P] Verify pytest discovers tests from `tests/` by running `pytest --collect-only`
 
 **Checkpoint**: Test infrastructure ready
 
@@ -39,9 +39,9 @@ description: "Task list for MediaCue Parametric Fades"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 Implement `FadeFunctionParameter` class (fields: `parameter_name`, `parameter_value`) in `src/cuemsutils/cues/FadeProfile.py`
-- [ ] T004 Implement `FadeProfile` class (fields: `type` enum `in|out`, `mode` enum `preset|parametric`, `function_id`, optional `parameters` list) in `src/cuemsutils/cues/FadeProfile.py`
-- [ ] T005 Add `FADE_PROFILE_REQ_ITEMS` defaults dict for `FadeProfile` in `src/cuemsutils/cues/FadeProfile.py`
+- [X] T003 Implement `FadeFunctionParameter` class (fields: `parameter_name`, `parameter_value`) in `src/cuemsutils/cues/FadeProfile.py`
+- [X] T004 Implement `FadeProfile` class (fields: `type` enum `in|out`, `mode` enum `preset|parametric`, `function_id`, optional `parameters` list) in `src/cuemsutils/cues/FadeProfile.py`
+- [X] T005 Add `FADE_PROFILE_REQ_ITEMS` defaults dict for `FadeProfile` in `src/cuemsutils/cues/FadeProfile.py`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -57,23 +57,23 @@ description: "Task list for MediaCue Parametric Fades"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T006 [P] [US1] Unit test: MediaCue accepts and stores a single fade profile (type `in`, mode `preset`) in `tests/unit/test_mediacue_fade_profile.py`
-- [ ] T007 [P] [US1] Unit test: MediaCue accepts two fade profiles (one `in`, one `out`) in `tests/unit/test_mediacue_fade_profile.py`
-- [ ] T008 [P] [US1] Unit test: MediaCue rejects duplicate fade profiles with same `type` in `tests/unit/test_mediacue_fade_profile.py`
-- [ ] T009 [P] [US1] Unit test: preset mode allows empty parameters, parametric mode requires parameters in `tests/unit/test_mediacue_fade_profile.py`
-- [ ] T009A [P] [US1] Unit test: retrieve correct fade profile by direction — given both `in` and `out` profiles, selecting by type returns matching profile in `tests/unit/test_mediacue_fade_profile.py`
-- [ ] T009B [P] [US1] Unit test: `FadeFunctionParameter` rejects non-numeric `parameter_value` and validates `parameter_name` uniqueness within a profile in `tests/unit/test_mediacue_fade_profile.py`
-- [ ] T010 [P] [US1] Integration test: MediaCue with fade profiles roundtrips through XML serialize/deserialize in `tests/integration/test_mediacue_fade_roundtrip.py`
+- [X] T006 [P] [US1] Unit test: MediaCue accepts and stores a single fade profile (type `in`, mode `preset`) in `tests/unit/test_mediacue_fade_profile.py`
+- [X] T007 [P] [US1] Unit test: MediaCue accepts two fade profiles (one `in`, one `out`) in `tests/unit/test_mediacue_fade_profile.py`
+- [X] T008 [P] [US1] Unit test: MediaCue rejects duplicate fade profiles with same `type` in `tests/unit/test_mediacue_fade_profile.py`
+- [X] T009 [P] [US1] Unit test: preset mode allows empty parameters, parametric mode requires parameters in `tests/unit/test_mediacue_fade_profile.py`
+- [X] T009A [P] [US1] Unit test: retrieve correct fade profile by direction — given both `in` and `out` profiles, selecting by type returns matching profile in `tests/unit/test_mediacue_fade_profile.py`
+- [X] T009B [P] [US1] Unit test: `FadeFunctionParameter` rejects non-numeric `parameter_value` and validates `parameter_name` uniqueness within a profile in `tests/unit/test_mediacue_fade_profile.py`
+- [X] T010 [P] [US1] Integration test: MediaCue with fade profiles roundtrips through XML serialize/deserialize in `tests/integration/test_mediacue_fade_roundtrip.py`
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Extend `MediaCue` with `fade_profiles` property and setter (stores list of `FadeProfile`, enforces max-one-per-type) in `src/cuemsutils/cues/MediaCue.py`
-- [ ] T011A [US1] Add `MediaCue.get_fade_profile(direction)` method that returns the `FadeProfile` matching `type` or `None` in `src/cuemsutils/cues/MediaCue.py` (FR-003)
-- [ ] T012 [US1] Update `MediaCue.items()` to include `fade_profiles` in serialized output in `src/cuemsutils/cues/MediaCue.py`
-- [ ] T013 [US1] Update `REQ_ITEMS` in `src/cuemsutils/cues/MediaCue.py` to include optional `fade_profiles` key with `None` default
-- [ ] T014 [US1] Add `fade_profile` parsing support in `src/cuemsutils/xml/Parsers.py` (handle nested `fade_profile` elements under MediaCue)
-- [ ] T015 [US1] Ensure `XmlBuilder` serializes `fade_profiles` list as repeatable `fade_profile` XML elements in `src/cuemsutils/xml/XmlBuilder.py`
-- [ ] T016 [US1] Verify `AudioCue` and `VideoCue` inherit fade-profile support without changes in `src/cuemsutils/cues/AudioCue.py` and `src/cuemsutils/cues/VideoCue.py`
+- [X] T011 [US1] Extend `MediaCue` with `fade_profiles` property and setter (stores list of `FadeProfile`, enforces max-one-per-type) in `src/cuemsutils/cues/MediaCue.py`
+- [X] T011A [US1] Add `MediaCue.get_fade_profile(direction)` method that returns the `FadeProfile` matching `type` or `None` in `src/cuemsutils/cues/MediaCue.py` (FR-003)
+- [X] T012 [US1] Update `MediaCue.items()` to include `fade_profiles` in serialized output in `src/cuemsutils/cues/MediaCue.py`
+- [X] T013 [US1] Update `REQ_ITEMS` in `src/cuemsutils/cues/MediaCue.py` to include optional `fade_profiles` key with `None` default
+- [X] T014 [US1] Add `fade_profile` parsing support in `src/cuemsutils/xml/Parsers.py` (handle nested `fade_profile` elements under MediaCue)
+- [X] T015 [US1] Ensure `XmlBuilder` serializes `fade_profiles` list as repeatable `fade_profile` XML elements in `src/cuemsutils/xml/XmlBuilder.py`
+- [X] T016 [US1] Verify `AudioCue` and `VideoCue` inherit fade-profile support without changes in `src/cuemsutils/cues/AudioCue.py` and `src/cuemsutils/cues/VideoCue.py`
 
 **Checkpoint**: User Story 1 should be fully functional and testable independently
 
@@ -89,20 +89,20 @@ description: "Task list for MediaCue Parametric Fades"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T017 [P] [US2] Contract test: valid fade_profile with type `in`, mode `preset` passes schema validation in `tests/contract/test_mediacue_fade_schema_contract.py`
-- [ ] T018 [P] [US2] Contract test: valid fade_profile with type `out`, mode `parametric` and parameters passes schema validation in `tests/contract/test_mediacue_fade_schema_contract.py`
-- [ ] T019 [P] [US2] Contract test: fade_profile missing required `type` field fails schema validation in `tests/contract/test_mediacue_fade_schema_contract.py`
-- [ ] T020 [P] [US2] Contract test: fade_profile with invalid `mode` value fails schema validation in `tests/contract/test_mediacue_fade_schema_contract.py`
-- [ ] T021 [P] [US2] Contract test: fade_profile with empty `function_id` fails schema validation in `tests/contract/test_mediacue_fade_schema_contract.py`
+- [X] T017 [P] [US2] Contract test: valid fade_profile with type `in`, mode `preset` passes schema validation in `tests/contract/test_mediacue_fade_schema_contract.py`
+- [X] T018 [P] [US2] Contract test: valid fade_profile with type `out`, mode `parametric` and parameters passes schema validation in `tests/contract/test_mediacue_fade_schema_contract.py`
+- [X] T019 [P] [US2] Contract test: fade_profile missing required `type` field fails schema validation in `tests/contract/test_mediacue_fade_schema_contract.py`
+- [X] T020 [P] [US2] Contract test: fade_profile with invalid `mode` value fails schema validation in `tests/contract/test_mediacue_fade_schema_contract.py`
+- [X] T021 [P] [US2] Contract test: fade_profile with empty `function_id` fails schema validation in `tests/contract/test_mediacue_fade_schema_contract.py`
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Add `FadeTypeType` simple type (enum `in`, `out`) in `src/cuemsutils/xml/schemas/script.xsd`
-- [ ] T023 [US2] Add `FadeModeType` simple type (enum `preset`, `parametric`) in `src/cuemsutils/xml/schemas/script.xsd`
-- [ ] T024 [US2] Add `FadeParameterType` complex type (`parameter_name` string, `parameter_value` float) in `src/cuemsutils/xml/schemas/script.xsd`
-- [ ] T025 [US2] Add `FadeParametersType` complex type (sequence of `parameter` elements of `FadeParameterType`) in `src/cuemsutils/xml/schemas/script.xsd`
-- [ ] T026 [US2] Add `FadeProfileType` complex type (`type`, `mode`, `function_id`, optional `parameters`) in `src/cuemsutils/xml/schemas/script.xsd`
-- [ ] T027 [US2] Extend `MediaCueType` with optional repeatable `fade_profile` element of `FadeProfileType` (`minOccurs="0" maxOccurs="2"`) in `src/cuemsutils/xml/schemas/script.xsd`
+- [X] T022 [US2] Add `FadeTypeType` simple type (enum `in`, `out`) in `src/cuemsutils/xml/schemas/script.xsd`
+- [X] T023 [US2] Add `FadeModeType` simple type (enum `preset`, `parametric`) in `src/cuemsutils/xml/schemas/script.xsd`
+- [X] T024 [US2] Add `FadeParameterType` complex type (`parameter_name` string, `parameter_value` float) in `src/cuemsutils/xml/schemas/script.xsd`
+- [X] T025 [US2] Add `FadeParametersType` complex type (sequence of `parameter` elements of `FadeParameterType`) in `src/cuemsutils/xml/schemas/script.xsd`
+- [X] T026 [US2] Add `FadeProfileType` complex type (`type`, `mode`, `function_id`, optional `parameters`) in `src/cuemsutils/xml/schemas/script.xsd`
+- [X] T027 [US2] Extend `MediaCueType` with optional repeatable `fade_profile` element of `FadeProfileType` (`minOccurs="0" maxOccurs="2"`) in `src/cuemsutils/xml/schemas/script.xsd`
 
 **Checkpoint**: User Stories 1 AND 2 should both work independently
 
@@ -118,15 +118,15 @@ description: "Task list for MediaCue Parametric Fades"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T028 [P] [US3] Regression test: legacy MediaCue without fade_profiles loads without error in `tests/integration/test_mediacue_fade_roundtrip.py`
-- [ ] T029 [P] [US3] Regression test: legacy script XML validates against updated schema in `tests/contract/test_mediacue_fade_schema_contract.py`
-- [ ] T030 [P] [US3] Regression test: `create_script()` template validates against updated schema in `tests/integration/test_mediacue_fade_roundtrip.py`
+- [X] T028 [P] [US3] Regression test: legacy MediaCue without fade_profiles loads without error in `tests/integration/test_mediacue_fade_roundtrip.py`
+- [X] T029 [P] [US3] Regression test: legacy script XML validates against updated schema in `tests/contract/test_mediacue_fade_schema_contract.py`
+- [X] T030 [P] [US3] Regression test: `create_script()` template validates against updated schema in `tests/integration/test_mediacue_fade_roundtrip.py`
 
 ### Implementation for User Story 3
 
-- [ ] T031 [US3] Verify `MediaCue.__init__` defaults `fade_profiles` to `None` when not provided in `src/cuemsutils/cues/MediaCue.py`
-- [ ] T032 [US3] Verify parser gracefully handles missing `fade_profile` elements in `src/cuemsutils/xml/Parsers.py`
-- [ ] T033 [US3] Verify `create_script()` template still validates after schema changes in `src/cuemsutils/create_script.py`
+- [X] T031 [US3] Verify `MediaCue.__init__` defaults `fade_profiles` to `None` when not provided in `src/cuemsutils/cues/MediaCue.py`
+- [X] T032 [US3] Verify parser gracefully handles missing `fade_profile` elements in `src/cuemsutils/xml/Parsers.py`
+- [X] T033 [US3] Verify `create_script()` template still validates after schema changes in `src/cuemsutils/create_script.py`
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -136,11 +136,11 @@ description: "Task list for MediaCue Parametric Fades"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T034 [P] Performance benchmark: measure parse/serialize overhead with and without fade profiles against <=5% budget
-- [ ] T035 UX consistency pass: verify XML element/attribute naming follows existing conventions in `src/cuemsutils/xml/schemas/script.xsd`
-- [ ] T036 [P] Run full test suite (`pytest`) and confirm no regressions
-- [ ] T037 Run quickstart.md validation flow end-to-end
-- [ ] T038 Code cleanup and lint check on all modified files
+- [X] T034 [P] Performance benchmark: measure parse/serialize overhead with and without fade profiles against <=5% budget
+- [X] T035 UX consistency pass: verify XML element/attribute naming follows existing conventions in `src/cuemsutils/xml/schemas/script.xsd`
+- [X] T036 [P] Run full test suite (`pytest`) and confirm no regressions
+- [X] T037 Run quickstart.md validation flow end-to-end
+- [X] T038 Code cleanup and lint check on all modified files
 
 ---
 

@@ -1,12 +1,14 @@
 from typing import Tuple
 
 from .Cue import Cue
+from .FadeProfile import FadeProfile
 from ..helpers import CuemsDict, ensure_items, format_timecode
 from ..tools.Uuid import Uuid
 
 REQ_ITEMS = {
     'Media': None,
-    'outputs': None
+    'outputs': None,
+    'fade_profiles': None,
 }
 
 REGION_REQ_ITEMS = {
@@ -226,6 +228,21 @@ class MediaCue(Cue):
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
 
+    def __setitem__(self, key, value):
+        if key == 'fade_profile':
+            self.set_fade_profiles(value)
+            return
+        if key == 'fade_profiles':
+            if isinstance(value, dict) and 'fade_profile' in value:
+                inner = value['fade_profile']
+                self.set_fade_profiles(
+                    inner if isinstance(inner, list) else [inner]
+                )
+                return
+            self.set_fade_profiles(value)
+            return
+        super().__setitem__(key, value)
+
     def get_Media(self):
         """Get the media object associated with this cue.
         
@@ -263,6 +280,56 @@ class MediaCue(Cue):
         super().__setitem__('outputs', outputs)
 
     outputs = property(get_outputs, set_outputs)
+
+    def get_fade_profiles(self):
+        return super().__getitem__('fade_profiles')
+
+    def set_fade_profiles(self, value):
+        if value is None:
+            super().__setitem__('fade_profiles', None)
+            return
+        if isinstance(value, FadeProfile):
+            value = [value]
+        elif not isinstance(value, list):
+            value = [value]
+        if len(value) == 0:
+            super().__setitem__('fade_profiles', None)
+            return
+        seen_types: set[str] = set()
+        result: list[FadeProfile] = []
+        for item in value:
+            fp = item if isinstance(item, FadeProfile) else FadeProfile(item)
+            t = fp.type
+            if t in seen_types:
+                raise ValueError(f"Duplicate fade profile type {t!r}")
+            seen_types.add(t)
+            if not str(fp.function_id or '').strip():
+                raise ValueError("function_id must be non-empty")
+            if fp.mode == 'parametric':
+                params = fp.parameters
+                if not params:
+                    raise ValueError(
+                        "parametric fade profile requires non-empty parameters"
+                    )
+            result.append(fp)
+        super().__setitem__('fade_profiles', result)
+
+    fade_profiles = property(get_fade_profiles, set_fade_profiles)
+
+    def get_fade_profile(self, direction: str):
+        """Return the fade profile for ``in``/``out`` (or ``fade_in``/``fade_out``)."""
+        norm = {'fade_in': 'in', 'fade_out': 'out'}.get(direction, direction)
+        if norm not in ('in', 'out'):
+            raise ValueError(
+                f"direction must be 'in', 'out', 'fade_in', or 'fade_out', got {direction!r}"
+            )
+        fps = self.get_fade_profiles()
+        if not fps:
+            return None
+        for fp in fps:
+            if fp.type == norm:
+                return fp
+        return None
 
     def get_all_output_names(self) -> list[Tuple[str, str]]:
         """Get all output names splitted into node and output ids for the media cue.

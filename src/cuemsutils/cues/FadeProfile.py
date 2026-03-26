@@ -1,3 +1,5 @@
+import math
+
 from ..helpers import CuemsDict, ensure_items
 
 FADE_PARAM_REQ_ITEMS = {
@@ -39,7 +41,15 @@ class FadeFunctionParameter(CuemsDict):
         return super().__getitem__('parameter_value')
 
     def set_parameter_value(self, value):
-        super().__setitem__('parameter_value', float(value))
+        try:
+            v = float(value)
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"parameter_value must be numeric, got {value!r}"
+            ) from e
+        if math.isnan(v) or math.isinf(v):
+            raise ValueError("parameter_value must be a finite number")
+        super().__setitem__('parameter_value', v)
 
     parameter_value = property(get_parameter_value, set_parameter_value)
 
@@ -113,9 +123,16 @@ class FadeProfile(CuemsDict):
         if not isinstance(value, list):
             value = [value]
         converted = []
+        seen_names: set[str] = set()
         for item in value:
             if not isinstance(item, FadeFunctionParameter):
                 item = FadeFunctionParameter(item)
+            name = item.parameter_name
+            if name in seen_names:
+                raise ValueError(
+                    f"Duplicate parameter_name {name!r} in fade profile"
+                )
+            seen_names.add(name)
             converted.append(item)
         super().__setitem__('parameters', converted)
 
