@@ -33,12 +33,15 @@ dependencies = [
     "websockets==14.1",
     "peewee==3.17.8",
     "aiofiles==24.1.0",
-    "systemd-python==235"
 ]
 
 [project.optional-dependencies]
 systemd = [
-    "systemd==235",
+    "systemd-python==235",
+]
+all = [
+    "systemd-python==235",
+    "pynng==0.8.1",
 ]
 
 [project.urls]
@@ -76,8 +79,14 @@ dependencies = [
   "pytest",
   "pytest-cov",
   "pytest-mock",
-  "coverage[toml]"
+  "coverage[toml]",
+  "ruff",
 ]
+
+[tool.hatch.envs.test.scripts]
+run = "pytest {args:tests/}"
+run-cov = "pytest --cov {args:tests/}"
+lint = "ruff check {args:src/ tests/}"
 
 [tool.coverage.run]
 source_pkgs = ["cuemsutils", "tests"]
@@ -96,6 +105,20 @@ exclude_lines = [
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+[tool.ruff]
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
 
 [tool.hatch.envs.types]
 extra-dependencies = [
