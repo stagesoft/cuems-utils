@@ -1,6 +1,3 @@
-## AI companion files
-.claude/
-
 ## Local development files
 dev/local
 tests/tmp
