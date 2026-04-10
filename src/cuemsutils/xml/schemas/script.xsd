@@ -27,7 +27,7 @@
               <!-- The id, TODO specify the uuid format in a type -->
               <xs:element name="id" type="cms:UuidType" />
               <!-- The name, mainly a string, we can check lengths here too if desired -->
-              <xs:element name="name" type="cms:NameStringType" /> <!-- 3 - 60 chars -->
+              <xs:element name="name" type="cms:NameStringType" /> <!-- 1 - 60 chars -->
               <!-- The date, Todo specify the date formant in a type-->
               <xs:element name="created" type="cms:DateType" />
               <xs:element name="modified" type="cms:DateType" />
@@ -384,7 +384,7 @@
 
   <xs:simpleType name="NameStringType">
     <xs:restriction base="xs:string">
-      <xs:minLength value="3" />
+      <xs:minLength value="1" />
       <xs:maxLength value="60" />
     </xs:restriction>
   </xs:simpleType>
