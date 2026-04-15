@@ -117,21 +117,27 @@ class CueList(Cue):
         return media_dict
 
     def get_next_cue(self):
-        """Get the next cue to be executed after this cue list.
-        
+        """Get the next enabled cue to be executed after this cue list.
+
         Returns:
-            Cue or None: The next cue to execute, or None if there is no next cue.
+            Cue or None: The next enabled cue to execute, or None if there is no next cue.
         """
         cue_to_return = None
         if self.has_contents():
-            # DEV: Always return the first cue in the list is correct?
-            if self.contents[0].post_go == 'pause':
-                cue_to_return = self.contents[0]._target_object
+            # Find first enabled cue in the list
+            first = None
+            for c in self.contents:
+                if c.enabled:
+                    first = c
+                    break
+            if first is None:
+                return super().get_next_cue()
+            if first.post_go == 'pause':
+                cue_to_return = first._next_enabled()
             else:
-                cue_to_return = self.contents[0].get_next_cue()
-            
+                cue_to_return = first.get_next_cue()
             if cue_to_return:
-                return cue_to_return       
+                return cue_to_return
 
         return super().get_next_cue()
 
