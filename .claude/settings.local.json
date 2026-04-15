@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.specify/scripts/bash/create-new-feature.sh \"\" --json --short-name \"timecode-qf-timer\" \"Create a timer that can be hooked to a CTimecode object and emit a function at a quarter frame resolution\")",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh --json --paths-only)",
+      "Bash(.specify/scripts/bash/setup-plan.sh --json)",
+      "Bash(.specify/scripts/bash/update-agent-context.sh claude:*)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh --json)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)",
+      "Bash(git -C /disk/Projects/StageLab/cuems-utils rev-parse --git-dir)",
+      "Bash(python -m pytest tests/unit/test_ctimecode_timer.py -v --timeout=10)",
+      "Bash(python -m pytest tests/unit/test_ctimecode_timer.py -v)",
+      "Bash(pip install:*)",
+      "Bash(python -m pytest tests/unit/test_ctimecode_timer.py -v --ignore-glob='*slow*' -m 'not slow')",
+      "Bash(python -c \"from cuemsutils.tools.CTimecode import CTimecode; tc = CTimecode\\(start_timecode='00:00:00:00', framerate=25\\); print\\(dir\\(tc\\)\\)\")",
+      "Bash(python -c ':*)",
+      "Bash(python -m pytest tests/unit/test_ctimecode_timer.py -v -m 'not slow')",
+      "Bash(python -m pytest tests/unit/test_ctimecode_timer.py::TestIntegration::test_realtime_25fps_jitter -v)",
+      "Bash(ruff check:*)",
+      "Bash(python -m ruff check src/cuemsutils/tools/CTimecodeTimer.py tests/unit/test_ctimecode_timer.py)",
+      "Bash(hatch run:*)"
+    ]
+  }
+}
