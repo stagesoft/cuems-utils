@@ -94,6 +94,7 @@
       <xs:element name="DmxCue" type="cms:DmxCueType" />
       <xs:element name="VideoCue" type="cms:VideoCueType" />
       <xs:element name="ActionCue" type="cms:ActionCueType" />
+      <xs:element name="FadeCue" type="cms:FadeCueType" />
     </xs:choice>
   </xs:complexType>
 
@@ -242,12 +243,35 @@
       <xs:enumeration value="disable" />
       <xs:enumeration value="fade_in" />
       <xs:enumeration value="fade_out" />
+      <xs:enumeration value="fade_action" />
       <xs:enumeration value="wait" />
       <xs:enumeration value="go_to" />
       <xs:enumeration value="pause_project" />
       <xs:enumeration value="resume_project" />
     </xs:restriction>
   </xs:simpleType>
+
+  <xs:simpleType name="FadeCurveType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="linear" />
+      <xs:enumeration value="exponential" />
+      <xs:enumeration value="logarithmic" />
+      <xs:enumeration value="sigmoid" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- FADE -->
+  <xs:complexType name="FadeCueType">
+    <xs:complexContent>
+      <xs:extension base="cms:ActionCueType">
+        <xs:sequence>
+          <xs:element name="curve_type" type="cms:FadeCurveType" />
+          <xs:element name="duration" type="cms:CTimecodeType" />
+          <xs:element name="target_value" type="cms:PercentType" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
 
   <!-- AUDIO -->
   <xs:complexType name="AudioCueType">

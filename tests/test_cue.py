@@ -1,5 +1,8 @@
 """Unit testing for Cue objects generation"""
 
+import pytest
+
+from cuemsutils.cues.ActionCue import ActionCue
 from cuemsutils.cues.Cue import Cue
 from cuemsutils.cues.MediaCue import MediaCue
 from cuemsutils.cues.CueOutput import AudioCueOutput, VideoCueOutput, DmxCueOutput
@@ -37,6 +40,17 @@ def test_cue_and_uuid_hash_are_equal():
     cue = Cue(ui_dict)
     ## Assert
     assert hash(cue) == hash(uuid)
+
+def test_action_cue_none_target_raises():
+    target_uuid = '1f301cf8-dd03-4b40-ac17-ef0e5e7988be'
+
+    with pytest.raises(ValueError):
+        ActionCue({'action_target': None})
+
+    cue = ActionCue({'action_target': target_uuid})
+    with pytest.raises(ValueError):
+        cue.action_target = None
+
 
 def test_media_cue_get_all_output_names():
     ## Arrange
