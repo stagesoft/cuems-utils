@@ -1,11 +1,13 @@
-from .cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
-from .cues.DmxCue import DmxScene, DmxUniverse, DmxChannel
-from .cues.MediaCue import Media, Region
-from .cues.CueOutput import AudioCueOutput, VideoCueOutput, DmxCueOutput
-from .helpers import new_datetime, new_uuid
-from .xml import XmlReaderWriter
-from .log import Logger
 import xmlschema.validators.exceptions as xmlschema_exceptions
+
+from .cues import ActionCue, AudioCue, CueList, CuemsScript, DmxCue, FadeCue, VideoCue
+from .cues.CueOutput import AudioCueOutput, DmxCueOutput, VideoCueOutput
+from .cues.DmxCue import DmxChannel, DmxScene, DmxUniverse
+from .cues.FadeCue import FadeCurveType
+from .cues.MediaCue import Media, Region
+from .helpers import new_datetime, new_uuid
+from .log import Logger
+from .xml import XmlReaderWriter
 
 now = new_datetime()
 def create_script():
@@ -67,8 +69,8 @@ def create_script():
                         'value': 0
                     })
                 ]
-                
-            })    
+
+            })
 
         }),
         'time': 0,
@@ -88,7 +90,7 @@ def create_script():
             }
         ]
     })]
-    
+
     vc.outputs = [VideoCueOutput({
         "output_name": "0367f391-ebf4-48b2-9f26-000000000001_0",
         "output_geometry": {
@@ -114,17 +116,26 @@ def create_script():
             }
         }
     })]
-    
+
     dc.outputs = [DmxCueOutput({
         "output_name": "0367f391-ebf4-48b2-9f26-000000000001"
     })]
 
-                                
+
+    fc = FadeCue({
+        'action_target': target_uuid,
+        'curve_type': FadeCurveType.linear,
+        'duration': '00:00:02.000',
+        'target_value': 0,
+        'ui_properties': {'warning': None},
+    })
+
     custom_cue_list = CueList({'contents': [ac]})
     custom_cue_list.append(vc)
     custom_cue_list.append(dc)
     custom_cue_list.append(act)
-    
+    custom_cue_list.append(fc)
+
     script = CuemsScript({'CueList': custom_cue_list})
     script.name = "Test Script"
     script.description = "This is a test script"
@@ -138,6 +149,7 @@ def create_script():
     script.cuelist['contents'][1]['id'] = new_uuid()
     script.cuelist['contents'][2]['id'] = new_uuid()
     script.cuelist['contents'][3]['id'] = new_uuid()
+    script.cuelist['contents'][4]['id'] = new_uuid()
     script['ui_properties'] = {
         'warning': 0,
     }
@@ -158,14 +170,15 @@ def create_script():
         script.cuelist.contents[1]['id'] = None
         script.cuelist.contents[2]['id'] = None
         script.cuelist.contents[3]['id'] = None
+        script.cuelist.contents[4]['id'] = None
 
         return script
 
-    
+
 def validate_template(project_template):
     writer = XmlReaderWriter(schema_name = "script", xmlfile = None)
     result=writer.validate_object(project_template)
     Logger.debug(f'initial template validation result: {result}')
 
 
-    
+

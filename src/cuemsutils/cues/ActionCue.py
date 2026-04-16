@@ -15,17 +15,23 @@ class ActionCue(Cue):
     
     def __init__(self, init_dict: dict = None):
         """Initialize an ActionCue.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If not provided, default values from REQ_ITEMS will be used.
+
+        Raises:
+            ValueError: If init_dict explicitly sets action_target to None.
         """
+        self._initialized = False
         if init_dict:
+            if 'action_target' in init_dict and init_dict['action_target'] is None:
+                raise ValueError('action_target is required')
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         else:
             init_dict = REQ_ITEMS
         super().__init__(init_dict)
-
+        self._initialized = True
         self._action_target_object = None
 
     def get_action_target(self):
@@ -38,10 +44,15 @@ class ActionCue(Cue):
 
     def set_action_target(self, action_target: str) -> None:
         """Set the target object for the action.
-        
+
         Args:
             action_target: The target object identifier.
+
+        Raises:
+            ValueError: If action_target is None after initialisation is complete.
         """
+        if getattr(self, '_initialized', False) and action_target is None:
+            raise ValueError('action_target is required')
         super().__setitem__('action_target', action_target)
 
     action_target = property(get_action_target, set_action_target)

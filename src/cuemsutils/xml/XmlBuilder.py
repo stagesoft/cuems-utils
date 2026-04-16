@@ -287,5 +287,70 @@ class DmxSceneXmlBuilder(GenericComplexSubObjectXmlBuilder):
             Logger.error(f"Error building DmxSceneXmlBuilder: {str(e)} {type(e)}")
 
 
+class FadeProfileXmlBuilder(CuemsScriptXmlBuilder):
+    def build(self):
+        root = SubElement(self.xml_tree, 'fade_profile')
+        obj = self._object
+        for field in ('type', 'mode', 'function_id'):
+            val = obj[field]
+            el = SubElement(root, field)
+            el.text = str(val)
+        params = obj.get('parameters')
+        if params:
+            params_el = SubElement(root, 'parameters')
+            for param in params:
+                pe = SubElement(params_el, 'parameter')
+                SubElement(pe, 'parameter_name').text = str(param.parameter_name)
+                SubElement(pe, 'parameter_value').text = str(param.parameter_value)
+        return self.xml_tree
+
+
+class MediaCueXmlBuilder(GenericCueXmlBuilder):
+    def build(self):
+        Logger.info("Building MediaCue-based cue with:")
+        Logger.info(f"{self.class_name} and {self._object}")
+        cue_element = SubElement(self.xml_tree, self.class_name)
+        for key, value in self._object.items():
+            if key == 'fade_profiles':
+                continue
+            if isinstance(value, VALUE_TYPES):
+                cue_subelement = SubElement(cue_element, str(key))
+                cue_subelement.text = str(value)
+            elif isinstance(value, (type(None))):
+                SubElement(cue_element, str(key))
+            elif isinstance(value, list):
+                cue_subelement = SubElement(cue_element, str(key))
+                for list_item in value:
+                    builder_class = self.get_builder_class(list_item)
+                    builder_class(list_item, xml_tree=cue_subelement).build()
+            elif isinstance(value, GenericDict):
+                cue_subelement = SubElement(cue_element, str(key))
+                for sub_key, sub_value in value.items():
+                    sub_dict_element = SubElement(cue_subelement, str(sub_key))
+                    sub_dict_element.text = str(sub_value)
+            else:
+                cue_subelement = SubElement(cue_element, str(key))
+                builder_class = self.get_builder_class(value)
+                builder_class(value, xml_tree=cue_subelement).build()
+            cls_name = type(self._object).__name__
+            if key == 'master_vol' or (
+                key == 'outputs' and cls_name == 'VideoCue'
+            ):
+                fps = self._object.get('fade_profiles')
+                if fps:
+                    wrap = SubElement(cue_element, 'fade_profiles')
+                    for fp in fps:
+                        FadeProfileXmlBuilder(fp, xml_tree=wrap).build()
+        return self.xml_tree
+
+
+class AudioCueXmlBuilder(MediaCueXmlBuilder):
+    pass
+
+
+class VideoCueXmlBuilder(MediaCueXmlBuilder):
+    pass
+
+
 class NoneTypeXmlBuilder(GenericSimpleSubObjectXmlBuilder): # TODO: clean, not need anymore? 
     pass

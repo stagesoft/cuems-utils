@@ -1,4 +1,5 @@
 from ..cues import *
+from ..cues.FadeProfile import FadeFunctionParameter, FadeProfile
 from ..cues.MediaCue import Media, Region
 from ..cues.CueOutput import AudioCueOutput, VideoCueOutput, DmxCueOutput
 from ..cues.Cue import Cue, UI_properties
@@ -153,14 +154,28 @@ class GenericParser(CuemsScriptParser):
                             self.item_gp[dict_key] = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
                         else:
                             self.item_gp[dict_key] = value_parser_class(init_dict=dict_value, class_string=value_class_string).parse()
+                    else:
+                        self.item_gp[dict_key] = key_parser_class(
+                            init_dict=dict_value, class_string=key_class_string
+                        ).parse()
                 elif isinstance(dict_value, list):
-                    local_list = []
                     parser_class, class_string = self.get_parser_class(dict_key)
+                    local_list = []
                     for list_item in dict_value:
-
-                        item_obj = parser_class(init_dict=list_item, class_string=class_string).parse()
+                        item_obj = parser_class(
+                            init_dict=list_item, class_string=class_string
+                        ).parse()
                         local_list.append(item_obj)
-                    self.item_gp[dict_key] = local_list
+                    if class_string == 'fade_profiles':
+                        merged: list = []
+                        for x in local_list:
+                            if isinstance(x, list):
+                                merged.extend(x)
+                            elif x is not None:
+                                merged.append(x)
+                        self.item_gp[dict_key] = merged if merged else None
+                    else:
+                        self.item_gp[dict_key] = local_list
                 else:
                     dict_value = self.str_to_value(dict_value)
                     self.item_gp[dict_key] = dict_value
@@ -282,7 +297,73 @@ class DmxCueParser(CuemsScriptParser):
         Logger.debug(f"Parsing DmxCue with DmxCueParser, {self._class}, {self.init_dict}")
         self.item_gp = self._class(self.init_dict)
         return self.item_gp
-    
+
+
+class fade_profilesParser(GenericParser):
+    """Parse ``fade_profiles`` wrapper content into a list of :class:`FadeProfile`."""
+
+    def parse(self):
+        if not self.init_dict or not isinstance(self.init_dict, dict):
+            return []
+        raw = self.init_dict.get('fade_profile')
+        if raw is None:
+            return []
+        if not isinstance(raw, list):
+            raw = [raw]
+        return [
+            item
+            if isinstance(item, FadeProfile)
+            else fade_profileParser(
+                init_dict=item, class_string='fade_profile'
+            ).parse()
+            for item in raw
+        ]
+
+
+def _normalize_fade_parameters(raw):
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        if 'parameter' in raw:
+            raw = raw['parameter']
+        else:
+            return []
+    if not isinstance(raw, list):
+        raw = [raw]
+    out = []
+    for p in raw:
+        if isinstance(p, FadeFunctionParameter):
+            out.append(p)
+            continue
+        if isinstance(p, dict) and 'parameter' in p:
+            p = p['parameter']
+        out.append(FadeFunctionParameter(p))
+    return out
+
+
+class fade_profileParser(GenericParser):
+    """Parse a single ``fade_profile`` element into a :class:`FadeProfile`."""
+
+    def parse(self):
+        d = {}
+        for dict_key, dict_value in self.init_dict.items():
+            if dict_key == 'parameters':
+                d['parameters'] = _normalize_fade_parameters(dict_value)
+            elif isinstance(dict_value, dict):
+                sub_parser, sub_cls = self.get_parser_class(dict_key)
+                d[dict_key] = sub_parser(
+                    init_dict=dict_value, class_string=sub_cls
+                ).parse()
+            elif isinstance(dict_value, list):
+                pcls, pstr = self.get_parser_class(dict_key)
+                d[dict_key] = [
+                    pcls(init_dict=li, class_string=pstr).parse() for li in dict_value
+                ]
+            else:
+                d[dict_key] = self.str_to_value(dict_value)
+        return FadeProfile(d)
+
+
 class NoneTypeParser():
     def __init__(self, init_dict, class_string):
         pass

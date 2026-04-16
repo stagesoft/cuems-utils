@@ -3,6 +3,7 @@ from .AudioCue import AudioCue
 from .CueList import CueList
 from .CuemsScript import CuemsScript
 from .DmxCue import DmxCue
+from .FadeCue import FadeCue
 from .VideoCue import VideoCue
 
 __all__ = [
@@ -11,5 +12,6 @@ __all__ = [
     'CueList',
     'CuemsScript',
     'DmxCue',
+    'FadeCue',
     'VideoCue'
 ]
