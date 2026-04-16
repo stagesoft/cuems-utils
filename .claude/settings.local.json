@@ -18,7 +18,8 @@
       "Bash(python -m pytest tests/unit/test_ctimecode_timer.py::TestIntegration::test_realtime_25fps_jitter -v)",
       "Bash(ruff check:*)",
       "Bash(python -m ruff check src/cuemsutils/tools/CTimecodeTimer.py tests/unit/test_ctimecode_timer.py)",
-      "Bash(hatch run:*)"
+      "Bash(hatch run:*)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh \"Create a new class FadeCue as a child class of ActionCue to handle and store Fade events \\(fade_in, fade_out\\) to target cues. Class should have its own xml representation and be included into create_script method.\" --json --short-name \"fade-cue\" \"FadeCue class\")"
     ]
   }
 }
