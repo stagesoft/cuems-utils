@@ -59,7 +59,7 @@ The `create_script` utility generates a minimal sample script demonstrating all 
 - What happens when `target_value` is set to exactly 0 or 100? (Both are valid boundary values and MUST be accepted.)
 - What happens when `duration` is zero or negative? (MUST raise a validation error.)
 - What happens when `curve_type` receives an unrecognised string? (MUST raise a validation error.)
-- What happens when `action_target` is missing or None? (MUST raise a validation error, consistent with ActionCue behaviour.)
+- What happens when `action_target` is missing or None? (MUST raise a `ValueError`; unlike ActionCue which permits `None`, FadeCue requires a valid target — a fade without a destination cue is meaningless.)
 - What happens when a FadeCue referencing a non-existent target cue ID is serialized? (MUST serialize without error; target existence is a runtime engine concern.)
 
 ## Requirements *(mandatory)*
@@ -72,13 +72,14 @@ The `create_script` utility generates a minimal sample script demonstrating all 
 - **FR-004**: FadeCue MUST include a `curve_type` property whose value is one of a fixed enumeration: `linear`, `exponential`, `logarithmic`, `sigmoid`. Any other value MUST be rejected at construction or assignment.
 - **FR-005**: FadeCue MUST include a `duration` property representing the total time of the fade, expressed as a timecode value in `hh:mm:ss.milliseconds` format. The property MUST accept both a timecode-formatted string and a CTimecode object; the XML representation MUST store it as a timecode string. A zero or negative duration MUST be rejected.
 - **FR-006**: FadeCue MUST include a `target_value` integer property in the range 0–100 (inclusive) representing the destination level the engine will fade to. Values outside this range MUST be rejected.
+- **FR-006b**: `ActionCue` MUST be updated to reject a `None` `action_target` at construction or assignment time with a `ValueError`. FadeCue inherits this guard automatically — no FadeCue-specific implementation is required.
 - **FR-007**: The starting level of the fade is NOT stored on FadeCue; the show engine recovers it from the live value at runtime.
 - **FR-008**: FadeCue MUST serialize to and deserialize from the project XML format, producing output that validates against the project XML schema.
 - **FR-009**: FadeCue MUST be registered in the `CueListContentsType` of the XML schema, allowing it to appear within a cue list.
 - **FR-010**: The `create_script` function MUST include at least one FadeCue instance in the sample script it produces.
 - **FR-011**: FadeCue MUST be exported from the `cues` package so it is importable at the same level as AudioCue, VideoCue, and ActionCue.
 - **FR-UX-001**: Property names, default values, and XML element names MUST follow the established naming conventions used by ActionCue and DmxCue (snake_case properties, matching XML element names).
-- **FR-PERF-001**: FadeCue construction, serialization, and deserialization MUST complete in the same order of magnitude as equivalent operations on ActionCue (no significant overhead introduced).
+- **FR-PERF-001**: FadeCue construction, serialization, and deserialization MUST complete in the same order of magnitude as equivalent operations on ActionCue (no significant overhead introduced). Validation approach: a timing assertion (or equivalent benchmark) comparing FadeCue and ActionCue construction time MUST be included in the test suite.
 
 ### Key Entities
 
@@ -94,7 +95,7 @@ The `create_script` utility generates a minimal sample script demonstrating all 
 ### Measurable Outcomes
 
 - **SC-001**: A FadeCue can be instantiated, fully populated, serialized to XML, and deserialized back with 100% property fidelity (round-trip parity).
-- **SC-002**: All three invalid-input scenarios (bad `target_value`, bad `duration`, bad `curve_type`) raise descriptive errors 100% of the time.
+- **SC-002**: All four invalid-input scenarios (bad `target_value`, bad `duration`, bad `curve_type`, and `None` `action_target`) raise descriptive errors 100% of the time.
 - **SC-003**: The XML output of a FadeCue passes the project schema validator with zero errors.
 - **SC-004**: `create_script` produces a valid script containing at least one FadeCue without any regression in existing cue examples.
 - **SC-005**: `action_type` on any FadeCue instance always returns `fade_action` regardless of how the object was constructed.
