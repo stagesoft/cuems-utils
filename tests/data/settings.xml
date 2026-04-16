@@ -31,7 +31,7 @@
                 <outputs>2</outputs>
             </videoplayer>
             <audioplayer>
-                <path>/usr/local/bin/audioplayer-cuems</path>
+                <path>/usr/local/bin/cuems-audioplayer</path>
                 <args>-w -1</args>
                 <audio_cards>1</audio_cards>
             </audioplayer>
@@ -40,7 +40,7 @@
                 <args></args>
             </audiomixer>
             <dmxplayer>
-                <path>/usr/bin/dmxplayer-cuems</path>
+                <path>/usr/bin/cuems-dmxplayer</path>
                 <args>--mtcfollow</args>
                 <universes>1</universes>
             </dmxplayer>
