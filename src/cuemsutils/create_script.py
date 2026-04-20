@@ -1,4 +1,6 @@
-import xmlschema.validators.exceptions as xmlschema_exceptions
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
 
 from .cues import ActionCue, AudioCue, CueList, CuemsScript, DmxCue, FadeCue, VideoCue
 from .cues.CueOutput import AudioCueOutput, DmxCueOutput, VideoCueOutput
@@ -155,24 +157,20 @@ def create_script():
     }
     Logger.debug(f'Created test script: {script.cuelist}')
 
-    try:
-        validate_template(script)
-    except xmlschema_exceptions.XMLSchemaValidationError as e:
-        Logger.error("Script validation failed. Please check the template.")
-        Logger.error(f"Validation error: {e}")
-    finally:
-        # remove dates and ids so we send it empty
-        script.created = None
-        script.modified = None
-        script.id = None
-        script.cuelist.id = None
-        script.cuelist.contents[0]['id'] = None
-        script.cuelist.contents[1]['id'] = None
-        script.cuelist.contents[2]['id'] = None
-        script.cuelist.contents[3]['id'] = None
-        script.cuelist.contents[4]['id'] = None
+    validate_template(script)
 
-        return script
+    # remove dates and ids so we send it empty
+    script.created = None
+    script.modified = None
+    script.id = None
+    script.cuelist.id = None
+    script.cuelist.contents[0]['id'] = None
+    script.cuelist.contents[1]['id'] = None
+    script.cuelist.contents[2]['id'] = None
+    script.cuelist.contents[3]['id'] = None
+    script.cuelist.contents[4]['id'] = None
+
+    return script
 
 
 def validate_template(project_template):
