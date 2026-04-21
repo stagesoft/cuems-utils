@@ -93,31 +93,52 @@ def create_script():
         ]
     })]
 
-    vc.outputs = [VideoCueOutput({
-        "output_name": "0367f391-ebf4-48b2-9f26-000000000001_0",
-        "output_geometry": {
-            "x_scale": 1,
-            "y_scale": 1,
-            "corners": {
-                "top_left": {
-                    "x": 0,
-                    "y": 0
-                },
-                "top_right": {
-                    "x": 0,
-                    "y": 0
-                },
-                "bottom_left": {
-                    "x": 0,
-                    "y": 0
-                },
-                "bottom_right": {
-                    "x": 0,
-                    "y": 0
+    vc.outputs = [
+        VideoCueOutput({
+            "output_name": "0367f391-ebf4-48b2-9f26-000000000001_0",
+            "output_geometry": {
+                "x_scale": 1,
+                "y_scale": 1,
+                "corners": {
+                    "top_left": {
+                        "x": 0,
+                        "y": 0
+                    },
+                    "top_right": {
+                        "x": 0,
+                        "y": 0
+                    },
+                    "bottom_left": {
+                        "x": 0,
+                        "y": 0
+                    },
+                    "bottom_right": {
+                        "x": 0,
+                        "y": 0
+                    }
                 }
             }
-        }
-    })]
+        }),
+        VideoCueOutput({
+            "output_name": "0367f391-ebf4-48b2-9f26-000000000001_custom_0",
+            "output_geometry": {
+                "x_scale": 1,
+                "y_scale": 1,
+                "corners": {
+                    "top_left": {"x": 0, "y": 0},
+                    "top_right": {"x": 0, "y": 0},
+                    "bottom_left": {"x": 0, "y": 0},
+                    "bottom_right": {"x": 0, "y": 0}
+                }
+            },
+            "canvas_region": {
+                "x": 0.1,
+                "y": 0.1,
+                "width": 0.5,
+                "height": 0.5
+            }
+        })
+    ]
 
     dc.outputs = [DmxCueOutput({
         "output_name": "0367f391-ebf4-48b2-9f26-000000000001"

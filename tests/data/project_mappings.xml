@@ -51,18 +51,25 @@
                     <output>
                         <id>0</id>
                         <name>0</name>
-                        <canvas_region>
-                            <x>0</x>
-                            <y>0</y>
-                            <width>1</width>
-                            <height>1</height>
-                        </canvas_region>
                         <mappings>
                             <mapped_to>0</mapped_to>
                             <mapped_to>VideoOut1</mapped_to>
                             <mapped_to>VideoOut2</mapped_to>
                             <mapped_to>VideoOut3</mapped_to>
                             <mapped_to>VideoOut4</mapped_to>
+                        </mappings>
+                    </output>
+                    <output>
+                        <id>1</id>
+                        <name>custom</name>
+                        <canvas_region>
+                            <x>0.0</x>
+                            <y>0.0</y>
+                            <width>1.0</width>
+                            <height>1.0</height>
+                        </canvas_region>
+                        <mappings>
+                            <mapped_to>custom</mapped_to>
                         </mappings>
                     </output>
                 </outputs>
@@ -95,14 +102,21 @@
                     <output>
                         <id>0</id>
                         <name>0</name>
-                        <canvas_region>
-                            <x>0</x>
-                            <y>0</y>
-                            <width>1</width>
-                            <height>1</height>
-                        </canvas_region>
                         <mappings>
                             <mapped_to>0</mapped_to>
+                        </mappings>
+                    </output>
+                    <output>
+                        <id>1</id>
+                        <name>custom</name>
+                        <canvas_region>
+                            <x>0.0</x>
+                            <y>0.0</y>
+                            <width>1.0</width>
+                            <height>1.0</height>
+                        </canvas_region>
+                        <mappings>
+                            <mapped_to>custom</mapped_to>
                         </mappings>
                     </output>
                 </outputs>

@@ -67,7 +67,9 @@
         </xs:sequence>
     </xs:complexType>
 
-    <!-- Video: id + name + canvas_region (required) + mappings -->
+    <!-- Video: id + name + optional canvas_region + mappings.
+         canvas_region present => custom template (authorable slot on this node).
+         canvas_region absent  => monitor alias (resolved by videocomposer). -->
     <xs:complexType name="VideoDeviceType">
         <xs:sequence>
             <xs:element name="outputs" minOccurs="0" maxOccurs="unbounded" type="cms:VideoPutGroupType" />
@@ -86,7 +88,7 @@
         <xs:sequence>
             <xs:element name="id" minOccurs="1" maxOccurs="1" type="xs:nonNegativeInteger" />
             <xs:element name="name" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString" />
-            <xs:element name="canvas_region" minOccurs="1" maxOccurs="1" type="cms:CanvasRegionType" />
+            <xs:element name="canvas_region" minOccurs="0" maxOccurs="1" type="cms:CanvasRegionType" />
             <xs:element name="mappings">
                 <xs:complexType>
                     <xs:sequence>
@@ -97,14 +99,30 @@
         </xs:sequence>
     </xs:complexType>
 
+    <!-- DUPLICATE: CanvasRegionType / UnitFloat / PositiveUnitFloat are also
+         defined in script.xsd. Keep both copies in sync. -->
     <xs:complexType name="CanvasRegionType">
         <xs:sequence>
-            <xs:element name="x" type="xs:integer" />
-            <xs:element name="y" type="xs:integer" />
-            <xs:element name="width" type="xs:positiveInteger" />
-            <xs:element name="height" type="xs:positiveInteger" />
+            <xs:element name="x" type="cms:UnitFloat" />
+            <xs:element name="y" type="cms:UnitFloat" />
+            <xs:element name="width" type="cms:PositiveUnitFloat" />
+            <xs:element name="height" type="cms:PositiveUnitFloat" />
         </xs:sequence>
     </xs:complexType>
+
+    <xs:simpleType name="UnitFloat">
+        <xs:restriction base="xs:float">
+            <xs:minInclusive value="0" />
+            <xs:maxInclusive value="1" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="PositiveUnitFloat">
+        <xs:restriction base="xs:float">
+            <xs:minExclusive value="0" />
+            <xs:maxInclusive value="1" />
+        </xs:restriction>
+    </xs:simpleType>
 
     <xs:complexType name="MappedToType">
         <xs:sequence>

@@ -154,6 +154,10 @@ class ProjectMappings(Settings):
     """
     Mappings class that extends Settings to handle hardware mappings operations.
     """
+
+    # Absorb float round-trip noise; mirrors cues.CueOutput._CONTAINMENT_EPS.
+    _CONTAINMENT_EPS = 1e-6
+
     def __init__(self, xmlfile, schema_name = 'project_mappings', **kwargs):
         if not hasattr(self, 'main_key'):
             self.main_key = ''
@@ -177,6 +181,56 @@ class ProjectMappings(Settings):
 
     def process_xml_dict(self):
         self.processed = self.get_dict()
+        self._validate_custom_templates()
+
+    def _validate_custom_templates(self):
+        """Enforce semantic rules on video outputs that XSD can't express.
+
+        - canvas_region containment: x+width ≤ 1 and y+height ≤ 1.
+        - At most one custom template (entry with canvas_region) per node.
+        """
+        for section in ('nodes', 'new_nodes'):
+            for node_wrap in self.processed.get(section, []) or []:
+                node = node_wrap.get('node') if isinstance(node_wrap, dict) else None
+                if not node:
+                    continue
+                video = node.get('video')
+                if not video:
+                    continue
+                template_count = 0
+                uuid = node.get('uuid', '<unknown>')
+                for video_group in video:
+                    if not isinstance(video_group, dict):
+                        continue
+                    for output_wrap in video_group.get('outputs', []) or []:
+                        output = output_wrap.get('output') if isinstance(output_wrap, dict) else None
+                        if not output:
+                            continue
+                        region = output.get('canvas_region')
+                        if region is None:
+                            continue
+                        self._check_region_containment(region, uuid)
+                        template_count += 1
+                if template_count > 1:
+                    raise ValueError(
+                        f"Node {uuid} has {template_count} custom templates "
+                        f"(canvas_region entries); at most 1 is allowed"
+                    )
+
+    def _check_region_containment(self, region, uuid):
+        """XSD already guarantees per-component ranges; check only the sums."""
+        x = float(region.get('x', 0))
+        y = float(region.get('y', 0))
+        w = float(region.get('width', 0))
+        h = float(region.get('height', 0))
+        if x + w > 1.0 + self._CONTAINMENT_EPS:
+            raise ValueError(
+                f"Node {uuid} canvas_region x+width must be <= 1, got {x + w}"
+            )
+        if y + h > 1.0 + self._CONTAINMENT_EPS:
+            raise ValueError(
+                f"Node {uuid} canvas_region y+height must be <= 1, got {y + h}"
+            )
 
     def process_network_mappings(self, mappings):
         '''Temporary process instead of reviewing xml read and convert to objects'''

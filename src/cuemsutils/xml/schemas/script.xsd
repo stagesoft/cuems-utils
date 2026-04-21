@@ -325,8 +325,36 @@
       <!-- <xs:element name="node_uuid" type="cms:UuidType" /> -->
       <xs:element name="output_name" type="cms:NameStringType" />
       <xs:element name="output_geometry" type="cms:VideoOutputGeometryType" />
+      <!-- canvas_region present only when output_name is <uuid>_custom_<n>.
+           Semantic rule enforced in VideoCueOutput Python model. -->
+      <xs:element name="canvas_region" type="cms:CanvasRegionType" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
+
+  <!-- DUPLICATE: CanvasRegionType / UnitFloat / PositiveUnitFloat are also
+       defined in project_mappings.xsd. Keep both copies in sync. -->
+  <xs:complexType name="CanvasRegionType">
+    <xs:sequence>
+      <xs:element name="x" type="cms:UnitFloat" />
+      <xs:element name="y" type="cms:UnitFloat" />
+      <xs:element name="width" type="cms:PositiveUnitFloat" />
+      <xs:element name="height" type="cms:PositiveUnitFloat" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="UnitFloat">
+    <xs:restriction base="xs:float">
+      <xs:minInclusive value="0" />
+      <xs:maxInclusive value="1" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="PositiveUnitFloat">
+    <xs:restriction base="xs:float">
+      <xs:minExclusive value="0" />
+      <xs:maxInclusive value="1" />
+    </xs:restriction>
+  </xs:simpleType>
 
   <xs:complexType name="VideoOutputGeometryType">
     <!-- Specs of the four corners of a media to display -->
