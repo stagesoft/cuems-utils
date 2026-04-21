@@ -188,6 +188,9 @@ class ProjectMappings(Settings):
 
         - canvas_region containment: x+width ≤ 1 and y+height ≤ 1.
         - At most one custom template (entry with canvas_region) per node.
+
+        The per-node cap is a V1 constraint; see docs/canvas_region.md
+        (Deferred — Multiple customs per cue / per node) for the lift path.
         """
         for section in ('nodes', 'new_nodes'):
             for node_wrap in self.processed.get(section, []) or []:

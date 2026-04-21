@@ -100,7 +100,9 @@
     </xs:complexType>
 
     <!-- DUPLICATE: CanvasRegionType / UnitFloat / PositiveUnitFloat are also
-         defined in script.xsd. Keep both copies in sync. -->
+         defined in script.xsd. Keep both copies in sync.
+         See docs/canvas_region.md for semantics, V1 caps, and deferred items
+         (aspect ratio, z-order, off-canvas, multi-custom). -->
     <xs:complexType name="CanvasRegionType">
         <xs:sequence>
             <xs:element name="x" type="cms:UnitFloat" />

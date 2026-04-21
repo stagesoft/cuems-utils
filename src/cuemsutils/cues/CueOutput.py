@@ -1,3 +1,10 @@
+"""Cue output configurations.
+
+See docs/canvas_region.md for the coordinate model, alias-vs-custom
+discrimination, V1 caps, and deferred items (aspect ratio, z-order,
+off-canvas, multi-custom, drag/resize).
+"""
+
 import re
 from decimal import Decimal
 
