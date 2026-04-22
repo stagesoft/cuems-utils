@@ -62,6 +62,7 @@
                 <xs:sequence>
                     <xs:element name="outputs" type="xs:positiveInteger" />
                     <xs:element name="osc_port" type="cms:NonPrivilegedPort" minOccurs="0" />
+                    <xs:element name="output_latency_ms" type="cms:AutoOrIntLatencyMsType" minOccurs="0" />
                 </xs:sequence>
             </xs:extension>
         </xs:complexContent>
@@ -72,6 +73,7 @@
             <xs:extension base="cms:PlayerType">
                 <xs:sequence>
                     <xs:element name="audio_cards" type="xs:positiveInteger"></xs:element>
+                    <xs:element name="output_latency_ms" type="cms:AutoOrIntLatencyMsType" minOccurs="0" />
                 </xs:sequence>
             </xs:extension>
         </xs:complexContent>
@@ -89,6 +91,7 @@
             <xs:extension base="cms:PlayerType">
                 <xs:sequence>
                     <xs:element name="universes" type="xs:positiveInteger"></xs:element>
+                    <xs:element name="output_latency_ms" type="cms:IntLatencyMsType" minOccurs="0" />
                 </xs:sequence>
             </xs:extension>
         </xs:complexContent>
@@ -131,6 +134,34 @@
         <xs:restriction base="xs:int">
             <xs:minInclusive value="1024" />
             <xs:maxInclusive value="65535" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Audio and video: "auto" defers to the binary's built-in default
+         or auto-calibration path (JACK query for audio; 33 ms hard-coded
+         default for video, reserved for a future refresh-rate-derived
+         heuristic). An integer is an explicit override in ms. -->
+    <xs:simpleType name="AutoOrIntLatencyMsType">
+        <xs:union>
+            <xs:simpleType>
+                <xs:restriction base="xs:nonNegativeInteger">
+                    <xs:maxInclusive value="500" />
+                </xs:restriction>
+            </xs:simpleType>
+            <xs:simpleType>
+                <xs:restriction base="xs:string">
+                    <xs:enumeration value="auto" />
+                </xs:restriction>
+            </xs:simpleType>
+        </xs:union>
+    </xs:simpleType>
+
+    <!-- DMX: integer only. No self-measurement path exists (no fixture-
+         response rig); "auto" would imply magic that doesn't exist.
+         Absent element = hard-coded 35 ms default in the binary. -->
+    <xs:simpleType name="IntLatencyMsType">
+        <xs:restriction base="xs:nonNegativeInteger">
+            <xs:maxInclusive value="500" />
         </xs:restriction>
     </xs:simpleType>
 </xs:schema>
