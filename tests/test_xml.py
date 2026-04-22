@@ -300,6 +300,64 @@ def test_settings():
     assert settings.loaded == True
     assert isinstance(settings.get_dict(), dict)
 
+
+def test_output_latency_ms_type_round_trip():
+    """Assert the typing contract NodeEngine depends on:
+    - <output_latency_ms>33</> decodes to Python int
+    - <output_latency_ms>auto</> decodes to Python str
+    - absent element yields None / missing key
+    The isinstance(value, int) check in cuems-engine's NodeEngine
+    arg-building relies on this behavior. If xmlschema's union
+    resolution changes in a future upgrade, this test fails loudly
+    instead of NodeEngine silently always/never emitting the flag.
+    """
+    from cuemsutils.xml import Settings
+    SETTINGS_PATH = path.dirname(__file__) + '/data/settings.xml'
+
+    settings = Settings(SETTINGS_PATH)
+    settings.read()
+    d = settings.get_dict()
+
+    # get_dict() returns the Settings element's children directly — no
+    # outer CuemsSettings/Settings wrapper.
+    video_conf = d['node']['videoplayer']
+    audio_conf = d['node']['audioplayer']
+    dmx_conf = d['node']['dmxplayer']
+
+    # videoplayer has integer 33 → Python int (not str, not Decimal)
+    assert isinstance(video_conf['output_latency_ms'], int)
+    assert video_conf['output_latency_ms'] == 33
+
+    # audioplayer has "auto" → Python str
+    assert isinstance(audio_conf['output_latency_ms'], str)
+    assert audio_conf['output_latency_ms'] == 'auto'
+
+    # dmxplayer has no element → missing key / None
+    assert dmx_conf.get('output_latency_ms') is None
+
+
+def test_auto_rejected_on_dmxplayer():
+    """Negative: settings.xml with <output_latency_ms>auto</> on
+    <dmxplayer> must fail schema validation. Dmx uses IntLatencyMsType
+    because no auto-measurement path exists.
+    """
+    import xmlschema
+    from cuemsutils.xml import Settings
+    BAD_PATH = path.dirname(__file__) + '/data/settings_bad_dmx_auto.xml'
+
+    try:
+        # Settings() constructor validates+decodes eagerly, so that's
+        # where the exception surfaces. XMLSchemaException is the base
+        # class covering both XMLSchemaValidationError and
+        # XMLSchemaDecodeError.
+        settings = Settings(BAD_PATH)
+        settings.validate()
+    except xmlschema.XMLSchemaException:
+        return
+    raise AssertionError(
+        'Schema should have rejected "auto" on dmxplayer/output_latency_ms'
+    )
+
 def test_networkmap():
     from cuemsutils.xml import NetworkMap
     NETWORKMAP_PATH = path.dirname(__file__) + '/data/network_map.xml'
