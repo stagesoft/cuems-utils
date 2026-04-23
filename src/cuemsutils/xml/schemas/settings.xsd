@@ -1,4 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Schema for per-node CUEMS settings.
+
+    The instance file this schema validates is deployed to:
+        /etc/cuems/settings.xml        (default)
+        $CUEMS_CONF_PATH/settings.xml  (when the environment variable
+                                         is set; precedence defined in
+                                         cuemsutils.tools.ConfigManager)
+
+    A reference template (with REPLACE-... placeholders for per-node
+    values and inline operator guidance) lives in this same repo at:
+        templates/settings.xml
+
+    Any change to this schema MUST be reflected in the template — they
+    are two sides of the same contract. In the future, the in-dev
+    cuems-hardware-discovery project will consume the template, probe
+    node hardware, and populate the final deployed file automatically.
+-->
 <xs:schema targetNamespace="https://stagelab.coop/cuems/" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:cms="https://stagelab.coop/cuems/">
     <xs:element name="CuemsSettings">
         <xs:complexType>

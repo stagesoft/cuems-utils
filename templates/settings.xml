@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    CUEMS per-node settings template.
+
+    This file is the reference template for /etc/cuems/settings.xml
+    (or $CUEMS_CONF_PATH/settings.xml if the environment variable is set).
+
+    How to use today (manual, until hardware-discovery lands):
+      1. Copy this file to /etc/cuems/settings.xml on the target node.
+      2. Replace every REPLACE-... placeholder with the node-specific value.
+      3. Tune the <output_latency_ms> fields per the per-rig measurements
+         or the per-adapter starting points documented inline below.
+      4. Restart cuems-*.service units (or reboot) to pick up changes.
+
+    Future: the in-dev cuems-hardware-discovery project will consume this
+    template, probe the node's hardware (MAC, UUID, display outputs,
+    audio/DMX adapters), substitute the placeholders, and place the
+    resulting file in /etc/cuems/settings.xml automatically.
+
+    Schema: the matching XSD lives at
+        src/cuemsutils/xml/schemas/settings.xsd
+    in this same repo. Any change to the schema SHOULD be reflected in
+    this template in the same commit — they are the two sides of the
+    same contract.
+-->
+<cms:CuemsSettings xmlns:cms="https://stagelab.coop/cuems/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://stagelab.coop/cuems/ ../src/cuemsutils/xml/schemas/settings.xsd">
+    <Settings>
+        <conf_path>/etc/cuems</conf_path>
+        <library_path>/opt/cuems_library</library_path>
+        <tmp_path>/tmp/cuems</tmp_path>
+        <database_name>project-manager.db</database_name>
+        <show_lock_file>show.lock</show_lock_file>
+        <editor_url>formitgo.local</editor_url>
+        <controller_url>controller.local</controller_url>
+        <templates_path>/usr/share/cuems</templates_path>
+        <controller_interfaces_template>interfaces.controller</controller_interfaces_template>
+        <node_interfaces_template>interfaces.node</node_interfaces_template>
+        <controller_lock_file>controller.lock</controller_lock_file>
+        <node>
+            <!-- REPLACE-UUID: any RFC-4122 UUID, unique per node.
+                 Generate with `uuidgen` or Python `uuid.uuid1()`. -->
+            <uuid>REPLACE-WITH-NODE-UUID</uuid>
+            <!-- REPLACE-MAC: primary ethernet MAC, lowercase, no separators
+                 (e.g. 2cf05d21cca3). `cat /sys/class/net/eth0/address | tr -d : | tr A-Z a-z` -->
+            <mac>REPLACE-WITH-NODE-MAC</mac>
+            <osc_dest_host>localhost</osc_dest_host>
+            <oscquery_ws_port>9190</oscquery_ws_port>
+            <oscquery_osc_port>9191</oscquery_osc_port>
+            <websocket_port>9092</websocket_port>
+            <load_timeout>15000</load_timeout>
+            <nodeconf_timeout>5000</nodeconf_timeout>
+            <discovery_timeout>15000</discovery_timeout>
+            <mtc_port>Midi Through Port-0</mtc_port>
+            <osc_in_port_base>7000</osc_in_port_base>
+            <nng_hub_port>9093</nng_hub_port>
+            <videoplayer>
+                <path>/usr/bin/cuems-videocomposer</path>
+                <args></args>
+                <outputs>2</outputs>
+                <!-- output_latency_ms: "auto" = use the binary's hard-coded
+                     33 ms default; integer 0-500 = explicit override.
+                     videocomposer runs as a systemd service (not engine-spawned),
+                     so the value reaches it via cuems-extract-video-latency
+                     (ExecStartPre in cuems-videocomposer.service). -->
+                <output_latency_ms>auto</output_latency_ms>
+            </videoplayer>
+            <audioplayer>
+                <path>/usr/bin/cuems-audioplayer</path>
+                <args>-w -1</args>
+                <audio_cards>1</audio_cards>
+                <!-- output_latency_ms: "auto" = use JACK-queried value
+                     (recommended on most rigs; JACK knows its own latency
+                     best); integer 0-500 = explicit override. -->
+                <output_latency_ms>auto</output_latency_ms>
+            </audioplayer>
+            <dmxplayer>
+                <path>/usr/bin/cuems-dmxplayer</path>
+                <args></args>
+                <universes>1</universes>
+                <!-- output_latency_ms: integer 0-500. DMX has no auto
+                     measurement path (schema rejects "auto"). Absent
+                     element = 35 ms hard-coded default (midpoint of
+                     ENTTEC and ArtNet typicals).
+                     Recommended per-adapter starting points:
+                       ENTTEC USB Pro / DMXKing  ~30 ms
+                       OpenDMX (FTDI bit-banged) ~35 ms
+                       ArtNet (dedicated 1GbE)   ~44 ms
+                       ArtNet (shared/wireless)  ~60-80 ms
+                     Measure with a phone camera at 120 fps pointed at
+                     a fixture + click-track audio, tune per node. -->
+                <output_latency_ms>35</output_latency_ms>
+            </dmxplayer>
+        </node>
+    </Settings>
+</cms:CuemsSettings>
