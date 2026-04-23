@@ -188,6 +188,13 @@ class ProjectMappings(Settings):
 
         - canvas_region containment: x+width ≤ 1 and y+height ≤ 1.
         - At most one custom template (entry with canvas_region) per node.
+
+        Note on scope: canvas_region at the mappings level is a UI-template
+        hint — it exposes a named custom slot to the editor's output-picker
+        as a default starting rectangle. It does NOT describe physical
+        monitor layout (that comes from videocomposer's DRM detection)
+        nor per-cue output regions (those are in script.xsd's
+        VideoCueOutput.canvas_region; see cuemsutils.cues.CueOutput).
         """
         for section in ('nodes', 'new_nodes'):
             for node_wrap in self.processed.get(section, []) or []:

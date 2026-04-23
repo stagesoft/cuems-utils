@@ -68,7 +68,16 @@
     </xs:complexType>
 
     <!-- Video: id + name + optional canvas_region + mappings.
-         canvas_region present => custom template (authorable slot on this node).
+         canvas_region present => custom template (authorable slot on this
+           node). IMPORTANT: this is a UI-template hint only — it exposes
+           a named custom slot to the editor's output picker as a default
+           starting rectangle when authoring custom-region cues. It does
+           NOT describe physical monitor layout or output resolution:
+           display layout comes from videocomposer's DRM detection, and
+           per-cue custom regions are carried separately in
+           script.xsd's VideoCueOutput.canvas_region (see CueOutput.py
+           VideoCueOutput doc). At most one entry per node may carry
+           canvas_region (validated in Settings.process_xml_dict).
          canvas_region absent  => monitor alias (resolved by videocomposer). -->
     <xs:complexType name="VideoDeviceType">
         <xs:sequence>

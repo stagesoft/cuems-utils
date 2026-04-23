@@ -120,6 +120,13 @@ class VideoCueOutput(CueOutput):
     * Custom (``<node_uuid>_custom_<int>``): per-cue custom region on this
       node's canvas. ``canvas_region`` is required and carries normalized
       floats in ``[0, 1]``.
+
+    Note: this is the per-cue canvas_region — the authoritative placement
+    of a cue's output on the node's virtual canvas at playback time.
+    The UI-template canvas_region in ``project_mappings.xsd``
+    ``VideoPutType`` is a separate concept (a default rectangle offered
+    by the editor when authoring a custom cue); it is neither a
+    physical display-layout directive nor a substitute for this field.
     """
 
     def __init__(self, init_dict=None):
