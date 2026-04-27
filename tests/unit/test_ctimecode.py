@@ -245,17 +245,17 @@ class TestConversion:
 class TestSerialization:
     """items(), __iter__, __json__ — dict/JSON serialization contract (PR #5)."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="869cyndtv items() footgun — items() returns a single "
-        "(key, value) tuple instead of a dict-items-shaped iterable. "
-        "dict(tc.items()) raises ValueError. PR #5 mirrors __iter__.",
-    )
     def test_items_constructs_dict(self):
+        # items() mirrors __iter__: list of (k, v) pairs that dict() consumes.
         tc = CTimecode(framerate=25, frames=100)
         d = dict(tc.items())
         assert "timecode" in d
         assert "framerate" in d
+
+    def test_items_matches_iter(self):
+        # Pin: items() must stay aligned with __iter__'s shape.
+        tc = CTimecode(framerate=25, frames=100)
+        assert tc.items() == list(tc)
 
     def test_iter_constructs_dict(self):
         # __iter__ already yields (k, v) pairs correctly. Pin as regression.

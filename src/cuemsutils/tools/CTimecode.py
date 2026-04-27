@@ -143,9 +143,9 @@ class CTimecode(Timecode):
     def __iter__(self):
         yield ('timecode', self.__str__())
         yield ('framerate', self.framerate)
-    
+
     def items(self):
-        return ('CTimecode', self.__str__())
+        return list(self)
 
 class CTimecodeError(Exception):
     """Raised when an error occurred in timecode calculation
