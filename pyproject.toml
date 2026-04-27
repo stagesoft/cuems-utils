@@ -67,6 +67,11 @@ packages = ["src/cuemsutils"]
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.hatch.envs.hatch-test]
+extra-dependencies = [
+  "hypothesis",
+]
+
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.11", "3.12", "3.13"]
 
