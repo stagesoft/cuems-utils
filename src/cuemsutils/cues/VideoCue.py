@@ -1,9 +1,6 @@
-from time import sleep
-from deprecated import deprecated
-
 from .MediaCue import MediaCue
 from ..tools.CTimecode import CTimecode
-from ..log import logged, Logger
+from ..log import Logger
 
 
 
@@ -58,67 +55,6 @@ class VideoCue(MediaCue):
         """
         x = dict(super().items())
         return x.items()
-
-    @logged
-    @deprecated(
-        reason="Use loop_cue from CueHandler instead",
-        version="0.0.9rc5"
-    )
-    def video_media_loop(self, ossia, mtc):
-        """Handle the video media playback loop.
-        
-        This method manages the playback loop for video media, including handling
-        looping behavior, frame rate conversion, and OSC communication for timing control.
-        
-        Args:
-            ossia: The OSC communication interface.
-            mtc: The MIDI Time Code interface.
-        """
-        try:
-            loop_counter = 0
-            duration = self.media.regions[0].out_time - self.media.regions[0].in_time
-            duration = duration.return_in_other_framerate(mtc.main_tc.framerate)
-            in_time_adjusted = self.media.regions[0].in_time.return_in_other_framerate(mtc.main_tc.framerate)
-
-            while not self.media.regions[0].loop or loop_counter < self.media.regions[0].loop:
-                while mtc.main_tc.milliseconds < self._end_mtc.milliseconds:
-                    sleep(0.005)
-
-                if self._local:
-                    try:
-                        key = f'{self._osc_route}/jadeo/offset'
-                        self._start_mtc = mtc.main_tc
-                        self._end_mtc = self._start_mtc + duration
-                        offset_to_go = in_time_adjusted.frame_number - self._start_mtc.frame_number
-                        ossia.send_message(key, offset_to_go)
-                        Logger.info(
-                            key + " " + str(ossia._oscquery_registered_nodes[key][0].value),
-                            extra = {"caller": self.__class__.__name__}
-                        )
-                    except KeyError:
-                        Logger.debug(
-                            f'Key error 1 (offset) in go_callback {key}',
-                            extra = {"caller": self.__class__.__name__}
-                        )
-                
-                loop_counter += 1
-
-            if self._local:
-                try:
-                    key = f'{self._osc_route}/jadeo/cmd'
-                    ossia.send_message(key, 'midi disconnect')
-                    Logger.info(
-                        key + " " + str(ossia._oscquery_registered_nodes[key][0].value),
-                        extra = {"caller": self.__class__.__name__}
-                    )
-                except KeyError:
-                    Logger.debug(
-                        f'Key error 1 (disconnect) in arm_callback {key}',
-                        extra = {"caller": self.__class__.__name__}
-                    )
-
-        except AttributeError:
-            pass
 
     def stop(self):
         """Stop the video playback.
