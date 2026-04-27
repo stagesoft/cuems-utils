@@ -97,13 +97,13 @@ class AudioCue(MediaCue):
             duration = self.media.regions[0].out_time - self.media.regions[0].in_time
 
             while not self.media.regions[0].loop or loop_counter < self.media.regions[0].loop:
-                while self._player.is_alive() and (mtc.main_tc.milliseconds < self._end_mtc.milliseconds):
+                while self._player.is_alive() and (mtc.main_tc.milliseconds_rounded < self._end_mtc.milliseconds_rounded):
                     sleep(0.005)
 
                 if self._local:
                     # Recalculate offset and apply
                     self._end_mtc = self._start_mtc + (duration)
-                    offset_to_go = float(-(self._start_mtc.milliseconds) + self.media.regions[0].in_time.milliseconds)
+                    offset_to_go = -self._start_mtc.milliseconds_exact + self.media.regions[0].in_time.milliseconds_exact
                     try:
                         key = f'{self._osc_route}/offset'
                         ossia.send_message(key, offset_to_go)
