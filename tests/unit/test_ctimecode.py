@@ -184,63 +184,45 @@ class TestComparison:
         b = CTimecode(framerate=25, frames=100)
         assert a == b
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="869cyndtv comparator None-handling — __lt__(None) currently "
-        "returns None (falsy) instead of NotImplemented. PR #4 fixes the "
-        "Python data-model contract so comparisons with None raise TypeError.",
-    )
     def test_lt_with_none_raises(self):
+        # Python data-model contract: comparators return NotImplemented for
+        # unsupported types (including None); Python then raises TypeError.
         tc = CTimecode(framerate=25, frames=100)
         with pytest.raises(TypeError):
             _ = tc < None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="869cyndtv comparator None-handling — __le__(None) returns "
-        "None (falsy). PR #4.",
-    )
     def test_le_with_none_raises(self):
         tc = CTimecode(framerate=25, frames=100)
         with pytest.raises(TypeError):
             _ = tc <= None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="869cyndtv comparator None-handling — __gt__(None) returns "
-        "self (truthy) so `tc > None` is silently True. PR #4.",
-    )
     def test_gt_with_none_raises(self):
         tc = CTimecode(framerate=25, frames=100)
         with pytest.raises(TypeError):
             _ = tc > None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="869cyndtv comparator None-handling — __ge__(None) returns "
-        "self (truthy). PR #4.",
-    )
     def test_ge_with_none_raises(self):
         tc = CTimecode(framerate=25, frames=100)
         with pytest.raises(TypeError):
             _ = tc >= None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="869cyndtv issue #6 — __hash__ duplicates the milliseconds "
-        "field: hash((ms, ms)) instead of hash((ms,)). PR #4 dedupes.",
-    )
     def test_hash_uses_single_field(self):
         tc = CTimecode(framerate=25, frames=100)
         assert hash(tc) == hash((tc.milliseconds,))
 
     def test_hash_consistent_with_eq(self):
-        # Already passes today (both sides hash the same duplicated tuple);
-        # pin as a regression test against PR #4's __hash__ change.
+        # Pin as a regression test against PR #4's __hash__ change.
         a = CTimecode(framerate=25, frames=100)
         b = CTimecode(framerate=25, frames=100)
         assert a == b
         assert hash(a) == hash(b)
+
+    def test_sorted_with_none_raises(self):
+        # Practical impact of PR #4's None-handling fix: sorting a list with
+        # None mixed in must raise TypeError, not silently corrupt the order.
+        tc = CTimecode(framerate=25, frames=100)
+        with pytest.raises(TypeError):
+            sorted([tc, None])
 
 
 class TestConversion:

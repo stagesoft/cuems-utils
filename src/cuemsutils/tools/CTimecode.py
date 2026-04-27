@@ -31,7 +31,7 @@ class CTimecode(Timecode):
         return new
 
     def __hash__(self):
-        return hash((self.milliseconds, self.milliseconds))
+        return hash((self.milliseconds,))
     
     def __eq__(self, other):
         """Compares seconds of tc""" #TODO: decide if we cheek framerate and frame equality or time equiality 
@@ -46,40 +46,31 @@ class CTimecode(Timecode):
         return NotImplemented
 
     def __lt__(self, other):
-        """Compares seconds of tc""" #TODO: decide if we cheek framerate and frame equality or time equiality 
+        """Compares seconds of tc""" #TODO: decide if we cheek framerate and frame equality or time equiality
         if isinstance(other, CTimecode):
             return self.milliseconds < other.milliseconds
         elif isinstance(other, int):
             return self.milliseconds < other
-        elif isinstance(other, type(None)):
-            return other
-
         return NotImplemented
 
     def __le__(self, other):
-        """Compares seconds of tc""" #TODO: decide if we cheek framerate and frame equality or time equiality 
+        """Compares seconds of tc""" #TODO: decide if we cheek framerate and frame equality or time equiality
         if isinstance(other, CTimecode):
             return self.milliseconds <= other.milliseconds
-        elif isinstance(other, type(None)):
-            return other
         return NotImplemented
 
     def __gt__(self, other):
-        """Compares seconds of tc""" #TODO: decide if we cheek framerate and frame equality or time equiality 
+        """Compares seconds of tc""" #TODO: decide if we cheek framerate and frame equality or time equiality
         if isinstance(other, CTimecode):
             return self.milliseconds > other.milliseconds
         elif isinstance(other, int):
             return self.milliseconds > other
-        elif isinstance(other, type(None)):
-            return self 
         return NotImplemented
 
     def __ge__(self, other):
-        """Compares seconds of tc""" #TODO: decide if we cheek framerate and frame equality or time equiality 
+        """Compares seconds of tc""" #TODO: decide if we cheek framerate and frame equality or time equiality
         if isinstance(other, CTimecode):
             return self.milliseconds >= other.milliseconds
-        elif isinstance(other, type(None)):
-            return self
         return NotImplemented
 
     def __add__(self, other):
