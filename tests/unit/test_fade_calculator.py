@@ -238,7 +238,7 @@ def test_calculate_timeline_step_count_and_boundaries():
     end = CTimecode(start_timecode="00:00:00.100", framerate="ms")
     tl = FadeCalculator.calculate_timeline(start, end, framerate="ms")
 
-    expected_steps = (end.milliseconds - start.milliseconds) // FadeCalculator.TRANSITION_DURATION_MILLISECONDS
+    expected_steps = (end.milliseconds_rounded - start.milliseconds_rounded) // FadeCalculator.TRANSITION_DURATION_MILLISECONDS
     assert len(tl) == expected_steps
     assert tl[0] == str(start)
     assert tl[-1] == str(end)
@@ -324,3 +324,46 @@ def test_calculate_non_callable():
     with pytest.raises(ValueError, match="Invalid fade function"):
         FadeCalculator.calculate(123)
 
+
+
+# ----------------------------------------------------------------------
+# 869cyndtv PR #6: timeline correctness + no-DeprecationWarning pins
+# ----------------------------------------------------------------------
+def test_calculate_timeline_intermediate_values_are_ms():
+    """Pre-PR-#6, the compound site at FadeCalculator.py:70 passed a ms-value
+    into start_seconds (a unit error masked by framerate='ms' where 1 ms-frame
+    == 1 ms). The endpoints test only checks tl[0] and tl[-1], so the
+    intermediate values being silently wrong went uncaught. PR #6 added /1000
+    to convert ms→seconds; this test pins the intermediate values are correct."""
+    start = CTimecode(start_timecode="00:00:00.000", framerate="ms")
+    end = CTimecode(start_timecode="00:00:00.100", framerate="ms")
+    tl = FadeCalculator.calculate_timeline(start, end, framerate="ms")
+
+    # At framerate='ms' with TRANSITION_DURATION_MILLISECONDS=20: timeline
+    # should be ['00:00:00.000', '00:00:00.020', '00:00:00.040',
+    # '00:00:00.060', '00:00:00.080'] (last overwritten with end_time).
+    assert len(tl) == 5
+    assert tl[0] == "00:00:00.000"
+    assert tl[1] == "00:00:00.020"
+    assert tl[2] == "00:00:00.040"
+    assert tl[3] == "00:00:00.060"
+    assert tl[-1] == str(end)  # always overwritten
+
+
+def test_calculate_timeline_emits_no_deprecation_warnings():
+    """Sonnet IMPORTANT #3 from PR #6 plan review: FadeCalculator.calculate_timeline
+    must not emit DeprecationWarning from CTimecode internals. Pre-PR-#6 it
+    triggered ~3 warnings per call (guard + duration + per-step). PR #6
+    migrated all .milliseconds references to .milliseconds_rounded."""
+    import warnings
+
+    start = CTimecode(start_timecode="00:00:00.000", framerate="ms")
+    end = CTimecode(start_timecode="00:00:00.100", framerate="ms")
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        FadeCalculator.calculate_timeline(start, end, framerate="ms")
+        depwarns = [x for x in w if issubclass(x.category, DeprecationWarning)]
+        assert depwarns == [], (
+            f"calculate_timeline must not emit DeprecationWarning from "
+            f"CTimecode internals; got: {[str(x.message) for x in depwarns]}"
+        )

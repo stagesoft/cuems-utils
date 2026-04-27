@@ -59,21 +59,25 @@ class FadeCalculator:
         """
         if not (isinstance(start_time, CTimecode) and isinstance(end_time, CTimecode)):
             raise ValueError("start_time and end_time must be of type CTimecode")
-        if start_time.milliseconds >= end_time.milliseconds:
+        if start_time.milliseconds_rounded >= end_time.milliseconds_rounded:
             raise ValueError("start_time must be before end_time")
-        duration = (end_time.milliseconds - start_time.milliseconds)
-        steps = duration // FadeCalculator.TRANSITION_DURATION_MILLISECONDS
+        duration_ms = end_time.milliseconds_rounded - start_time.milliseconds_rounded
+        steps = int(duration_ms // FadeCalculator.TRANSITION_DURATION_MILLISECONDS)
+        # `start_seconds` expects SECONDS, not milliseconds. Pre-869cyndtv this
+        # site passed a ms value into start_seconds; the unit error happened to
+        # cancel at framerate='ms' (where 1 ms-frame == 1 ms) but produced wildly
+        # wrong values at any other framerate. The /1000 here converts to seconds.
         out = [
             str(
                 CTimecode(
                     start_seconds=(
-                        start_time.milliseconds
-                        + i * FadeCalculator.TRANSITION_DURATION_MILLISECONDS
+                        (start_time.milliseconds_rounded + i * FadeCalculator.TRANSITION_DURATION_MILLISECONDS)
+                        / 1000
                     ),
                     **kwargs,
                 )
             )
-            for i in range(int(steps))
+            for i in range(steps)
         ]
         out[-1] = str(end_time)
         return out
