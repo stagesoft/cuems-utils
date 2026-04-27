@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.0rc7 — 2026-04-27
+
+24h SMPTE rollover fix (closes ClickUp 869cpdbzy). Layer 1 of a two-layer fix; Layer 2 lives in cuems-engine's MtcListener (PR #10 there).
+
+### Fixed
+- `CTimecode.__str__` now passes `skip_rollover=True` to upstream's `frames_to_tc`, keeping the string representation monotonic past 24h. `frames=2_160_002` at 25fps now renders as `"24:00:00:01"` instead of wrapping to `"00:00:00:01"`. Sergio reported the symptom: long-running install (>24h continuous MTC) where audio cues + sequence stop while video keeps looping. The underlying `.frames`, `.milliseconds_exact`, and `.milliseconds_rounded` accessors were already monotonic post-`0.1.0rc6` (PR #6) — this completes the coverage so any consumer that round-trips through `str()` also stays correct.
+
+### Added
+- `TestRollover` class in `tests/unit/test_ctimecode.py` pinning the 24h-immune contract: `.milliseconds_exact`/`.milliseconds_rounded` monotonic at the boundary, `__add__` advances correctly across 24h, `__str__` shows `24:00:00:01`, the loop-rebase pattern from `loop_cue.py:107,224` survives 5+ iterations past 24h, polling comparisons (`<`) work past the boundary.
+
+### Notes
+- Implementation is one method override (`__str__`) — well below the escalation trigger from the 869cyndtv plan (>2-3 upstream method overrides would have signalled "self-maintain CTimecode" instead). The `frames_to_tc` itself is left untouched (it's used internally by upstream's `next_frame_str` and rate accessors with `skip_rollover=True` already where needed).
+- Layer 2 (cuems-engine MtcListener wrap detection + 24h offset accumulation) is required to fully close 869cpdbzy: MIDI MTC encodes hours in a 5-bit field (max 23) and real SMPTE senders reset to `00:00:00:00` after 24h, so the listener must detect the wrap and accumulate offset before constructing CTimecodes. Without Layer 2, `mtc.main_tc` resets to ~frames=1 every 24h regardless of CTimecode's internal monotonicity.
+
 ## 0.1.0rc6 — 2026-04-27
 
 CTimecode hardening pass (closes ClickUp 869cyndtv items #1–#7 + audit findings). This release is a coordinated semantic fix to the CTimecode wrapper: `__init__` now produces playhead-semantic frames; arithmetic operators are off-by-one-correct and reject cross-framerate operands; `.milliseconds` is split into precision-explicit accessors; the `format_timecode` `+1` workaround is removed; FadeCalculator's silent ms-as-seconds unit error is fixed.

@@ -434,7 +434,15 @@ class CTimecode(Timecode):
         return {"CTimecode": self.__str__()}
 
     def __str__(self):
-        return self.tc_to_string(*self.frames_to_tc(self.frames))
+        # skip_rollover=True keeps __str__ monotonic past 24h. Without this,
+        # frames=2_160_002 at 25fps would render as "00:00:00:01" (wrapped)
+        # instead of "24:00:00:01" — bug 869cpdbzy reported by Sergio: long-
+        # running install (>24h MTC) with audio/sequence stops while video
+        # keeps looping. Note the underlying .frames, .milliseconds_exact, and
+        # .milliseconds_rounded accessors are already monotonic post-PR-#6;
+        # this fix is for the string display + log readability + any consumer
+        # that round-trips through str. (869cyndtv PR #10)
+        return self.tc_to_string(*self.frames_to_tc(self.frames, skip_rollover=True))
 
     def __iter__(self):
         yield ("timecode", self.__str__())

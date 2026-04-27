@@ -440,3 +440,91 @@ class TestRoundTrip:
         tc = CTimecode(framerate=fr, start_seconds=seconds)
         tolerance_ms = 1000 / float(tc.framerate)
         assert abs(tc.milliseconds_exact - seconds * 1000) <= tolerance_ms
+
+
+# ----------------------------------------------------------------------
+# TestRollover (PR #10: closes 869cpdbzy — long-running install >24h MTC)
+# ----------------------------------------------------------------------
+class TestRollover:
+    """24h SMPTE rollover immunity at the CTimecode layer.
+
+    Layer 1 of PR #10. The MtcListener (cuems-engine) handles the MIDI MTC
+    side; here we pin the CTimecode-side guarantees: .frames,
+    .milliseconds_exact, .milliseconds_rounded must stay monotonic past
+    24h, and __str__ must show "24:00:00:00"+ instead of wrapping to zero.
+    """
+
+    # 25fps frames per 24h = 25 * 60 * 60 * 24 = 2_160_000.
+    # Playhead semantics: frames=2_160_001 corresponds to frame_number=2_160_000
+    # which is exactly 24h of real time.
+    FRAMES_AT_24H_25FPS = 2_160_001
+
+    def test_milliseconds_exact_at_24h_boundary(self):
+        tc = CTimecode(framerate=25, frames=self.FRAMES_AT_24H_25FPS)
+        assert tc.milliseconds_exact == 86_400_000.0  # exactly 24h
+
+    def test_milliseconds_exact_one_frame_past_24h(self):
+        tc = CTimecode(framerate=25, frames=self.FRAMES_AT_24H_25FPS + 1)
+        assert tc.milliseconds_exact == 86_400_040.0  # +1 frame at 25fps
+
+    def test_milliseconds_rounded_monotonic_past_24h(self):
+        # .milliseconds_rounded must NOT wrap.
+        before = CTimecode(framerate=25, frames=self.FRAMES_AT_24H_25FPS - 1)
+        at = CTimecode(framerate=25, frames=self.FRAMES_AT_24H_25FPS)
+        after = CTimecode(framerate=25, frames=self.FRAMES_AT_24H_25FPS + 1)
+        assert before.milliseconds_rounded < at.milliseconds_rounded < after.milliseconds_rounded
+
+    def test_add_one_across_24h_boundary(self):
+        # MtcListener uses `self.main_tc + 1` for QF interpolation. This must
+        # advance monotonically across the 24h mark.
+        tc = CTimecode(framerate=25, frames=self.FRAMES_AT_24H_25FPS)
+        result = tc + 1
+        assert result.frames == self.FRAMES_AT_24H_25FPS + 1
+        assert result.milliseconds_exact > tc.milliseconds_exact
+
+    def test_str_does_not_wrap_at_24h(self):
+        # Pre-PR-#10: __str__ showed "00:00:00:00" past 24h (wrapped).
+        # Post-PR-#10: skip_rollover=True keeps the display monotonic.
+        tc = CTimecode(framerate=25, frames=self.FRAMES_AT_24H_25FPS + 1)
+        assert str(tc) == "24:00:00:01"
+
+    def test_str_preserves_prefix_24h_behavior(self):
+        # Sanity: pre-24h __str__ behavior is unchanged.
+        tc = CTimecode(framerate=25, frames=251)
+        assert str(tc) == "00:00:10:00"
+
+    def test_loop_rebase_pattern_survives_24h(self):
+        # Mirrors the surgical-fix pattern at engine loop_cue.py:107,224 —
+        # rebase _start_mtc to _end_mtc.frames each iteration. Simulate a
+        # 30s loop that just crossed 24h, run 5 more iterations.
+        framerate = 25
+        # 30s as a duration: post-PR-#6 canonicalization gives frames=751
+        # (frame_number=750 → 30000ms).
+        duration = CTimecode(framerate=framerate, start_seconds=30.0)
+
+        # Synthesize state at the 24h boundary: _end_mtc exactly at 24h.
+        end_mtc = CTimecode(framerate=framerate, frames=self.FRAMES_AT_24H_25FPS)
+        assert end_mtc.milliseconds_exact == 86_400_000.0
+
+        for _ in range(5):
+            # Surgical fix pattern from loop_cue.py:107,224.
+            start_mtc = CTimecode(framerate=end_mtc.framerate, frames=end_mtc.frames)
+            end_mtc = start_mtc + duration
+
+        # After 5 iterations of 30s, end_mtc should be at 24h + 150s.
+        expected_ms = 86_400_000.0 + 5 * 30_000.0
+        assert end_mtc.milliseconds_exact == pytest.approx(expected_ms, abs=1e-9)
+
+    def test_polling_comparison_works_past_24h(self):
+        # The bug 869cpdbzy: `while mtc.main_tc.milliseconds_rounded < cue._end_mtc.milliseconds_rounded`
+        # must terminate when MTC reaches the end, even past 24h. With CTimecode
+        # internals monotonic, this works as long as MtcListener (Layer 2 of
+        # PR #10) accumulates the 24h offset. Here we just pin the CTimecode
+        # contract: a higher-frame TC has a higher milliseconds_rounded.
+        mtc_at_end = CTimecode(framerate=25, frames=self.FRAMES_AT_24H_25FPS + 750)
+        end_mtc = CTimecode(framerate=25, frames=self.FRAMES_AT_24H_25FPS + 750)
+        # At the end: mtc < end_mtc is False (loop exits)
+        assert not (mtc_at_end < end_mtc)
+        # One frame before: mtc < end_mtc is True (loop continues)
+        mtc_pre_end = CTimecode(framerate=25, frames=self.FRAMES_AT_24H_25FPS + 749)
+        assert mtc_pre_end < end_mtc
