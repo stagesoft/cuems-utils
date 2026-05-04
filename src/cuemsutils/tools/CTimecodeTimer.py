@@ -112,7 +112,7 @@ class CTimecodeTimer:
     # ── Private loop ────────────────────────────────────────────────────
 
     def _run_loop(self) -> None:
-        prev_tc_ms: float = float(self._timecode.milliseconds)
+        prev_tc_ms: float = self._timecode.milliseconds_exact
         qf_ms: float = self._qf_interval * 1000.0
 
         while True:
@@ -121,7 +121,7 @@ class CTimecodeTimer:
                 break
 
             # Read current timecode position (for seek detection)
-            current_tc_ms = float(self._timecode.milliseconds)
+            current_tc_ms = self._timecode.milliseconds_exact
             delta_ms = current_tc_ms - prev_tc_ms
             prev_tc_ms = current_tc_ms
 

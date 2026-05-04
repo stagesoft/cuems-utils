@@ -45,13 +45,12 @@
                 <path>/usr/bin/cuems-dmxplayer</path>
                 <args>--mtcfollow</args>
                 <universes>1</universes>
-                <!-- output_latency_ms absent: dmx does NOT accept "auto"
-                     (no self-measurement path; schema rejects it).
-                     Absent = 35 ms hard-coded default in the binary.
-                     Typical per-adapter starting points when operators
-                     set an integer:
-                       ENTTEC/DMXKing ~30 ms, OpenDMX ~35 ms,
-                       ArtNet ~44 ms (dedicated LAN) / 60-80 ms (shared). -->
+                <!-- NEGATIVE TEST FIXTURE — "auto" on dmxplayer must be
+                     rejected by the schema (IntLatencyMsType, no auto
+                     measurement path). This file is intentionally
+                     invalid and is only referenced by a test expecting
+                     validation to fail. -->
+                <output_latency_ms>auto</output_latency_ms>
             </dmxplayer>
         </node>
     </Settings>

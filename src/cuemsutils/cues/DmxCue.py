@@ -192,7 +192,7 @@ class DmxCue(Cue):
         Returns:
             float: The calculated offset in milliseconds.
         """
-        return -(float(timecode.milliseconds))
+        return -timecode.milliseconds_exact
     
     def check_mappings(self, settings):
         """Check if the DMX output mappings are valid.

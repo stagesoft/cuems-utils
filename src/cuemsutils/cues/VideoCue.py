@@ -81,7 +81,7 @@ class VideoCue(MediaCue):
             in_time_adjusted = self.media.regions[0].in_time.return_in_other_framerate(mtc.main_tc.framerate)
 
             while not self.media.regions[0].loop or loop_counter < self.media.regions[0].loop:
-                while mtc.main_tc.milliseconds < self._end_mtc.milliseconds:
+                while mtc.main_tc.milliseconds_rounded < self._end_mtc.milliseconds_rounded:
                     sleep(0.005)
 
                 if self._local:
