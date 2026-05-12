@@ -16,7 +16,6 @@
 
     <xs:complexType name="NodeType">
         <xs:sequence>
-            <!-- <xs:element name="present" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/> -->
             <xs:element name="uuid" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
             <xs:element name="mac" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
             <xs:element name="name" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
@@ -24,6 +23,13 @@
             <xs:element name="ip" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
             <xs:element name="adopted" minOccurs="0" maxOccurs="1" type="cms:BoolType"/>
             <xs:element name="online" minOccurs="0" maxOccurs="1" type="cms:BoolType"/>
+            <!-- Optional identity fields (feat/node-identity). nodeconf assigns
+                 role_id during adoption; alias is operator-defined; hostname
+                 is transitional (only set for legacy nodes whose OS hostname
+                 differs from role_id). See cuems-common docs/node-identity-contract.md. -->
+            <xs:element name="role_id" minOccurs="0" maxOccurs="1" type="cms:NonEmptyString"/>
+            <xs:element name="alias" minOccurs="0" maxOccurs="1" type="cms:NonEmptyString"/>
+            <xs:element name="hostname" minOccurs="0" maxOccurs="1" type="xs:string"/>
         </xs:sequence>
     </xs:complexType>
 
