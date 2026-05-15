@@ -25,6 +25,7 @@
             <mtc_port>Midi Through Port-0</mtc_port>
             <osc_in_port_base>7000</osc_in_port_base>
             <nng_hub_port>9093</nng_hub_port>
+            <gradient_osc_port>7100</gradient_osc_port>
             <videoplayer>
                 <path>/usr/bin/xjadeo</path>
                 <args>--ontop --fullscreen --no-splash --quiet --no-initial-sync --midi-driver alsa-seq --ignore-file-offset</args>
