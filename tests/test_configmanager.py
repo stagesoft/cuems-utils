@@ -41,6 +41,7 @@ def test_base_settings(config_manager):
     assert config_manager.node_conf['discovery_timeout'] == 15000
     assert config_manager.node_conf['mtc_port'] == 'Midi Through Port-0'
     assert config_manager.node_conf['osc_in_port_base'] == 7000
+    assert config_manager.node_conf['gradient_osc_port'] == 7100
     assert config_manager.host_name == '000000000001.local'
     assert config_manager.node_url == 'http://000000000001.local'
     assert config_manager.osc_initial_port == 7000
