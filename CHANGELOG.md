@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0rc8 — 2026-05-20
+
+Production call-site migration to the `CTimecode` v2 API, removal of a long-deprecated method, and a new required settings field for `gradient-motiond` integration.
+
+### Fixed
+- `AudioCue`, `VideoCue`, `DmxCue`: migrated three remaining `.milliseconds` call-sites to the v2 API. `AudioCue.py:100` and `VideoCue.py:84` polling loops now use `.milliseconds_rounded` (int comparison, no silent float contamination). `AudioCue.py:106` and `DmxCue.py:195` offset calculations now use `.milliseconds_exact` (float, precision-sensitive). These production consumers still emitted `DeprecationWarning` at runtime even after 0.1.0rc6 completed the library-level migration.
+
+### Removed
+- `VideoCue.video_media_loop` — deprecated since 0.0.9rc5 (`"Use loop_cue from CueHandler instead"`). Confirmed zero callers across cuems-engine, cuems-editor, and cuems-utils. Superseded by `loop_videoCue` in `cuems-engine/cues/loop_cue.py`. Also drops now-unused imports `time.sleep` and `deprecated.deprecated` from `VideoCue.py`.
+
+### Added
+- `gradient_osc_port` element added as a required field on `NodeType` in `settings.xsd`. This is the UDP port number that `gradient-motiond` listens on for incoming OSC commands; the engine's `GradientClient` reads it from `ConfigManager` when building the datagram endpoint. The field is propagated to `templates/settings.xml` (with a placeholder value and operator guidance) and all test XML fixtures so schema validation stays aligned.
+
+### Notes
+- After this release, `python -W error::DeprecationWarning pytest tests/` should produce zero `DeprecationWarning` from `.milliseconds` in the cuems-utils test suite. Run it before merging any future change that touches `CTimecode` consumers.
+
 ## 0.1.0rc7 — 2026-04-27
 
 24h SMPTE rollover fix (closes ClickUp 869cpdbzy). Layer 1 of a two-layer fix; Layer 2 lives in cuems-engine's MtcListener (PR #10 there).

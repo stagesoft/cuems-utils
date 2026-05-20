@@ -50,7 +50,11 @@
       "Bash(python -m ruff check --fix src/cuemsutils/cues/FadeCue.py tests/test_fade_cue.py)",
       "Bash(python -m ruff check src/cuemsutils/cues/FadeCue.py src/cuemsutils/cues/__init__.py src/cuemsutils/create_script.py tests/test_fade_cue.py)",
       "Bash(python -m ruff check --fix src/cuemsutils/create_script.py)",
-      "Bash(python -m pytest tests/ --ignore=tests/test_hubservices.py -v)"
+      "Bash(python -m pytest tests/ --ignore=tests/test_hubservices.py -v)",
+      "Bash(cat /disk/Projects/StageLab/gradient-motion-engine/README.md)",
+      "Read(//disk/Projects/StageLab/gradient-motion-engine/**)",
+      "Bash(cat /disk/Projects/StageLab/cuems-engine/README.md)",
+      "Read(//disk/Projects/StageLab/cuems-engine/**)"
     ]
   }
 }

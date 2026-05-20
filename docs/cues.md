@@ -6,5 +6,7 @@
 ::: cuemsutils.cues.CuemsScript
 ::: cuemsutils.cues.CueOutput
 ::: cuemsutils.cues.DmxCue
+::: cuemsutils.cues.FadeCue
+::: cuemsutils.cues.FadeProfile
 ::: cuemsutils.cues.MediaCue
 ::: cuemsutils.cues.VideoCue

@@ -53,7 +53,7 @@ all = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/stagesoft/cuems-utils#readme"
+Documentation = "https://stagesoft.github.io/cuems-utils/"
 Issues = "https://github.com/stagesoft/cuems-utils/issues"
 Source = "https://github.com/stagesoft/cuems-utils"
 
