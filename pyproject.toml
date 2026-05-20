@@ -102,7 +102,7 @@ run-cov = "pytest --cov {args:tests/}"
 lint = "ruff check {args:src/ tests/}"
 
 [tool.coverage.run]
-source_pkgs = ["cuemsutils", "tests"]
+source_pkgs = ["cuemsutils"]
 branch = true
 parallel = true
 omit = []

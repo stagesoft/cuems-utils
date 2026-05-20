@@ -372,7 +372,7 @@ class TestPrecisionSplit:
         # At all integer-or-ms framerates in the matrix, _exact is a whole
         # float and _rounded is its int form.
         if framerate == 29.97:
-            pytest.skip("non-integer framerate handled by separate test")
+            pass
         tc = CTimecode(framerate=framerate, frames=100)
         assert tc.milliseconds_rounded == int(tc.milliseconds_exact)
 
