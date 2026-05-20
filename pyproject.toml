@@ -75,26 +75,22 @@ packages = ["src/cuemsutils"]
 [tool.hatch.metadata]
 allow-direct-references = true
 
-[tool.hatch.envs.hatch-test]
-extra-dependencies = [
-  "hypothesis",
-]
-
-[[tool.hatch.envs.hatch-test.matrix]]
-python = ["3.11", "3.12", "3.13"]
-
-[tool.hatch.envs.hatch-test.env-vars]
-PKG_CONFIG_PATH = "/usr/lib/x86_64-linux-gnu/pkgconfig"
-CC = "gcc"
-
 [tool.hatch.envs.test]
 dependencies = [
   "pytest",
   "pytest-cov",
   "pytest-mock",
+  "hypothesis",
   "coverage[toml]",
   "ruff",
 ]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.11", "3.12", "3.13"]
+
+[tool.hatch.envs.test.env-vars]
+PKG_CONFIG_PATH = "/usr/lib/x86_64-linux-gnu/pkgconfig"
+CC = "gcc"
 
 [tool.hatch.envs.test.scripts]
 run = "pytest {args:tests/}"
@@ -102,7 +98,7 @@ run-cov = "pytest --cov {args:tests/}"
 lint = "ruff check {args:src/ tests/}"
 
 [tool.coverage.run]
-source_pkgs = ["cuemsutils"]
+source_pkgs = ["cuemsutils", "tests"]
 branch = true
 parallel = true
 omit = []
