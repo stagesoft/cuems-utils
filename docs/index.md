@@ -6,7 +6,7 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/cuemsutils.svg)](https://pypi.org/project/cuemsutils)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Tests](https://github.com/stagesoft/cuems-utils/actions/workflows/tests.yml/badge.svg)](https://github.com/stagesoft/cuems-utils/actions/workflows/tests.yml)
-[![Coverage](https://codecov.io/gh/stagesoft/cuems-utils/graph/badge.svg)](https://codecov.io/gh/stagesoft/cuems-utils)
+[![codecov](https://codecov.io/gh/stagesoft/cuems-utils/graph/badge.svg?token=GFR1L3S807)](https://codecov.io/gh/stagesoft/cuems-utils)
 
 !!! note "Project README"
     For installation instructions, release history, and licensing, see the
