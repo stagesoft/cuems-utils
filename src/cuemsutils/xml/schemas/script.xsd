@@ -179,7 +179,7 @@
     <xs:sequence minOccurs="0" maxOccurs="1">
       <xs:element name="file_name" type="xs:string" />
       <xs:element name="id" type="cms:TargetType" />
-      <xs:element name="duration" type="xs:string" />
+      <xs:element name="duration" type="cms:TimecodeType" />
       <xs:element name="regions" type="cms:RegionsType" />
     </xs:sequence>
   </xs:complexType>
@@ -523,7 +523,7 @@
 
   <xs:simpleType name="TimecodeType">
     <xs:restriction base="xs:string">
-      <xs:pattern value="[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}" />
+      <xs:pattern value="[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}" />
     </xs:restriction>
   </xs:simpleType>
 
