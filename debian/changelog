@@ -1,3 +1,21 @@
+cuems-utils (0.1.0rc8) unstable; urgency=medium
+
+  * Package pre_release_1 code (merged into debian/bookworm). Notable
+    changes since 0.1.0rc5:
+    - xml/schemas/network_map.xsd: optional node-identity fields
+      (role_id, alias, hostname) for the nodeconf identity model.
+    - settings.{xml,xsd}: add gradient_osc_port (needed by cuems-engine
+      pre_release_1); add output_latency_ms tri-state to player types;
+      per-node settings.xml template.
+    - CTimecode: >24h MTC correctness fixes (skip_rollover __str__,
+      None-safe comparators + __hash__ dedupe, dict-compatible items()),
+      and .milliseconds -> _rounded/_exact split migrated across
+      AudioCue/VideoCue/DmxCue.
+    - cues/VideoCue: remove deprecated video_media_loop.
+    - pyproject: pin lxml (CVE-2026-41066 context documented).
+
+ -- Ion Reguera <ion@stagelab.coop>  Mon, 06 Jul 2026 17:31:30 +0200
+
 cuems-utils (0.1.0rc5) UNRELEASED; urgency=low
 
   [ Ion Reguera ]
