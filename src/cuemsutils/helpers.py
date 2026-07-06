@@ -115,9 +115,7 @@ def format_timecode(value):
         elif isinstance(value, CTimecode):
             return value
         elif isinstance(value, (int, float)):
-            ctime_value = CTimecode(start_seconds = value)
-            ctime_value.frames = ctime_value.frames + 1
-            return ctime_value
+            return CTimecode(start_seconds=value)
         elif isinstance(value, str):
             return CTimecode(value)
         elif isinstance(value, dict):

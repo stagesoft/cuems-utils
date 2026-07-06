@@ -342,17 +342,29 @@ class Cue(CuemsDict):
         """
         return type(self)
 
+    def _next_enabled(self):
+        """Return the first enabled cue in the target chain, or None."""
+        cue = self._target_object if self.target else None
+        depth = 0
+        while cue and not cue.enabled:
+            cue = cue._target_object if cue.target else None
+            depth += 1
+            if depth > 50:
+                return None
+        return cue
+
     def get_next_cue(self):
-        """Get the next cue in the sequence.
-        
+        """Get the next enabled cue in the sequence, skipping disabled cues.
+
         Returns:
-            Cue or None: The next cue to execute, or None if there is no next cue.
+            Cue or None: The next enabled cue to execute, or None if there is no next cue.
         """
-        if not self.target:
+        next_cue = self._next_enabled()
+        if not next_cue:
             return None
         if self.post_go == 'pause':
-            return self._target_object
-        return self._target_object.get_next_cue() # type: ignore[union-attr]
+            return next_cue
+        return next_cue.get_next_cue()
 
     @deprecated(reason="This method is deprecated in favor of new mapping logic. Use localize_cue instead.", version="0.1.0rc4")
     def check_mappings(self, settings):

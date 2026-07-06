@@ -57,12 +57,10 @@ def test_logged(caplog):
     assert len(caplog.records) == 18
     for record in caplog.records:
         assert record.name == "tests.test_logger"
-        if record.levelname == "INFO":
-            assert record.message == "Call recieved"
-        elif record.levelname == "ERROR":
+        if record.levelname == "ERROR":
             assert record.message == "Error occurred: An error occurred."
         elif record.levelname == "DEBUG":
-            assert record.message[:13] in ["Using args: (", "Finished with"]
+            assert record.message[:13] in ["Call recieved", "Using args: (", "Finished with"]
         elif record.levelname == "WARNING":
             assert record.message == "Warning occurred: This is a warning."
 
@@ -265,17 +263,14 @@ def test_logged_decorator_extra_fields(caplog):
     assert result == "Hello, TestUser!"
     assert len(caplog.records) == 3  # info, debug (args), debug (result)
     
-    # Check the INFO record (Call received)
-    info_record = caplog.records[0]
-    assert info_record.levelname == "INFO"
-    assert info_record.message == "Call recieved"
-    assert hasattr(info_record, 'caller')
-    assert info_record.caller == "hello_with_arg"
-    # The funcName in extra dict should be the module name
-    # But the actual funcName attribute is the logging call location
-    
-    # Check DEBUG records
-    for record in caplog.records[1:]:
+    # Check the first record (Call received) — logged at DEBUG
+    first_record = caplog.records[0]
+    assert first_record.levelname == "DEBUG"
+    assert first_record.message == "Call recieved"
+    assert hasattr(first_record, 'caller')
+    assert first_record.caller == "hello_with_arg"
+
+    for record in caplog.records:
         assert record.levelname == "DEBUG"
         assert hasattr(record, 'caller')
         assert record.caller == "hello_with_arg"

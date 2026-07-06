@@ -13,7 +13,7 @@ from typing import Optional, Dict, List
 
 from ..log import Logger
 
-RECV_TIMEOUT = 100
+RECV_TIMEOUT = 100  # ms
 
 @dataclass
 class Message:
@@ -59,11 +59,19 @@ class NngBusHub(HubService):
 
         The instance will set up incoming and outgoing message queues for asynchronous message handling.
         """
-        self.active_connections: dict[int, ConnectionInfo] = {}  # pipe_id -> ConnectionInfo
+        self.active_connections: dict[int, ConnectionInfo] = {}  # key -> ConnectionInfo
+        self._next_conn_key: int = 0  # monotonic key; avoids calling pipe.id in callbacks
         self.address = hub_address
         self.mode = mode
         self.incoming = asyncio.Queue()
         self.outgoing = asyncio.Queue()
+        self.connection = None
+        
+        # Set to True at the very start of teardown so pipe callbacks become no-ops.
+        # NNG fires post_pipe_remove callbacks from its internal C threads during socket
+        # close; if those callbacks call any pynng C function (e.g. pipe.id) while NNG
+        # internals are being freed, a SIGFPE or SIGABRT results.
+        self._closing: bool = False
         
         # Connection health tracking
         self._last_message_received: Optional[datetime] = None
@@ -100,19 +108,34 @@ class NngBusHub(HubService):
             case _:
                 raise ValueError(f"Unknown mode: {self.mode}")
 
+        sender_task = None
+        receiver_task = None
+        ping_task = None
         try:
-            sender_task = asyncio.create_task(self._send_handler())
-            receiver_task = asyncio.create_task(self._receiver_handler())
-            ping_task = asyncio.create_task(self._auto_ping_handler())
+            sender_task = asyncio.create_task(self._send_handler(), name="sender")
+            receiver_task = asyncio.create_task(self._receiver_handler(), name="receiver")
+            ping_task = asyncio.create_task(self._auto_ping_handler(), name="ping")
             
             tasks = [sender_task, receiver_task, ping_task]
+            task_names = {sender_task: "sender", receiver_task: "receiver", ping_task: "ping"}
+            
+            Logger.info(f"NNG {self.mode.value} tasks started: sender, receiver, ping")
             
             done_tasks, pending_tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
             
             # Check if completed task had an exception
             for task in done_tasks:
+                task_name = task_names.get(task, "unknown")
                 if task.exception() is not None:
-                    Logger.error(f"Handler failed with exception: {task.exception()}")
+                    Logger.error(f"NNG {self.mode.value} {task_name} handler failed: {task.exception()}")
+                    Logger.error(f"Exception type: {type(task.exception()).__name__}")
+                else:
+                    Logger.warning(f"NNG {self.mode.value} {task_name} handler exited unexpectedly (no exception)")
+            
+            # Log pending task cancellation
+            pending_names = [task_names.get(t, "unknown") for t in pending_tasks]
+            if pending_names:
+                Logger.info(f"Cancelling pending tasks: {pending_names}")
             
             # Cancel and await pending tasks
             for task in pending_tasks:
@@ -121,36 +144,78 @@ class NngBusHub(HubService):
                     await task
                 except asyncio.CancelledError:
                     pass
+            
+            Logger.warning(f"NNG {self.mode.value} start() exiting - all tasks terminated")
 
         except Exception as e:
             Logger.error(f"Error occurred while starting tasks: {e} type: {type(e)}")
             # Cancel any running tasks
             for task in [sender_task, receiver_task, ping_task]:
-                if not task.done():
+                if task is not None and not task.done():
                     task.cancel()
                     try:
                         await task
-                    except asyncio.CancelledError:
+                    except (asyncio.CancelledError, Exception):
                         pass
             raise
+        finally:
+            # Set _closing=True FIRST so any pipe callbacks that fire during
+            # task cancellation or socket close become immediate no-ops.
+            # Accessing pipe.id inside a NNG pipe callback during teardown can
+            # trigger SIGFPE/SIGABRT in NNG's C code — _closing prevents that.
+            self._closing = True
+
+            # Cancel all inner tasks before closing the socket.
+            for task in [sender_task, receiver_task, ping_task]:
+                if task is not None and not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+            if hasattr(self, 'connection') and self.connection is not None:
+                try:
+                    self.connection.close()
+                except Exception:
+                    pass
+                self.connection = None
 
     async def start_listener(self):
         """
         Initialize the bus connection in LISTENER mode (listening for connections).
         
         Creates a Bus0 socket that listens on the configured address with a 100ms receive timeout.
+        TCP keepalive is enabled BEFORE listening to ensure it applies to all connections.
+        Callbacks are registered BEFORE listening to ensure no connection events are missed.
         """
-        self.connection = Bus0(listen=self.address, recv_timeout=RECV_TIMEOUT)
-        self._add_callbacks()
+        # Create socket first, set options and callbacks, then listen
+        self.connection = Bus0(recv_timeout=RECV_TIMEOUT)
+        self.connection.tcp_keepalive = True
+        self._add_callbacks()  # Register callbacks BEFORE listen to catch all events
+        self.connection.listen(self.address)
+        Logger.debug(f"LISTENER started on {self.address}, tcp_keepalive={self.connection.tcp_keepalive}")
 
     async def start_dialer(self):
         """
         Initialize the bus connection in DIALER mode (dialing to controller).
         
         Creates a Bus0 socket that dials to the configured address with a 100ms receive timeout.
+        TCP keepalive is enabled BEFORE dialing to ensure it applies to the connection.
+        Non-blocking dial is used to allow reconnection if controller is not yet available.
+        Callbacks are registered BEFORE dialing to ensure no connection events are missed.
         """
-        self.connection = Bus0(dial=self.address, recv_timeout=RECV_TIMEOUT)
-        self._add_callbacks()
+        # Create socket first, set options and callbacks, then dial (non-blocking for reconnection support)
+        self.connection = Bus0(recv_timeout=RECV_TIMEOUT)
+        self.connection.tcp_keepalive = True
+        # Set explicit reconnection parameters
+        self.connection.reconnect_time_min = 1000  # 1 second minimum
+        self.connection.reconnect_time_max = 30000  # 30 seconds maximum
+        self._add_callbacks()  # Register callbacks BEFORE dial to catch all events
+        Logger.debug(f"DIALER options set: tcp_keepalive={self.connection.tcp_keepalive}, " +
+                     f"reconnect_time_min={self.connection.reconnect_time_min}ms, " +
+                     f"reconnect_time_max={self.connection.reconnect_time_max}ms")
+        self.connection.dial(self.address, block=False)
+        Logger.debug(f"DIALER dialing {self.address} (non-blocking)")
 
     async def send_message(self, message: dict | Message):
         """
@@ -384,6 +449,10 @@ class NngBusHub(HubService):
                 self._last_message_received = datetime.now()
                 self._messages_received_count += 1
                 
+                # DEBUG: Log every received message with count
+                msg_type = data_dict.get("__type__", data_dict.get("type", "unknown"))
+                Logger.debug(f"[MSG #{self._messages_received_count}] {self.mode.value} received from {sender}: type={msg_type}")
+                
                 # Handle ping/pong messages
                 handled = await self._handle_ping_pong(message, sender)
                 
@@ -447,45 +516,81 @@ class NngBusHub(HubService):
         them to the bus connection. Any exceptions during sending are logged.
 
         The loop runs until cancelled or an unhandled exception occurs.
+        
+        Note: In LISTENER mode, waits for at least one connection before sending
+        to avoid losing messages due to BUS protocol's best-effort delivery.
         """
+        # Wait for at least one connection in LISTENER mode before sending
+        if self.mode == self.Mode.LISTENER:
+            Logger.info("LISTENER mode: waiting for node connections before sending...")
+            while len(self.active_connections) == 0:
+                await asyncio.sleep(0.1)
+            Logger.info(f"Node connected, sender ready ({len(self.active_connections)} connections)")
+        
         while await asyncio.sleep(0, result=True):
             try:
                 message = await self.outgoing.get()
-                Logger.debug(f"Sending message: {message}")
-                await self.connection.asend(message.encode())
                 
                 # Track message send for connection health
                 self._last_message_sent = datetime.now()
                 self._messages_sent_count += 1
+                
+                # DEBUG: Log message type before sending
+                try:
+                    data = json.loads(message)
+                    msg_type = data.get("__type__", data.get("type", "unknown"))
+                except:
+                    msg_type = "non-json"
+                Logger.debug(f"[SEND #{self._messages_sent_count}] {self.mode.value} sending: type={msg_type}")
+                
+                await self.connection.asend(message.encode())
             except Exception as e:
                 Logger.error(f"Error in send handler: {e}, type: {type(e)}")
 
     def _add_callbacks(self):
         self.connection.add_post_pipe_connect_cb(self._post_connect_callback)
         self.connection.add_post_pipe_remove_cb(self._post_remove_callback)
+        Logger.debug(f"Pipe callbacks registered for connection on {self.address}")
 
     def _post_connect_callback(self, pipe):
         """Internal callback when a new pipe connects."""
+        if self._closing:
+            return
+        # Use a monotonic counter as key — avoids calling pipe.id (a pynng C
+        # call) which can trigger SIGFPE/SIGABRT during NNG teardown.
         try:
-            sender = self._extract_sender_info(pipe)
+            key = self._next_conn_key
+            self._next_conn_key += 1
             conn_info = ConnectionInfo(
-                pipe_id=pipe.id,
-                sender=sender,
+                pipe_id=key,
+                sender="unknown",
                 connected_at=datetime.now()
             )
-            self.active_connections[pipe.id] = conn_info
-            Logger.info(f"Connection established - Pipe ID: {pipe.id}, Sender: {sender}")
+            self.active_connections[key] = conn_info
+            Logger.info(f"Connection established (key={key}), "
+                        f"total={len(self.active_connections)}")
         except Exception as e:
             Logger.error(f"Error in connect callback: {e}")
 
     def _post_remove_callback(self, pipe):
         """Internal callback when a pipe disconnects."""
+        if self._closing:
+            return
+        # Pop the oldest tracked connection (FIFO) — we cannot call pipe.id
+        # here because that is a pynng C call that triggers SIGFPE/SIGABRT
+        # when NNG is tearing down the pipe concurrently.
         try:
-            conn_info = self.active_connections.pop(pipe.id, None)
-            if conn_info:
-                Logger.info(f"Connection closed - Pipe ID: {pipe.id}, Sender: {conn_info.sender}")
-            else:
-                Logger.warning(f"Pipe {pipe.id} disconnected but not found in active connections")
+            if self.active_connections:
+                key = next(iter(self.active_connections))
+                conn_info = self.active_connections.pop(key, None)
+                if conn_info:
+                    duration = datetime.now() - conn_info.connected_at
+                    Logger.info(f"Connection closed (key={key}), "
+                                f"duration={duration.total_seconds():.2f}s, "
+                                f"remaining={len(self.active_connections)}")
+
+            if len(self.active_connections) == 0 and self.mode == self.Mode.DIALER:
+                Logger.warning("DIALER has no active connections - waiting for reconnection")
         except Exception as e:
             Logger.error(f"Error in disconnect callback: {e}")
             

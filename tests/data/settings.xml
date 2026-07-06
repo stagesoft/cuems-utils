@@ -25,24 +25,34 @@
             <mtc_port>Midi Through Port-0</mtc_port>
             <osc_in_port_base>7000</osc_in_port_base>
             <nng_hub_port>9093</nng_hub_port>
+            <gradient_osc_port>7100</gradient_osc_port>
             <videoplayer>
                 <path>/usr/bin/xjadeo</path>
                 <args>--ontop --fullscreen --no-splash --quiet --no-initial-sync --midi-driver alsa-seq --ignore-file-offset</args>
                 <outputs>2</outputs>
+                <output_latency_ms>33</output_latency_ms>
             </videoplayer>
             <audioplayer>
-                <path>/usr/bin/audioplayer-cuems</path>
+                <path>/usr/local/bin/cuems-audioplayer</path>
                 <args>-w -1</args>
                 <audio_cards>1</audio_cards>
+                <output_latency_ms>auto</output_latency_ms>
             </audioplayer>
             <audiomixer>
-                <path>/usr/bin/jack-volume</path>
+                <path>/usr/local/bin/jack-volume</path>
                 <args></args>
             </audiomixer>
             <dmxplayer>
-                <path>/usr/bin/dmxplayer-cuems</path>
-                <args></args>
+                <path>/usr/bin/cuems-dmxplayer</path>
+                <args>--mtcfollow</args>
                 <universes>1</universes>
+                <!-- output_latency_ms absent: dmx does NOT accept "auto"
+                     (no self-measurement path; schema rejects it).
+                     Absent = 35 ms hard-coded default in the binary.
+                     Typical per-adapter starting points when operators
+                     set an integer:
+                       ENTTEC/DMXKing ~30 ms, OpenDMX ~35 ms,
+                       ArtNet ~44 ms (dedicated LAN) / 60-80 ms (shared). -->
             </dmxplayer>
         </node>
     </Settings>

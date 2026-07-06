@@ -33,11 +33,12 @@
             <xs:element name="uuid" minOccurs="1" maxOccurs="1" type="xs:string" />
             <xs:element name="mac" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString" />
             <xs:element name="audio" minOccurs="0" maxOccurs="1" type="cms:DeviceType" />
-            <xs:element name="video" minOccurs="0" maxOccurs="1" type="cms:DeviceType" />
+            <xs:element name="video" minOccurs="0" maxOccurs="1" type="cms:VideoDeviceType" />
             <xs:element name="dmx" minOccurs="0" maxOccurs="1" type="cms:DeviceType" />
         </xs:sequence>
     </xs:complexType>
 
+    <!-- Audio and DMX: id + name + mappings, no canvas_region -->
     <xs:complexType name="DeviceType">
         <xs:sequence>
             <xs:element name="outputs" minOccurs="0" maxOccurs="unbounded" type="cms:PutGroupType" />
@@ -54,7 +55,8 @@
 
     <xs:complexType name="PutType">
         <xs:sequence>
-            <xs:element name="name" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"></xs:element>
+            <xs:element name="id" minOccurs="1" maxOccurs="1" type="xs:nonNegativeInteger" />
+            <xs:element name="name" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString" />
             <xs:element name="mappings">
                 <xs:complexType>
                     <xs:sequence>
@@ -64,6 +66,74 @@
             </xs:element>
         </xs:sequence>
     </xs:complexType>
+
+    <!-- Video: id + name + optional canvas_region + mappings.
+         canvas_region present => custom template (authorable slot on this
+           node). IMPORTANT: this is a UI-template hint only — it exposes
+           a named custom slot to the editor's output picker as a default
+           starting rectangle when authoring custom-region cues. It does
+           NOT describe physical monitor layout or output resolution:
+           display layout comes from videocomposer's DRM detection, and
+           per-cue custom regions are carried separately in
+           script.xsd's VideoCueOutput.canvas_region (see CueOutput.py
+           VideoCueOutput doc). At most one entry per node may carry
+           canvas_region (validated in Settings.process_xml_dict).
+         canvas_region absent  => monitor alias (resolved by videocomposer). -->
+    <xs:complexType name="VideoDeviceType">
+        <xs:sequence>
+            <xs:element name="outputs" minOccurs="0" maxOccurs="unbounded" type="cms:VideoPutGroupType" />
+            <xs:element name="inputs" minOccurs="0" maxOccurs="unbounded" type="cms:VideoPutGroupType" />
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="VideoPutGroupType">
+        <xs:choice>
+            <xs:element name="output" minOccurs="0" maxOccurs="unbounded" type="cms:VideoPutType"/>
+            <xs:element name="input" minOccurs="0" maxOccurs="unbounded" type="cms:VideoPutType"/>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="VideoPutType">
+        <xs:sequence>
+            <xs:element name="id" minOccurs="1" maxOccurs="1" type="xs:nonNegativeInteger" />
+            <xs:element name="name" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString" />
+            <xs:element name="canvas_region" minOccurs="0" maxOccurs="1" type="cms:CanvasRegionType" />
+            <xs:element name="mappings">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="mapped_to" minOccurs="1" maxOccurs="unbounded" type="xs:string" />
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- DUPLICATE: CanvasRegionType / UnitFloat / PositiveUnitFloat are also
+         defined in script.xsd. Keep both copies in sync.
+         See docs/canvas_region.md for semantics, V1 caps, and deferred items
+         (aspect ratio, z-order, off-canvas, multi-custom). -->
+    <xs:complexType name="CanvasRegionType">
+        <xs:sequence>
+            <xs:element name="x" type="cms:UnitFloat" />
+            <xs:element name="y" type="cms:UnitFloat" />
+            <xs:element name="width" type="cms:PositiveUnitFloat" />
+            <xs:element name="height" type="cms:PositiveUnitFloat" />
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:simpleType name="UnitFloat">
+        <xs:restriction base="xs:float">
+            <xs:minInclusive value="0" />
+            <xs:maxInclusive value="1" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="PositiveUnitFloat">
+        <xs:restriction base="xs:float">
+            <xs:minExclusive value="0" />
+            <xs:maxInclusive value="1" />
+        </xs:restriction>
+    </xs:simpleType>
 
     <xs:complexType name="MappedToType">
         <xs:sequence>

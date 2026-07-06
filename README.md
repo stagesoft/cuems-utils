@@ -36,7 +36,7 @@ pip install cuemsutils
  - New `HubServices` for multiple dialers communication
  - Extended `Settings` parameters class
  - New `tools` submodule for clarity with documentation
- - Added class `SignalEngine` and `run_daemon` method for running daemons
+ - Added class `SignalEngine` for systemd service integration
  - Improved `ProjectMappings` and `NetworkMap` content processing
  - Added class `Timeoutloop` for running methods with timeout
  - `get_media` methods return extended information
