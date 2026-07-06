@@ -3,6 +3,7 @@ from typing import Tuple
 from .Cue import Cue
 from .FadeProfile import FadeProfile
 from ..helpers import CuemsDict, ensure_items, format_timecode
+from ..tools.CTimecode import CTimecode
 from ..tools.Uuid import Uuid
 
 REQ_ITEMS = {
@@ -175,12 +176,40 @@ class Media(CuemsDict):
         return super().__getitem__('duration')
     
     def set_duration(self, duration):
-        """Set the duration of the media file.
-        
+        """Set the duration of the media file, validating on write.
+
+        The stored value is always a canonical ``HH:MM:SS.mmm`` string (or
+        ``None``). This guards against the historical class of duration
+        corruption at the object boundary: a malformed value is rejected
+        rather than silently persisted. The getter contract stays ``str`` so
+        existing consumers — e.g. the engine's ``CTimecode(cue.media.duration)``
+        — are unchanged.
+
         Args:
-            duration (str): The new duration of the media file.
+            duration (str | CTimecode | None): timecode string, ``CTimecode``,
+                or ``None``.
+
+        Raises:
+            ValueError: If a string cannot be parsed as a timecode.
+            TypeError: If *duration* is not a str, CTimecode, or None.
         """
-        super().__setitem__('duration', duration)
+        if duration is None:
+            super().__setitem__('duration', None)
+            return
+        if isinstance(duration, CTimecode):
+            super().__setitem__('duration', str(duration))
+            return
+        if isinstance(duration, str):
+            try:
+                canonical = str(CTimecode(duration))
+            except Exception as e:
+                raise ValueError(f"Invalid media duration {duration!r}: {e}")
+            super().__setitem__('duration', canonical)
+            return
+        raise TypeError(
+            f"Media duration must be str, CTimecode, or None, "
+            f"not {type(duration).__name__}"
+        )
 
     duration = property(get_duration, set_duration)
 
