@@ -1,3 +1,19 @@
+cuems-utils (0.1.0rc9) unstable; urgency=medium
+
+  * Media duration correctness (paired with the cuems-editor + cuems-frontend
+    fixes for the ffprobe duration-extraction bug):
+    - cues/MediaCue: Media.duration is validated and canonicalised on write
+      (accepts str/CTimecode/None, rejects malformed); the getter contract
+      stays str so engine consumers (CTimecode(cue.media.duration)) are
+      unchanged.
+    - xml/schemas/script.xsd: escape the literal dot in TimecodeType and
+      constrain MediaType/duration from unbounded xs:string to the
+      pattern-validated cms:TimecodeType (plain text, no structural change;
+      existing/repaired XMLs still validate, malformed values now rejected).
+    - tests: add tests/unit/test_media_duration.py (8 tests).
+
+ -- Ion Reguera <ion@stagelab.coop>  Mon, 06 Jul 2026 20:34:53 +0200
+
 cuems-utils (0.1.0rc8) unstable; urgency=medium
 
   * Package pre_release_1 code (merged into debian/bookworm). Notable
