@@ -1,0 +1,1050 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+        <link rel="next" href="api/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>CueMS Utils - FormitGo</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#cuems-utils" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="." title="CueMS Utils - FormitGo" class="md-header__button md-logo" aria-label="CueMS Utils - FormitGo" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            CueMS Utils - FormitGo
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              cuems-utils
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/stagesoft/cuems-utils" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="." title="CueMS Utils - FormitGo" class="md-nav__button md-logo" aria-label="CueMS Utils - FormitGo" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    CueMS Utils - FormitGo
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/stagesoft/cuems-utils" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    cuems-utils
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    cuems-utils
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-cuems-utils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is cuems-utils?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-data-flows-through-the-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How data flows through the system
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cues-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cues layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tools-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#xml-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        XML layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-design-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key design decisions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key design decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#playhead-semantic-timecode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Playhead-semantic timecode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precision-split-milliseconds_exact-milliseconds_rounded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Precision split (.milliseconds_exact / .milliseconds_rounded)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monotonic-24h-timecode-for-long-running-installs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monotonic 24h timecode for long-running installs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canvas-region-two-distinct-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canvas region: two distinct roles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#xsd-as-authoritative-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        XSD as authoritative contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="canvas_region/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Canvas Region
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="xml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xml
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-cuems-utils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is cuems-utils?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-data-flows-through-the-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How data flows through the system
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cues-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cues layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tools-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#xml-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        XML layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-design-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key design decisions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key design decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#playhead-semantic-timecode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Playhead-semantic timecode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#precision-split-milliseconds_exact-milliseconds_rounded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Precision split (.milliseconds_exact / .milliseconds_rounded)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monotonic-24h-timecode-for-long-running-installs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monotonic 24h timecode for long-running installs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canvas-region-two-distinct-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canvas region: two distinct roles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#xsd-as-authoritative-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        XSD as authoritative contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="cuems-utils">cuems-utils</h1>
+<p><strong>Shared data models, timecode utilities, XML tooling, and configuration primitives for the CueMS system.</strong></p>
+<p><a href="https://pypi.org/project/cuemsutils"><img alt="PyPI - Version" src="https://img.shields.io/pypi/v/cuemsutils.svg" /></a>
+<a href="https://pypi.org/project/cuemsutils"><img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/cuemsutils.svg" /></a>
+<a href="https://www.gnu.org/licenses/gpl-3.0"><img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg" /></a>
+<a href="https://github.com/stagesoft/cuems-utils/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/stagesoft/cuems-utils/actions/workflows/tests.yml/badge.svg" /></a>
+<a href="https://codecov.io/gh/stagesoft/cuems-utils"><img alt="codecov" src="https://codecov.io/gh/stagesoft/cuems-utils/graph/badge.svg?token=GFR1L3S807" /></a></p>
+<div class="admonition note">
+<p class="admonition-title">Project README</p>
+<p>For installation instructions, release history, and licensing, see the
+<a href="https://github.com/stagesoft/cuems-utils#readme">project README</a> on GitHub.</p>
+</div>
+<hr />
+<h2 id="what-is-cuems-utils">What is cuems-utils?</h2>
+<p><code>cuems-utils</code> is the shared library at the base of the <strong>CueMS</strong> (Cue Management System).
+It provides the data models, timecode primitives, XML tooling, and runtime configuration
+helpers consumed by every other component in the system — <code>cuems-engine</code>, <code>cuems-editor</code>,
+and their player subprocesses.</p>
+<p>The library is organized into three submodules plus a small set of root-level utilities:</p>
+<table>
+<thead>
+<tr>
+<th>Submodule</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cues/</code></td>
+<td>The full cue data-model hierarchy (audio, video, DMX, fade, action)</td>
+</tr>
+<tr>
+<td><code>tools/</code></td>
+<td>Runtime utilities: timecode, fade calculation, NNG communications, systemd integration, configuration management</td>
+</tr>
+<tr>
+<td><code>xml/</code></td>
+<td>XML schema validation, project-file serialization, and settings parsing</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="how-data-flows-through-the-system">How data flows through the system</h2>
+<pre><code>Editor (authoring)
+    │
+    │  CuemsScript (JSON / XML)
+    ▼
+cuems-utils ──► XmlReaderWriter ──► schema validation ──► CuemsScript / CueList / Cue objects
+    │
+    │  shared via pip / deb dependency
+    ▼
+cuems-engine (runtime)
+    │
+    │  CTimecode (MTC position)
+    │  ConfigManager (settings.xml)
+    │  CommunicatorServices (NNG)
+    ▼
+Node Engine ──► Player subprocesses (audio, video, DMX)
+</code></pre>
+<p><code>cuems-utils</code> never runs as a daemon. It is a pure-Python import — processes that need the
+data models or utilities add it as a dependency and import the relevant classes.</p>
+<hr />
+<h2 id="architecture">Architecture</h2>
+<h3 id="cues-layer">Cues layer</h3>
+<p><a href="cues/"><code>cues/</code></a> — the unit of show control. All classes serialize to/from XML and JSON.</p>
+<ul>
+<li><strong><code>Cue</code></strong> — abstract base; owns <code>id</code>, <code>name</code>, <code>pre_wait</code>, <code>post_wait</code>, <code>enabled</code>, <code>ui_properties</code>.</li>
+<li><strong><code>MediaCue</code></strong> — extends <code>Cue</code> with a media file reference, <code>autoload</code>, and a <code>CueOutput</code> list.</li>
+<li><strong><code>AudioCue</code></strong> — audio playback cue; JACK routing, level, loop count. MTC-polling uses <code>.milliseconds_rounded</code> / <code>.milliseconds_exact</code>.</li>
+<li><strong><code>VideoCue</code></strong> — video playback cue; monitor alias or normalized-float canvas region. MTC-polling uses <code>.milliseconds_rounded</code>.</li>
+<li><strong><code>DmxCue</code></strong> — DMX playback cue; universe, channel, and level mapping. Offset math uses <code>.milliseconds_exact</code> for drift safety.</li>
+<li><strong><code>FadeCue</code></strong> — fade action cue; <code>curve_type</code> (<code>linear</code>, <code>exponential</code>, <code>logarithmic</code>, <code>sigmoid</code>), <code>duration</code>, <code>target_value</code>. Inherits <code>ActionCue</code>.</li>
+<li><strong><code>ActionCue</code></strong> — action cue base; <code>action_type</code> and <code>action_target</code> (id of the cue to act on).</li>
+<li><strong><code>FadeProfile</code></strong> — reusable fade envelope data class with named curve and amplitude samples.</li>
+<li><strong><code>CueOutput</code></strong> — per-output routing descriptor. <code>VideoCueOutput</code> additionally carries an optional <code>canvas_region</code> (normalized <code>[0,1]</code> rectangle).</li>
+<li><strong><code>CueList</code></strong> — ordered cue container; owns <code>get_next_cue</code>, <code>get_cue_by_id</code>, <code>get_media</code>. Skips disabled cues in traversal.</li>
+<li><strong><code>CuemsScript</code></strong> — top-level project model; wraps a <code>CueList</code> with script-level metadata and a <code>to_json()</code> serializer.</li>
+</ul>
+<h3 id="tools-layer">Tools layer</h3>
+<p><a href="tools/"><code>tools/</code></a> — runtime utilities shared by all CueMS processes.</p>
+<ul>
+<li><strong><code>CTimecode</code></strong> — SMPTE timecode wrapper with <em>playhead semantics</em>. At MTC position T,
+  <code>.milliseconds_exact == T * 1000</code>. Monotonic past 24 h (<code>"24:00:00:01"</code> rather than
+  wrapping). Arithmetic operators raise <code>CTimecodeError</code> on cross-framerate operands.
+  The <code>.milliseconds</code> / <code>.milliseconds_exact</code> / <code>.milliseconds_rounded</code> precision split
+  makes rounding intent visible at every call site.</li>
+<li><strong><code>CTimecodeTimer</code></strong> — quarter-frame timer that fires a callback at every quarter-frame
+  boundary. Thread-safe state machine (<code>IDLE → RUNNING → STOPPED/EXHAUSTED</code>); accepts
+  an optional parameter-tuple list and stops automatically when exhausted.</li>
+<li><strong><code>FadeCalculator</code></strong> — stateless calculator producing <code>(timecode, value)</code> pairs between
+  two <code>CTimecode</code> endpoints at quarter-frame resolution. Supports named curve names or
+  any callable; correct unit handling (<code>start_seconds = ms / 1000</code>) after the 0.1.0rc6
+  unit-error fix.</li>
+<li><strong><code>ConfigManager</code></strong> — singleton loader for <code>settings.xml</code>, <code>network_map.xml</code>, and
+  <code>project_mappings.xml</code>. Conditional file loading at init; typed accessors.</li>
+<li><strong><code>CommunicatorServices</code></strong> — NNG request/response and bus-hub transport wrappers
+  (<code>NngRequestResponse</code>, <code>NngBusHub</code>).</li>
+<li><strong><code>HubServices</code></strong> — fan-out to multiple dialer endpoints; used by the controller engine.</li>
+<li><strong><code>SignalEngine</code></strong> — systemd <code>sd_notify</code> and watchdog keepalive wrapper.</li>
+<li><strong><code>Uuid</code></strong>, <strong><code>StringSanitizer</code></strong>, <strong><code>CopyMoveVersioned</code></strong> — UUID generation, input
+  sanitization, and atomic versioned file management.</li>
+</ul>
+<h3 id="xml-layer">XML layer</h3>
+<p><a href="xml/"><code>xml/</code></a> — project file I/O, validation, and settings loading.</p>
+<ul>
+<li><strong><code>XmlReaderWriter</code></strong> — validates against bundled XSD on read and write; supersedes the
+  deprecated <code>XmlReader</code> / <code>XmlWriter</code> pair.</li>
+<li><strong><code>XmlBuilder</code></strong> — low-level element construction from Python dicts.</li>
+<li><strong><code>Settings</code></strong> — base class for XML-backed config; <code>xmlschema.to_dict()</code> returns <code>int</code>
+  for integer elements, <code>str</code> for <code>"auto"</code>, <code>None</code> for absent optional elements.</li>
+<li><strong><code>CMLCuemsConverter</code></strong> — converts legacy CML project files to <code>CuemsScript</code>.</li>
+<li><strong><code>Parsers</code></strong> — XML parsing helpers.</li>
+</ul>
+<p><strong>Bundled schemas (<code>xml/schemas/</code>):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Schema</th>
+<th>Validates</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>script.xsd</code></td>
+<td>Full project cuelists — <code>CuemsScript</code> / <code>CueList</code> / all cue types</td>
+</tr>
+<tr>
+<td><code>settings.xsd</code></td>
+<td>Per-node settings including player types, <code>output_latency_ms</code>, and <code>gradient_osc_port</code></td>
+</tr>
+<tr>
+<td><code>project_mappings.xsd</code></td>
+<td>Output routing — node UUIDs, monitor aliases, custom canvas templates</td>
+</tr>
+<tr>
+<td><code>network_map.xsd</code></td>
+<td>Node fleet topology</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="key-design-decisions">Key design decisions</h2>
+<h3 id="playhead-semantic-timecode">Playhead-semantic timecode</h3>
+<p>Upstream <code>timecode</code> 1.5.1 ships <em>exposure-window</em> semantics — <code>00:00:00:00</code> is the
+end of the first frame's exposure window, not the start. cuems-utils overrides <code>__init__</code>
+to route <code>start_seconds=</code> through <code>tc_to_frames</code> (via an HMSF string), which applies
+drop-frame correction at 29.97/59.94 DF. The result: at any MTC position T,
+<code>CTimecode(start_seconds=T).milliseconds_exact == T * 1000</code>.</p>
+<h3 id="precision-split-milliseconds_exact-milliseconds_rounded">Precision split (<code>.milliseconds_exact</code> / <code>.milliseconds_rounded</code>)</h3>
+<p>The original <code>.milliseconds: int</code> truncated via <code>int()</code>, losing up to 1 ms per call at
+fractional framerates and accumulating monotonically in long-running installations. The v2
+API splits this into two explicit accessors — the deprecated <code>.milliseconds</code> is retained
+as an alias and will be removed at the first stable release. Migration guide:</p>
+<table>
+<thead>
+<tr>
+<th>Old</th>
+<th>New</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tc.milliseconds == 30000</code></td>
+<td><code>tc.milliseconds_rounded == 30000</code></td>
+<td>Integer comparison, rounding intent clear</td>
+</tr>
+<tr>
+<td><code>time.sleep(tc.milliseconds / 1000)</code></td>
+<td><code>time.sleep(tc.milliseconds_rounded / 1000)</code></td>
+<td>Integer sleep duration</td>
+</tr>
+<tr>
+<td><code>while mtc.milliseconds &lt; target</code></td>
+<td><code>while mtc.milliseconds_rounded &lt; target</code></td>
+<td>Polling loop, int comparison</td>
+</tr>
+<tr>
+<td>Offset / scheduler / MTC-bias math</td>
+<td><code>tc.milliseconds_exact</code></td>
+<td>Float, no precision loss</td>
+</tr>
+</tbody>
+</table>
+<h3 id="monotonic-24h-timecode-for-long-running-installs">Monotonic 24h timecode for long-running installs</h3>
+<p>Museum and exhibit installations may run more than 24 h on a single MTC timeline.
+Upstream's <code>frames_to_tc</code> applies <code>% frames_per_24h</code> when rendering, causing <code>__str__</code>
+to wrap from <code>"23:59:59:24"</code> back to <code>"00:00:00:00"</code>. <code>CTimecode.__str__</code> passes
+<code>skip_rollover=True</code> to keep the string representation monotonic past 24 h.
+Layer 2 (MTC listener wrap detection and hour-offset accumulation on MIDI input)
+lives in <code>cuems-engine</code>.</p>
+<h3 id="canvas-region-two-distinct-roles">Canvas region: two distinct roles</h3>
+<p><code>canvas_region</code> in <code>project_mappings.xsd</code> is a <strong>UI template slot</strong> — it marks a node
+output entry as a custom slot that the editor lists alongside monitor aliases and uses as
+a default rect when the user places a cue. <code>canvas_region</code> in <code>script.xsd</code>
+(<code>VideoCueOutput</code>) is the <strong>per-cue instance</strong> rect the user drew. The two elements share
+the same <code>CanvasRegionType</code> XSD definition but have distinct semantics; see
+<a href="canvas_region/">Canvas Region</a> for the full specification.</p>
+<h3 id="xsd-as-authoritative-contract">XSD as authoritative contract</h3>
+<p>Python validation is secondary to the XSD. <code>XmlReaderWriter</code> validates against the
+bundled schema on every read and write. Schema changes require corresponding Python model
+changes in the same commit (the <code>settings.xml</code> template and <code>settings.xsd</code> live here
+for exactly this reason).</p>
+<hr />
+<h2 id="api-reference">API reference</h2>
+<p>Each module's public API is generated directly from docstrings:</p>
+<ul>
+<li><a href="cues/">Cues</a> — <code>Cue</code>, <code>MediaCue</code>, <code>AudioCue</code>, <code>VideoCue</code>, <code>DmxCue</code>, <code>FadeCue</code>, <code>ActionCue</code>, <code>FadeProfile</code>, <code>CueOutput</code>, <code>CueList</code>, <code>CuemsScript</code></li>
+<li><a href="tools/">Tools</a> — <code>CTimecode</code>, <code>CTimecodeTimer</code>, <code>FadeCalculator</code>, <code>ConfigManager</code>, <code>CommunicatorServices</code>, <code>HubServices</code>, <code>SignalEngine</code>, <code>Uuid</code></li>
+<li><a href="xml/">XML</a> — <code>XmlReaderWriter</code>, <code>XmlBuilder</code>, <code>Settings</code>, <code>CMLCuemsConverter</code>, <code>Parsers</code></li>
+<li><a href="api/">API (root modules)</a> — <code>create_script</code>, <code>helpers</code>, <code>log</code>, <code>timeoutloop</code></li>
+<li><a href="canvas_region/">Canvas Region</a> — coordinate model, validation rules, V1 caps, and deferred work</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
