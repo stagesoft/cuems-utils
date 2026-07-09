@@ -28,15 +28,14 @@ dependencies = [
     "json-fix==1.0.0",
     "timecode",
     "pynng==0.8.1",
-    # CVE-2026-41066 (high): lxml <6.1.0 — XXE via iterparse()/ETCompatXMLParser()
-    # with resolve_entities=True default. cuems-utils ONLY uses lxml.etree.Element
-    # and lxml.etree.register_namespace (CMLCuemsConverter.py); the vulnerable
-    # parser APIs are never called, so active risk is zero.
-    # Upgrade path: lxml==6.1.0 fixes it (resolve_entities default → 'internal').
-    # Requires extensive testing of all XML round-trips (XmlReaderWriter, XmlBuilder,
-    # xmlschema validation, project load/save) before bumping — 6.x is a major
-    # version and lxml is on the critical path for every project file.
-    "lxml==5.3.0",
+    # lxml 6.1.0: clears CVE-2026-41066 (high) — XXE via iterparse()/
+    # ETCompatXMLParser() with resolve_entities=True default (fixed: default is
+    # now 'internal'). cuems-utils only uses lxml.etree.Element +
+    # register_namespace (CMLCuemsConverter.py) — never the parser entry points —
+    # so it was never actually reachable, but bumped to clear the advisory and
+    # future-proof. Full XML round-trip suite (XmlReaderWriter/XmlBuilder/
+    # xmlschema/project load-save) verified green on 6.1.0.
+    "lxml==6.1.0",
     "xmlschema==3.4.3",
     "websockets==14.1",
     "peewee==3.17.8",
