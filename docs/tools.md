@@ -5,6 +5,8 @@
 ::: cuemsutils.tools.ConfigManager
 ::: cuemsutils.tools.CopyMoveVersioned
 ::: cuemsutils.tools.CTimecode
+::: cuemsutils.tools.CTimecodeTimer
+::: cuemsutils.tools.FadeCalculator
 ::: cuemsutils.tools.HubServices
 ::: cuemsutils.tools.SignalEngine
 ::: cuemsutils.tools.StringSanitizer

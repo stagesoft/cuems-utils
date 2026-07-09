@@ -1,9 +1,15 @@
-site_name: cuemsutils
-repo_url: https://github.com/cuems/cuems-utils
+site_name: CueMS Utils - FormitGo
+repo_url: https://github.com/stagesoft/cuems-utils
 theme:
   name: material
 
+markdown_extensions:
+  - admonition
+
 plugins:
-  - search
-  - mkdocstrings:
-      default_handler: python
+- search
+- mkdocstrings:
+    default_handler: python
+    handlers:
+      python:
+        paths: [src]
