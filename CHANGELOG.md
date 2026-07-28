@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.0rc11 — 2026-07-28
+
+Free-text fields are no longer type-coerced during parsing (closes ClickUp 869cqbpxa).
+
+### Fixed
+- `CuemsParser.str_to_value` no longer coerces values whose key names a string-typed field. It previously ran every scalar through `int` → `float` → `strtobool` → `Uuid` regardless of key, so free text was silently rewritten. Because `strtobool` accepts the truth abbreviations, a cue named `n`/`N`/`f`/`F` was persisted as `False`, `y`/`Y`/`t`/`T` as `True`, and any bare digit as an `int` — 18 of the 62 alphanumeric single characters were corrupted, along with the words `yes`/`no`/`true`/`false`/`on`/`off`. Sergio reported the symptom as "can't name a cue with a single letter"; there was never a length rule, the failing characters were exactly `strtobool`'s vocabulary. The affected keys reachable in practice are `name`, `description` and `file_name`.
+- A cue named lowercase `none` or `null` hit the `['none', 'null', '']` → `None` branch, serialised to `<name/>`, and failed `NameStringType`'s `minLength=1` — a hard `XMLSchemaValidationError` at save time rather than silent corruption. The new short-circuit precedes that branch, so both failure modes are fixed together.
+
+### Added
+- `STRING_TYPED_KEYS` in `xml/Parsers.py` — the set of keys exempt from coercion. `name`, `description` and `file_name` are the ones reachable today; `output_name`, `parameter_name`, `icon`, `color` and `unix_name` are defensive entries, currently shielded by unrelated bypasses in `outputsParser`, `_normalize_fade_parameters` and the `GenericDict` fallback, listed so that fixing any of those bypasses cannot silently reintroduce this bug.
+- `str_to_value` takes an optional `key` argument, threaded through all four call sites (`CuemsScriptParser`, `CueListParser`, `GenericParser`, `fade_profileParser`). The argument is optional, so existing single-argument callers are unaffected.
+- `tests/test_name_coercion.py` — exhaustive sweep over all 62 alphanumeric single characters for each reachable key, the boolean/nullish word set, a full XML round-trip, and negative tests pinning that `enabled`/`autoload`/`timecode`/`loop` still coerce and that `id` still parses to a `Uuid`.
+
+### Notes
+- `id` is deliberately **not** in the allowlist: the `Uuid()` branch inside `str_to_value` is the only thing that produces `Uuid` objects on parse (the parsers assign via raw `dict.__setitem__` and never reach the property setters), so adding it would downgrade every cue, script and media id to a plain `str`. The consequence is that `DmxSceneType.id` (`script.xsd:403`, declared `xs:string`) cannot be protected by this mechanism — accepted, since DMX scene ids are system-assigned rather than operator-typed.
+- Projects saved before this release have the corrupted name baked into their `cue_script.xml`; the original text is unrecoverable (`n`, `no`, `N`, `off` all collapse to `False`) and must be renamed by hand.
+- `cuems-nodeconf` calls the inherited `str_to_value` without a key (`NodeXmlBuilders.py:80`), so node names remain exposed to the identical bug. Tracked separately.
+
 ## 0.1.0rc8 — 2026-05-20
 
 Production call-site migration to the `CTimecode` v2 API, removal of a long-deprecated method, and a new required settings field for `gradient-motiond` integration.
