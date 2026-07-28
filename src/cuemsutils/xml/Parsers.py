@@ -13,6 +13,28 @@ GENERIC_PARSER = 'GenericParser'
 #TODO: XML_ROOT_TAG get from constants storage
 XML_ROOT_TAG = 'CuemsScript'
 
+# Keys that must never be type-coerced by str_to_value(). Without this, a cue named
+# "n" is saved as False, one named "1" as int 1, and one named "none" becomes None ->
+# <name/> -> XSD minLength violation, i.e. a hard save error. See ClickUp 869cqbpxa.
+#
+# 'name', 'description' and 'file_name' are the keys actually reachable today. The
+# rest are defensive only: they are currently shielded by bypasses in outputsParser
+# (builds output objects directly), _normalize_fade_parameters (diverts 'parameters'
+# before the scalar branch) and the GenericDict fallback in GenericParser.parse()
+# (get_class('ui_properties') misses because the class is UI_properties). They are
+# listed so that fixing any of those bypasses cannot silently reintroduce this bug.
+#
+# 'id' is deliberately ABSENT: the Uuid() branch in str_to_value is the only thing
+# that produces Uuid objects on parse (parsers assign via raw dict.__setitem__ and so
+# never hit the property setters). Adding 'id' here would downgrade every cue, script
+# and media id to a plain str.
+STRING_TYPED_KEYS = frozenset({
+    # reachable today
+    'name', 'description', 'file_name',
+    # defensive -- see above
+    'output_name', 'parameter_name', 'icon', 'color', 'unix_name',
+})
+
 class GenericDict(dict):
     pass
 
@@ -56,7 +78,22 @@ class CuemsParser():
     def get_contained_dict(self, _dict):
         return list(_dict.values())[0]
 
-    def str_to_value(self, _string):
+    def str_to_value(self, _string, key = None):
+        """Decode a string-encoded scalar into its Python type.
+
+        Args:
+            _string: The value to decode. Non-str values pass through unchanged.
+            key: The dict key ``_string`` was stored under, when known. Values
+                whose key is in :data:`STRING_TYPED_KEYS` are returned verbatim
+                so free-text fields are never coerced (ClickUp 869cqbpxa).
+
+        Returns:
+            The decoded value, or ``_string`` unchanged for string-typed keys.
+        """
+        # Must precede every coercion branch below, including the none/null one:
+        # a cue legitimately named "none" would otherwise become None.
+        if key in STRING_TYPED_KEYS:
+            return _string
         if not isinstance(_string, str):
             return _string
         if _string in ['none', 'null', '']:
@@ -94,7 +131,7 @@ class CuemsScriptParser(CuemsParser):
                     parser_class, class_string = self.get_parser_class(k)
                     self.item_csp[k] = parser_class(init_dict=v, class_string=class_string).parse()                    
             else:
-                v = self.str_to_value(v)
+                v = self.str_to_value(v, key = k)
                 self.item_csp[k] = v
 
         return self.item_csp
@@ -128,7 +165,7 @@ class CueListParser(CuemsScriptParser):
                         self.item_clp[k] = value_parser_class(init_dict=v, class_string=value_class_string).parse()
 
             else:
-                v = self.str_to_value(v)
+                v = self.str_to_value(v, key = k)
                 self.item_clp[k] = v
         return self.item_clp
 
@@ -177,7 +214,7 @@ class GenericParser(CuemsScriptParser):
                     else:
                         self.item_gp[dict_key] = local_list
                 else:
-                    dict_value = self.str_to_value(dict_value)
+                    dict_value = self.str_to_value(dict_value, key = dict_key)
                     self.item_gp[dict_key] = dict_value
         return self.item_gp
 
@@ -360,7 +397,7 @@ class fade_profileParser(GenericParser):
                     pcls(init_dict=li, class_string=pstr).parse() for li in dict_value
                 ]
             else:
-                d[dict_key] = self.str_to_value(dict_value)
+                d[dict_key] = self.str_to_value(dict_value, key = dict_key)
         return FadeProfile(d)
 
 
