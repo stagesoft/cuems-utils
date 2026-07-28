@@ -1,3 +1,33 @@
+cuems-utils (0.1.0rc11) unstable; urgency=medium
+
+  * parsers: stop type-coercing free-text fields (ClickUp 869cqbpxa).
+    CuemsParser.str_to_value() ran every scalar through int -> float ->
+    strtobool -> Uuid regardless of its key, so free text was silently
+    rewritten on save. Since strtobool accepts the truth abbreviations, a cue
+    named n/N/f/F was persisted as False, y/Y/t/T as True and any bare digit
+    as an int -- 18 of the 62 alphanumeric single characters, plus the words
+    yes/no/true/false/on/off. Reported as "can't name a cue with a single
+    letter": there was never a length rule (NameStringType has always been
+    minLength=1 and the frontend has no validator), the failing characters
+    were exactly strtobool's vocabulary.
+    Separately, a cue named lowercase none/null hit the ['none','null','']
+    -> None branch, serialised to <name/> and failed NameStringType's
+    minLength=1 -- a hard XMLSchemaValidationError at save rather than silent
+    corruption. The new short-circuit precedes that branch, fixing both.
+    Adds STRING_TYPED_KEYS plus an optional key argument to str_to_value,
+    threaded through all four call sites; keeping key optional leaves
+    existing single-argument callers unaffected. 'id' is deliberately
+    excluded -- the Uuid() branch is the only thing producing Uuid objects on
+    parse. Reachable keys are name, description and file_name; output_name,
+    parameter_name, icon and color are defensive entries only.
+    Full suite green (551 passed; the one failure is a pre-existing realtime
+    jitter check unrelated to this change, which passes in CI).
+    Verified end-to-end on test2 through the live cuems-editor WebSocket:
+    12/12 names round-trip verbatim, including none/null which previously
+    errored. Ships the same source as main/rc_1 @ 0.1.0rc11.
+
+ -- Ion Reguera <ion@stagelab.coop>  Tue, 28 Jul 2026 15:05:00 +0200
+
 cuems-utils (0.1.0rc10) unstable; urgency=medium
 
   * deps: bump lxml 5.3.0 -> 6.1.0 to clear CVE-2026-41066 (high) -- XXE via
