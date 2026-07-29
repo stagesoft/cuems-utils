@@ -1,3 +1,20 @@
+cuems-utils (0.1.0rc12) unstable; urgency=medium
+
+  * log.py: record each message once in the journal, with its real
+    priority. (1) Root logger seeded with a NullHandler so third-party
+    import-time logging (pyossia via cuemsengine.osc) cannot arm an
+    implicit basicConfig stderr handler that re-emitted every record in
+    BASIC_FORMAT. (2) Under systemd (JOURNAL_STREAM) only the
+    SysLogHandler is attached: stdout and /dev/log both land in
+    journald, and only the syslog copy carries a true per-record
+    priority (systemd stamps all stdout PRIORITY=6), so cuems-logs -l/-e
+    can finally filter. (3) SysLogHandler.ident set from argv[0] so
+    journald records a full SYSLOG_IDENTIFIER instead of the kernel-
+    truncated _COMM (controller-engi). Verified on the test2 controller:
+    3 copies -> 1, priorities 7/4/3, 552 tests unchanged.
+
+ -- Ion Reguera <ion@stagelab.coop>  Wed, 29 Jul 2026 19:58:05 +0200
+
 cuems-utils (0.1.0rc11) unstable; urgency=medium
 
   * parsers: stop type-coercing free-text fields (ClickUp 869cqbpxa).
@@ -77,7 +94,6 @@ cuems-utils (0.1.0rc8) unstable; urgency=medium
 
 cuems-utils (0.1.0rc5) UNRELEASED; urgency=low
 
-  [ Ion Reguera ]
   * Bump version to 0.0.9rc2 to match upstream
   * Updadte upstream version
 
@@ -107,7 +123,7 @@ cuems-utils (0.0.6-0) UNRELEASED; urgency=low
   [ ion ]
   * Fix circular import in daemon.py causing AttributeError
 
- -- ion <ion@jump>  Wed, 14 Jan 2026 19:30:36 +0100
+ -- Ion Reguera <ion@stagelab.coop>  Wed, 14 Jan 2026 19:30:36 +0100
 
 cuems-utils (0.0.1-0) UNRELEASED; urgency=low
 
