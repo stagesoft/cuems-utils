@@ -1,27 +1,32 @@
 from .MediaCue import MediaCue
 from ..tools.CTimecode import CTimecode
+from ..helpers import ensure_items
 from ..log import Logger
 
+REQ_ITEMS = {
+    'opacity': 100  # Default to fully opaque — 0-100 percent scale (cms:PercentType)
+}
 
 
 class VideoCue(MediaCue):
     """A cue for handling video playback and control.
-    
+
     This class extends MediaCue to provide specific functionality for video playback,
     including frame rate handling and OSC communication for video routing.
     """
-    
+
     def __init__(self, init_dict = None):
         """Initialize a VideoCue.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to set initial properties.
         """
         if not init_dict:
-            super().__init__()
+            init_dict = REQ_ITEMS
         else:
-            super().__init__(init_dict)
+            init_dict = ensure_items(init_dict, REQ_ITEMS)
+        super().__init__(init_dict)
 
         self._player = None
         self._osc_route = None
@@ -30,6 +35,36 @@ class VideoCue(MediaCue):
         # TODO: Adjust framerates for universal use, by now 25 fps for video
         self._start_mtc = CTimecode(framerate=25)
         self._end_mtc = CTimecode(framerate=25)
+
+    def get_opacity(self):
+        """Get the cue's configured opacity level.
+
+        Returns:
+            int: The opacity level, 0-100 (applied uniformly across all
+                layers of this cue).
+        """
+        return super().__getitem__('opacity')
+
+    def set_opacity(self, opacity):
+        """Set the cue's configured opacity level.
+
+        Args:
+            opacity (int): The new opacity level, 0-100.
+        """
+        super().__setitem__('opacity', opacity)
+
+    opacity = property(get_opacity, set_opacity)
+
+    def items(self):
+        """Get all items in the cue as a dictionary.
+
+        Returns:
+            dict_items: A view of the cue's items, with required items sorted first.
+        """
+        x = dict(super().items())
+        for k in sorted(REQ_ITEMS.keys()):
+            x[k] = self[k]
+        return x.items()
 
     def player(self, player):
         """Set the video player instance.
@@ -41,20 +76,11 @@ class VideoCue(MediaCue):
 
     def osc_route(self, osc_route):
         """Set the OSC route for video control.
-        
+
         Args:
             osc_route (str): The OSC route to use for video control.
         """
         self._osc_route = osc_route
-
-    def items(self):
-        """Get all items in the cue as a dictionary.
-        
-        Returns:
-            dict_items: A view of the cue's items.
-        """
-        x = dict(super().items())
-        return x.items()
 
     def stop(self):
         """Stop the video playback.
