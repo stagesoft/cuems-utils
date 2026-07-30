@@ -189,7 +189,8 @@
                                     }
                                 }
                             ],
-                            "fade_profiles": null
+                            "fade_profiles": null,
+                            "opacity": 100
                         }
                     },
                     {
