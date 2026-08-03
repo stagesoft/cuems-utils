@@ -6,5 +6,10 @@ export DH_VERBOSE = 1
 %:
 	dh $@ --with python-virtualenv
 
+# Pin the interpreter by absolute path. "--python python3" resolves through
+# PATH, so building on a dev box with pyenv active bakes the builder's private
+# interpreter into the venv (pyvenv.cfg home / bin/python symlink), producing a
+# package whose /usr/lib/cuems/bin/python is a broken symlink on every target
+# host. Target hosts always have /usr/bin/python3 = 3.11 on bookworm.
 override_dh_virtualenv:
-	dh_virtualenv --python python3 --install-suffix cuems --use-system-packages
+	dh_virtualenv --python /usr/bin/python3 --install-suffix cuems --use-system-packages
