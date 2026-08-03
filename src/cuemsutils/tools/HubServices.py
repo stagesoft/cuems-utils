@@ -429,6 +429,8 @@ class NngBusHub(HubService):
         The loop runs until cancelled or an unhandled exception occurs.
         """
         while await asyncio.sleep(0, result=True):
+            if self._closing:
+                return
             try:
                 pynng_message = await self.connection.arecv_msg()
                 
@@ -463,6 +465,17 @@ class NngBusHub(HubService):
                     
             except pynng_exceptions.Timeout:
                 pass  # Timeout is expected during polling
+            except pynng_exceptions.Closed:
+                # The socket is gone — either an orderly teardown, or pynng's
+                # atexit hook already ran nng_fini() and freed NNG's global
+                # state. Retrying would call nng_recv_aio() on that freed
+                # state, which aborts the whole process with
+                # "panic: pthread_mutex_lock: Invalid argument". Stop for good.
+                self._closing = True
+                Logger.info(
+                    f"NNG {self.mode.value} receiver: socket closed, stopping loop"
+                )
+                return
             except Exception as e:
                 Logger.error(f"Error in receiver handler: {e}, type: {type(e)}")
 
@@ -528,6 +541,8 @@ class NngBusHub(HubService):
             Logger.info(f"Node connected, sender ready ({len(self.active_connections)} connections)")
         
         while await asyncio.sleep(0, result=True):
+            if self._closing:
+                return
             try:
                 message = await self.outgoing.get()
                 
@@ -544,6 +559,14 @@ class NngBusHub(HubService):
                 Logger.debug(f"[SEND #{self._messages_sent_count}] {self.mode.value} sending: type={msg_type}")
                 
                 await self.connection.asend(message.encode())
+            except pynng_exceptions.Closed:
+                # Same rule as the receiver: never touch NNG again once the
+                # socket is closed (see _receiver_handler).
+                self._closing = True
+                Logger.info(
+                    f"NNG {self.mode.value} sender: socket closed, stopping loop"
+                )
+                return
             except Exception as e:
                 Logger.error(f"Error in send handler: {e}, type: {type(e)}")
 
