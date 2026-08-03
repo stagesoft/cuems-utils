@@ -4,6 +4,8 @@ import json
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
 
+from pynng import exceptions as pynng_exceptions
+
 from cuemsutils.tools.HubServices import Message, ConnectionInfo, NngBusHub
 
 
@@ -404,3 +406,73 @@ class TestHubIntegration:
         # Verify we can decode it back
         decoded = json.loads(call_args)
         assert decoded == test_message
+
+
+class TestTeardownDoesNotRetryClosedSocket:
+    """Regression tests for ClickUp 869ed00ya.
+
+    pynng registers an atexit hook that calls nng_fini(), which frees NNG's
+    global state. Any NNG call issued after that aborts the whole process with
+    "panic: pthread_mutex_lock: Invalid argument". The receive/send loops must
+    therefore stop for good the first time the socket reports Closed, instead
+    of looping straight back into another arecv_msg()/asend().
+    """
+
+    @pytest.fixture
+    def hub(self):
+        return NngBusHub("tcp://127.0.0.1:5555", NngBusHub.Mode.DIALER)
+
+    @staticmethod
+    def closed():
+        """A real Closed instance — the class needs (msg, errno) to construct."""
+        return pynng_exceptions.Closed("Object closed", 7)
+
+    @staticmethod
+    def timed_out():
+        return pynng_exceptions.Timeout("Timed out", 5)
+
+    def test_receiver_stops_on_closed(self, hub: NngBusHub):
+        """A Closed socket must end the receive loop, not trigger a retry."""
+        hub.connection = Mock()
+        hub.connection.arecv_msg = AsyncMock(side_effect=self.closed())
+
+        asyncio.run(asyncio.wait_for(hub._receiver_handler(), timeout=5))
+
+        assert hub.connection.arecv_msg.await_count == 1, (
+            "receiver retried on a closed socket — this is what aborts the "
+            "process once nng_fini() has run"
+        )
+        assert hub._closing is True
+
+    def test_sender_stops_on_closed(self, hub: NngBusHub):
+        """A Closed socket must end the send loop, not trigger a retry."""
+        hub.connection = Mock()
+        hub.connection.asend = AsyncMock(side_effect=self.closed())
+        hub.outgoing.put_nowait(json.dumps({"a": 1}))
+        hub.outgoing.put_nowait(json.dumps({"b": 2}))
+
+        asyncio.run(asyncio.wait_for(hub._send_handler(), timeout=5))
+
+        assert hub.connection.asend.await_count == 1
+        assert hub._closing is True
+
+    def test_receiver_keeps_polling_on_timeout(self, hub: NngBusHub):
+        """Timeout is the normal polling path and must NOT stop the loop."""
+        hub.connection = Mock()
+        hub.connection.arecv_msg = AsyncMock(
+            side_effect=[self.timed_out() for _ in range(3)] + [self.closed()]
+        )
+
+        asyncio.run(asyncio.wait_for(hub._receiver_handler(), timeout=5))
+
+        assert hub.connection.arecv_msg.await_count == 4
+
+    def test_receiver_does_not_start_when_already_closing(self, hub: NngBusHub):
+        """Once _closing is set, the loop must not touch NNG at all."""
+        hub.connection = Mock()
+        hub.connection.arecv_msg = AsyncMock()
+        hub._closing = True
+
+        asyncio.run(asyncio.wait_for(hub._receiver_handler(), timeout=5))
+
+        hub.connection.arecv_msg.assert_not_awaited()

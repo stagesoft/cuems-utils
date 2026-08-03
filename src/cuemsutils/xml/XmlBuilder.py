@@ -334,7 +334,7 @@ class MediaCueXmlBuilder(GenericCueXmlBuilder):
                 builder_class(value, xml_tree=cue_subelement).build()
             cls_name = type(self._object).__name__
             if key == 'master_vol' or (
-                key == 'outputs' and cls_name == 'VideoCue'
+                key == 'opacity' and cls_name == 'VideoCue'
             ):
                 fps = self._object.get('fade_profiles')
                 if fps:

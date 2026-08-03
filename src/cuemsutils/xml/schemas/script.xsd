@@ -312,6 +312,10 @@
     <xs:complexContent>
       <xs:extension base="cms:MediaCueType">
         <xs:sequence>
+          <!-- Optional (unlike AudioCue's master_vol) to stay backward-compatible
+               with existing project files authored before this field existed;
+               absent -> Python-side REQ_ITEMS default of 100 (fully opaque). -->
+          <xs:element name="opacity" type="cms:PercentType" minOccurs="0" />
           <xs:element name="fade_profiles" type="cms:FadeProfilesWrapperType" minOccurs="0" />
         </xs:sequence>
       </xs:extension>

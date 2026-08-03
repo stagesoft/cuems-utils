@@ -6,7 +6,7 @@ from ..helpers import ensure_items
 from ..log import logged, Logger
 
 REQ_ITEMS = {
-    'master_vol': 1  # Default to full volume (0.0-1.0 range)
+    'master_vol': 100  # Default to full volume — 0-100 percent scale (cms:PercentType)
 }
 
 class AudioCue(MediaCue):
