@@ -59,3 +59,20 @@ rm -rf /usr/lib/cuems/lib/python3.11/site-packages/cuemsutils   # pip leaves non
 ```
 
 Note `pip install -e` needs network for the build backend, so it is not an option on an offline node — install the `.deb` there instead. And an `apt install --reinstall cuems-utils` restores the packaged copy and silently re-shadows the editable tree.
+
+## Active Technologies
+
+- Python 3.11+. **Tests run under pyenv 3.11.9** — conda environments are not used for
+  this project.
+- `xmlschema==3.4.3` (pinned; XSD 1.1 required by `xs:assert` in `script.xsd`),
+  `lxml==6.1.0` (**not** in the XML write path — the writer is stdlib `ElementTree`).
+- Six bundled XSD schemas under `src/cuemsutils/xml/schemas/`.
+
+## Recent Changes
+
+- `004-xml-serialization-core` (in progress): replacing the four duplicated XML mapping
+  implementations with one schema-derived engine. Pure refactor — byte-identical output,
+  deprecation shims at every old import path. See `specs/004-xml-serialization-core/`.
+  Load-bearing fact: `content.iter_elements()` gives schema order, **but `xs:all` types
+  (`CuemsScript`, `DmxSceneType`) are order-free and must keep today's sorted-key
+  emission** or every script file's root element changes.

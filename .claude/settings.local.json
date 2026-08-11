@@ -56,7 +56,13 @@
       "Bash(cat /disk/Projects/StageLab/cuems-engine/README.md)",
       "Read(//disk/Projects/StageLab/cuems-engine/**)",
       "Bash(cd /disk/Projects/StageLab/cuems-editor && ls src/cuemseditor/ && echo \"=== who calls DBProject.load ===\" && grep -rn \"\\\\.load\\(\" src/cuemseditor/*.py | head -20)",
-      "Read(//disk/Projects/StageLab/cuems-editor/**)"
+      "Read(//disk/Projects/StageLab/cuems-editor/**)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh --json --short-name \"xml-serialization-core\" \"Replace the XML serialization machinery in src/cuemsutils/xml/ with a single schema-derived engine, with zero change to observable behaviour\")",
+      "Bash(cd /disk/Projects/StageLab && ls -d */ 2>/dev/null | head -20; echo \"--- imports of cuemsutils.xml in siblings ---\"; grep -rn \"cuemsutils.xml\\\\|from cuemsutils import\" --include=*.py . 2>/dev/null | grep -v \"^./cuems-utils/\" | head -30)",
+      "Read(//disk/Projects/StageLab/**)",
+      "Bash(~/.pyenv/versions/3.11.9/bin/python /tmp/claude-1000/-disk-Projects-StageLab-cuems-utils/3908d88a-3c2a-4ea8-88ef-5e264e355f2a/scratchpad/probe_schema.py)",
+      "Bash(~/.pyenv/versions/3.11.9/bin/python /tmp/claude-1000/-disk-Projects-StageLab-cuems-utils/3908d88a-3c2a-4ea8-88ef-5e264e355f2a/scratchpad/probe_edge.py)",
+      "Bash(~/.pyenv/versions/3.11.9/bin/python -)"
     ]
   }
 }
