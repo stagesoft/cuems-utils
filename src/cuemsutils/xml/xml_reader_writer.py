@@ -8,8 +8,8 @@ from xmlschema import XMLSchema11
 
 from ..log import logged
 from .converter import CuemsConverter
+from .mapper import build_document
 from .Parsers import CuemsParser
-from .XmlBuilder import XmlBuilder
 
 
 @logged
@@ -28,6 +28,9 @@ class CuemsXml():
         # Decoding goes through the D5 converter, which preserves the
         # repeated-element shape the UI payload depends on (FR-014, C5).
         self.converter = CuemsConverter
+        # Retained unresolved: ``self.schema`` is the absolute .xsd path, and
+        # the engine keys its derivation and registry on the bare name.
+        self.schema_name = schema_name.removesuffix('.xsd')
         self.namespace = namespace
         self.schema = schema_name
         self.xmlfile = xmlfile
@@ -70,14 +73,21 @@ class XmlReaderWriter(CuemsXml):
         self.write_from_object(project_object)
 
     def build_xml_from_object(self, project_object):
-        """Build XML data from a project object"""
-        xml_data = XmlBuilder(
+        """Build XML data from a project object, via the schema-derived engine.
+
+        **The swap** (T047). Element order, cardinality and scalar conversion
+        now come from the XSD instead of from ``XmlBuilder``'s dict iteration
+        plus its hardcoded ``master_vol``/``opacity`` branch. The serializer is
+        untouched — stdlib ``ElementTree``, same declaration, same spelling —
+        because changing it would change every byte (R10).
+        """
+        return build_document(
             project_object,
+            schema_name=self.schema_name,
             namespace=self.namespace,
             xsd_path=self.schema,
-            xml_root_tag=self.xml_root_tag
-        ).build()
-        return xml_data
+            xml_root_tag=self.xml_root_tag,
+        )
 
     def write_from_object(self, project_object):
         """Write a project object to an XML file"""

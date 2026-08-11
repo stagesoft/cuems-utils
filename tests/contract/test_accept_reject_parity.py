@@ -68,6 +68,61 @@ def test_config_read_verdict_is_unchanged(doc):
     assert _verdict(rt.read_config_dict, doc) == record["config_read"]
 
 
+@pytest.mark.parametrize("doc", DOCUMENTS, ids=IDS)
+def test_write_verdict_is_unchanged_in_substance(doc):
+    """The write layer, asserted **live** rather than against the record.
+
+    This was the gap that let the exception-class change below go unnoticed:
+    ``test_config_documents_still_fail_to_write`` reads ``outcomes.json``, so it
+    checks the golden against itself and passes whatever the library does.
+
+    What FR-015 binds is the **verdict** — writable or not. The exception
+    *class* is deliberately not asserted here; see the test below, which pins
+    the one place it changed and says why.
+    """
+    record = OUTCOMES[doc.relpath]
+    if "write" not in record:
+        pytest.skip("document does not reach the write layer today")
+
+    obj = rt.read_objects(doc)
+    verdict = _verdict(rt.write_bytes, doc, obj)
+    assert verdict["ok"] == record["write"]["ok"]
+
+
+def test_config_documents_fail_to_write_with_a_changed_exception_class():
+    """A declared difference inside an already-failing path.
+
+    Config documents have never been writable — ``Settings`` and its subclasses
+    are read-only, and building XML from a settings dict has always raised. The
+    *verdict* is unchanged, which is what FR-015 binds.
+
+    The **class** changed. Pre-refactor, ``XmlBuilder`` crashed part-way
+    through construction with ``AttributeError`` (``'int' object has no
+    attribute 'items'``, ``'NoneType' object has no attribute 'tag'``, and three
+    other spellings depending on which key it reached first). The mapper builds
+    a complete tree and hands it to the schema, which rejects it with
+    ``XMLSchemaChildrenValidationError`` naming the offending element.
+
+    Recorded rather than smoothed over. It is a strictly better failure — an
+    error about the document instead of an error about the builder's internals
+    — and no consumer can be relying on it, because no consumer can write these
+    documents at all. Feature 006 makes them writable, at which point this test
+    is deleted rather than updated.
+    """
+    config_docs = [
+        d
+        for d in DOCUMENTS
+        if d.schema != "script" and OUTCOMES[d.relpath].get("write", {}).get("ok") is False
+    ]
+    assert config_docs, "no config document reaches the write layer"
+
+    for doc in config_docs:
+        assert OUTCOMES[doc.relpath]["write"]["error_type"] == "AttributeError"
+        verdict = _verdict(rt.write_bytes, doc, rt.read_objects(doc))
+        assert verdict["ok"] is False
+        assert verdict["error_type"] == "XMLSchemaChildrenValidationError"
+
+
 def test_the_deliberately_bad_document_still_fails():
     """The one negative case that was authored to fail, named explicitly.
 

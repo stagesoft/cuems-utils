@@ -5,8 +5,8 @@ import copy
 import pytest
 
 from cuemsutils.cues.FadeProfile import FadeFunctionParameter, FadeProfile
-from cuemsutils.xml.XmlBuilder import XmlBuilder
 from cuemsutils.xml.xml_reader_writer import get_pkg_schema
+from cuemsutils.xml.XmlBuilder import XmlBuilder
 from tests.test_xml import create_dummy_script
 
 NS = '{https://stagelab.coop/cuems/}'
