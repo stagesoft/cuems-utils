@@ -1,0 +1,476 @@
+{
+  "<generated>/create_script": {
+    "category": "generated",
+    "read": {
+      "ok": true
+    },
+    "schema": "script",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "ok": true
+    }
+  },
+  "cuems-common/network_map.xml": {
+    "category": "cuems-common",
+    "config_class": "NetworkMap",
+    "config_read": {
+      "error_head": "failed validating <Element '{https://stagelab.coop/cuems/}CuemsNetworkMap' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    },
+    "read": {
+      "error_head": "failed validating <Element '{https://stagelab.coop/cuems/}CuemsNetworkMap' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    },
+    "schema": "network_map",
+    "to_objects": {
+      "error_head": "failed validating <Element '{https://stagelab.coop/cuems/}CuemsNetworkMap' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    }
+  },
+  "cuems-editor/script_minimal.xml": {
+    "category": "cuems-editor",
+    "read": {
+      "ok": true
+    },
+    "schema": "script",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "ok": true
+    }
+  },
+  "cuems-engine/default_mappings.xml": {
+    "category": "cuems-engine",
+    "config_class": "ProjectMappings",
+    "config_read": {
+      "ok": true
+    },
+    "read": {
+      "ok": true
+    },
+    "schema": "project_mappings",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "error_head": "'int' object has no attribute 'items'",
+      "error_type": "AttributeError",
+      "ok": false
+    }
+  },
+  "cuems-engine/network_map.xml": {
+    "category": "cuems-engine",
+    "config_class": "NetworkMap",
+    "config_read": {
+      "ok": true
+    },
+    "read": {
+      "ok": true
+    },
+    "schema": "network_map",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "error_head": "'list' object has no attribute 'items'",
+      "error_type": "AttributeError",
+      "ok": false
+    }
+  },
+  "cuems-engine/outputs.xml": {
+    "category": "cuems-engine",
+    "read": {
+      "error_head": "\"the namespace 'https://stagelab.coop/cuems' is not loaded\"",
+      "error_type": "XMLSchemaKeyError",
+      "ok": false
+    },
+    "schema": "outputs",
+    "to_objects": {
+      "error_head": "\"the namespace 'https://stagelab.coop/cuems' is not loaded\"",
+      "error_type": "XMLSchemaKeyError",
+      "ok": false
+    }
+  },
+  "cuems-engine/project_mappings.xml": {
+    "category": "cuems-engine",
+    "config_class": "ProjectMappings",
+    "config_read": {
+      "ok": true
+    },
+    "read": {
+      "ok": true
+    },
+    "schema": "project_mappings",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "error_head": "'int' object has no attribute 'items'",
+      "error_type": "AttributeError",
+      "ok": false
+    }
+  },
+  "cuems-engine/project_settings.xml": {
+    "category": "cuems-engine",
+    "config_class": "ProjectSettings",
+    "config_read": {
+      "ok": true
+    },
+    "read": {
+      "ok": true
+    },
+    "schema": "project_settings",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "error_head": "'str' object has no attribute 'items'",
+      "error_type": "AttributeError",
+      "ok": false
+    }
+  },
+  "cuems-engine/projects/complex_test/project_mappings.xml": {
+    "category": "cuems-engine",
+    "config_class": "ProjectMappings",
+    "config_read": {
+      "error_head": "failed validating <Element 'output' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    },
+    "read": {
+      "error_head": "failed validating <Element 'output' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    },
+    "schema": "project_mappings",
+    "to_objects": {
+      "error_head": "failed validating <Element 'output' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    }
+  },
+  "cuems-engine/projects/complex_test/script.xml": {
+    "category": "cuems-engine",
+    "read": {
+      "ok": true
+    },
+    "schema": "script",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "ok": true
+    }
+  },
+  "cuems-engine/projects/empty_test/script.xml": {
+    "category": "cuems-engine",
+    "read": {
+      "ok": true
+    },
+    "schema": "script",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "ok": true
+    }
+  },
+  "cuems-engine/sample_audiocue.xml": {
+    "category": "cuems-engine",
+    "read": {
+      "error_head": "failed validating <Element 'AudioCue' at 0xADDR> with XMLSchema11(name='script.xsd', namespace='https://stagelab.coop/cuems/'):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
+    },
+    "schema": "script",
+    "to_objects": {
+      "error_head": "failed validating <Element 'AudioCue' at 0xADDR> with XMLSchema11(name='script.xsd', namespace='https://stagelab.coop/cuems/'):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
+    }
+  },
+  "cuems-engine/sample_cue.xml": {
+    "category": "cuems-engine",
+    "read": {
+      "error_head": "failed validating <Element 'Cue' at 0xADDR> with XMLSchema11(name='script.xsd', namespace='https://stagelab.coop/cuems/'):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
+    },
+    "schema": "script",
+    "to_objects": {
+      "error_head": "failed validating <Element 'Cue' at 0xADDR> with XMLSchema11(name='script.xsd', namespace='https://stagelab.coop/cuems/'):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
+    }
+  },
+  "cuems-engine/sample_cuelist.xml": {
+    "category": "cuems-engine",
+    "read": {
+      "error_head": "failed validating <Element 'CueList' at 0xADDR> with XMLSchema11(name='script.xsd', namespace='https://stagelab.coop/cuems/'):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
+    },
+    "schema": "script",
+    "to_objects": {
+      "error_head": "failed validating <Element 'CueList' at 0xADDR> with XMLSchema11(name='script.xsd', namespace='https://stagelab.coop/cuems/'):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
+    }
+  },
+  "cuems-engine/sample_dmxcue.xml": {
+    "category": "cuems-engine",
+    "read": {
+      "error_head": "failed validating <Element 'DmxCue' at 0xADDR> with XMLSchema11(name='script.xsd', namespace='https://stagelab.coop/cuems/'):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
+    },
+    "schema": "script",
+    "to_objects": {
+      "error_head": "failed validating <Element 'DmxCue' at 0xADDR> with XMLSchema11(name='script.xsd', namespace='https://stagelab.coop/cuems/'):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
+    }
+  },
+  "cuems-engine/sample_videocue.xml": {
+    "category": "cuems-engine",
+    "read": {
+      "error_head": "failed validating <Element 'VideoCue' at 0xADDR> with XMLSchema11(name='script.xsd', namespace='https://stagelab.coop/cuems/'):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
+    },
+    "schema": "script",
+    "to_objects": {
+      "error_head": "failed validating <Element 'VideoCue' at 0xADDR> with XMLSchema11(name='script.xsd', namespace='https://stagelab.coop/cuems/'):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
+    }
+  },
+  "cuems-engine/script_one_cue_in_a_cuelist.xml": {
+    "category": "cuems-engine",
+    "read": {
+      "error_head": "\"the namespace 'https://stagelab.coop/cuems' is not loaded\"",
+      "error_type": "XMLSchemaKeyError",
+      "ok": false
+    },
+    "schema": "script",
+    "to_objects": {
+      "error_head": "\"the namespace 'https://stagelab.coop/cuems' is not loaded\"",
+      "error_type": "XMLSchemaKeyError",
+      "ok": false
+    }
+  },
+  "cuems-engine/script_one_simple_cue.xml": {
+    "category": "cuems-engine",
+    "read": {
+      "error_head": "\"the namespace 'https://stagelab.coop/cuems' is not loaded\"",
+      "error_type": "XMLSchemaKeyError",
+      "ok": false
+    },
+    "schema": "script",
+    "to_objects": {
+      "error_head": "\"the namespace 'https://stagelab.coop/cuems' is not loaded\"",
+      "error_type": "XMLSchemaKeyError",
+      "ok": false
+    }
+  },
+  "cuems-engine/settings.xml": {
+    "category": "cuems-engine",
+    "config_class": "Settings",
+    "config_read": {
+      "ok": true
+    },
+    "read": {
+      "ok": true
+    },
+    "schema": "settings",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "error_head": "'NoneType' object has no attribute 'tag'",
+      "error_type": "AttributeError",
+      "ok": false
+    }
+  },
+  "cuems-utils/default_mappings.xml": {
+    "category": "cuems-utils",
+    "config_class": "ProjectMappings",
+    "config_read": {
+      "ok": true
+    },
+    "read": {
+      "ok": true
+    },
+    "schema": "project_mappings",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "error_head": "'int' object has no attribute 'items'",
+      "error_type": "AttributeError",
+      "ok": false
+    }
+  },
+  "cuems-utils/network_map.xml": {
+    "category": "cuems-utils",
+    "config_class": "NetworkMap",
+    "config_read": {
+      "ok": true
+    },
+    "read": {
+      "ok": true
+    },
+    "schema": "network_map",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "error_head": "'list' object has no attribute 'items'",
+      "error_type": "AttributeError",
+      "ok": false
+    }
+  },
+  "cuems-utils/outputs.xml": {
+    "category": "cuems-utils",
+    "read": {
+      "ok": true
+    },
+    "schema": "outputs",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "error_head": "'list' object has no attribute 'items'",
+      "error_type": "AttributeError",
+      "ok": false
+    }
+  },
+  "cuems-utils/project_mappings.xml": {
+    "category": "cuems-utils",
+    "config_class": "ProjectMappings",
+    "config_read": {
+      "ok": true
+    },
+    "read": {
+      "ok": true
+    },
+    "schema": "project_mappings",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "error_head": "'int' object has no attribute 'items'",
+      "error_type": "AttributeError",
+      "ok": false
+    }
+  },
+  "cuems-utils/settings.xml": {
+    "category": "cuems-utils",
+    "config_class": "Settings",
+    "config_read": {
+      "ok": true
+    },
+    "read": {
+      "ok": true
+    },
+    "schema": "settings",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "error_head": "'NoneType' object has no attribute 'tag'",
+      "error_type": "AttributeError",
+      "ok": false
+    }
+  },
+  "legacy/script_complex_test-engine-e6fc6c9.xml": {
+    "category": "legacy",
+    "read": {
+      "ok": true
+    },
+    "schema": "script",
+    "to_objects": {
+      "error_head": "output_name 'VideoOut1' does not match alias '<uuid>_<int>' or custom '<uuid>_custom_<int>' shape",
+      "error_type": "ValueError",
+      "ok": false
+    }
+  },
+  "legacy/script_complex_test-engine-e7215ae.xml": {
+    "category": "legacy",
+    "read": {
+      "ok": true
+    },
+    "schema": "script",
+    "to_objects": {
+      "error_head": "output_name 'VideoOut1' does not match alias '<uuid>_<int>' or custom '<uuid>_custom_<int>' shape",
+      "error_type": "ValueError",
+      "ok": false
+    }
+  },
+  "negative/settings-utils-v0.1.0rc2.xml": {
+    "category": "negative",
+    "config_class": "Settings",
+    "config_read": {
+      "error_head": "failed validating <Element 'node' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    },
+    "read": {
+      "error_head": "failed validating <Element 'node' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    },
+    "schema": "settings",
+    "to_objects": {
+      "error_head": "failed validating <Element 'node' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    }
+  },
+  "negative/settings-utils-v0.1.0rc7.xml": {
+    "category": "negative",
+    "config_class": "Settings",
+    "config_read": {
+      "error_head": "failed validating <Element 'node' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    },
+    "read": {
+      "error_head": "failed validating <Element 'node' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    },
+    "schema": "settings",
+    "to_objects": {
+      "error_head": "failed validating <Element 'node' at 0xADDR> with Xsd11Group(model='sequence', occurs=[1, 1]):",
+      "error_type": "XMLSchemaChildrenValidationError",
+      "ok": false
+    }
+  },
+  "negative/settings_bad_dmx_auto.xml": {
+    "category": "negative",
+    "config_class": "Settings",
+    "config_read": {
+      "error_head": "failed validating 'auto' with XsdAtomicBuiltin(name='xs:nonNegativeInteger'):",
+      "error_type": "XMLSchemaDecodeError",
+      "ok": false
+    },
+    "read": {
+      "error_head": "failed validating 'auto' with XsdAtomicBuiltin(name='xs:nonNegativeInteger'):",
+      "error_type": "XMLSchemaDecodeError",
+      "ok": false
+    },
+    "schema": "settings",
+    "to_objects": {
+      "error_head": "failed validating 'auto' with XsdAtomicBuiltin(name='xs:nonNegativeInteger'):",
+      "error_type": "XMLSchemaDecodeError",
+      "ok": false
+    }
+  }
+}

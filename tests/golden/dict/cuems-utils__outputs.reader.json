@@ -1,0 +1,1 @@
+{"video_outputs": [{"output": "0"}, {"output": "1"}], "default_video_output": "0", "audio_outputs": [{"output": "system:playback_1"}, {"output": "system:playback_2"}], "default_audio_output": "system:playback_1", "{http://www.w3.org/2001/XMLSchema-instance}schemaLocation": "https://stagelab.coop/cuems/ ../cuems/outputs.xsd"}

@@ -1,0 +1,117 @@
+{
+  "__all__": [
+    "NetworkMap",
+    "ProjectMappings",
+    "ProjectSettings",
+    "Settings",
+    "XmlReaderWriter"
+  ],
+  "symbols": {
+    "NetworkMap": {
+      "bases": [
+        "Settings"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, xmlfile, schema_name='network_map', **kwargs)",
+        "backup": "(self)",
+        "build_xml_from_object": "(self, project_object)",
+        "buildxml": "(self, xml_tree, d)",
+        "data2xml": "(self, obj)",
+        "get_dict": "(self) -> dict[str, typing.Any]",
+        "get_node": "(self, uuid)",
+        "get_nodes_by_adoption": "(network_map_dict: dict[str, typing.Any]) -> tuple[list[dict[str, typing.Any]], list[dict[str, typing.Any]]]",
+        "read": "(self) -> None",
+        "read_to_objects": "(self)",
+        "validate": "(self)",
+        "validate_object": "(self, project_object)",
+        "write": "(self, xml_data: xml.etree.ElementTree.ElementTree)",
+        "write_from_dict": "(self, project_dict)",
+        "write_from_object": "(self, project_object)"
+      }
+    },
+    "ProjectMappings": {
+      "bases": [
+        "Settings"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, xmlfile, schema_name='project_mappings', **kwargs)",
+        "backup": "(self)",
+        "build_xml_from_object": "(self, project_object)",
+        "buildxml": "(self, xml_tree, d)",
+        "data2xml": "(self, obj)",
+        "get_dict": "(self) -> dict[str, typing.Any]",
+        "get_node": "(self, uuid)",
+        "process_network_mappings": "(self, mappings)",
+        "process_xml_dict": "(self)",
+        "read": "(self) -> None",
+        "read_to_objects": "(self)",
+        "validate": "(self)",
+        "validate_object": "(self, project_object)",
+        "write": "(self, xml_data: xml.etree.ElementTree.ElementTree)",
+        "write_from_dict": "(self, project_dict)",
+        "write_from_object": "(self, project_object)"
+      }
+    },
+    "ProjectSettings": {
+      "bases": [
+        "Settings"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, xmlfile, schema_name='project_settings', **kwargs)",
+        "backup": "(self)",
+        "build_xml_from_object": "(self, project_object)",
+        "buildxml": "(self, xml_tree, d)",
+        "data2xml": "(self, obj)",
+        "get_dict": "(self) -> dict[str, typing.Any]",
+        "read": "(self) -> None",
+        "read_to_objects": "(self)",
+        "validate": "(self)",
+        "validate_object": "(self, project_object)",
+        "write": "(self, xml_data: xml.etree.ElementTree.ElementTree)",
+        "write_from_dict": "(self, project_dict)",
+        "write_from_object": "(self, project_object)"
+      }
+    },
+    "Settings": {
+      "bases": [
+        "XmlReaderWriter"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, xmlfile, schema_name='settings', **kwargs)",
+        "backup": "(self)",
+        "build_xml_from_object": "(self, project_object)",
+        "buildxml": "(self, xml_tree, d)",
+        "data2xml": "(self, obj)",
+        "get_dict": "(self) -> dict[str, typing.Any]",
+        "read": "(self) -> None",
+        "read_to_objects": "(self)",
+        "validate": "(self)",
+        "validate_object": "(self, project_object)",
+        "write": "(self, xml_data: xml.etree.ElementTree.ElementTree)",
+        "write_from_dict": "(self, project_dict)",
+        "write_from_object": "(self, project_object)"
+      }
+    },
+    "XmlReaderWriter": {
+      "bases": [
+        "CuemsXml"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, schema_name, xmlfile, namespace={'cms': 'https://stagelab.coop/cuems/'}, xml_root_tag='CuemsProject')",
+        "build_xml_from_object": "(self, project_object)",
+        "read": "(self, **kwargs)",
+        "read_to_objects": "(self)",
+        "validate": "(self)",
+        "validate_object": "(self, project_object)",
+        "write": "(self, xml_data: xml.etree.ElementTree.ElementTree)",
+        "write_from_dict": "(self, project_dict)",
+        "write_from_object": "(self, project_object)"
+      }
+    }
+  }
+}

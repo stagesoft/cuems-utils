@@ -47,14 +47,26 @@ The ordered field set for one complex type.
 if spec.ordered:                      # xs:sequence / xs:choice
     emit in FieldSpec.order            # schema declaration order — authoritative
 else:                                  # xs:all — schema declares order irrelevant
-    emit in sorted(name) order         # documented deterministic tie-break
+    emit in arrival order              # source document order, or model key order
 ```
 
 Both branches are schema-driven: the second honours the schema's statement that no order
-is imposed. The tie-break is chosen to reproduce current bytes exactly.
+is imposed. Arrival order is chosen to reproduce current bytes exactly.
 
 **Affected types (exhaustive, measured)**: `CuemsScript` (anonymous root) and
 `DmxSceneType`. Every other type in all six schemas is ordered.
+
+> **Corrected 2026-08-11 (T010) — this branch said `sorted(name)` until the goldens
+> disagreed.** Research R2 measured `cuems-editor/script_minimal.xml`, saw an alphabetical
+> root, and concluded the current code sorts. It does not: `CuemsScriptXmlBuilder.build`
+> iterates `self._object.items()`, so it emits in **insertion order**, which for a loaded
+> document is the source document's order. `script_minimal.xml` looks sorted only because
+> it was written from a freshly-built object and `REQ_ITEMS` is maintained alphabetically.
+> Two of the four captured `xs:all` goldens are **not** sorted
+> (`complex_test/script.xml`, `empty_test/script.xml`, both `id, name, description,
+> created, modified, ui_properties, CueList`), so a sorted tie-break would rewrite the root
+> of every hand-authored script — precisely the regression R2 existed to prevent. See spec
+> **FR-001b**.
 
 This is the requirement that deletes the `master_vol`/`fade_profiles` hack (FR-002): with
 `AudioCueType.ordered == True`, `master_vol` precedes `fade_profiles` because

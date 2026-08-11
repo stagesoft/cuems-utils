@@ -142,10 +142,19 @@ Ordering follows FR-001's two schema-driven branches:
 
 - **ordered** content models (`xs:sequence`, `xs:choice`) emit in declaration order;
 - **order-free** (`xs:all`) models — `CuemsScript` and `DmxSceneType`, the only two across
-  all six schemas — emit in sorted-key order, matching today's bytes, because their schema
-  declares order irrelevant.
+  all six schemas — emit in **arrival order** (the source document's order when loaded,
+  the model's key order when built), matching today's bytes, because their schema declares
+  order irrelevant.
 
-Sorted-key ordering appearing anywhere outside that second branch is a defect (FR-001a).
+Dictionary-order emission appearing anywhere outside that second branch is a defect
+(FR-001a).
+
+**Corrected 2026-08-11 at T010 — this contract said "sorted-key order".** The captured
+goldens show two of the four `xs:all` roots are not sorted; today's builder iterates the
+object's items, so it preserves insertion order rather than sorting. Asserting sorted order
+here would have made C1 fail on `complex_test/script.xml` and `empty_test/script.xml` after
+the swap — the goldens caught the design error before a line of engine code existed, which
+is what the phase ordering is for. See spec **FR-001b**.
 
 ---
 

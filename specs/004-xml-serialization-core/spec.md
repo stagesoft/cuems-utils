@@ -265,9 +265,10 @@ targeted failure naming that class and field; remove it and the suite is green a
   - **Ordered content models** (`xs:sequence`, `xs:choice`) — emit in the schema's
     **declaration order**. Authoritative.
   - **Order-free content models** (`xs:all`) — the schema explicitly declares that no
-    order is imposed, so there is no declaration order to honour. The engine applies one
-    **documented deterministic tie-break: sorted keys**, which is what the current code
-    produces and therefore preserves the output bytes.
+    order is imposed, so there is no declaration order to honour. The engine **preserves
+    the order the fields arrived in**: for a loaded document, the order of the source
+    document; for an object built in Python, the order of the model's own keys. This is
+    what the current code produces and therefore preserves the output bytes.
 
   Honouring the schema includes honouring its statement that order is unconstrained.
   Imposing declaration order on an order-free model would be a behaviour change, not
@@ -275,9 +276,37 @@ targeted failure naming that class and field; remove it and the suite is green a
   Exactly two types are affected across all six schemas — the anonymous `CuemsScript` root
   type and `DmxSceneType`.
 - **FR-001a**: No serialization path may determine element order from dictionary iteration
-  order or from any hand-maintained ordering list. Alphabetical sorting is permitted
-  **only** as the declared tie-break for order-free content models under FR-001, and is
-  forbidden for ordered ones.
+  order **for ordered content models**, and none may use a hand-maintained ordering list.
+  For order-free (`xs:all`) models, arrival order **is** the declared rule under FR-001,
+  and it is the only place dictionary order may reach the output.
+
+  **FR-001b — correction of 2026-08-11, measured at T010 (supersedes the sorted-key
+  tie-break).** FR-001 and `data-model.md` §2.1 previously specified **sorted keys** as
+  the `xs:all` tie-break, on research R2's finding that `cuems-editor`'s
+  `script_minimal.xml` emits its root alphabetically. The goldens captured from unmodified
+  code show that finding was true but not general:
+
+  | Golden | `CuemsScript` root order | Sorted? |
+  |---|---|---|
+  | `cuems-editor/script_minimal.xml` | `CueList, created, description, id, modified, name, ui_properties` | ✅ |
+  | `create_script.py` (generated) | `CueList, created, description, id, modified, name, ui_properties` | ✅ |
+  | `cuems-engine/projects/complex_test/script.xml` | `id, name, description, created, modified, ui_properties, CueList` | ❌ |
+  | `cuems-engine/projects/empty_test/script.xml` | `id, name, description, created, modified, ui_properties, CueList` | ❌ |
+
+  `CuemsScriptXmlBuilder.build` iterates `self._object.items()`, so the emitted order is
+  the object's **key insertion order** — which for a loaded document is the *source
+  document's* order. The two alphabetical cases are alphabetical because their inputs
+  already were: `script_minimal.xml` was written from a freshly-built object, and
+  `REQ_ITEMS` happens to be maintained in alphabetical order.
+
+  R2 measured only library-written files and generalised from them. Adopting a sorted
+  tie-break would therefore **rewrite the root element of every hand-authored script**,
+  which is the exact failure R2 set out to prevent — relocated, not avoided. Arrival order
+  is the rule that reproduces all four goldens.
+
+  This does not weaken FR-002. The `master_vol`/`fade_profiles` hack is inside
+  `MediaCueType`, an `xs:sequence` type, which takes the declaration-order branch; nothing
+  about the `xs:all` branch keeps that hack alive.
 - **FR-002**: The hardcoded `master_vol` / `fade_profiles` (and `opacity` on video cues)
   ordering exception MUST NOT exist anywhere in the engine — not relocated to another
   module, not re-expressed as a data table. Ordering comes from the schema alone.
