@@ -356,8 +356,32 @@ BEHAVIOUR CHANGES — intentional:
 2. The schemaLocation key is dropped from the wire dict. Confirm nothing reads it.
 3. The eight hand-written __json__ methods are replaced by the derived projection, and
    to_json gains its missing inverse from_json.
+4. The written xsi:schemaLocation changes from an absolute filesystem path to a RELATIVE
+   one. Today the builder writes the installed package's absolute path to the .xsd, so
+   every show file carries the writing machine's local layout and is neither portable nor
+   reproducible (finding F24). This is our own code, one line; the schema toolchain
+   neither writes nor reads the value. Verified: documents validate and load with the path
+   absolute, relative, or the attribute absent, so files already on disk are unaffected.
+   Ship it together with change 2 so the wire format moves once, not twice.
 
-EXPLICITLY OUT OF SCOPE: node model migration, consumer repository edits, .xsd changes.
+ALSO DELIVER — the schema evolution convention. Adopt and document it in this feature; it
+governs every schema change from here on:
+
+  a. An element added to an EXISTING complex type MUST be declared minOccurs="0".
+  b. It MUST carry a default supplied by the model layer (REQ_ITEMS), so a document that
+     omits it loads to the same object a document that includes it would.
+  c. Required elements may only appear in NEW types, never be added to existing ones.
+  d. If a genuinely required addition to an existing type is unavoidable, it is a
+     file-format migration — a documented, versioned event with a conversion path — never
+     a silent schema edit.
+
+Rationale, measured: settings.xsd:63 added gradient_osc_port without minOccurs="0", so
+every settings file written before it stopped validating (X13). The sibling element
+output_latency_ms was added WITH minOccurs="0" and stranded nothing. The practice is
+inconsistent rather than absent; this convention makes the working half the rule.
+
+EXPLICITLY OUT OF SCOPE: node model migration, consumer repository edits, .xsd changes —
+the convention above is adopted and documented here, but applies to future schema work.
 ```
 
 ### 5.2 Through implement
@@ -410,8 +434,38 @@ green.
 
 ## 6. Feature 007 — node model migration
 
-**Gated on `cuems-nodeconf`'s `feat/nodeconf-reenable` landing on `main`.** Confirm before
-starting.
+**Works from `cuems-nodeconf`'s `feat/nodeconf-reenable` branch. That branch does NOT need
+to land on `main` first.** This inverts the earlier gating, and the reason is feature 004.
+
+004 replaces the implicit `globals()` handler lookup with an explicit registry (FR-007).
+`cuems-nodeconf` registers its node handlers by writing into those module globals
+(`NodeXmlBuilders.py:96-99`), so that injection stops being consulted — no shim can
+preserve it without keeping the very lookup 004 exists to delete. 004 therefore declares it
+as its **one** breaking change (spec FR-026d, contract C11, tasks T031a/T031b/T049a), but
+edits no repository other than `cuems-utils`.
+
+**This feature carries the fix for that break.** 004 declares, flags and tests it, but
+deliberately edits no repository other than `cuems-utils` — the fix has to target an API
+that is internal in 004, becomes public in 006, and absorbs the node model here in 007, so
+writing it earlier would produce work rewritten twice. Since `cuems-nodeconf` is not
+shipping against 004's release, deferring costs nothing. This is FR-030b's scheduling
+clause, and 007 is the named carrier.
+
+Consequences for this feature:
+
+- **It inherits a known-broken starting point, by design.** On `feat/nodeconf-reenable`,
+  node serialization does not work against `cuemsutils` ≥ the 004 release: the injected
+  handlers are silently not consulted. Fixing that is not incidental cleanup — it is a
+  named deliverable of this feature, and the first thing to verify before migrating.
+- **Waiting for the branch to land on `main` would be circular**: it cannot land cleanly on
+  a `main` that still assumes the injection works, and the injection is what 004 removed.
+  Work from the branch; merge it as part of this feature's exit.
+- **The registration API question is already answered.** The prompt below says "no
+  registration API exists for external builder/parser classes, because no external
+  registrant remains" — as of 004 there is no registrant *mechanism* either. This feature
+  removes the last registrant; it does not have to remove the mechanism.
+- 004's `migration-map.md` is the input inventory for the node symbols, and its FR-026d
+  entry is the specification of what has to be repaired.
 
 ```
 /speckit.specify <PASTE SHARED CONTEXT BLOCK>
@@ -437,6 +491,10 @@ WHAT MUST BE TRUE WHEN DONE:
   registrant remains.
 - The node-field coercion guard already shipped to cuems-nodeconf (commits 4b6844e and
   0a3ce37) migrates with the parser, with its 106-case regression test.
+- The FR-026d breaking change declared by feature 004 is repaired here: cuems-nodeconf no
+  longer injects handler classes into cuemsutils module globals, because the node handlers
+  now live in cuemsutils and are bound in the registry like every other type. Feature 004's
+  migration-map.md entry for FR-026d specifies what was broken; this feature closes it.
 
 DO NOT CHANGE the node_type wire format. It is currently the string "NodeType.<name>",
 which originated as a str()/__repr__ mixup but is now a cross-repo contract with
@@ -457,7 +515,9 @@ Follow specs/planning/xml-rebuild-02-node-model-ownership.md sections 4 and 7.
 
 Technical context:
 - Source files: cuems-nodeconf cuemsnodeconf/CuemsNode.py (~110 LOC) and
-  cuemsnodeconf/NodeXmlBuilders.py (~90 LOC), on main after feat/nodeconf-reenable lands.
+  cuemsnodeconf/NodeXmlBuilders.py (~90 LOC), read from the feat/nodeconf-reenable branch,
+  which already carries feature 004's fix for the removed globals injection (FR-026d).
+  Do not read them from main; main predates that fix.
 - NodeType is currently defined twice inside cuems-nodeconf (CuemsNode.py and
   AvahiTool.py). Consolidate to one definition here.
 - network_map.xsd types node_type as NonEmptyString, so the enum vocabulary is not in the
@@ -485,7 +545,11 @@ format proven unchanged by round-trip test.
 ```
 
 **Exit criteria:** node model in `cuemsutils`; `network_map` round-trips through the
-derived engine; `node_type` wire format proven unchanged; coercion regression test ported.
+derived engine; `node_type` wire format proven unchanged; coercion regression test ported;
+**feature 004's FR-026d breaking change closed** — no module-globals injection remains and
+node serialization works again; and `feat/nodeconf-reenable` merged to `cuems-nodeconf`'s
+`main` **as part of this feature**, since by then nothing in it depends on the removed
+injection.
 
 ---
 
@@ -593,4 +657,13 @@ Validates completion against the spec.
 4. Commits are GPG-signed. Retry on "gpg failed to sign"; never `--no-gpg-sign`.
 5. Planning artifacts stay in `specs/planning/`; feature artifacts in `specs/NNN-*/`.
 6. No `.xsd` edits in any of these features. Schema work is deferred under D3 and tracked
-   as X1–X12 in the audit.
+   as X1–X13 in the audit.
+7. **Schema evolution convention** (adopted in feature 006, binds all later schema work):
+   an element added to an **existing** complex type is `minOccurs="0"` with a model-layer
+   default; required elements appear only in **new** types; anything else is a versioned
+   file-format migration with a conversion path, never a silent edit. Measured precedent:
+   `gradient_osc_port` broke every older settings file, `output_latency_ms` broke none.
+8. **Compatibility is defined against the current XSD configuration**, not against file
+   history. A document valid under today's schemas must load; one that no longer validates
+   because the schema evolved is out of scope by policy. Reading must never become
+   stricter than the pre-refactor parser.

@@ -57,6 +57,43 @@ story 2's narrative, independent test and scenario 5 realigned with the shim and
 decisions; F11 removed from the deferred-fixes table; success criteria renumbered into
 monotonic order.
 
+**Iteration 3 — after `/speckit.analyze` (2026-08-11)**
+
+The two consistency claims above did not survive the analyze pass, and are corrected
+rather than erased:
+
+- **"No duplicate requirement identifiers" was false.** `FR-023` (no `.xsd` edits) and
+  `FR-023a`–`FR-023d` (read compatibility) were unrelated requirements sharing a stem,
+  against the spec's own convention that a letter suffix extends its base. Renumbered to
+  **FR-035 / FR-035a–d**, with citations updated in `tasks.md` and `byte-identity.md`.
+- **"Success criteria in monotonic order" was false.** SC-016 sat between SC-013 and
+  SC-014. Reordered.
+
+Findings that required real decisions rather than editorial fixes:
+
+- **FR-012 asserted a measured falsehood.** It kept the original `save(load(x)) == x`
+  wording after research R10 disproved it and SC-003 was corrected. Restated to match
+  SC-003 and contract C3.
+- **SC-PERF-001 was unsatisfiable alongside SC-TEST-002.** A 10% wall-time budget cannot
+  bind a suite the feature is required to grow by ~30 corpus documents across 14 new test
+  files. Split into: write benchmark (10%), pre-existing 557 tests as a subset (10%), and
+  the new corpus suite (absolute budget, fixed before any engine work exists).
+- **`CuemsParser` was simultaneously deprecated and the live entry point.** Resolved by
+  research: it is already library-internal, and it is `cuems-editor`'s primary JSON→object
+  path at five call sites. It becomes a non-warning delegating facade.
+- **One breaking change accepted, `cuems-nodeconf`'s F8 globals injection (FR-026d).**
+  No shim can preserve it without keeping the implicit lookup FR-007 deletes. Declared,
+  asserted by the new contract **C11**. The fix is **carried by feature 007** rather than
+  by 004 (FR-030b gained a narrow scheduling clause), because it must target an API that is
+  internal in 004, public in 006 and absorbing the node model in 007 — so 004 declares,
+  flags and tests the break while editing no repository but this one.
+  `feat/nodeconf-reenable` now feeds feature 007 rather than gating it. Assumption 3's "no
+  consumer breaks" therefore carries one named exception from this iteration onward.
+
+Coverage gaps closed: SC-010 (type-coercion cases on the live paths) → T036a; FR-024
+(public API surface) → T019a/SC-018; FR-035c (`schemaLocation` form matrix) →
+T066b/SC-019; the FR-026d break itself → T049a/SC-017.
+
 **Iteration 1 findings and resolutions**
 
 - *"No implementation details"* — this is a refactor of internal machinery, so the spec
