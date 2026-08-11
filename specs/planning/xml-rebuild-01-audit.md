@@ -592,6 +592,35 @@ Defects found, **all deferred**:
 | X11 | `outputs.xsd` is **never loaded**. No `get_pkg_schema('outputs')` call exists in this repo or any sibling; output types are defined inline in `script.xsd` instead. | **Not dead — an open end.** Per review: outputs is an unfinished concept that must be accounted for in the target structure rather than deleted. See D13. |
 | X12 | `regions` is likewise unfinished. `RegionsType`/`RegionType` exist in `script.xsd` [183-206](../../src/cuemsutils/xml/schemas/script.xsd#L195-L206), `Region` exists in `cues/MediaCue.py:22`, `regionsParser` is **commented out** [Parsers.py:299-311](../../src/cuemsutils/xml/Parsers.py#L299-L311), and `mediaParser` unwraps regions by hand [Parsers.py:270-277](../../src/cuemsutils/xml/Parsers.py#L270-L277). | Same disposition as X11 — account for it in the target structure. See D13 and F12. |
 
+### Added by feature 004 (2026-08-11) — measured during implementation
+
+Five further schema-level findings, all **recorded and deferred** under D3. Each was found
+by measurement against the frozen corpus rather than by reading the schemas.
+
+| # | Finding | Impact if fixed later |
+|---|---------|-----------------------|
+| X13 | `gradient_osc_port` was added to `NodeConfType` in `settings.xsd` as **required** (no `minOccurs="0"`) in 0.1.0rc8. Every settings file written before it became invalid — including the ones this project itself shipped at `v0.1.0rc2` and `v0.1.0rc7`, both vendored under `tests/data/corpus/negative/`. | One-attribute fix (`minOccurs="0"` plus a default), but it changes what the library **accepts**, so it is a behaviour change. Scheduled under the schema-evolution convention adopted in feature 006 — `specs/planning/xml-rebuild-07-speckit-prompts.md` §5.1 and §9 rules 7–8, whose whole point is that a new required element is a breaking schema change. Two shipped releases are the evidence that convention is worth having. |
+| X14 | **`outputs.xsd` declares an `OutputsType` that collides with `script.xsd`'s** — same namespace, same name, different content (`output` vs `AudioCueOutput, VideoCueOutput, DmxCueOutput`). Research R4. | The two cannot coexist in one namespace-aware schema object, which is the structural half of why X11 was never loadable. Feature 004 routes around it with per-schema registries and no XSD edit. A rename or re-namespacing is required before outputs is ever completed. |
+| X15 | **The only `outputs.xml` in existence has a namespace typo.** `cuems-engine/dev/test_xml_files/outputs.xml` declares `https://stagelab.coop/cuems` — no trailing slash — against a `targetNamespace` of `https://stagelab.coop/cuems/`, so it fails with `the namespace … is not loaded`. | A second, **independent** reason nothing has ever validated against `outputs.xsd`, and it is in the instance rather than the schema. Feature 004 vendors a namespace-corrected copy so the sixth schema has a loadable instance at all (`tests/data/corpus/cuems-utils/outputs.xml`); the original stays vendored with its rejection pinned. Fixing the engine's file is a sibling-repo edit, deferred. |
+| X16 | `DmxUniverseType` declares an **attribute and an element both named `universe_num`**. With the converter's `attr_prefix=''` the decoded dict key is ambiguous between the two. Research R7. | Disambiguating with a prefix is a wire change. Preserved as-is by 004; the DMX corpus goldens are the arbiter. |
+| X17 | **`MediaCueType` does not declare `fade_profiles`**; `AudioCueType` and `VideoCueType` each declare it separately. The Python `MediaCue` class declared it on the base, so the two disagreed. | Found by the coherence test (FR-020) on its **first run** — the drift class that test exists for. Resolved in 004 on the **Python** side per T059 (the field moved to `AudioCue` and `VideoCue`), never by editing the XSD. Whether the schema should hoist it into `MediaCueType` is a separate question, deferred. |
+
+Two further findings are recorded outside the X-series because they are code, not schema:
+
+- **F24 — the written `xsi:schemaLocation` embeds the writing machine's absolute path** to
+  the bundled `.xsd`, so documents are not portable and goldens are machine-dependent.
+  Normalized for comparison only in 004 (FR-010b); the relative-path fix belongs to feature
+  006. `tests/contract/test_legacy_compatibility.py` supplies the evidence that change is
+  safe on the read side, by loading all three attribute forms — absolute, relative, absent —
+  and asserting equal results (FR-035c, SC-019).
+- **`mediaParser` has never been reached.** It exists at `Parsers.py:258`, and the lookup
+  builds `'Media' + 'Parser'` = `MediaParser` while the class is spelled `mediaParser`.
+  Thirteen hits across the corpus, no error, no log line. The same case-mangling failure
+  hides `UI_properties` behind the lowercase `ui_properties` tag, and leaves `regions` as
+  raw `{'Region': …}` wrappers (X12's practical consequence). All three are preserved by
+  004 — binding them would start running code that has never run — and belong to feature
+  005. Measured in `specs/004-xml-serialization-core/generic-bindings.md`.
+
 #### Correction to X6
 
 The audit originally read the commented-out `xs:all` block at

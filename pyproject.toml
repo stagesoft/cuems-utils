@@ -118,6 +118,22 @@ exclude_lines = [
 testpaths = ["tests"]
 markers = [
   "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+  "expects_deprecation: exercises a deprecated shim on purpose (feature 004)",
+]
+# Scoped to one warning class and one module, deliberately.
+#
+# `tests/test_name_coercion.py` is the frozen-shim regression for
+# `CuemsParser.str_to_value`, which feature 004 deprecated. It calls the
+# heuristic ~40 times by design, so it emits ~40 DeprecationWarnings that mean
+# nothing is wrong.
+#
+# A global `ignore::DeprecationWarning` would be the easy fix and would also
+# hide the warnings that contracts C8 and C9 depend on -- C8 proves the library
+# no longer calls its own deprecated code by counting exactly these records.
+# Silencing them globally would make that test pass unconditionally.
+filterwarnings = [
+  "default",
+  "ignore:.*str_to_value.*:DeprecationWarning:tests.test_name_coercion",
 ]
 
 [tool.ruff]

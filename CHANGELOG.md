@@ -70,19 +70,60 @@ records are explicitly outside that guarantee.
 - No record at any level carries a field value or an object repr. As a side effect, show
   content — cue names, file paths — no longer appears in log files.
 
+### Fixed
+
+- `MediaCue` declared `fade_profiles` in `REQ_ITEMS` while `script.xsd` declares it on
+  `AudioCueType` and `VideoCueType` — the two concrete types — and not on `MediaCueType`.
+  The field moved to `AudioCue` and `VideoCue` to match. No document changes: both
+  subclasses inherited it and both schema types have it, so the base class was simply
+  claiming a field its own schema type does not define. Found by the new coherence check on
+  its first run.
+
+### Performance
+
+The engine is **faster** than the code it replaces, measured best-of-5 on a fixed machine
+and interpreter (`specs/004-xml-serialization-core/baseline.md`):
+
+| | Before | After |
+|---|---|---|
+| `validate_object`, dummy script | 0.00627 s | **0.00555 s** (−11%) |
+| `validate_object`, with fade profiles | 0.00653 s | **0.00595 s** (−9%) |
+| Pre-existing 561 tests | 19.72 s | 19.66 s |
+
+Deriving a field specification once per type and reusing it beats re-deciding per object.
+Derivation is bounded by the 56 distinct complex types across all six schemas and does not
+grow with document size — asserted by a counter, not a clock, so it holds on show files
+larger than anything in the test corpus.
+
+### Testing
+
+The suite grows from **561** to **1255** tests. The additions are the deliverable as much
+as the engine is: a 28-document corpus vendored from all four repositories with recorded
+provenance, byte-level goldens for XML and for both read-dict configurations, and a
+`xml → object → json → object → xml` chain test that compares **every** intermediate rather
+than only the endpoints.
+
+The goldens were captured from unmodified code and committed before any machinery moved.
+They have one commit each and have never been edited.
+
 ### Notes
 
 - Element order for order-free (`xs:all`) content models is derived as **arrival order**,
   which is what the current builder produces. An earlier draft specified sorted keys; the
   goldens showed that two of four captured `CuemsScript` roots are not sorted, so a sorted
   rule would have rewritten the root element of every hand-authored script. See FR-001b.
-- Two schema defects are recorded and deferred, not fixed: `outputs.xsd` declares an
-  `OutputsType` that collides with `script.xsd`'s, and the only `outputs.xml` in existence
-  has a namespace missing its trailing slash — between them, nothing has ever validated
-  against `outputs.xsd`.
+- Five schema defects and two code defects are recorded and deferred, not fixed — see
+  `specs/planning/xml-rebuild-01-audit.md` §6, X13–X17. The two worth knowing about:
+  `outputs.xsd` declares an `OutputsType` that collides with `script.xsd`'s, **and** the
+  only `outputs.xml` in existence has a namespace missing its trailing slash. Between them,
+  nothing has ever validated against `outputs.xsd`.
 - `gradient_osc_port` was added to `NodeType` as *required* in 0.1.0rc8, which invalidated
   every settings file written before it — including two this project shipped. Recorded as
   X13; the fix is scheduled under feature 006's schema-evolution convention.
+- `mediaParser` has never been reached: the handler lookup builds `'Media' + 'Parser'`
+  while the class is spelled `mediaParser`. Thirteen occurrences across the corpus, no
+  error, no log line. Preserved unchanged here — binding it would start running code that
+  has never run — and scheduled for feature 005.
 
 ## 0.1.0rc11 — 2026-07-28
 

@@ -204,6 +204,69 @@ That limit is stated rather than papered over — SC-PERF-002's derivation-count
 
 ---
 
+## 5. T063 — validation after the swap
+
+Measured on the same machine and interpreter, best-of-5, with the whole feature landed.
+
+| Budget | Baseline | Measured | Budget | Verdict |
+|---|---|---|---|---|
+| Write benchmark, wall time | 1.18 s | **1.10 s** | ≤ 1.30 s | ✅ **6% faster** |
+| `validate_object` median, base | 0.00627 s | **0.00555 s** | ≤ 0.00690 s | ✅ **11% faster** |
+| `validate_object` median, fades | 0.00653 s | **0.00595 s** | ≤ 0.00718 s | ✅ **9% faster** |
+| Pre-existing 561, as a subset | 19.72 s | **19.66 s** | ≤ 21.7 s | ✅ unchanged |
+| New corpus suite | 16.09 s | **26.34 s** | ≤ 20.0 s | ❌ **breached** |
+
+The engine is **faster** than the code it replaced on every budget that measures the
+library. Deriving a spec once per type and reusing it beats re-deciding per object, which
+is what the memo was for; that it also shows up as a 9–11% win was not a goal.
+
+### The breached budget, and what it does and does not mean
+
+The new corpus suite is **26.34 s against a 20.0 s budget — over by 32%**. Recorded as a
+breach rather than adjusted away, because a budget quietly raised to fit the measurement is
+not a budget.
+
+What actually happened is **growth, not slowdown**:
+
+| | At T020 | Now | Change |
+|---|---|---|---|
+| Tests | 252 | 488 | ×1.94 |
+| Wall time | 16.09 s | 26.34 s | ×1.64 |
+| **Per test** | **64 ms** | **54 ms** | **−16%** |
+
+Per-test cost fell. The suite is slower because Phases 4–7 added ten test files containing
+236 tests — derivation, adapters, registry totality, ordering provenance, config parity,
+reader configurations, logging budget, coherence, legacy compatibility, the declared break
+and the live coercion corpus.
+
+The budget was set at T020 with "~24% headroom … Phases 4–7 add roughly ten more test
+files". Ten files was right; the estimate silently assumed they would hold about as many
+tests each as the existing ones, and they hold roughly twice as many. The headroom was
+computed against the wrong quantity.
+
+By its stated purpose in `plan.md` §IV — "catches the corpus harness itself becoming the
+bottleneck" — the budget is satisfied: the harness got *cheaper* per unit of work. By its
+number it is not.
+
+One genuine inefficiency was found and fixed while investigating: the C8 test drove the
+entire corpus five times, once per assertion, for ~6 s. It now runs once per module behind
+a fixture. That is a real saving (31.6 s → 26.3 s) and would have been worth making
+regardless of the budget.
+
+**Proposed resolution — needs sign-off, not a silent edit.** Re-derive the budget from the
+measurement that now exists: **≤ 32 s**, being 26.34 s plus ~20% headroom, with the
+per-test figure of **≤ 70 ms** recorded alongside it as the number that actually expresses
+the intent. A per-test budget survives the suite growing again, which this one did not.
+
+Until that is accepted, the breach stands as recorded.
+
+### Total suite
+
+**1255 passed, 43 skipped in 49.19 s** (up from 561 in 19.68 s). SC-TEST-002 required the
+count to grow; it more than doubled.
+
+---
+
 ## 4. Precondition: the baseline is green
 
 Recorded as an explicit precondition, per the plan's Technical Context. At `6a118c8`, with

@@ -494,7 +494,7 @@ def read_config_document(schema_object, xmlfile):
     (registry.py). That is a recorded decision rather than an omission —
     feature 006 introduces the objects.
     """
-    Logger.info(f"Reading configuration document {xmlfile}")
+    Logger.info(f"Reading configuration document {xmlfile}")  # file access (FR-033)
     return schema_object.to_dict(xmlfile, **CONFIG_READER_OPTIONS)
 
 
@@ -528,7 +528,9 @@ def build_document(
     spec = _body_spec(schema_name, body_tag)
     mapper.encode_xml(project_object, spec, root, body_tag)
 
-    Logger.info(f"Built {schema_name} document root <{xml_root_tag}>")
+    # Element construction and per-cue work stay below INFO (FR-033): this is
+    # one record per document built, not one per cue.
+    Logger.debug(f"Built {schema_name} document root <{xml_root_tag}>")
     return ElementTree(root)
 
 

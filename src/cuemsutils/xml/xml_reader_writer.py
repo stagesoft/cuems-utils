@@ -6,7 +6,7 @@ from xml.etree.ElementTree import ElementTree
 from deprecated import deprecated
 from xmlschema import XMLSchema11
 
-from ..log import logged
+from ..log import Logger, logged
 from .converter import CuemsConverter
 from .mapper import build_document
 from .Parsers import CuemsParser
@@ -57,10 +57,16 @@ class CuemsXml():
         self._xmlfile = path
 
     def validate(self):
+        # INFO is declared at the level of XML file access -- read, write,
+        # validate (FR-033). Everything below this level is DEBUG or lower, so
+        # the record count scales with files touched rather than with cues: a
+        # 1000-cue script is one file and stays one record.
+        Logger.info(f"Validating {self.schema_name} document {self.xmlfile}")
         return self.schema_object.validate(self.xmlfile)
 
 class XmlReaderWriter(CuemsXml):
     def write(self, xml_data: ElementTree):
+        Logger.info(f"Writing {self.schema_name} document {self.xmlfile}")
         self.schema_object.validate(xml_data)
         xml_data.write(
             self.xmlfile,
@@ -100,6 +106,7 @@ class XmlReaderWriter(CuemsXml):
         return self.schema_object.validate(xml_data)
 
     def read(self, **kwargs):
+        Logger.info(f"Reading {self.schema_name} document {self.xmlfile}")
         return self.schema_object.to_dict(
             self.xmlfile,
             validation = 'strict',

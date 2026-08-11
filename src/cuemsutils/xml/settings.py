@@ -219,7 +219,10 @@ class ProjectMappings(Settings):
         # correct it here by the moment
         temp_nodes = []
 
-        Logger.info(f'Processing network mappings: {mappings}')
+        # FR-033: identifiers only, never field values. This used to log the
+        # entire mappings dict at INFO — every node's uuid, name, ip and output
+        # routing, into the system log, once per project load.
+        Logger.debug(f'Processing network mappings for {len(mappings.get("nodes", []))} node(s)')
 
         for node in mappings['nodes']:
             temp_node = {}
