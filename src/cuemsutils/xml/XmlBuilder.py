@@ -354,3 +354,52 @@ class VideoCueXmlBuilder(MediaCueXmlBuilder):
 
 class NoneTypeXmlBuilder(GenericSimpleSubObjectXmlBuilder): # TODO: clean, not need anymore? 
     pass
+
+
+# ---------------------------------------------------------------------------
+# Deprecation surface (T029, FR-026b/c)
+#
+# Frozen, exactly as `Parsers.py` is: not edited by feature 004, only
+# deprecated. After the swap nothing in this library builds XML through these
+# classes, and contract C8 is what proves it.
+#
+# This module holds the ordering hack FR-002 deletes — the
+# `key == 'master_vol' or (key == 'opacity' and cls_name == 'VideoCue')` branch
+# in `MediaCueXmlBuilder.build`. It survives here, unreachable, until feature
+# 007 removes the module. T049 asserts no live path reaches it.
+# ---------------------------------------------------------------------------
+
+from ._deprecation import deprecated_symbol  # noqa: E402
+
+_MIGRATION = "the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md)"
+
+_FROZEN_BUILDERS = (
+    XmlBuilder,
+    CuemsScriptXmlBuilder,
+    CuemsNodeDictXmlBuilder,
+    CueListXmlBuilder,
+    GenericCueXmlBuilder,
+    GenericSimpleSubObjectXmlBuilder,
+    GenericComplexSubObjectXmlBuilder,
+    CTimecodeXmlBuilder,
+    MediaXmlBuilder,
+    UI_propertiesXmlBuilder,
+    OutputsXmlBuilder,
+    CueOutputsXmlBuilder,
+    AudioCueOutputXmlBuilder,
+    VideoCueOutputXmlBuilder,
+    DmxSceneXmlBuilder,
+    FadeProfileXmlBuilder,
+    MediaCueXmlBuilder,
+    AudioCueXmlBuilder,
+    VideoCueXmlBuilder,
+    NoneTypeXmlBuilder,
+)
+
+for _frozen in _FROZEN_BUILDERS:
+    deprecated_symbol(_MIGRATION)(_frozen)
+del _frozen
+
+# ``VALUE_TYPES`` is a tuple of types used in ``isinstance`` checks, not a
+# callable, so — like ``STRING_TYPED_KEYS`` next door — there is no call to warn
+# on. Deprecated in the migration map rather than pretended to be enforced here.

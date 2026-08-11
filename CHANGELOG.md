@@ -1,5 +1,89 @@
 # Changelog
 
+## Unreleased — schema-derived XML serialization core (feature 004)
+
+Replaces four independent implementations of the same mapping rules with one engine driven
+by a field specification derived from the XSD. **Observable behaviour does not change**:
+written XML and the read dict stay byte-identical, and every pre-existing consumer import
+keeps working behind a deprecation shim — with one declared exception, below.
+
+### ⚠️ Breaking — `cuems-nodeconf` handler injection is no longer consulted
+
+`cuems-nodeconf` registers its node handlers by assigning into this library's private
+module namespaces (`NodeXmlBuilders.py:105-111`):
+
+```python
+XmlBuilderModule.nodeXmlBuilder = nodeXmlBuilder
+ParsersModule.nodeParser        = nodeParser
+```
+
+`CuemsParser.get_parser_class` and `XmlBuilder.get_builder_class` used to resolve handlers
+through `globals()` of their own module, so an injected name was found. Every path now
+routes through an explicit registry, and **an injected name is never consulted**.
+
+Note what does *not* break: the imports still resolve and the assignments still execute
+without error. Only their effect is gone — the node serializes through a generic instead of
+through `nodeXmlBuilder`, silently. That is why the break is pinned by a test
+(`tests/contract/test_declared_break_nodeconf.py`) rather than left to be noticed.
+
+No shim can preserve it: honouring an injected name means keeping the implicit `globals()`
+lookup that the explicit registry exists to delete.
+
+- **Affected consumer**: `cuems-nodeconf` only. `cuems-editor` and `cuems-engine` need no
+  change at this release.
+- **The fix is carried by feature 007**, not by this release. It must target an API that is
+  internal here, becomes public in feature 006, and absorbs the node model in 007 — written
+  now it would be rewritten twice. `cuems-nodeconf` is not shipping against this release.
+- **Details**: `specs/004-xml-serialization-core/migration-map.md` §3.
+
+### Deprecated
+
+All of the following keep working and will be **removed in `v0.1.1`**. Importing is silent;
+each *call* warns, at the caller's line, naming its replacement. Full table with consumer
+call sites: `specs/004-xml-serialization-core/migration-map.md`.
+
+- `cuemsutils.xml.XmlReaderWriter` → `cuemsutils.xml.xml_reader_writer` (the module was
+  renamed to snake_case; the class name is unchanged).
+- `cuemsutils.xml.Settings` → `cuemsutils.xml.settings`.
+- `cuemsutils.xml.Parsers` — the `*Parser` family, `GenericParser`, `GenericDict`,
+  `CuemsParser.str_to_value` and `STRING_TYPED_KEYS`.
+- `cuemsutils.xml.XmlBuilder` — the `*XmlBuilder` family and `VALUE_TYPES`.
+
+Imports through the **package root** are unaffected and need no change:
+`from cuemsutils.xml import XmlReaderWriter, Settings, NetworkMap, ProjectMappings,
+ProjectSettings`. Most consumer code falls in this category.
+
+`CuemsParser` itself is **not** deprecated — it becomes the engine's delegating facade and
+remains a supported entry point. Its `str_to_value` method is deprecated; the class is not.
+
+`STRING_TYPED_KEYS` and `VALUE_TYPES` are deprecated but **cannot warn**: both are values
+read in membership checks, never called, so there is no call for a warning to attach to.
+
+### Changed — the one intentional, non-breaking behaviour difference
+
+Log output. This feature guarantees byte-identical XML and byte-identical read dicts; log
+records are explicitly outside that guarantee.
+
+- INFO is now declared at the level of **XML file access** (read, write, validate). Element
+  construction and per-cue work drop to DEBUG, so the record count scales with files
+  touched rather than with cues — a 1000-cue script no longer emits a thousand INFO lines.
+- No record at any level carries a field value or an object repr. As a side effect, show
+  content — cue names, file paths — no longer appears in log files.
+
+### Notes
+
+- Element order for order-free (`xs:all`) content models is derived as **arrival order**,
+  which is what the current builder produces. An earlier draft specified sorted keys; the
+  goldens showed that two of four captured `CuemsScript` roots are not sorted, so a sorted
+  rule would have rewritten the root element of every hand-authored script. See FR-001b.
+- Two schema defects are recorded and deferred, not fixed: `outputs.xsd` declares an
+  `OutputsType` that collides with `script.xsd`'s, and the only `outputs.xml` in existence
+  has a namespace missing its trailing slash — between them, nothing has ever validated
+  against `outputs.xsd`.
+- `gradient_osc_port` was added to `NodeType` as *required* in 0.1.0rc8, which invalidated
+  every settings file written before it — including two this project shipped. Recorded as
+  X13; the fix is scheduled under feature 006's schema-evolution convention.
+
 ## 0.1.0rc11 — 2026-07-28
 
 Free-text fields are no longer type-coerced during parsing (closes ClickUp 869cqbpxa).

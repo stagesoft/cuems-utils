@@ -1,14 +1,16 @@
 """ For the moment it works with pip3 install xmlschema==1.2.2
  """
 from os import path
-from xmlschema import XMLSchema11, XMLSchemaConverter
 from xml.etree.ElementTree import ElementTree
 
 from deprecated import deprecated
+from xmlschema import XMLSchema11
+
+from ..log import logged
 from .CMLCuemsConverter import CMLCuemsConverter
 from .Parsers import CuemsParser
 from .XmlBuilder import XmlBuilder
-from ..log import logged
+
 
 @logged
 def get_pkg_schema(schema_name: str):
@@ -29,7 +31,7 @@ class CuemsXml():
         self.schema = schema_name
         self.xmlfile = xmlfile
         self.xml_root_tag = xml_root_tag
-    
+
     @property
     def schema(self):
         return self._schema
@@ -49,7 +51,7 @@ class CuemsXml():
     @xmlfile.setter
     def xmlfile(self, path):
         self._xmlfile = path
-            
+
     def validate(self):
         return self.schema_object.validate(self.xmlfile)
 

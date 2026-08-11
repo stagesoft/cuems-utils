@@ -1,11 +1,12 @@
+from collections import namedtuple
 from xml.etree.ElementTree import Element
 from xml.etree.ElementTree import register_namespace as etree_register_namespace
+
 from lxml.etree import Element as lxml_etree_element
 from lxml.etree import register_namespace as lxml_etree_register_namespace
 from xmlschema import XMLSchemaConverter
+from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.validators.wildcards import Xsd11AnyElement
-from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from collections import namedtuple
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
 
@@ -35,8 +36,8 @@ class CMLCuemsConverter(XMLSchemaConverter):
         self.preserve_root = preserve_root
         self.force_dict = force_dict
         self.force_list = force_list
- 
-      
+
+
     def element_decode(self, data, xsd_element, xsd_type=None, level=0):
         """
         Converts a decoded element data to a data structure.
@@ -91,7 +92,7 @@ class CMLCuemsConverter(XMLSchemaConverter):
                             result_dict.append({name:value})
                         else:
                             result.append(value)
-                  
+
             elif data.content is None and data.text is not None and data.text != '':
                 result_dict = data.text
 

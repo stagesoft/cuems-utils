@@ -407,3 +407,68 @@ class NoneTypeParser():
 
     def parse(self):
         return None
+
+
+# ---------------------------------------------------------------------------
+# Deprecation surface (T028, FR-026b/c)
+#
+# Everything above this line is FROZEN. It is not edited by feature 004, only
+# deprecated: the engine stops routing through it, and contract C8 proves no
+# live path reaches it. Removal belongs to feature 007's migration.
+#
+# The decorators are applied here rather than inline so the frozen bodies keep a
+# zero-line diff — a legacy implementation nobody is allowed to change should
+# also be one nobody has a reason to open.
+#
+# ``deprecated`` patches ``__init__`` and returns the *same* class object, so
+# class identity is preserved. That matters: ``XmlBuilder`` does
+# ``isinstance(value, GenericDict)`` in four places, and replacing the name with
+# a warning subclass would silently make every one of those checks False.
+# ---------------------------------------------------------------------------
+
+from ._deprecation import deprecated_symbol  # noqa: E402
+
+_MIGRATION = "the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md)"
+
+#: **``CuemsParser`` is deliberately absent.** It is not a retired symbol: it
+#: becomes the engine's delegating facade at T048 and stays a supported entry
+#: point (Assumption 3a, FR-026d). It is also `cuems-editor`'s primary
+#: JSON -> object path at five call sites, and contract C8 depends on its
+#: silence — a warning here would fail the very test that proves the library no
+#: longer calls its own deprecated code.
+_FROZEN_PARSERS = (
+    GenericDict,
+    CuemsScriptParser,
+    CueListParser,
+    GenericParser,
+    GenericSubObjectParser,
+    CTimecodeParser,
+    mediaParser,
+    outputsParser,
+    CuemsNodeDictParser,
+    AudioCueOutputParser,
+    VideoCueOutputParser,
+    DmxCueOutputParser,
+    DmxCueParser,
+    fade_profilesParser,
+    fade_profileParser,
+    NoneTypeParser,
+)
+
+for _frozen in _FROZEN_PARSERS:
+    deprecated_symbol(_MIGRATION)(_frozen)
+del _frozen
+
+# The type-guessing heuristic itself (FR-003). Deprecated on ``CuemsParser``
+# even though the class is not, because the class survives and the heuristic
+# must not: after the swap nothing in this library calls it, and this warning is
+# what makes that checkable rather than asserted.
+CuemsParser.str_to_value = deprecated_symbol(
+    "schema-declared types; the engine no longer guesses"
+)(CuemsParser.str_to_value)
+
+# ``STRING_TYPED_KEYS`` has no call to hook: it is a ``frozenset`` read as a
+# value, not invoked. It is deprecated in the same breath as ``str_to_value`` —
+# the denylist exists only to protect the heuristic — but it cannot warn, and
+# saying so here is better than implying a guarantee that is not there. Its
+# retirement is recorded in the migration map instead.

@@ -1,14 +1,15 @@
 """ For the moment it works with pip3 install xmlschema==1.1.2
  """
 
-import xml.etree.ElementTree as ET
 import os
+import xml.etree.ElementTree as ET
 from typing import Any
 
+from ..helpers import strtobool
 from ..log import Logger
 from ..tools.CTimecode import CTimecode
-from ..helpers import strtobool
 from .xml_reader_writer import XmlReaderWriter
+
 
 class Settings(XmlReaderWriter):
     """
@@ -27,10 +28,10 @@ class Settings(XmlReaderWriter):
       self.xml_dict = {}
       self.processed = {}
       self.loaded = False
-    
+
       if self.schema is not None and self.xmlfile is not None:
           self.read()
-    
+
     def get_dict(self) -> dict[str, Any]:
         if self.main_key == '':
             return self.xml_dict if isinstance(self.xml_dict, dict) else {}
@@ -72,7 +73,7 @@ class Settings(XmlReaderWriter):
             for k, v in d.items():
                 if isinstance(k, str):
                     s = ET.SubElement(xml_tree, k)
-                    
+
                 elif isinstance(k, (dict)):
                     s = ET.SubElement(xml_tree, type(k).__name__)
                     s.text = str(k)
@@ -82,7 +83,7 @@ class Settings(XmlReaderWriter):
                         s.text =str(v)
                 else:
                     s = ET.SubElement(xml_tree, type(k).__name__)
-                
+
                 if isinstance(v, (type(None), CTimecode, dict, list, tuple, int, float, str)): #TODO: filter without using explicit classes (like CTimecode)
                     self.buildxml(s, v)
         elif isinstance(d, tuple) or isinstance(d, list):
@@ -130,7 +131,7 @@ class NetworkMap(Settings):
     def get_nodes_by_adoption(network_map_dict: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         nodes = []
         new_nodes = []
-        
+
         if not network_map_dict:
             raise ValueError('No network map dictionary found')
         node_list = network_map_dict.get('node_list', [])
@@ -141,13 +142,13 @@ class NetworkMap(Settings):
                 # Convert boolean strings directly in the node_item structure
                 node_item['node']['online'] = strtobool(node_item['node'].get('online', 'False'))
                 node_item['node']['adopted'] = strtobool(node_item['node'].get('adopted', 'False'))
-                
+
                 # Append the node_item directly (it already has the wrapper structure)
                 if node_item['node']['adopted']:
                     nodes.append(node_item)
                 else:
                     new_nodes.append(node_item)
-        
+
         return nodes, new_nodes
 
 class ProjectMappings(Settings):
@@ -248,7 +249,7 @@ class ProjectMappings(Settings):
         # the converter is not getting what we really intended but we'll
         # correct it here by the moment
         temp_nodes = []
-        
+
         Logger.info(f'Processing network mappings: {mappings}')
 
         for node in mappings['nodes']:
@@ -266,7 +267,7 @@ class ProjectMappings(Settings):
                                     for subkey, subvalue in elem.items():
                                         temp_node[section][key].append(subvalue)
             temp_nodes.append(temp_node)
-        
+
         mappings['nodes'] = temp_nodes
         return mappings
 

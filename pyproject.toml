@@ -124,6 +124,17 @@ markers = [
 target-version = "py311"
 src = ["src", "tests"]
 
+# Frozen legacy implementations (feature 004, FR-026b/c). These are deprecated,
+# not maintained: the engine no longer routes through them and feature 007
+# removes them. They are excluded so that `ruff --fix` cannot quietly reformat
+# a module whose entire guarantee is that it does not change — an import
+# reordering here produces a diff on code the goldens are measured against, for
+# no benefit to code nobody may edit.
+exclude = [
+  "src/cuemsutils/xml/Parsers.py",
+  "src/cuemsutils/xml/XmlBuilder.py",
+]
+
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
 ignore = ["E501"]
