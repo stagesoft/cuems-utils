@@ -1,5 +1,5 @@
-from .Settings import Settings, NetworkMap, ProjectMappings, ProjectSettings
-from .XmlReaderWriter import XmlReaderWriter
+from .settings import Settings, NetworkMap, ProjectMappings, ProjectSettings
+from .xml_reader_writer import XmlReaderWriter
 
 __all__ = [
     'NetworkMap',

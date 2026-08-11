@@ -94,7 +94,7 @@ def _outcome(exc: BaseException | None) -> dict:
 
 
 def _reader(doc: CorpusDoc, xmlfile: str | None = None):
-    from cuemsutils.xml.XmlReaderWriter import XmlReaderWriter
+    from cuemsutils.xml.xml_reader_writer import XmlReaderWriter
 
     return XmlReaderWriter(
         schema_name=doc.schema,
@@ -121,10 +121,11 @@ def capture_config_dict(doc: CorpusDoc):
     """
     if doc.config_class is None:
         return None, None
-    # Resolved off the package, not off ``cuemsutils.xml.Settings``: the
-    # package's ``__init__`` does ``from .Settings import Settings``, so the
-    # name ``cuemsutils.xml.Settings`` is the *class*, shadowing the module of
-    # the same name. That collision is one of the things the D9 rename removes.
+    # Resolved off the package, never off ``cuemsutils.xml.Settings``: the
+    # package's ``__init__`` re-exports the ``Settings`` *class*, which shadows
+    # any module of the same name. The D9 rename moved the implementation to
+    # ``settings.py``, but the shim at the old path brings the collision back —
+    # so this stays the safe way to reach a config class by name.
     import cuemsutils.xml as xml_package
 
     cls = getattr(xml_package, doc.config_class)
@@ -323,7 +324,7 @@ def _capture_generated(writer: GoldenWriter) -> dict:
     and fade cues together. Without it, C1 — byte-identical *written* XML —
     would be measured on almost nothing.
     """
-    from cuemsutils.xml.XmlReaderWriter import XmlReaderWriter
+    from cuemsutils.xml.xml_reader_writer import XmlReaderWriter
 
     script = build_generated_script()
     out = Path(tempfile.mkdtemp()) / "generated.xml"

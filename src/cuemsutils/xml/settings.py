@@ -8,7 +8,7 @@ from typing import Any
 from ..log import Logger
 from ..tools.CTimecode import CTimecode
 from ..helpers import strtobool
-from .XmlReaderWriter import XmlReaderWriter
+from .xml_reader_writer import XmlReaderWriter
 
 class Settings(XmlReaderWriter):
     """

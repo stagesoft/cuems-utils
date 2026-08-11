@@ -9,7 +9,7 @@ from cuemsutils.cues import CueList, CuemsScript, VideoCue
 from cuemsutils.cues.CueOutput import VideoCueOutput
 from cuemsutils.cues.MediaCue import Media, Region
 from cuemsutils.xml import XmlReaderWriter
-from cuemsutils.xml.Settings import ProjectMappings
+from cuemsutils.xml.settings import ProjectMappings
 
 DATA_DIR = Path(__file__).parent / "data"
 TMP_DIR = Path(__file__).parent / "tmp"

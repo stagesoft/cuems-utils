@@ -6,7 +6,7 @@ import time
 import pytest
 
 from cuemsutils.cues.FadeProfile import FadeFunctionParameter, FadeProfile
-from cuemsutils.xml.XmlReaderWriter import XmlReaderWriter
+from cuemsutils.xml.xml_reader_writer import XmlReaderWriter
 from tests.test_xml import create_dummy_script
 
 

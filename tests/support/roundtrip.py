@@ -38,7 +38,7 @@ __all__ = [
 
 
 def _reader(schema: str, xmlfile: str):
-    from cuemsutils.xml.XmlReaderWriter import XmlReaderWriter
+    from cuemsutils.xml.xml_reader_writer import XmlReaderWriter
 
     return XmlReaderWriter(
         schema_name=schema, xmlfile=xmlfile, xml_root_tag=XML_ROOT_TAG[schema]

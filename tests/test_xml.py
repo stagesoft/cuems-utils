@@ -198,7 +198,7 @@ TMP_JSON_FILE = path.dirname(__file__) + '/tmp/test_json_script.xml'
 def test_jsonload(caplog):
     ## ARRANGE
     from cuemsutils.xml.Parsers import CuemsParser
-    from cuemsutils.xml.XmlReaderWriter import XmlWriter
+    from cuemsutils.xml.xml_reader_writer import XmlWriter
     from cuemsutils.cues import CuemsScript, CueList
     from cuemsutils.tools.CTimecode import CTimecode
     import json

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from cuemsutils.xml.Settings import ProjectMappings
+from cuemsutils.xml.settings import ProjectMappings
 
 DATA_DIR = Path(__file__).parent / "data"
 
