@@ -24,7 +24,7 @@ from xml.etree.ElementTree import (
 
 from ..log import Logger
 from ..tools.Uuid import Uuid
-from .adapters import adapter_for
+from .adapters import PASSTHROUGH, adapter_for
 from .registry import get_registry
 from .spec import FieldKind, TypeSpec, derive, derive_path
 
@@ -42,6 +42,182 @@ class Mapper:
     def __init__(self, schema_name: str):
         self.schema_name = schema_name
         self.registry = get_registry(schema_name)
+
+    # -- decode ------------------------------------------------------------
+
+    def decode_document(self, source: dict):
+        """Decode a read dict into model objects.
+
+        The replacement for ``CuemsParser``'s tree of ``*Parser`` classes. Two
+        things change and one does not:
+
+        * scalars are converted by **adapters bound to the declared type**,
+          not by ``str_to_value``'s guess-from-text (FR-003);
+        * model classes come from the **registry**, not from ``globals()``
+          name-mangling that misses silently (FR-007);
+        * the object shapes are unchanged, including the ones that look
+          accidental — see ``_decode_field``.
+        """
+        if not isinstance(source, dict) or not source:
+            return source
+
+        body_tag = next(iter(source))
+        spec = _body_spec(self.schema_name, body_tag)
+        return self.decode(source[body_tag], spec)
+
+    def decode(self, value, spec: TypeSpec | None):
+        """Decode one value against its type specification."""
+        if value is None or spec is None:
+            return value
+        if not isinstance(value, dict):
+            return value
+
+        decoded = {}
+        for key, raw in value.items():
+            decoded[key] = self._decode_field(key, raw, spec)
+
+        model = self._model_for_spec(spec)
+        if model is None:
+            return decoded
+        return _instantiate(model, decoded)
+
+    #: Types decoded **into the object model without recursing into them**:
+    #: the bound class is constructed from the raw decoded dict, and whatever
+    #: it contains stays as ``xmlschema`` produced it.
+    #:
+    #: This reproduces ``outputsParser``, which did ``self._class(dict_value)``
+    #: on the whole output dict. The visible consequence is that ``channels``
+    #: inside an ``AudioCueOutput`` keeps its ``{'channel': {...}}`` wrappers —
+    #: decoding through them flattens the wrapper and the re-encoded document
+    #: fails validation with ``Unexpected child with tag 'channel_num'``.
+    OPAQUE_TYPES = frozenset(
+        {
+            "AudioCueOutputsType",
+            "VideoCueOutputsType",
+            "DmxCueOutputsType",
+            # ``DmxCueParser`` did ``self._class(self.init_dict)`` on the whole
+            # cue, so a DMX cue and its scene are built in one step and never
+            # recursed into either.
+            "DmxCueType",
+        }
+    )
+
+    #: Types left **entirely undecoded**, as the raw list or dict.
+    #:
+    #: ``regions`` reaches ``GenericParser`` with ``class_string='regions'``,
+    #: whose ``get_class`` lookup misses (the class is ``Region``, the tag is
+    #: ``regions``) and falls back to ``GenericDict``, which returns its input
+    #: untouched. So every region stays a raw ``{'Region': {...}}`` wrapper
+    #: inside ``Media``.
+    #:
+    #: That is a name-mangling miss, not a decision — but it is the shape in
+    #: every document and every editor payload, so 004 preserves it and
+    #: records it. Feature 005 owns the fix.
+    RAW_TYPES = frozenset({"RegionsType", "AudioChannelsType"})
+
+    def _decode_field(self, key: str, raw, spec: TypeSpec):
+        field = spec.field(key)
+
+        if field is None:
+            # Undescribed: wildcard content, or the leaked schemaLocation.
+            # Passed through untouched (FR-009) — which is also why
+            # ``ui_properties`` stays a plain dict rather than becoming
+            # ``UI_properties``. The class exists and has never been reached,
+            # because the lookup searched for the lowercase tag; binding it now
+            # would start running code that has never run.
+            return raw
+
+        # Adapters are consulted **before** complexity is considered, because
+        # they bind complex types too (research R5). ``CTimecodeType`` is the
+        # case: it is a complex type wrapping a ``<CTimecode>`` child, so
+        # treating "has a child type" as "recurse into it" leaves every
+        # timecode as a bare ``{'CTimecode': '...'}`` dict instead of a
+        # ``CTimecode`` object.
+        adapter = adapter_for(field.xsd_type)
+        if adapter is not PASSTHROUGH:
+            return adapter.decode(raw)
+
+        if field.child is None:
+            return raw
+
+        if field.child.name in self.RAW_TYPES:
+            return raw
+
+        child_spec = derive(field.child)
+
+        if isinstance(raw, list):
+            return self._decode_repeated(raw, child_spec)
+
+        if child_spec.wildcard:
+            return raw
+
+        if self._is_wrapper(child_spec):
+            return self._decode_wrapper(raw, child_spec)
+
+        return self.decode(raw, child_spec)
+
+    def _decode_repeated(self, items: list, child_spec: TypeSpec):
+        """A repeated block: ``[{Tag: {...}}, ...]`` in document order.
+
+        Each wrapper key names the element, which is how an ``xs:choice`` of
+        six cue types resolves to the right model class without a name-mangled
+        lookup.
+        """
+        out = []
+        for item in items:
+            if not isinstance(item, dict) or len(item) != 1:
+                out.append(item)
+                continue
+            tag, body = next(iter(item.items()))
+            member = child_spec.field(tag)
+            if member is None or member.child is None:
+                out.append(item)
+                continue
+            out.append(self._decode_member(body, member))
+        return out
+
+    def _decode_member(self, body, member):
+        """Decode one member of a repeated block, honouring ``OPAQUE_TYPES``."""
+        if member.child.name in self.OPAQUE_TYPES:
+            model = self._model_for_spec(derive(member.child))
+            return model(body) if model is not None else body
+        return self.decode(body, derive(member.child))
+
+    @staticmethod
+    def _is_wrapper(child_spec: TypeSpec) -> bool:
+        """A type whose only job is to hold repeated children.
+
+        ``RegionsType`` holds ``Region``, ``FadeProfilesWrapperType`` holds
+        ``fade_profile``, ``OutputsType`` holds the three output types. The
+        wrapper element exists in the XML but not in the object model, where
+        the field holds the list directly.
+        """
+        elements = [f for f in child_spec.fields if f.kind is FieldKind.ELEMENT]
+        return bool(elements) and all(f.repeated for f in elements)
+
+    def _decode_wrapper(self, raw, child_spec: TypeSpec):
+        if not isinstance(raw, dict):
+            return raw
+        out = []
+        for tag, body in raw.items():
+            member = child_spec.field(tag)
+            if member is None or member.child is None:
+                out.append({tag: body})
+                continue
+            items = body if isinstance(body, list) else [body]
+            for item in items:
+                out.append(self._decode_member(item, member))
+        return out
+
+    def _model_for_spec(self, spec: TypeSpec):
+        binding = (
+            self.registry.binding_for_path(spec.key.name)
+            if spec.key.is_path
+            else self.registry.binding_for(spec.key.name)
+        )
+        if binding is None or binding.is_generic:
+            return None
+        return binding.model
 
     # -- encode ------------------------------------------------------------
 
@@ -215,6 +391,37 @@ class Mapper:
         return None
 
 
+def _instantiate(model: type, decoded: dict):
+    """Build a model object the way the legacy parsers did: empty, then assign.
+
+    Two properties depend on this, and both are invisible until something far
+    away breaks.
+
+    **Key order.** Constructing from a dict routes through ``ensure_items`` and
+    inserts keys in ``REQ_ITEMS`` order; assigning preserves the *source
+    document's* order. ``==`` cannot see the difference — dicts compare equal
+    regardless of order — but ``CuemsScript`` is an ``xs:all`` type whose
+    emission order **is** arrival order (FR-001b), so constructing would
+    rewrite the root element of every hand-authored script on save.
+
+    **Property setters do not run.** ``dict.__setitem__`` bypasses them, which
+    is what the parsers have always done. It matters because the setters
+    validate: ``Media.set_id`` raises on the nil uuid
+    ``00000000-0000-0000-0000-000000000000``, which appears three times in
+    ``tests/data/sample_script.json`` and therefore in real editor payloads.
+    Constructing from a dict would make the engine reject a document today's
+    parser accepts — exactly what FR-015 forbids.
+
+    Both are behaviours of the code being replaced rather than choices made
+    here. The setters' validation is worth having; turning it on is a
+    behaviour change, so it belongs to feature 005.
+    """
+    obj = model()
+    for key, value in decoded.items():
+        dict.__setitem__(obj, key, value)
+    return obj
+
+
 class DmxSceneCompatibility:
     """The one named compatibility behaviour (FR-015a, T046).
 
@@ -303,13 +510,27 @@ def build_document(
 
 
 def _body_spec(schema_name: str, body_tag: str) -> TypeSpec | None:
-    """The spec for the document body, one level under the root.
+    """The spec for a document body named ``body_tag``.
 
-    Resolved by **element path** because the root types are anonymous — there
-    is no ``CuemsScriptType`` to look up (research R3).
+    Two resolutions, in order.
+
+    **By element path under the root**, because the root types are anonymous —
+    there is no ``CuemsScriptType`` to look up (research R3).
+
+    **By model class name**, for a body that is not a whole document. Callers
+    hand ``CuemsParser`` a bare cue — ``{"AudioCue": {...}}`` — and expect an
+    ``AudioCue`` back; the legacy ``get_class(class_string)`` served that by
+    finding the class in module globals. Here the same lookup runs against the
+    registry, so it reports nothing rather than silently returning a generic.
     """
     registry = get_registry(schema_name)
     try:
         return derive_path(schema_name, f"{registry.root}/{body_tag}")
     except (KeyError, StopIteration):
-        return None
+        pass
+
+    for type_name in registry.bound_type_names:
+        model = registry.model_for(type_name)
+        if model is not None and model.__name__ == body_tag:
+            return derive(registry.binding_for(type_name).key)
+    return None

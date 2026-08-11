@@ -109,13 +109,26 @@ class CuemsParser():
     
 
     def parse(self):
-        parser_class, class_string = self.get_parser_class(
-            self.get_first_key(self.init_dict)
-        )
-        return parser_class(
-            init_dict = self.get_contained_dict(self.init_dict),
-            class_string = class_string
-        ).parse()
+        """Delegate to the schema-derived engine (T048, FR-026d).
+
+        **A facade, not a shim.** ``CuemsParser`` is not deprecated and emits no
+        warning: it was already library-internal before this feature
+        (``XmlReaderWriter.write_from_dict`` and ``read_to_objects`` both call
+        it) and it is `cuems-editor`'s primary JSON -> object path at five call
+        sites. Contract C8 depends on its silence.
+
+        Everything below this method in the module is the frozen legacy tree it
+        used to drive. It is unreachable from here now, kept only so external
+        callers keep resolving until feature 007 removes it.
+
+        Delegating is **not optional given the write swap**: this method and
+        ``build_xml_from_object`` are two ends of one round trip, so leaving
+        decode on the old parsers while encode ran on the engine would mean two
+        different type systems meeting in the middle.
+        """
+        from .mapper import Mapper
+
+        return Mapper('script').decode_document(self.init_dict)
 
 class CuemsScriptParser(CuemsParser):
     def __init__(self, init_dict, class_string):

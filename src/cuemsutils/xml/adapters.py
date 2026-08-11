@@ -137,7 +137,24 @@ class _UuidAdapter:
             return None
         if isinstance(raw, Uuid):
             return raw
-        return Uuid(str(raw))
+        try:
+            return Uuid(str(raw))
+        except ValueError:
+            # Not a valid uuid4 — kept as the raw string.
+            #
+            # ``Uuid`` enforces the uuid4 shape (version nibble 4, variant
+            # 8-b), which the **nil** uuid
+            # ``00000000-0000-0000-0000-000000000000`` fails. It appears three
+            # times in ``tests/data/sample_script.json``, so real editor
+            # payloads carry it.
+            #
+            # ``str_to_value`` reached the same result by accident: ``Uuid``
+            # was the last candidate in its coercion chain and a ``ValueError``
+            # simply fell through to returning the string. FR-015 forbids the
+            # engine rejecting what today's parser accepts, so the leniency is
+            # kept — but scoped to the declared uuid types instead of applied
+            # to every scalar in the document.
+            return raw
 
     def to_lexical(self, obj):
         return None if obj is None else str(obj)
