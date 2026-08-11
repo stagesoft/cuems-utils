@@ -54,7 +54,9 @@
       "Bash(cat /disk/Projects/StageLab/gradient-motion-engine/README.md)",
       "Read(//disk/Projects/StageLab/gradient-motion-engine/**)",
       "Bash(cat /disk/Projects/StageLab/cuems-engine/README.md)",
-      "Read(//disk/Projects/StageLab/cuems-engine/**)"
+      "Read(//disk/Projects/StageLab/cuems-engine/**)",
+      "Bash(cd /disk/Projects/StageLab/cuems-editor && ls src/cuemseditor/ && echo \"=== who calls DBProject.load ===\" && grep -rn \"\\\\.load\\(\" src/cuemseditor/*.py | head -20)",
+      "Read(//disk/Projects/StageLab/cuems-editor/**)"
     ]
   }
 }
