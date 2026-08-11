@@ -7,7 +7,7 @@ from deprecated import deprecated
 from xmlschema import XMLSchema11
 
 from ..log import logged
-from .CMLCuemsConverter import CMLCuemsConverter
+from .converter import CuemsConverter
 from .Parsers import CuemsParser
 from .XmlBuilder import XmlBuilder
 
@@ -25,8 +25,9 @@ def get_pkg_schema(schema_name: str):
 
 class CuemsXml():
     def __init__(self, schema_name, xmlfile, namespace={'cms':'https://stagelab.coop/cuems/'}, xml_root_tag='CuemsProject'):
-        # Needed to implement to_dict respecting array elements
-        self.converter = CMLCuemsConverter
+        # Decoding goes through the D5 converter, which preserves the
+        # repeated-element shape the UI payload depends on (FR-014, C5).
+        self.converter = CuemsConverter
         self.namespace = namespace
         self.schema = schema_name
         self.xmlfile = xmlfile
