@@ -474,6 +474,29 @@ def root_spec(schema_name: str) -> TypeSpec:
 
 SCHEMA_INSTANCE_URI = "http://www.w3.org/2001/XMLSchema-instance"
 
+#: Reader configuration **B** (FR-013), used by the four configuration classes.
+#: Kept here, next to the engine, so that "the two configurations" is a pair of
+#: named things rather than a set of keyword arguments repeated at call sites.
+CONFIG_READER_OPTIONS = {
+    "validation": "strict",
+    "dict_class": dict,
+    "list_class": list,
+    "strip_namespaces": True,
+    "attr_prefix": "",
+}
+
+
+def read_config_document(schema_object, xmlfile):
+    """Decode a configuration document under reader configuration B.
+
+    Returns a raw dict: configuration documents have no model classes, so
+    every type in the five configuration schemas is bound to ``GENERIC``
+    (registry.py). That is a recorded decision rather than an omission —
+    feature 006 introduces the objects.
+    """
+    Logger.info(f"Reading configuration document {xmlfile}")
+    return schema_object.to_dict(xmlfile, **CONFIG_READER_OPTIONS)
+
 
 def build_document(
     project_object,

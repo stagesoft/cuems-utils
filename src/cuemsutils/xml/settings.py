@@ -8,6 +8,8 @@ from typing import Any
 from ..helpers import strtobool
 from ..log import Logger
 from ..tools.CTimecode import CTimecode
+from .mapper import read_config_document
+from .validators import validate_custom_templates
 from .xml_reader_writer import XmlReaderWriter
 
 
@@ -52,13 +54,24 @@ class Settings(XmlReaderWriter):
             Logger.error("Settings file not found")
 
     def read(self) -> None:
-        self.xml_dict = self.schema_object.to_dict(
+        """Read this configuration document (T053).
+
+        Reader configuration **B** of the two FR-013 preserves:
+        ``strip_namespaces=True``, explicit ``dict``/``list`` containers, and
+        ``attr_prefix=''``. It differs from ``XmlReaderWriter.read`` — that is
+        deliberate, load-bearing, and asserted by
+        ``tests/contract/test_reader_configs.py``.
+
+        Decoding runs on the same engine as the show-document path: the schema
+        comes from the shared cache and the converter is ``CuemsConverter``,
+        inherited from ``CuemsXml``. What these classes do **not** yet have is
+        a model layer — the four of them hand back raw dicts, which is why
+        their registry bindings are all ``GENERIC``. Giving configuration
+        documents real objects is feature 006.
+        """
+        self.xml_dict = read_config_document(
+            self.schema_object,
             self.xmlfile,
-            validation = 'strict',
-            dict_class = dict,
-            list_class = list,
-            strip_namespaces = True,
-            attr_prefix = ''
         )
         if (hasattr(self, 'process_xml_dict')):
             self.process_xml_dict() # type: ignore[attr-defined]
@@ -185,63 +198,19 @@ class ProjectMappings(Settings):
         self._validate_custom_templates()
 
     def _validate_custom_templates(self):
-        """Enforce semantic rules on video outputs that XSD can't express.
+        """Delegate to the named T2 validators (T055, FR-017).
 
-        - canvas_region containment: x+width ≤ 1 and y+height ≤ 1.
-        - At most one custom template (entry with canvas_region) per node.
+        The rules themselves live in :mod:`cuemsutils.xml.validators`, in a
+        tier kept explicitly separate from schema-derived T1 validation. They
+        stayed inline here for as long as this class was the only thing that
+        needed them; naming them makes the boundary checkable — anything in
+        that module is a rule XSD *cannot* express, and anything XSD can
+        express does not belong there.
 
-        The per-node cap is a V1 constraint; see docs/canvas_region.md
-        (Deferred — Multiple customs per cue / per node) for the lift path.
-
-        Note on scope: canvas_region at the mappings level is a UI-template
-        hint — it exposes a named custom slot to the editor's output-picker
-        as a default starting rectangle. It does NOT describe physical
-        monitor layout (that comes from videocomposer's DRM detection)
-        nor per-cue output regions (those are in script.xsd's
-        VideoCueOutput.canvas_region; see cuemsutils.cues.CueOutput).
+        Kept as a method rather than replaced by a direct call, because it is
+        part of this class's surface and subclasses may override it.
         """
-        for section in ('nodes', 'new_nodes'):
-            for node_wrap in self.processed.get(section, []) or []:
-                node = node_wrap.get('node') if isinstance(node_wrap, dict) else None
-                if not node:
-                    continue
-                video = node.get('video')
-                if not video:
-                    continue
-                template_count = 0
-                uuid = node.get('uuid', '<unknown>')
-                for video_group in video:
-                    if not isinstance(video_group, dict):
-                        continue
-                    for output_wrap in video_group.get('outputs', []) or []:
-                        output = output_wrap.get('output') if isinstance(output_wrap, dict) else None
-                        if not output:
-                            continue
-                        region = output.get('canvas_region')
-                        if region is None:
-                            continue
-                        self._check_region_containment(region, uuid)
-                        template_count += 1
-                if template_count > 1:
-                    raise ValueError(
-                        f"Node {uuid} has {template_count} custom templates "
-                        f"(canvas_region entries); at most 1 is allowed"
-                    )
-
-    def _check_region_containment(self, region, uuid):
-        """XSD already guarantees per-component ranges; check only the sums."""
-        x = float(region.get('x', 0))
-        y = float(region.get('y', 0))
-        w = float(region.get('width', 0))
-        h = float(region.get('height', 0))
-        if x + w > 1.0 + self._CONTAINMENT_EPS:
-            raise ValueError(
-                f"Node {uuid} canvas_region x+width must be <= 1, got {x + w}"
-            )
-        if y + h > 1.0 + self._CONTAINMENT_EPS:
-            raise ValueError(
-                f"Node {uuid} canvas_region y+height must be <= 1, got {y + h}"
-            )
+        validate_custom_templates(self.processed)
 
     def process_network_mappings(self, mappings):
         '''Temporary process instead of reviewing xml read and convert to objects'''

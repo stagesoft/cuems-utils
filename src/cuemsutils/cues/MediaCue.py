@@ -9,8 +9,19 @@ from ..tools.Uuid import Uuid
 REQ_ITEMS = {
     'Media': None,
     'outputs': None,
-    'fade_profiles': None,
 }
+# ``fade_profiles`` moved to AudioCue and VideoCue (feature 004, T059).
+#
+# It was declared here, on the base, while ``script.xsd`` declares it on
+# ``AudioCueType`` and ``VideoCueType`` — the two concrete types — and *not* on
+# ``MediaCueType``. Nothing broke, because both subclasses inherited it and both
+# schema types have it; the base class simply claimed a field its schema type
+# does not define.
+#
+# Found by the coherence test (FR-020) on its first run, which is the drift
+# class that test exists for: the Python declaration and the XSD were
+# maintained in two files by hand, and the only thing that would ever have
+# noticed was a document failing to validate at save time.
 
 REGION_REQ_ITEMS = {
     'id': 0,
