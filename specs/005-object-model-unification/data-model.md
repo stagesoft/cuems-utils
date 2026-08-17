@@ -14,7 +14,7 @@ defaults, and the JSON wrapping rule.
 CuemsDict(dict)
 ├── declared_fields()      classmethod → tuple[str, ...]   accumulated across the MRO
 ├── declared_defaults()    classmethod → dict[str, Any]    same accumulation, values kept
-├── coercion_table()       classmethod → dict[str, Adapter]  cached; resolved from the schema
+├── coercion_table()       classmethod → dict[str, Adapter]  cached; delegates to coercion.adapter_table(cls)
 ├── __init__(init_dict)    programmatic mode  — defaults applied, ensure_items order
 ├── from_decoded(mapping)  classmethod, decode mode — arrival order preserved
 ├── _init_runtime()        hook: non-persisted attributes; runs in BOTH modes
@@ -26,6 +26,16 @@ CuemsDict(dict)
 
 Everything above is inherited. `CuemsScript` joins the hierarchy and defines none of it
 itself — that is the point of change 6 and of user story 2.
+
+`coercion_table()` is a classmethod on the base rather than a resolver called only from `xml/`
+(settled 2026-08-17, T004b): the caller asks the object, exactly as T019 has the mapper ask for
+`declared_fields()`. Three verified consequences — the import direction stays one-way because
+the `cuemsutils.xml.*` imports inside `coercion.py` are function-local (R1), not because of the
+classmethod; the public-API golden does not move because none of the five exported symbols
+derives from `CuemsDict`; and the method takes no schema argument while registries are per
+schema, which is safe only because every model class is bound in exactly one registry today.
+T004's guard raises if that ever stops being true — it stops being true in 006. Full reasoning
+in `plan.md` §Project Structure.
 
 ### Construction modes
 
@@ -44,9 +54,11 @@ for `xs:all` types and sorted order is what every generated document already con
 ### The `Unset` sentinel
 
 A declared field whose default is `Unset` is **not inserted** — the key stays absent rather
-than present-and-empty. It exists so that the five classes gaining a defaults dict (§3) do
-not start emitting elements they never emitted, and so that "one defaulting protocol" does
-not become "every field always present".
+than present-and-empty. It exists so that the **six** classes gaining a defaults dict (§2,
+`bare = 0`) do not start emitting elements they never emitted, and so that "one defaulting
+protocol" does not become "every field always present". Do not read that six off §3, which
+lists the **five** classes gaining declared *field sets* — a different set, and the one that
+moves coherence coverage to 18/18.
 
 ---
 
@@ -77,7 +89,10 @@ from today.
 | `VideoCueOutput` | 0 | **none** | gains a declared field set; its `__init__` validation is untouched (FR-006b) |
 | `DmxCueOutput` | 0 | **none** | gains a declared field set |
 
-Coherence coverage moves 13/18 → **18/18** (R4).
+Coherence coverage moves 13/18 → **18/18** (R4). The two denominators in this feature are
+different on purpose: **19** model classes exist (the rows above), **18** of them are
+schema-bound and therefore in scope for the coherence test. Defaulting is parametrized over 19;
+coverage is counted over 18.
 
 ---
 
@@ -140,7 +155,17 @@ Non-persisted attributes carried by cue objects, measured across `cues/`:
 `_action_target_object`.
 
 They stay instance attributes and stay out of every projection. This feature only guarantees
-they are initialized on **every** construction mode, via `_init_runtime()`. Deciding whether
+they are initialized on **every** construction mode, via `_init_runtime()`.
+
+> **`_initialized` is not inert, and must not be treated as one of the others.**
+> `VideoCueOutput.__init__` sets it `False` *before* population (`CueOutput.py:146`) and
+> `set_output_name`'s region-consistency rules are gated on it (`CueOutput.py:178`).
+> `CuemsDict.setter` does call those setters during construction (`helpers.py:33-35`), so that
+> gate is the only reason the rules do not reach the load path today. `_init_runtime()` must
+> preserve the ordering — false during population, true after — in **both** modes. Setting it
+> true first gives 14 inventoried setters new reach on decode, which FR-006b forbids, and the
+> resulting failure depends on arrival key order (`custom` `output_name` before
+> `canvas_region` raises; the reverse does not), so the corpus catches it only by luck. Deciding whether
 the runtime/persisted split should be *declared* rather than conventional is feature 006's
 first decision stop (`specs/planning/xml-rebuild-06-target-design.md` §8.1).
 

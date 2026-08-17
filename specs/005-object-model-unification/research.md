@@ -74,8 +74,9 @@ m=s['CueList']['contents'][2]['Media']; print(type(m['regions'][0]), m['regions'
 
 **Decision**: F20's "one protocol" is implemented as **declared defaults applied identically
 on every path**, with an explicit `Unset` sentinel for fields that must stay *absent* rather
-than present-and-empty. The five classes with no defaults dict get one; `Region`'s dead
-`REGION_REQ_ITEMS` becomes the real one.
+than present-and-empty. The **six** classes with no defaults dict get one — consistent with the
+next paragraph's "six empty classes", and not to be confused with the **five** that gain
+declared *field sets* (R4, C9); `Region`'s dead `REGION_REQ_ITEMS` becomes the real one.
 
 **Rationale**: `_instantiate` calls `model()` first, so today's decode already inherits
 whatever bare construction does. Giving the six empty classes defaults therefore changes what
@@ -179,9 +180,18 @@ change makes their current assertion false:
 | Test | Why it changes |
 |---|---|
 | `tests/contract/test_dmx_failure_path.py` | asserts the swallow is preserved; change 7 removes it → asserts a raise naming the scene |
-| `tests/unit/test_coherence.py::test_uncovered_classes_are_the_expected_ones` | five classes gain declared fields → uncovered set becomes empty (R4) |
+| `tests/unit/test_coherence.py::test_uncovered_classes_are_the_expected_ones` | five classes gain declared *field sets* — `Media`, `Region`, the three `CueOutput` subclasses — → uncovered set becomes empty (R4). Not the same five as the **six** classes gaining *defaults*; see C9 |
 | `tests/contract/test_registry_totality.py::test_generic_bindings_are_explicit_not_absent` | `UiPropertiesType` must now yield a `CuemsDict` on decode |
 | `tests/contract/test_semantic_roundtrip.py` | its docstring excludes built-vs-loaded "because F18 belongs to 005"; that exclusion is lifted |
+
+Four further files are **extended, never altered** — no existing assertion in them may change:
+
+| Test | What is added |
+|---|---|
+| `tests/integration/test_d14_chain.py` | the built-vs-loaded leg (FR-026, T011/T030) |
+| `tests/contract/test_logging_budget.py` | the drop-and-log record's budget arithmetic (T020) |
+| `tests/integration/test_create_script_completeness.py` | the cleared-template assertions (T038) |
+| `tests/contract/test_accept_reject_parity.py` | the explicit nil-UUID case (C2, T012a) |
 
 Everything else in the suite must pass **unchanged**. A change to any other test file is a
 signal to stop and re-read the spec.

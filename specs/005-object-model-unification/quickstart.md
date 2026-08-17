@@ -77,9 +77,9 @@ print(f'{(time.perf_counter()-t)/5*1000:.1f} ms')"     # 36.3 ms on 2026-08-12
 
 Budget: ≤ 2× that number **and** ≤ 75 ms absolute; suite and write path within 10%.
 
-## Four tests you are allowed to change
+## Eight tests you are allowed to touch — four changed, four extended
 
-Everything else must pass unmodified. Changing any other test file means stopping and
+Everything else must pass unmodified. Touching any other test file means stopping and
 re-reading the spec.
 
 | File | Change |
@@ -88,6 +88,12 @@ re-reading the spec.
 | `tests/unit/test_coherence.py` | uncovered set becomes empty (18/18 coverage) |
 | `tests/contract/test_registry_totality.py` | `UiPropertiesType` yields `CuemsDict` |
 | `tests/contract/test_semantic_roundtrip.py` | built-vs-loaded exclusion lifted |
+| `tests/integration/test_d14_chain.py` | **extended only** — built-vs-loaded leg |
+| `tests/contract/test_logging_budget.py` | **extended only** — the drop-and-log record |
+| `tests/integration/test_create_script_completeness.py` | **extended only** — cleared template |
+| `tests/contract/test_accept_reject_parity.py` | **extended only** — explicit nil-UUID case |
+
+"Extended only" means additive: no assertion those four carry today may change.
 
 ## Gotchas
 
@@ -97,7 +103,14 @@ re-reading the spec.
 - **Do not** filter wildcard subtrees by declared fields. `ui_properties` content is not
   declared anywhere; filtering it deletes real editor state.
 - **Do not** add or move a value-rejecting rule in any setter (FR-006b). Two legacy corpus
-  documents are *pinned as rejected*; parity runs in both directions.
+  documents are *pinned as rejected*; parity runs in both directions. Their rejection comes
+  from `VideoCueOutput.__init__` → `_classify_output_name` (`CueOutput.py:154`), **not** from
+  the `set_output_name` setter — preserve the constructor call, not setter invocation.
+- **`_initialized` is a trap.** It looks like an ordinary runtime attribute and is not:
+  `__init__` holds it false during population so that `set_output_name`'s region-consistency
+  rules stay off the load path. If `_init_runtime()` sets it true before population, those
+  rules switch on during decode and documents that load today start failing — order-dependently,
+  so the corpus may not catch it. See `data-model.md` §5 and contracts C12.
 - **`duration` is two different fields.** `FadeCue.duration` is a `CTimecode` and emits as
   `<duration><CTimecode>…</CTimecode></duration>`; `Media.duration` is a **string**
   (`TimecodeType`) and emits as bare text. Unifying them changes every media document. See

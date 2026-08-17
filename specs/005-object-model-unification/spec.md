@@ -2,7 +2,7 @@
 
 **Feature Branch**: `005-object-model-unification`
 **Created**: 2026-08-12
-**Status**: Draft
+**Status**: Ready for implementation *(analysis remediation applied 2026-08-17)*
 **Input**: Unify the object model onto a single construction path so that an object's internal types no longer depend on how it was created. Coercion moves out of property setters into the field specification; `CuemsScript` becomes a `CuemsDict` like every other model class; `items()`, defaulting and region typing get one definition each.
 
 **Planning context** (authoritative, read before planning):
@@ -57,8 +57,15 @@ evidence, rather than left as an open marker.
   reading: the nil UUID that appears three times in `tests/data/sample_script.json` is
   rejected by `Uuid.__init__`, not by any setter, and 004's uuid adapter already keeps an
   unparseable value as its raw string; and the load path is **already mixed**, so the two
-  legacy corpus documents rejected at decode by `CueOutput.set_output_name` must keep being
-  rejected. Standing rule 8 ("reading must never become stricter") sets the floor; the pinned
+  legacy corpus documents rejected at decode must keep being rejected. **Corrected 2026-08-17
+  against the code**: that rejection is raised by `VideoCueOutput.__init__`, which calls the
+  module-level `_classify_output_name` (`src/cuemsutils/cues/CueOutput.py:154`) *before*
+  `super().__init__` — not by `CueOutput.set_output_name`, as this spec and
+  `specs/planning/xml-rebuild-06-target-design.md` §9.1 previously stated. That setter exists
+  and also calls `_classify_output_name`, but its additional region-consistency rules are gated
+  on `_initialized`, which `__init__` holds false during population. Preserving the pinned
+  outcome therefore means preserving the *constructor call*, not setter invocation.
+  Standing rule 8 ("reading must never become stricter") sets the floor; the pinned
   golden outcomes set the ceiling. This feature unifies **type coercion** only.
   **Confirmed in the 2026-08-12 clarification session**, with the inventory and a required
   decision stop handed to 006.
@@ -259,6 +266,11 @@ document.
   path MUST initialize them on **every** entry point, exactly as bare construction does
   today, and they MUST NOT appear in `items()`, in the XML, or in either wire projection. A
   decoded cue that reaches the engine without them would fail at playback, not at load.
+  **One of them is not inert**: `_initialized` gates `VideoCueOutput.set_output_name`'s
+  region-consistency rules (`CueOutput.py:146,178`), and `__init__` deliberately holds it false
+  while populating. The unified path MUST reproduce that ordering — initializing it true before
+  population would give those rules new reach on the load path, which FR-006b forbids, in an
+  arrival-order-dependent way. See contracts C12.
 - **FR-005**: The unified construction path MUST preserve source key order for order-free
   content models, so that the emission order of the script root is unchanged. Byte-identity
   of written XML (FR-020) is the gate on this.
@@ -267,10 +279,13 @@ document.
   rejected with the same rule firing. The 14 value-rejecting property setters inventoried on
   2026-08-12 MUST NOT gain reach on the load path, and MUST NOT lose it either.
 - **FR-006a**: This matters because the load path is **already mixed**, measured 2026-08-12:
-  repeated members are built by calling the model constructor — setters, validation and all —
-  while everything else is populated by raw assignment that bypasses them. Two legacy corpus
-  documents are therefore rejected at object decode today by `CueOutput`'s `output_name`
-  rule, and 004 pinned that as a golden outcome. Unifying construction on the permissive
+  repeated members are built by calling the model constructor, which runs both its own
+  `__init__` validation and — through `CuemsDict.setter` — the property setters, while
+  everything else is populated by raw assignment that bypasses them. Two legacy corpus
+  documents are therefore rejected at object decode today by `VideoCueOutput.__init__`'s call
+  to `_classify_output_name` (`CueOutput.py:154`, verified 2026-08-17), and 004 pinned that as
+  a golden outcome. Parity is owed to that specific call site: the same `ValueError`, raised
+  from the same place, not merely two documents that still fail. Unifying construction on the permissive
   strategy would make those documents start loading; unifying on the strict one would reject
   documents that load today. Neither is acceptable: **the unified path MUST reproduce each
   document's current outcome**, and the two pinned rejections are the test that proves it.
@@ -293,9 +308,15 @@ document.
 - **FR-010**: Type identity MUST hold recursively — at every depth of cue lists, media,
   outputs and regions — not only at the top level.
 - **FR-011**: Registry bindings that were deliberately pointed at generic containers in 004 to
-  preserve behaviour (notably media and the wildcard type) MUST be re-pointed at the real
-  model classes wherever FR-007–FR-010 require it, and the previously unreachable
-  hand-written handlers MUST be either adopted or removed — none left present-but-unreachable.
+  preserve behaviour MUST be re-pointed at the real model classes wherever FR-007–FR-010
+  require it. Verified 2026-08-17: `MediaType` and `RegionType` are **already** bound to
+  `Media` and `Region` (`src/cuemsutils/xml/registry.py:162-163`), so the only binding this
+  feature re-points is `UiPropertiesType`. The previously unreachable hand-written handler
+  `UI_properties` MUST be either adopted or removed — none left present-but-unreachable. This
+  obligation is scoped to **reachable** code: `mediaParser` sits below `CuemsParser.parse` in
+  the frozen legacy tree (`src/cuemsutils/xml/Parsers.py:120-122`), which is unreachable by
+  design and is removed with the deprecation shims in **feature 006** (settled 2026-08-17; the
+  `Parsers.py` docstring saying 007 is wrong and is corrected by T028a).
 
 **The root joins the model**
 
@@ -309,9 +330,11 @@ document.
   serialization engine uses to select fields for emission, so that the model and the engine
   cannot disagree about what a declared field is.
 - **FR-015a**: A key that the rule does not recognise MUST be **dropped, not raised on, and
-  not silently lost**: it is excluded from every projection and one log record naming the
-  class and the key is emitted. Logging MUST stay inside the budget 004 established (INFO at
-  document level, DEBUG or lower per object) and MUST NOT include the value.
+  not silently lost**: it is excluded from every projection and **one log record per dropped
+  key per object** — naming the class and the key — is emitted. A document dropping the same
+  key on five cues therefore emits five records. Logging MUST stay inside the budget 004
+  established (INFO at document level, DEBUG or lower per object) and MUST NOT include the
+  value.
 - **FR-016**: The JSON projection MUST use one contract for the root and its children. The
   current uppercase-key heuristic for detecting wrapped children MUST be removed, and the
   emitted payload MUST be unchanged apart from the differences enumerated under "Behaviour
@@ -336,7 +359,7 @@ behaviour unless the spec states otherwise; these are the stated exceptions)*
   | 1 | F18 | Loaded objects gain the internal types built objects already had. | Code that received plain dictionaries from a loaded script now receives typed objects. |
   | 2 | F12 / F19 | Region coercion actually runs: the setter's discarded coercion and the compensating reconstruction that never fired are both replaced by the unified path. | `regions` members are region objects, not dictionaries. |
   | 3 | F16 | Clearing an identifier clears it, instead of assigning a fresh random one. | The initial template ships with empty script and cue-list identifiers, matching the sibling fields that already clear. |
-  | 4 | F17 | The blanket swallow around setter invocation narrows to "no such setter"; an error raised *inside* a setter propagates. | A field whose coercion fails now raises instead of vanishing. |
+  | 4 | F17 | The blanket `except AttributeError` around setter invocation narrows to "no such setter"; an `AttributeError` raised *inside* a setter propagates. Exceptions of other types already propagate today and are unaffected. | A field whose coercion fails now raises instead of vanishing. |
   | 5 | F20 | One defaulting protocol: bare construction yields declared defaults for every class. | `Cue()` is no longer empty. |
   | 6 | §5.4 of Part 2c | The root's `items()` filters to declared fields, as cues already do. | Stray keys the root previously leaked stop being emitted. |
   | 7 | F4 | The DMX-scene swallow-and-continue compatibility introduced by 004 is removed, per its recorded removal target. | A show whose DMX scene fails to serialize now errors instead of saving with the scene missing. |
@@ -351,15 +374,16 @@ behaviour unless the spec states otherwise; these are the stated exceptions)*
   stray keys if any). The delta MUST be measured, recorded in the migration notes, and
   confirmed harmless to the UI. The `project_load` payload MUST remain byte-identical —
   it is transmitted verbatim to the Angular UI and is the feature's hard constraint.
-- **FR-023**: Change 7 MUST surface as an actionable error naming the failing scene; the
-  engine MUST NOT gain an ambient catch-all in its place.
+- **FR-023**: Change 7 MUST surface as an actionable error identifying the failing scene by its
+  `id` — or by its zero-based index in the cue's scene contents when no `id` is present — and
+  naming the originating cue; the engine MUST NOT gain an ambient catch-all in its place.
 
 **Non-regression**
 
-- **FR-024**: Every document the pre-005 library loads MUST still load, and every document it
-  rejects MUST still be rejected by the same rule. Accept/reject parity against the current
-  corpus and its pinned outcomes MUST hold in both directions — including the two legacy
-  documents whose `output_name` rejection is a golden outcome (FR-006a).
+- **FR-024**: Accept/reject parity as stated in FR-006 and FR-006a MUST hold against the
+  current corpus and its pinned outcomes, and is verified here as a non-regression gate rather
+  than restated as a second requirement. FR-006/FR-006a are the normative text; this entry
+  exists so the non-regression suite has an explicit owner.
 - **FR-025**: The coherence test (declared fields ↔ schema-declared elements, set equality
   per class) MUST continue to pass and MUST NOT be weakened by the `items()` unification.
 - **FR-026**: The round-trip chain (XML → object → JSON → object → XML) MUST continue to pass,
@@ -399,8 +423,9 @@ behaviour unless the spec states otherwise; these are the stated exceptions)*
 - **SC-001**: For 100% of corpus documents, a recursive field-by-field comparison of
   built / XML-loaded / JSON-loaded objects reports **zero** type differences. The same
   comparison fails on pre-005 code, naming `ui_properties` and `regions`.
-- **SC-002**: 100% of 004's XML goldens and read-dict goldens remain byte-identical; zero
-  goldens regenerated.
+- **SC-002**: the measurement of FR-020 — 100% of 004's XML goldens and read-dict goldens
+  remain byte-identical; zero goldens regenerated. Evidenced by an empty
+  `git diff --stat tests/golden/`, which includes the API snapshot golden (FR-027).
 - **SC-003**: Each of the seven enumerated behaviour changes has at least one test that fails
   on pre-005 code and passes after — seven demonstrated fail-then-pass pairs, evidenced in
   the pull request.

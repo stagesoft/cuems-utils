@@ -36,8 +36,10 @@ path, `json_fix` for the JSON projection. No new dependency.
 document; suite and write path within 10% of the 2026-08-12 baseline
 **Constraints**: 1251 passed / 43 skipped / 36.71 s baseline; largest corpus decode 36.3 ms;
 `project_load` payload byte-identical; no `.xsd` edits; no public API change
-**Scale/Scope**: 19 model classes, 18 registry bindings, ~30-document corpus, 10 `items()`
-overrides and 8 `__json__` methods to collapse
+**Scale/Scope**: 19 model classes — 18 of them schema-bound and therefore covered by the
+coherence test, which is why coverage counts run to 18 while defaulting runs to 19 — ~30-document
+corpus, 10 `items()` overrides, and **7** model `__json__` methods to collapse
+(`FadeCurveType.__json__` is a value type and is explicitly excluded; see T018)
 
 No unresolved NEEDS CLARIFICATION: the four open questions were settled in the 2026-08-12
 clarification session and recorded in the spec.
@@ -80,8 +82,11 @@ specs/005-object-model-unification/
 ├── quickstart.md        # Phase 1 — how to run, verify and not break the goldens
 ├── contracts/README.md  # Phase 1 — C1–C13
 ├── migration-map.md     # written during implementation; consumer-visible deltas (FR-UX-001)
+├── baseline.md          # written by T001/T002, completed by T043; the perf denominators
+├── defaults-audit.md    # written by T036; one row per newly declared default
 ├── checklists/
-│   └── requirements.md
+│   ├── requirements.md
+│   └── behaviour-changes.md
 └── tasks.md             # /speckit.tasks output — NOT created here
 ```
 
@@ -118,6 +123,29 @@ tests/
 package root rather than inside `xml/`, because it is imported by the model layer and `xml/`
 already imports the model — putting it under `xml/` would close an import cycle (R1). It is
 internal; nothing is added to any `__all__`.
+
+`CuemsDict` gains `coercion_table()` alongside `declared_fields()` and `declared_defaults()`
+(settled 2026-08-17), so the model answers for its own types the same way it answers for its
+own fields — the rule T019 already enforces for field selection, applied to coercion. That is a
+deliberate architectural statement and not a free one: `cues/` now declares a schema-derived
+concept in its *public shape*, where previously the dependency lived only inside `xml/`. Three
+consequences, all verified 2026-08-17:
+
+- The import direction stays one-way. The classmethod is **not** what protects that — the
+  function-local `cuemsutils.xml.*` imports inside `coercion.py` are (R1). `helpers.py` today
+  imports only stdlib and `tools/`, so a module-scope import of `coercion` is safe.
+- The public-API golden does not move: none of the five exported symbols
+  (`NetworkMap`, `ProjectMappings`, `ProjectSettings`, `Settings`, `XmlReaderWriter`) derives
+  from `CuemsDict` — they descend from `XmlReaderWriter`/`CuemsXml` — so
+  `tests/golden/api/public_api.json` is untouched and FR-027 holds. The corollary is that if
+  006 exports model classes, all three new classmethods enter that snapshot at once.
+- `coercion_table()` takes no schema argument while registries are **per schema**. That is
+  correct-by-accident today: the five config registries bind every type to `GENERIC`
+  (`registry.py:213-226`), so every model class is bound in exactly one registry. The same
+  docstring names 006 as the feature that gives configuration documents model classes, so the
+  ambiguity arrives in the very next feature. T004 therefore carries a guard that raises when a
+  class resolves in more than one registry, rather than a signature that would have to change
+  later on every model object.
 
 ## Implementation phases
 
@@ -163,7 +191,8 @@ empty.
 | Risk | Mitigation |
 |---|---|
 | Routing decode through the sorting constructor rewrites every script root | Two construction modes, arrival order preserved (R10); C3 pins a root's key order directly so the failure names the cause |
-| Giving five classes defaults changes what decode emits | `Unset` sentinel; C1 is the gate; the defaults audit is an explicit task, not an assumption |
+| Giving six classes defaults changes what decode emits | `Unset` sentinel; C1 is the gate; the defaults audit is an explicit task, not an assumption. Six classes gain *defaults*; five gain declared *field sets* — different sets, see C9 |
+| `_init_runtime()` sets `_initialized` true before population, switching on `VideoCueOutput`'s gated setter rules during decode | Stated as a prohibition at the hook itself (T008) rather than left to a contract, because C2 catches it only for documents whose arrival key order exposes it; C12 asserts the flag's value *during* population |
 | Regions becoming objects changes emitted bytes | R6 traced both mapper branches to the same tag and text; three corpus regions with timecodes are the proof |
 | The JSON leg changes shape when regions unwrap | C5 and `test_d14_chain`'s `rebuilt == obj` fail loudly together; both legs move in the same commit (R11) |
 | Turning setter validation on by accident, via the constructor path | C2 (accept/reject parity, both directions) with the two pinned legacy rejections; FR-006b forbids adding or moving any rule |
@@ -177,6 +206,7 @@ empty.
 | Engineering Standards: "Refactors MUST preserve behavior unless the spec explicitly states otherwise" | Seven enumerated behaviour changes, each a measured defect (F4, F12/F19, F16, F17, F18, F20, root `items()`) | Preserving them means keeping the divergence this feature exists to remove; the clause's carve-out is used as intended, with each change enumerated in the spec and gated by a fail-then-pass test |
 | A new module (`coercion.py`) outside `xml/` | The model layer must reach the schema-derived adapters, and `xml/` already imports the model | Placing it in `xml/` closes an import cycle; declaring adapters in `REQ_ITEMS` would create a second source of truth for types, against D2 |
 | Two construction *modes* rather than literally one function | Arrival key order is load-bearing for `xs:all` types; sorted order is what generated documents contain | A single ordering changes one of the two on every document — measured, not hypothetical (R10) |
+| `coercion_table()` on the model base, rather than a resolver called only from `xml/` | Symmetry with `declared_fields()`: the caller asks the object instead of re-deriving the answer — the same rule T019 enforces for field selection. Two rules that agree only because a test says so is the failure mode this feature exists to remove | Keeping the resolver inside `xml/` leaves `cues/` schema-free, but then the *programmatic* construction path cannot reach its own adapters, and coercion stops being one path — which is the feature |
 
 ## Constitution re-check (post-design)
 
