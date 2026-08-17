@@ -1,98 +1,144 @@
-"""Failure-path preservation (T019) — FR-015a.
+"""DMX scene failure raises — contract C11, FR-019 row 7, FR-023.
 
-``DmxSceneXmlBuilder.build`` wraps its whole body in ``try/except Exception``
-and logs the error instead of raising. A DMX scene that fails to serialize
-therefore produces **no elements and no exception**: the surrounding document
-is written as if the scene were empty.
+**Inverted by feature 005** (T040). This file used to assert the opposite.
 
-This is a defect. It is also, right now, behaviour — a show with a bad DMX scene
-saves today rather than failing, and changing that is a behaviour change FR-015
-forbids here. So it is pinned *before* the builders are replaced, and the
-replacement must reproduce it behind one named compatibility behaviour carrying
-its removal target (T046), rather than as an ambient ``except Exception`` in the
-general path.
+``DmxSceneXmlBuilder.build`` wrapped its whole body in ``except Exception`` and
+logged instead of raising, so a DMX scene that failed to serialize produced **no
+elements and no exception** — the surrounding document saved as if the scene
+were empty. A show file written that way is missing a scene and says so nowhere.
 
-What is asserted, per FR-015a:
+Feature 004 could not fix it: making a saving document fail is a behaviour
+change, and 004 preserved behaviour. So it reproduced the swallow behind a named
+``DmxSceneCompatibility`` object carrying ``REMOVAL_TARGET = "005"``, and this
+file pinned it. Feature 005 is that removal target.
 
-* it does not raise;
-* surrounding data is unaffected;
-* something is logged at ERROR, so the failure is not entirely silent.
+What changed, precisely:
 
-Log **text** is deliberately not asserted — FR-032 puts log output outside the
-byte-identity guarantee, and T060 rewrites these records.
+* the compatibility object is **deleted** — it had no call sites in the engine,
+  because the engine already let the exception propagate;
+* what the engine did *not* do was say which scene failed. A bare
+  ``RuntimeError`` from somewhere inside a 24 KB document is not actionable, so
+  the error now identifies the scene by ``id`` (or by zero-based index when it
+  has none) and names the originating cue;
+* the guard is scoped to DMX scenes. An ambient ``except Exception`` would
+  swallow unrelated failures — the same defect, widened.
+
+The **legacy** ``XmlBuilder`` keeps its own swallow. It is the frozen legacy
+tree, unreachable from the engine and removed with the deprecation shims in
+feature 006; changing it here would be editing code this feature does not own.
 """
 
 from __future__ import annotations
 
-import logging
-from xml.etree.ElementTree import Element, SubElement
+import pytest
 
-from cuemsutils.xml.XmlBuilder import DmxSceneXmlBuilder
+from cuemsutils.xml.mapper import DmxSceneWriteError
+from tests.support import roundtrip as rt
+from tests.support.corpus import DOCUMENTS
+
+SCRIPT_DOC = next(d for d in DOCUMENTS if d.schema == "script")
 
 
 class _ExplodingScene:
-    """Stands in for a DMX scene whose serialization fails.
+    """A DMX scene whose serialization fails.
 
-    Raising from ``items()`` is the earliest point the builder touches the
-    object, so the failure lands inside the ``try`` with nothing yet emitted —
-    the worst case, and the one worth pinning.
+    Raising from ``keys()`` is the earliest point the writer touches the object,
+    so the failure lands with nothing yet emitted — the worst case, and the one
+    worth pinning.
     """
+
+    def __init__(self, scene_id=None):
+        self._id = scene_id
+
+    def get(self, key, default=None):
+        return self._id if key == "id" else default
+
+    def keys(self):
+        raise RuntimeError("scene serialization failed")
 
     def items(self):
         raise RuntimeError("scene serialization failed")
 
 
-def test_failure_is_swallowed_not_raised():
-    tree = Element("root")
-    DmxSceneXmlBuilder(_ExplodingScene(), xml_tree=tree).build()
+def script_with_scene(scene):
+    obj = rt.build_generated_script()
+    cue = next(c for c in obj["CueList"]["contents"] if "DmxScene" in c)
+    dict.__setitem__(cue, "DmxScene", scene)
+    return obj, cue
 
 
-def test_failure_emits_no_elements():
-    tree = Element("root")
-    DmxSceneXmlBuilder(_ExplodingScene(), xml_tree=tree).build()
-    assert list(tree) == []
+# --- the change: it raises -------------------------------------------------
 
 
-def test_surrounding_data_is_unaffected():
-    """The half of FR-015a that is easy to lose in a rewrite.
+def test_a_failing_scene_aborts_the_write():
+    """**Inverted.** The write used to succeed with the scene missing."""
+    obj, _ = script_with_scene(_ExplodingScene())
+    with pytest.raises(DmxSceneWriteError):
+        rt.write_bytes(SCRIPT_DOC, obj)
 
-    "Does not raise" is only half the behaviour: siblings written before and
-    after the failing scene must survive it. A replacement that caught the
-    exception but abandoned the parent element would pass a
-    ``pytest.raises``-free check and still lose the document.
+
+def test_the_error_identifies_the_scene_by_id():
+    """FR-023 — by ``id`` when it has one."""
+    obj, _ = script_with_scene(_ExplodingScene(scene_id=7))
+    with pytest.raises(DmxSceneWriteError) as excinfo:
+        rt.write_bytes(SCRIPT_DOC, obj)
+    assert "id=7" in str(excinfo.value)
+
+
+def test_the_error_falls_back_to_the_index_when_there_is_no_id():
+    """FR-023 — zero-based index in the cue's scene contents."""
+    obj, _ = script_with_scene(_ExplodingScene(scene_id=None))
+    with pytest.raises(DmxSceneWriteError) as excinfo:
+        rt.write_bytes(SCRIPT_DOC, obj)
+    assert "index 0" in str(excinfo.value)
+
+
+def test_the_error_names_the_originating_cue():
+    """Which scene *and* which cue — one without the other is half an answer."""
+    obj, cue = script_with_scene(_ExplodingScene())
+    with pytest.raises(DmxSceneWriteError) as excinfo:
+        rt.write_bytes(SCRIPT_DOC, obj)
+
+    message = str(excinfo.value)
+    assert type(cue).__name__ in message
+    assert str(cue["id"]) in message
+
+
+def test_the_original_failure_is_preserved_as_the_cause():
+    """The actionable error must not replace the diagnosis."""
+    obj, _ = script_with_scene(_ExplodingScene())
+    with pytest.raises(DmxSceneWriteError) as excinfo:
+        rt.write_bytes(SCRIPT_DOC, obj)
+    assert isinstance(excinfo.value.__cause__, RuntimeError)
+    assert "scene serialization failed" in str(excinfo.value.__cause__)
+
+
+def test_the_error_carries_no_object_repr():
+    """FR-033 — identifiers only. Show content stays out of error strings."""
+    obj, _ = script_with_scene(_ExplodingScene(scene_id=7))
+    with pytest.raises(DmxSceneWriteError) as excinfo:
+        rt.write_bytes(SCRIPT_DOC, obj)
+    assert "_ExplodingScene object at" not in str(excinfo.value)
+
+
+# --- the control case ------------------------------------------------------
+
+
+def test_a_healthy_scene_still_emits():
+    """Without this, swallowing *everything* would pass every test above.
+
+    FR-020: no valid document changes. The generated script contains a real DMX
+    scene, and it writes byte-identically to its golden.
     """
-    tree = Element("root")
-    before = SubElement(tree, "before")
-    before.text = "kept"
-
-    DmxSceneXmlBuilder(_ExplodingScene(), xml_tree=tree).build()
-
-    after = SubElement(tree, "after")
-    after.text = "kept"
-
-    assert [child.tag for child in tree] == ["before", "after"]
-    assert [child.text for child in tree] == ["kept", "kept"]
+    obj = rt.build_generated_script()
+    produced = rt.normalize_uuids(rt.write_bytes(SCRIPT_DOC, obj))
+    assert produced == rt.golden_bytes("generated/create_script.xml")
+    assert b"<DmxScene>" in produced
 
 
-def test_failure_is_logged_at_error(caplog):
-    """Not silent — but not asserted word for word.
+def test_the_compatibility_object_is_gone():
+    """Its removal target was this feature, recorded in 004's own code."""
+    import cuemsutils.xml.mapper as mapper
 
-    The message text is out of scope (FR-032) and T060 rewrites it. What must
-    survive is that a failed scene leaves an ERROR record behind.
-    """
-    with caplog.at_level(logging.ERROR):
-        DmxSceneXmlBuilder(_ExplodingScene(), xml_tree=Element("root")).build()
-    assert any(r.levelno >= logging.ERROR for r in caplog.records)
-
-
-def test_a_healthy_scene_still_emits(caplog):
-    """The control case.
-
-    Without it, an implementation that swallowed *everything* would pass every
-    other test in this file.
-    """
-    tree = Element("root")
-    with caplog.at_level(logging.ERROR):
-        DmxSceneXmlBuilder({"id": 0}, xml_tree=tree).build()
-    assert [child.tag for child in tree] == ["id"]
-    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert not hasattr(mapper, "DmxSceneCompatibility")
+    assert not hasattr(mapper, "_SwallowAndLog")
