@@ -11,8 +11,9 @@ PYENV_VERSION=3.11.9 pyenv exec hatch test            # full suite
 PYENV_VERSION=3.11.9 pyenv exec hatch test --show     # with output
 ```
 
-Baseline on this branch (2026-08-12): **1251 passed, 43 skipped, 36.71 s**. Never start
-implementation on a red suite.
+Baseline at `79632c3` (pre-005): **1251 passed, 43 skipped, 36.71 s**.
+Landed (2026-08-17): **1485 passed, 47 skipped, 2 xfailed, ~44 s** — the suite grew by 234
+tests, so wall time tracked the count rather than a slowdown (see `baseline.md`).
 
 ## The three checks that matter most
 
@@ -31,8 +32,8 @@ from cuemsutils.xml.xml_reader_writer import XmlReaderWriter as R
 s = R(schema_name='script',
       xmlfile='tests/data/corpus/cuems-engine/projects/complex_test/script.xml').read_to_objects()
 cue = [c for c in s['CueList']['contents'] if 'Media' in c][0]
-print('ui_properties:', type(cue['ui_properties']).__name__)     # dict  -> must become CuemsDict
-print('regions[0]:   ', type(cue['Media']['regions'][0]).__name__)  # dict -> must become Region
+print('ui_properties:', type(cue['ui_properties']).__name__)     # now CuemsDict (was dict)
+print('regions[0]:   ', type(cue['Media']['regions'][0]).__name__)  # now Region (was dict)
 "
 ```
 
@@ -75,7 +76,11 @@ t=time.perf_counter(); [r.read_to_objects() for _ in range(5)]
 print(f'{(time.perf_counter()-t)/5*1000:.1f} ms')"     # 36.3 ms on 2026-08-12
 ```
 
-Budget: ≤ 2× that number **and** ≤ 75 ms absolute; suite and write path within 10%.
+Budget: ≤ 2x that number **and** ≤ 75 ms absolute; suite and write path within 10%.
+
+**Landed**: 49.6 ms by this method (1.37x), and **18.0 ms warm** — unchanged from pre-005's
+18.7 ms. Coercion costs nothing measurable per decode; the whole delta is one fixed
+`all_registries()` call, paid once per process. Feature 006 inherits both numbers.
 
 ## Eight tests you are allowed to touch — four changed, four extended
 
@@ -116,3 +121,28 @@ re-reading the spec.
   (`TimecodeType`) and emits as bare text. Unifying them changes every media document. See
   `data-model.md` §4 before touching either setter.
 - Commits are GPG-signed. Retry on "gpg failed to sign"; never `--no-gpg-sign`.
+
+## What landed (2026-08-17)
+
+All seven behaviour changes, all four golden sets byte-identical, coherence 13/18 -> 18/18.
+
+Three things that were **not** in the spec and cost time to find:
+
+- **`_initialized` gates three classes**, not just `VideoCueOutput`: also
+  `ActionCue.set_action_target` and `FadeCue.set_action_type`. It must stay false during
+  population in all three.
+- **`items()` order is load-bearing in two directions.** Declared order is what the frozen
+  legacy `XmlBuilder` needs (it iterates `items()`, and an `ActionCue` emitting
+  `action_target` first fails XSD validation) and what `VideoCueOutput`'s old hand-ordered
+  override supplied. *Arrival* order is what the `xs:all` root needs — that lives in
+  `CuemsScript.__json__`, not in `items()`.
+- **`ensure_items` used to mutate its argument**, and every cue `__init__` passes the
+  module-level `REQ_ITEMS` when constructed bare. One `AudioCue()` permanently added
+  `Media` and `outputs` to `AudioCue.REQ_ITEMS`. Fixed by copying.
+
+Two things remain **open** and are carried into the PR — see `migration-map.md`:
+
+1. SC-001's "zero type differences" is not met as written: 14 of the original 44 remain, in
+   three groups outside FR-019's enumeration. Built vs JSON-decoded *is* exact.
+2. FR-022's "confirmed harmless to the UI" for the cleared `initial_template` identifiers
+   has no owner (checklist CHK032).

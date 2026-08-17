@@ -70,14 +70,30 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
-- `005-object-model-unification` (planned): one construction path for the model — coercion
-  moves from property setters into a schema-resolved adapter table, `CuemsScript` becomes a
-  `CuemsDict`, and `items()`/defaulting/JSON-wrapping each collapse to one definition. Seven
-  enumerated behaviour changes (F4, F12/F19, F16, F17, F18, F20, root `items()`). Baseline
-  2026-08-12: 1251 passed, 43 skipped, 36.71 s; largest corpus decode 36.3 ms. Load-bearing
-  facts: **all four golden sets stay byte-identical**, decode must preserve *arrival* key
-  order (the root is `xs:all`), and two legacy corpus documents are pinned as *rejected* —
-  parity runs in both directions. See `specs/005-object-model-unification/`.
+- `005-object-model-unification` (**landed** 2026-08-17): one construction path for the
+  model. Coercion moved from property setters into a schema-resolved adapter table
+  (`src/cuemsutils/coercion.py`, cached per class), `CuemsScript` is now a `CuemsDict`, and
+  `items()`/defaulting/JSON-wrapping each collapsed to one definition on `CuemsDict`
+  (`declared_fields`, `declared_defaults`, `Unset`, `from_decoded`, `_init_runtime`,
+  `JSON_SELF_WRAPS`). All seven enumerated behaviour changes shipped (F4, F12/F19, F16, F17,
+  F18, F20, root `items()`); **all four golden sets stayed byte-identical**. Suite 1485
+  passed / 47 skipped. Coherence coverage 13/18 → **18/18**.
+  - **Perf baseline feature 006 inherits**: decode **18.0 ms warm** (unchanged from pre-005's
+    18.7 ms — coercion costs nothing measurable) and **49.6 ms** by the `quickstart.md`
+    cold-inclusive method. The whole 36.3 → 49.6 ms delta is one fixed cost:
+    `coercion._resolve` calls `all_registries()`, building the five config schemas nothing
+    else on that path needs. Paid once per process; see `baseline.md`.
+  - Load-bearing facts that outlived the feature: decode preserves *arrival* key order (the
+    root is `xs:all`, so `items()` is declared-order but `CuemsScript.__json__` is not); the
+    two legacy corpus documents stay *rejected* from the same call site
+    (`VideoCueOutput.__init__` → `_classify_output_name`); and `_initialized` gates
+    value-rejecting setters in **three** classes (`ActionCue`, `FadeCue`, `VideoCueOutput`),
+    not one as the spec said — it must stay false during population.
+  - **Open, carried to the PR**: SC-001's "zero type differences" is not met as written — 14
+    of the original 44 remain, in three groups outside FR-019's enumeration (wildcard
+    `None`→`"None"`, `OPAQUE_TYPES`, GENERIC-bound `output_geometry`). Built vs JSON-decoded
+    *is* exact. Also open: FR-022's "confirmed harmless to the UI" for the cleared
+    `initial_template` identifiers has no owner. See `migration-map.md`.
 - `004-xml-serialization-core` (in progress): replacing the four duplicated XML mapping
   implementations with one schema-derived engine. Pure refactor — byte-identical output,
   deprecation shims at every old import path. See `specs/004-xml-serialization-core/`.
