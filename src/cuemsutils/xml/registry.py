@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 from .schema import SCHEMA_NAMES, SCHEMA_ROOTS, get_schema
-from .spec import TypeKey
+from .spec import TypeKey, TypeSpec, derive
 
 #: Marker for a type that is deliberately served by a generic container rather
 #: than by a model class. Explicit so that "no bespoke class" is a *decision*
@@ -58,6 +58,7 @@ class SchemaRegistry:
         self.root = SCHEMA_ROOTS[schema_name]
         self._by_type: dict[str, Binding] = {}
         self._by_path: dict[str, Binding] = {}
+        self._model_specs: dict[type, TypeSpec] | None = None
 
     def bind(self, type_name: str, model) -> SchemaRegistry:
         key = TypeKey(self.schema_name, type_name)
@@ -88,6 +89,47 @@ class SchemaRegistry:
     @property
     def bound_type_names(self) -> frozenset[str]:
         return frozenset(self._by_type)
+
+    def spec_for_model(self, model: type) -> TypeSpec | None:
+        """The ``TypeSpec`` bound to a Python class, or ``None`` (T004a).
+
+        One resolver, two callers: the mapper needs it to pick a spec for a list
+        member whose field is undescribed, and ``coercion.adapter_table`` needs
+        it to find a class's field types. It lived inline in
+        ``mapper._spec_for_model`` as an O(bindings) scan run *per list item* on
+        the encode path; sharing it removes the duplicate and pays the scan once
+        per registry instead.
+
+        A method rather than a module-level function because resolution is
+        **registry-scoped** — the mapper holds one registry per schema, and a
+        free function would need the registry threading through every call site,
+        relocating the ambiguity rather than removing it.
+
+        Both binding maps are searched, and that is not incidental:
+        ``CuemsScript`` is bound by *path* (``CuemsProject/CuemsScript``), not by
+        type qname, because the root types are anonymous (research R3). The
+        by-type-only scan this replaces therefore returned ``None`` for the
+        script root — harmless while the only caller was encode (a root is never
+        a list member), and a silent hole the moment coercion asks the same
+        question, since the root would get an empty adapter table and its ``id``,
+        ``created`` and ``modified`` would go uncoerced.
+
+        By-type wins a tie, preserving the order the previous scan implied. No
+        model is bound twice today; ``setdefault`` makes the resolution
+        deterministic rather than dependent on dict ordering if one ever is.
+        """
+        if self._model_specs is None:
+            self._model_specs = self._build_model_specs()
+        return self._model_specs.get(model)
+
+    def _build_model_specs(self) -> dict[type, TypeSpec]:
+        specs: dict[type, TypeSpec] = {}
+        for bindings in (self._by_type, self._by_path):
+            for binding in bindings.values():
+                if binding.is_generic or not isinstance(binding.model, type):
+                    continue
+                specs.setdefault(binding.model, derive(binding.key))
+        return specs
 
     def complex_type_names(self) -> frozenset[str]:
         schema = get_schema(self.schema_name)
