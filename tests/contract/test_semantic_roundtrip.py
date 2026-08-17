@@ -10,8 +10,15 @@ an equal object, which is exactly the defect research R2 identified and FR-001b
 corrected. That blindness is asserted below rather than described, so nobody
 later mistakes C3a for sufficient evidence and drops C1.
 
-Scope: **loaded-vs-loaded** only. The built-vs-loaded comparison diverges today
-(F18) and belongs to feature 005.
+Scope: **loaded-vs-loaded** only, and that exclusion is now lifted elsewhere
+rather than still open. The built-vs-loaded comparison this file deferred as
+F18's territory landed in feature 005 (T031): it lives in
+``tests/integration/test_d14_chain.py`` — the chain that already owns the
+built object — and its full measurement, including the three groups of type
+difference that fall outside FR-019's enumeration, is pinned in
+``tests/integration/test_construction_parity.py``. This file stays
+loaded-vs-loaded because that is what makes it a *semantic* round-trip test;
+duplicating the comparison here would give two owners to one guarantee.
 """
 
 from __future__ import annotations

@@ -20,52 +20,30 @@ two happen to agree today.
 
 from __future__ import annotations
 
-import inspect
-import re
-import sys
-
 import pytest
 
 from cuemsutils.xml.registry import get_registry
 from cuemsutils.xml.spec import derive
 
-#: Any module-level mapping of defaults, whatever it is called. The cue classes
-#: use ``REQ_ITEMS``; ``DmxChannel`` uses ``DMXCHANNEL_REQ_ITEMS``, ``DmxScene``
-#: uses ``SCENE_REQ_ITEMS``, and so on. Matching the *name* rather than
-#: hardcoding a list means a new class with a new spelling is covered the day
-#: it is written.
-_REQ_ITEMS_NAME = re.compile(r"\b([A-Z_]*REQ_ITEMS)\b")
-
 
 def declared_fields(model: type) -> set[str]:
-    """``REQ_ITEMS`` keys accumulated across the MRO.
+    """The model's own answer (T007) — this test no longer owns a second one.
 
-    Accumulated because a cue subclass declares only what it *adds*:
-    ``AudioCue``'s ``REQ_ITEMS`` holds ``Media``, ``outputs``, ``master_vol``
-    and ``fade_profiles``, while the thirteen common properties come from
-    ``Cue``. Reading one class's dict alone reports thirteen spurious
-    "missing" fields.
+    Until feature 005 this function reconstructed the field set by reading each
+    ``__init__``'s **source** and regex-matching ``REQ_ITEMS`` names. It worked,
+    and it was the problem: the declared field set existed only as a convention,
+    recoverable by anyone willing to parse source, and this test's reconstruction
+    was one of two independent implementations of it. The engine had the other.
+    Two rules that agree only because a test says so is exactly what this
+    feature removes, so the classes now **declare** it and both consumers ask.
 
-    Resolved per class in the MRO, against **that class's own module**, because
-    several modules hold more than one defaults dict — ``DmxCue.py`` has four,
-    and picking the module-level ``REQ_ITEMS`` for ``DmxChannel`` would compare
-    a channel against a cue.
+    Kept as a function rather than inlined so the parametrisation below reads
+    unchanged, and so a class with no declaration still answers with an empty
+    set — which is what puts ``Media``, ``Region`` and the three ``CueOutput``
+    subclasses in ``UNCOVERED`` until they gain declared field sets.
     """
-    accumulated: set[str] = set()
-    for klass in reversed(model.__mro__):
-        init = klass.__dict__.get("__init__")
-        if init is None:
-            continue
-        try:
-            source = inspect.getsource(init)
-        except (TypeError, OSError):
-            continue
-        module = sys.modules.get(klass.__module__)
-        if module is None:
-            continue
-        for name in _REQ_ITEMS_NAME.findall(source):
-            accumulated.update(getattr(module, name, {}) or {})
-    return accumulated
+    declared = getattr(model, "declared_fields", None)
+    return set(declared()) if declared is not None else set()
 
 
 def bound_models():
@@ -124,24 +102,27 @@ def test_every_cue_type_is_covered():
 
 
 def test_uncovered_classes_are_the_expected_ones():
-    """Which classes this check cannot reach, stated rather than left implicit.
+    """Nothing is uncovered any more — coverage is 18/18 (T029, research R4).
 
-    ``Media``, ``Region`` and the three ``CueOutput`` subclasses declare no
-    defaults dict at all — they take their fields from the init dict directly.
-    They are therefore invisible to a ``REQ_ITEMS``-based comparison, and
-    saying so here is better than a passing suite that quietly covers thirteen
-    of eighteen bindings.
+    Until feature 005 this asserted an uncovered set of exactly ``{Media,
+    Region, AudioCueOutput, VideoCueOutput, DmxCueOutput}``: five classes that
+    declared no defaults dict at all and took their fields straight from the
+    init dict, leaving this check silently covering thirteen of eighteen
+    bindings. The comment said so — *"giving them defaults dicts is an
+    object-model change, which feature 004 explicitly does not make"* — and
+    named this feature as the one that would.
 
-    Giving them defaults dicts is an object-model change, which feature 004
-    explicitly does not make.
+    T026 and T027 gave all five a declared field set, so the exclusion is gone
+    rather than merely smaller. Asserted as **empty** rather than deleted: a
+    deleted test would let the set silently refill.
     """
-    assert {model.__name__ for _, model in UNCOVERED} == {
-        "Media",
-        "Region",
-        "AudioCueOutput",
-        "VideoCueOutput",
-        "DmxCueOutput",
-    }
+    assert {model.__name__ for _, model in UNCOVERED} == set()
+
+
+def test_coverage_reaches_every_bound_model():
+    """The positive half of the same claim: 18 bindings, 18 compared."""
+    assert len(COVERED) == 18
+    assert not UNCOVERED
 
 
 def test_order_is_not_part_of_the_comparison():

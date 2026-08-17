@@ -182,3 +182,69 @@ def test_read_and_write_log_at_the_same_level(caplog):
     write_count = len(_records(caplog))
 
     assert abs(read_count - write_count) <= 2, (read_count, write_count)
+
+
+# --- feature 005 addition (T020, FR-015a) ---------------------------------
+#
+# Additive only: no assertion above changes. The drop-and-log record for
+# undeclared keys must not be able to push the budget the rest of this file
+# defends.
+
+STRAY = "not_a_declared_field"
+
+
+def test_dropped_keys_emit_debug_records_and_no_info_records(caplog):
+    """The arithmetic FR-015a states, asserted as arithmetic.
+
+    A document dropping the same key on N objects emits **N DEBUG records and
+    zero additional INFO records**. That is what keeps 004's budget — INFO
+    scales with files touched, not with content — intact while adding a
+    per-object record.
+    """
+    doc = by_relpath(COMPLEX)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        obj = rt.read_objects(doc)
+
+    cues = obj["CueList"]["contents"]
+    for cue in cues:
+        dict.__setitem__(cue, STRAY, "value-that-must-not-be-logged")
+
+    caplog.clear()
+    with caplog.at_level(logging.DEBUG), warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        rt.write_bytes(doc, obj)
+
+    dropped = [r for r in caplog.records if STRAY in r.getMessage()]
+    assert len(dropped) == len(cues), (
+        f"{len(dropped)} drop records for {len(cues)} objects carrying the key"
+    )
+    assert all(r.levelno == logging.DEBUG for r in dropped)
+
+    # The INFO budget is untouched: no drop record is INFO or above.
+    assert not [r for r in dropped if r.levelno >= logging.INFO]
+    assert len(_records(caplog)) < 10
+
+
+def test_a_drop_record_never_carries_the_value(caplog):
+    """FR-015a and FR-033 — the class and the key, never the content.
+
+    Show content does not belong in a system log, and a dropped key's *value*
+    is show content by definition.
+    """
+    doc = by_relpath(COMPLEX)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        obj = rt.read_objects(doc)
+
+    secret = "sposa_non_mi_conosci_secret_payload"
+    dict.__setitem__(obj, STRAY, secret)
+
+    with caplog.at_level(logging.DEBUG), warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        rt.write_bytes(doc, obj)
+
+    dropped = [r for r in caplog.records if STRAY in r.getMessage()]
+    assert len(dropped) == 1
+    assert "CuemsScript" in dropped[0].getMessage()
+    assert secret not in dropped[0].getMessage()

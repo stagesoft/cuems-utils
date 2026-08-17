@@ -7,11 +7,14 @@ That is the whole design of the test: two independent errors that cancel at the
 ends are the failure mode a round-trip assertion is blindest to, and the chain
 has four places for them to hide.
 
-This file is written against **pre-refactor** code, is green at the commit that
-introduces it, and must be green after the swap **without having been edited**.
-That property is checkable from ``git log -p tests/integration/test_d14_chain.py``
-and is asserted procedurally by T050 (SC-TEST-001). If a link fails after the
-swap, the engine is wrong — not the golden (FR-021).
+This file is written against **pre-refactor** code and is green at the commit
+that introduces it. It had to be green after **feature 004's** swap without
+having been edited — that is the property ``git log -p`` on this file makes
+checkable, and it held. Feature 005 **extends** it (T011/T030, FR-026) with the
+built-vs-loaded leg that 004's semantic round-trip test deferred to this
+feature; every assertion above that addition is unchanged, which is the form
+the "without having been edited" claim takes from here on. If a link fails
+after a swap, the engine is wrong — not the golden (FR-021).
 
 Note the json leg is the editor's real path, not a synthetic one:
 ``cuems-editor`` receives a JSON payload and rebuilds objects through
@@ -95,3 +98,81 @@ def test_generated_document_survives_the_whole_chain():
     rebuilt = _json_to_object(json.loads(json.dumps(obj)))
     via_json = rt.normalize_uuids(rt.write_bytes(doc, rebuilt))
     assert via_json == direct
+
+
+# --- feature 005 addition (T011, FR-026) ----------------------------------
+#
+# Additive only: no assertion above changes. The built-vs-loaded leg is the
+# comparison Part 2c Appendix A's probe performed and that 004's semantic
+# round-trip test explicitly excluded as belonging to 005.
+
+
+def _built_and_loaded():
+    """One document's content, built and then round-tripped through XML."""
+    import tempfile
+    from pathlib import Path
+
+    from cuemsutils.xml.xml_reader_writer import XmlReaderWriter
+    from tests.integration.test_construction_parity import SCRIPT_DOC
+
+    built = rt.build_generated_script()
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "built.xml"
+        path.write_bytes(rt.write_bytes(SCRIPT_DOC, built))
+        loaded = XmlReaderWriter(
+            schema_name="script", xmlfile=str(path)
+        ).read_to_objects()
+    return built, loaded
+
+
+def test_a_built_object_and_a_loaded_one_agree_on_the_enumerated_types():
+    """The chain's missing leg: is the object we loaded the object we built?
+
+    The four links above prove the *values* survive the chain. They cannot see
+    a type difference, because ``==`` on a ``dict`` and a ``CuemsDict`` holding
+    the same keys is ``True`` — which is precisely how ``ui_properties`` and
+    ``regions`` diverged for as long as they did without a single test going
+    red.
+
+    Scoped to the groups FR-019 enumerates. The three that remain are pinned,
+    with their counts and their reasons, in ``test_construction_parity.py``.
+    """
+    from tests.integration.test_construction_parity import (
+        classify,
+        differences,
+        type_map,
+    )
+
+    built, loaded = _built_and_loaded()
+
+    # Deliberately **not** ``assert loaded == built``. That is a claim about
+    # values, and it is false for a reason this feature does not own: wildcard
+    # ``ui_properties`` content round-trips ``{'warning': 0}`` as
+    # ``{'warning': '0'}``, because the schema states nothing about a
+    # wildcard's children so there is no type to decode them back to. Feature
+    # 004 recorded that; ``test_generated_document_survives_the_whole_chain``
+    # above compares the emitted **bytes**, which is the equality that holds.
+    rows = differences(type_map(built), type_map(loaded))
+    offending = [r for r in rows if classify(*r) in {"ui_properties", "regions"}]
+    assert not offending, "built vs loaded types:\n  " + "\n  ".join(
+        f"{p}: {a} != {b}" for p, a, b in offending
+    )
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="16 type differences remain in three groups outside FR-019's "
+    "enumeration (wildcard None round-trip, OPAQUE_TYPES, and an uncoerced "
+    "built side). None is reachable without widening 005 — see "
+    "test_construction_parity.test_the_unenumerated_divergence_is_exactly_as_measured. "
+    "Whether SC-001 means these too is an open scope question.",
+)
+def test_a_built_object_and_a_loaded_one_have_identical_internal_types():
+    """SC-001 in full: **zero** differences, not zero in the enumerated groups."""
+    from tests.integration.test_construction_parity import differences, type_map
+
+    built, loaded = _built_and_loaded()
+    rows = differences(type_map(built), type_map(loaded))
+    assert not rows, "built vs loaded types:\n  " + "\n  ".join(
+        f"{p}: {a} != {b}" for p, a, b in rows
+    )
