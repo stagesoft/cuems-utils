@@ -22,6 +22,7 @@ from xml.etree.ElementTree import (
     register_namespace,
 )
 
+from ..helpers import as_cuemsdict
 from ..log import Logger
 from ..tools.Uuid import Uuid
 from .adapters import PASSTHROUGH, adapter_for
@@ -104,27 +105,29 @@ class Mapper:
 
     #: Types left **entirely undecoded**, as the raw list or dict.
     #:
-    #: ``regions`` reaches ``GenericParser`` with ``class_string='regions'``,
-    #: whose ``get_class`` lookup misses (the class is ``Region``, the tag is
-    #: ``regions``) and falls back to ``GenericDict``, which returns its input
-    #: untouched. So every region stays a raw ``{'Region': {...}}`` wrapper
-    #: inside ``Media``.
+    #: ``AudioChannelsType`` is the only member, and it is a real decision:
+    #: ``channels`` inside an ``AudioCueOutput`` must keep its
+    #: ``{'channel': {...}}`` wrappers, because decoding through them flattens
+    #: the wrapper and the re-encoded document fails validation with
+    #: ``Unexpected child with tag 'channel_num'``.
     #:
-    #: That is a name-mangling miss, not a decision — but it is the shape in
-    #: every document and every editor payload, so 004 preserves it and
-    #: records it. Feature 005 owns the fix.
-    RAW_TYPES = frozenset({"RegionsType", "AudioChannelsType"})
+    #: ``RegionsType`` **was** here, and was not a decision: ``regions`` reached
+    #: ``GenericParser`` with ``class_string='regions'``, whose lookup missed
+    #: (the class is ``Region``, the tag is ``regions``) and fell back to a
+    #: generic that returns its input untouched, so every region stayed a raw
+    #: ``{'Region': {...}}`` wrapper with its timecodes as
+    #: ``{'CTimecode': '...'}`` dicts. Feature 004 preserved that shape verbatim
+    #: and recorded it as F19; feature 005 removes it (change 2). Regions now
+    #: decode through ``RegionType``'s binding, which has existed and been
+    #: unreachable all along.
+    RAW_TYPES = frozenset({"AudioChannelsType"})
 
     def _decode_field(self, key: str, raw, spec: TypeSpec):
         field = spec.field(key)
 
         if field is None:
             # Undescribed: wildcard content, or the leaked schemaLocation.
-            # Passed through untouched (FR-009) — which is also why
-            # ``ui_properties`` stays a plain dict rather than becoming
-            # ``UI_properties``. The class exists and has never been reached,
-            # because the lookup searched for the lowercase tag; binding it now
-            # would start running code that has never run.
+            # Passed through untouched (FR-009).
             return raw
 
         # Adapters are consulted **before** complexity is considered, because
@@ -149,7 +152,17 @@ class Mapper:
             return self._decode_repeated(raw, child_spec)
 
         if child_spec.wildcard:
-            return raw
+            # Wildcard content — ``ui_properties`` is the only one. Its
+            # *content* stays exactly as decoded (nothing about a wildcard's
+            # children is derivable), but the container becomes the same
+            # wrapper type the programmatic path produces (FR-008, T028).
+            #
+            # Routed through ``helpers.as_cuemsdict``, which is the recursive
+            # wrapper ``Cue.set_ui_properties`` and
+            # ``CuemsScript.set_ui_properties`` already use. Built and decoded
+            # therefore agree **by construction** at every nesting depth,
+            # rather than by two implementations that happen to match.
+            return as_cuemsdict(raw) if isinstance(raw, dict) else raw
 
         if self._is_wrapper(child_spec):
             return self._decode_wrapper(raw, child_spec)
@@ -251,11 +264,86 @@ class Mapper:
             SubElement(element, type(obj).__name__).text = str(obj)
             return
 
-        keys = list(obj.keys())
+        keys = self._selected_keys(obj)
         ordered = spec.order_keys(keys) if spec is not None else keys
 
         for key in ordered:
+            if key == "DmxScene":
+                self._emit_dmx_scene(element, key, obj, spec)
+                continue
             self._emit_field(element, key, obj[key], spec)
+
+    def _emit_dmx_scene(self, element: Element, key: str, cue, spec) -> None:
+        """Emit a DMX scene, failing **loudly** if it cannot be written (FR-023).
+
+        Feature 004 preserved a swallow-and-continue path here: a scene that
+        failed to serialize produced no elements and no error, so the show saved
+        cleanly with the scene missing from it. That compatibility object
+        carried ``REMOVAL_TARGET = "005"``, and this is its removal (change 7).
+
+        The engine already propagated the underlying exception — what it did not
+        do was say *which* scene. A ``RuntimeError`` surfacing from somewhere
+        inside a 24 KB document is not actionable, so the scene is identified by
+        its ``id``, or by its zero-based index in the cue's scene contents when
+        it has none, and the originating cue is named.
+
+        Scoped to DMX scenes deliberately. An ambient ``except Exception`` in
+        the general emit path would catch unrelated failures and make every
+        other error class disappear too — which is the defect being removed,
+        widened rather than fixed.
+        """
+        value = cue[key]
+        scenes = value if isinstance(value, (list, tuple)) else [value]
+        for index, scene in enumerate(scenes):
+            try:
+                self._emit_field(element, key, scene, spec)
+            except Exception as exc:
+                raise DmxSceneWriteError(scene, index, cue) from exc
+
+    def _selected_keys(self, obj) -> list:
+        """Which of ``obj``'s keys are emitted — **the model's rule** (FR-015).
+
+        The engine asks the object rather than deriving the answer from
+        ``spec.fields``. Two rules that agree only because a coherence test says
+        so is the failure mode this feature exists to remove; asking means they
+        cannot disagree in the first place.
+
+        Three cases, and the last two are why this is not simply a filter:
+
+        * a **model object** with declared fields — filtered to them, with every
+          other key dropped and logged (FR-015a);
+        * a **model object with no declared field set** — ``Media``, ``Region``
+          and the three ``CueOutput`` subclasses, until T026/T027 give them one
+          — passes everything through, exactly as today;
+        * anything **without** ``declared_fields`` at all, or a bare
+          ``CuemsDict`` whose set is empty: plain dicts, lists, and wildcard
+          ``ui_properties`` subtrees. These pass through untouched. Filtering a
+          wildcard subtree by a declared-field rule would delete real editor
+          state for every cue in every project — it is declared *nowhere*, which
+          is the whole point of a wildcard.
+        """
+        declared = getattr(obj, "declared_fields", None)
+        if declared is None:
+            return list(obj.keys())
+
+        fields = declared()
+        if not fields:
+            return list(obj.keys())
+
+        known = fields if len(fields) < 8 else set(fields)
+        selected = []
+        for key in obj.keys():
+            if key in known:
+                selected.append(key)
+            else:
+                # One record per dropped key per object, at DEBUG, naming the
+                # class and the key and **never the value** (FR-015a). Silent
+                # loss is how data disappears without a trace; an error would
+                # break objects that construct fine today.
+                Logger.debug(
+                    f"{type(obj).__name__}: dropping undeclared key {key!r}"
+                )
+        return selected
 
     #: List items whose class name is one of these carry **no wrapper element**:
     #: their keys become children of the enclosing element directly. A parsed
@@ -384,88 +472,91 @@ class Mapper:
         return "" if text is None else text
 
     def _spec_for_model(self, model: type) -> TypeSpec | None:
-        """The spec bound to a Python class, if the registry knows one."""
-        for type_name in self.registry.bound_type_names:
-            if self.registry.model_for(type_name) is model:
-                return derive(self.registry.binding_for(type_name).key)
-        return None
+        """The spec bound to a Python class, if the registry knows one.
+
+        Delegates to the registry (T004a), which caches the model→spec map. This
+        was an O(bindings) scan re-run for **every list item** on the encode
+        path; the registry answers it once. ``coercion.adapter_table`` asks the
+        same question, and one resolver is the point — two would be a second
+        source of truth for which spec describes a class.
+        """
+        return self.registry.spec_for_model(model)
 
 
 def _instantiate(model: type, decoded: dict):
-    """Build a model object the way the legacy parsers did: empty, then assign.
+    """Build a decoded model object — now the model's own decode mode (T025).
 
-    Two properties depend on this, and both are invisible until something far
-    away breaks.
+    This used to construct an empty object and assign raw values with
+    ``dict.__setitem__``, reproducing what the legacy parsers did. Feature 005
+    replaces the *body* while keeping both properties that depended on it:
 
-    **Key order.** Constructing from a dict routes through ``ensure_items`` and
-    inserts keys in ``REQ_ITEMS`` order; assigning preserves the *source
-    document's* order. ``==`` cannot see the difference — dicts compare equal
-    regardless of order — but ``CuemsScript`` is an ``xs:all`` type whose
-    emission order **is** arrival order (FR-001b), so constructing would
-    rewrite the root element of every hand-authored script on save.
+    **Key order** is still the source document's. ``from_decoded`` preserves
+    arrival order and appends only omitted declared fields, because
+    ``CuemsScript`` is an ``xs:all`` type whose emission order **is** arrival
+    order. ``==`` cannot see the difference — dicts compare equal regardless of
+    order — so the byte-identity goldens and contract C3 are what prove it.
 
-    **Property setters do not run.** ``dict.__setitem__`` bypasses them, which
-    is what the parsers have always done. It matters because the setters
-    validate: ``Media.set_id`` raises on the nil uuid
-    ``00000000-0000-0000-0000-000000000000``, which appears three times in
-    ``tests/data/sample_script.json`` and therefore in real editor payloads.
-    Constructing from a dict would make the engine reject a document today's
-    parser accepts — exactly what FR-015 forbids.
+    **Property setters still do not run.** The difference is that values are no
+    longer left raw: they pass through the class's schema-derived adapter table,
+    which coerces without validating. That distinction is the feature. The nil
+    uuid ``00000000-0000-0000-0000-000000000000`` — three occurrences in
+    ``tests/data/sample_script.json``, so real editor payloads carry it — stays
+    accepted, because ``_UuidAdapter`` keeps an unparseable value as its raw
+    string while ``Uuid.__init__`` would raise.
 
-    Both are behaviours of the code being replaced rather than choices made
-    here. The setters' validation is worth having; turning it on is a
-    behaviour change, so it belongs to feature 005.
+    Kept as a module-level function rather than inlined: it is the seam the
+    repeated-member path deliberately does *not* use (see ``_decode_member``),
+    and naming it keeps that asymmetry visible.
     """
+    if hasattr(model, "from_decoded"):
+        return model.from_decoded(decoded)
+
+    # A bound class that is not a ``CuemsDict``. None exist today; falling back
+    # rather than raising keeps a registry binding from becoming a crash.
     obj = model()
     for key, value in decoded.items():
         dict.__setitem__(obj, key, value)
     return obj
 
 
-class DmxSceneCompatibility:
-    """The one named compatibility behaviour (FR-015a, T046).
+class DmxSceneWriteError(RuntimeError):
+    """A DMX scene could not be serialized, and the write fails (FR-023).
 
-    ``DmxSceneXmlBuilder.build`` wraps its whole body in
-    ``except Exception`` and logs instead of raising, so a DMX scene that fails
-    to serialize produces **no elements and no error** — the surrounding
-    document saves as if the scene were empty.
+    Replaces feature 004's ``DmxSceneCompatibility`` — a named swallow-and-log
+    that reproduced ``DmxSceneXmlBuilder``'s ``except Exception`` so a show with
+    a bad DMX scene kept saving, minus the scene. It carried
+    ``REMOVAL_TARGET = "005"``; this is that removal (change 7).
 
-    That is a defect. It is also behaviour: a show with a bad DMX scene saves
-    today, and making it fail instead is a behaviour change FR-015 forbids in
-    this feature. So it is reproduced here **by name**, scoped to DMX scenes,
-    and carrying its removal target — not as an ambient ``except Exception`` in
-    the general path, which would swallow unrelated failures and quietly make
-    every other error class disappear too.
+    The consumer-visible consequence: a write that used to succeed and quietly
+    drop a scene now raises. No valid document is affected.
 
-    **Removal target: feature 005.**
+    Carries **identifiers only, never the object repr** (FR-033): show content
+    does not belong in an error string any more than in a log record.
     """
 
-    REMOVAL_TARGET = "005"
+    def __init__(self, scene, index: int, cue):
+        self.scene = scene
+        self.index = index
+        self.cue = cue
 
-    @staticmethod
-    def guard(scene_label: str):
-        return _SwallowAndLog(scene_label)
+        scene_id = None
+        if hasattr(scene, "get"):
+            try:
+                scene_id = scene.get("id")
+            except Exception:  # noqa: BLE001 - a broken scene must still name itself
+                scene_id = None
+        where = f"id={scene_id!r}" if scene_id is not None else f"index {index}"
 
+        cue_id = cue.get("id") if hasattr(cue, "get") else None
+        cue_name = f"{type(cue).__name__}"
+        if cue_id is not None:
+            cue_name += f" id={cue_id!r}"
 
-class _SwallowAndLog:
-    def __init__(self, label: str):
-        self.label = label
-        self.failed = False
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        if exc is None:
-            return False
-        self.failed = True
-        # Identifier only, never the object repr — FR-033.
-        Logger.error(
-            f"Error building DmxScene {self.label}: {exc_type.__name__} "
-            f"(preserved failure path, removal target: feature "
-            f"{DmxSceneCompatibility.REMOVAL_TARGET})"
+        super().__init__(
+            f"DmxScene ({where}) in {cue_name} could not be serialized. The "
+            f"write was aborted rather than producing a document with the "
+            f"scene silently absent."
         )
-        return True
 
 
 def root_spec(schema_name: str) -> TypeSpec:

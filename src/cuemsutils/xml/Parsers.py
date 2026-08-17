@@ -119,7 +119,9 @@ class CuemsParser():
 
         Everything below this method in the module is the frozen legacy tree it
         used to drive. It is unreachable from here now, kept only so external
-        callers keep resolving until feature 007 removes it.
+        callers keep resolving until feature **006** removes it with the
+        deprecation shims (corrected 2026-08-17, T028a: this said 007, which
+        disagreed with 004's spec and with feature 005's research).
 
         Delegating is **not optional given the write swap**: this method and
         ``build_xml_from_object`` are two ends of one round trip, so leaving
