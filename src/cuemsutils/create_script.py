@@ -28,7 +28,12 @@ def create_script():
         'master_vol': 66,
         'Media': Media({
             'file_name': 'file.ext',
-            'id': '',
+            # An explicit id, because F16 stopped the empty string from
+            # silently becoming one: ``Uuid('')`` used to mint a uuid4 for any
+            # falsy argument, so ``'id': ''`` produced a populated media id by
+            # accident. ``MediaType.id`` is a required uuid4 in the schema, so
+            # the template needs a real one — asked for, not stumbled into.
+            'id': new_uuid(),
             'duration': '00:00:00.000',
             'regions': [
                 Region({
@@ -46,7 +51,7 @@ def create_script():
     vc = VideoCue({
         'Media': Media({
             'file_name': 'file_video.ext',
-            'id': '',
+            'id': new_uuid(),  # explicit, per the note on the audio Media above
             'duration': '00:00:00.000',
             'regions' : [
                 Region({
@@ -173,7 +178,14 @@ def create_script():
     script.cuelist['contents'][2]['id'] = new_uuid()
     script.cuelist['contents'][3]['id'] = new_uuid()
     script.cuelist['contents'][4]['id'] = new_uuid()
-    script['ui_properties'] = {
+    # Through the property, not ``script['ui_properties'] = …``: bracket
+    # assignment on a dict subclass is raw ``dict.__setitem__`` and bypasses
+    # ``set_ui_properties``, so the root alone ended up holding a plain ``dict``
+    # while every cue held a ``CuemsDict``. That is the divergence FR-008 exists
+    # to remove, and it was hiding in the template builder rather than in the
+    # model. The emitted XML is unchanged — wildcard content has no declared
+    # field set, so both types serialize identically.
+    script.ui_properties = {
         'warning': 0,
     }
     Logger.debug(f'Created test script: {script.cuelist}')
