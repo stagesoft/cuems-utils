@@ -11,12 +11,311 @@ from .tools.Uuid import Uuid
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
+
+class _UnsetType:
+    """The type of :data:`Unset`. Singleton, falsy, and self-describing."""
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __repr__(self) -> str:
+        return "Unset"
+
+
+#: A declared field with **no** default: the key stays *absent* rather than
+#: present-and-empty.
+#:
+#: It exists because "one defaulting protocol" must not become "every field is
+#: always present". Six classes gain a defaults declaration in this feature
+#: (``Cue``, ``CuemsScript``, ``Media`` and the three ``CueOutput`` subclasses),
+#: and several of their fields are optional in the schema — ``canvas_region`` is
+#: the clearest case. Defaulting those to ``None`` would start emitting elements
+#: the documents never contained, and the goldens would move. ``Unset`` is how a
+#: field is declared *without* being materialised.
+#:
+#: Distinct from ``None``, which is a real value here: ``description`` defaults
+#: to ``None`` and emits as ``<description />``.
+Unset = _UnsetType()
+
+#: Accumulated declarations, keyed on the **exact** class — same reasoning as
+#: ``coercion._TABLES``: an attribute would be inherited through the MRO and a
+#: subclass would silently answer with its parent's field set.
+_DECLARED_DEFAULTS: dict[type, dict[str, Any]] = {}
+
+
 class CuemsDict(dict):
     """Custom dictionary class to handle cuemsutils specific items."""
 
+    #: This class's **own** declared fields and their defaults. Subclasses
+    #: declare only what they add; :meth:`declared_defaults` accumulates the
+    #: chain. Left empty on the base — ``CuemsDict`` declares no fields.
+    DECLARED_DEFAULTS: dict[str, Any] = {}
+
+    #: Whether this class's JSON projection wraps itself in its own class name:
+    #: ``{"AudioCue": {...}}`` rather than a bare ``{...}``.
+    #:
+    #: **Declared, replacing a heuristic.** ``CuemsScript.__json__`` used to
+    #: detect a wrapped child by testing ``k.lower() != k`` — inferring a
+    #: structural fact from the *casing of a key name*, which is true today only
+    #: because the one wrapped child on the root happens to be spelled
+    #: ``CueList``. A declared field named ``Media`` or a schema that lowercased
+    #: that element would each have broken it silently.
+    #:
+    #: ``False`` on the base **deliberately**: a bare ``CuemsDict`` is what
+    #: wildcard ``ui_properties`` content decodes to, and self-wrapping it would
+    #: turn every cue's editor state into ``{"CuemsDict": {...}}`` in the
+    #: payload. The six model classes that self-wrap say so explicitly.
+    JSON_SELF_WRAPS: bool = False
+
     def build(self, parent: Element):
         build_xml_dict(self, parent)
-    
+
+    def _fill_declared_defaults(self) -> None:
+        """Insert any declared field this object does not yet carry (FR-017).
+
+        The one defaulting protocol, applied at the end of construction. Six
+        classes returned a completely **empty** object from bare construction
+        before this feature — ``Cue``, ``CuemsScript``, ``Media`` and the three
+        ``CueOutput`` subclasses — while thirteen returned full defaults. Same
+        question, two answers, depending on which class you happened to ask.
+
+        Written with ``dict.__setitem__`` rather than through ``setter``,
+        deliberately: several setters *swallow* a ``None`` instead of storing
+        it (``DmxUniverse.set_dmx_channels`` is one), so routing defaults
+        through them would leave the field absent and the protocol would be
+        "one rule, except where a setter disagrees".
+
+        Fields declared :data:`Unset` are skipped — declared, but not
+        materialised. That is what keeps six newly-defaulted classes from
+        emitting elements their documents never contained, which the goldens
+        are the gate on.
+        """
+        for key, default in type(self).declared_defaults().items():
+            if key in self or default is Unset:
+                continue
+            dict.__setitem__(self, key, default() if callable(default) else default)
+
+    def coerce(self, key: str, value):
+        """Run ``key``'s adapter over ``value`` — the setters' entry point.
+
+        The same table ``from_decoded`` uses, so a value assigned through a
+        property and the same value arriving from a document end up identically
+        typed (FR-001, FR-002). A field with no adapter is returned untouched.
+
+        This is what lets ``None`` **clear** a uuid field. ``Uuid.__init__``
+        mints a fresh uuid4 for any falsy argument, so ``script.id = None``
+        assigned a new random id; ``_UuidAdapter.decode`` returns ``None`` for
+        ``None`` and ``""``. Generating an id stays the job of the ``new_uuid``
+        default, which runs at defaulting time rather than at assignment time
+        (research R7, FR-019 row 3).
+
+        It also preserves the nil-UUID leniency: the adapter keeps an
+        unparseable value as its raw string rather than raising, which is how
+        ``00000000-…`` stays acceptable where ``Uuid()`` would reject it.
+        """
+        adapter = type(self).coercion_table().get(key)
+        return value if adapter is None else adapter.decode(value)
+
+    @classmethod
+    def from_decoded(cls, mapping: dict):
+        """Build an instance from a decoded document — the **decode mode**.
+
+        The second of two construction modes, and the reason there are two is
+        **key order**, not coercion:
+
+        ``cls(init_dict)``
+            programmatic. Routes through ``ensure_items``, which applies
+            declared defaults and sorts keys alphabetically. Unchanged.
+
+        ``cls.from_decoded(mapping)``
+            decode. Preserves the **source document's** key order, appending
+            only the declared fields the document omitted.
+
+        Routing decode through the sorting constructor would re-sort the root
+        element of every hand-authored script on the next save, because
+        ``CuemsScript`` is an ``xs:all`` type whose emission order *is* arrival
+        order. Two of the four captured script roots are not alphabetical, so
+        this is measured rather than hypothetical (research R10, contract C3).
+
+        One coercion path, two orderings. Both modes run the *same* adapter
+        table, which is what makes a decoded object and a built one the same
+        object (FR-001, FR-007).
+
+        Property setters are **not** invoked here, and that is deliberate: the
+        decode path's accept/reject outcomes are pinned per document in both
+        directions (FR-006/FR-006a), and routing every field through its setter
+        would give fourteen inventoried value-rejecting rules new reach. The
+        repeated-member path keeps calling the constructor for exactly the same
+        reason — see ``Mapper._decode_member``.
+        """
+        obj = cls.__new__(cls)
+        dict.__init__(obj)
+        obj._init_runtime()
+
+        table = cls.coercion_table()
+        for key, value in mapping.items():
+            adapter = table.get(key)
+            dict.__setitem__(
+                obj, key, value if adapter is None else adapter.decode(value)
+            )
+
+        # Declared fields the document omitted, appended after the arrival keys
+        # so that ordering stays the document's. ``Unset`` means "declared but
+        # not materialised" — the key stays absent rather than present-and-empty,
+        # which is what stops six newly-defaulted classes from emitting elements
+        # their documents never contained.
+        for key, default in cls.declared_defaults().items():
+            if key in obj or default is Unset:
+                continue
+            dict.__setitem__(obj, key, default() if callable(default) else default)
+
+        return obj
+
+    def items(self):
+        """The declared fields of this object, in declaration order.
+
+        **The single definition** (FR-014). Ten classes overrode this before,
+        each layering its own ``REQ_ITEMS`` and two of them additionally
+        hand-ordering their output — an ordering job that belongs to the
+        mapper's ``TypeSpec``, which derives it from the schema.
+
+        Built on ``extract_items`` rather than a new helper: ``Cue.items()`` was
+        its only production caller, and orphaning it would drag
+        ``tests/test_helpers.py`` into this feature's diff for no reason.
+
+        A class with **no** declared field set falls through to ``dict.items()``
+        unchanged. That is not a loophole — it is what keeps wildcard containers
+        (``ui_properties`` subtrees) and plain dicts passing everything through.
+        They have no declared fields, and filtering them would delete real
+        editor state.
+
+        Keys present on the object but not declared are **omitted**. They are
+        reported once each by the serialization engine, which is the layer that
+        can name the document position; see ``Mapper._selected_keys``.
+
+        **Order is the declaration's**, which reproduces what the ten overrides
+        produced by chaining ``super().items()``. Two consumers depend on it and
+        neither is obvious:
+
+        * the frozen legacy ``XmlBuilder`` iterates ``items()`` directly, and
+          the schema's sequence is not alphabetical — an ``ActionCue`` emitting
+          ``action_target`` first fails validation;
+        * ``VideoCueOutput``'s hand-ordered override existed precisely to put
+          ``canvas_region`` after ``output_geometry``.
+
+        The script root is the one place arrival order matters instead, because
+        it is an ``xs:all`` type. That belongs to its payload projection rather
+        than here — see ``CuemsScript.__json__``.
+        """
+        declared = self.declared_fields()
+        if not declared:
+            return super().items()
+        return extract_items(super().items(), [k for k in declared if k in self])
+
+    def _init_runtime(self) -> None:
+        """Initialize this object's non-persisted instance attributes.
+
+        Cue objects carry state that is **not** part of the document: playback
+        handles, timecode marks, arm state, locality flags. It is initialized in
+        ``__init__`` today, which means a decoded object gets it only because
+        decode happens to call the constructor. Feature 005 replaces that
+        constructor call, so the guarantee has to become explicit or it is lost
+        silently — and a cue reaching the engine without ``_go_thread`` fails at
+        *playback*, not at load, which is the worst possible place to find out
+        (FR-004a, contract C12).
+
+        Overrides chain through ``super()._init_runtime()``. They set the same
+        attributes ``__init__`` sets today, with no additions.
+
+        **This hook must never touch ``_initialized``.** That flag is not an
+        inert runtime attribute: it gates value-rejecting rules in three classes
+        — ``ActionCue.set_action_target``, ``FadeCue.set_action_type`` and
+        ``VideoCueOutput``'s ``set_output_name`` / ``set_canvas_region`` — each
+        of which deliberately holds it ``False`` *while populating* so those
+        rules stay off the load path. Setting it true before population would
+        give fourteen inventoried setters new reach on decode, which FR-006b
+        forbids, and the resulting failure is **arrival-order dependent** (a
+        ``custom`` ``output_name`` arriving before ``canvas_region`` raises,
+        the reverse order does not), so the corpus would catch it only by luck.
+        The flag stays owned by the three classes that use it.
+        """
+
+    @classmethod
+    def declared_defaults(cls) -> dict[str, Any]:
+        """This class's declared fields and defaults, accumulated across the MRO.
+
+        **Declared, not inferred.** The coherence test used to recover this by
+        reading each ``__init__``'s *source* and regex-matching ``REQ_ITEMS``
+        names — which worked, but meant the field set existed only as a
+        convention that a test happened to be able to reconstruct. Two
+        consumers reconstructing the same convention independently is the
+        failure mode this feature removes, so the classes now say it and both
+        consumers ask (T007).
+
+        Accumulated because a subclass declares only what it *adds*:
+        ``AudioCue`` declares ``master_vol``, and the thirteen common
+        properties come from ``Cue``. Reading one class's dict alone reports
+        thirteen spurious missing fields.
+
+        **Order is load-bearing**, so it is defined rather than incidental:
+        base-class fields first, each class's own in declaration order,
+        duplicates keeping their first position. That reproduces the order the
+        ten hand-written ``items()`` overrides produced by chaining
+        ``super().items()`` — and ``items()`` feeds ``__json__``, so the order
+        here is the key order of the editor's JSON payload.
+
+        The returned dict is the cached one. Do not mutate it.
+        """
+        cached = _DECLARED_DEFAULTS.get(cls)
+        if cached is None:
+            merged: dict[str, Any] = {}
+            for klass in reversed(cls.__mro__):
+                own = klass.__dict__.get("DECLARED_DEFAULTS")
+                if own:
+                    merged.update(own)
+            cached = _DECLARED_DEFAULTS[cls] = merged
+        return cached
+
+    @classmethod
+    def declared_fields(cls) -> tuple[str, ...]:
+        """The names of this class's declared fields, in declaration order.
+
+        The single declared-field rule (FR-014, FR-015): ``items()`` filters by
+        it, the serialization engine selects by it, and defaulting fills it. A
+        field declared with :data:`Unset` still appears here — it is declared,
+        it simply has no default to insert.
+        """
+        return tuple(cls.declared_defaults())
+
+    @classmethod
+    def coercion_table(cls) -> dict[str, Any]:
+        """The ``{field name: Adapter}`` table for this class (T004b).
+
+        **Declared, not inferred** — the object answers for its own types, the
+        same way it answers for its own declared fields. The alternative was a
+        resolver called only from ``xml/``, which would keep ``cues/`` free of
+        any schema concept; it was rejected because then the *programmatic*
+        construction path cannot reach its own adapters, and coercion stops
+        being one path — which is the entire feature. Two rules that agree only
+        because a test says so is the failure mode 005 exists to remove.
+
+        Takes no schema argument, because every model class is bound in exactly
+        one registry today. ``coercion.adapter_table`` raises if that stops
+        being true rather than picking a winner; feature 006 is where it stops
+        being true.
+        """
+        from .coercion import adapter_table
+
+        return adapter_table(cls)
+
+
     def setter(self, settings: dict):
         """Set the object properties from a dictionary.
         
@@ -29,11 +328,25 @@ class CuemsDict(dict):
         if not isinstance(settings, dict):
             raise AttributeError(f"Invalid type {type(settings)}. Expected dict.")
         for k, v in settings.items():
+            # Resolve first, call **outside** the guard (F17, change 4).
+            #
+            # The lookup and the call used to share one
+            # ``except AttributeError: pass``, which cannot tell "this class has
+            # no setter for that key" — routine, and correctly skipped — from
+            # "the setter ran and broke". The second swallowed the error *and*
+            # dropped the field, so a defect in any setter that touched a
+            # missing attribute produced a silently absent value rather than a
+            # failure. Objects still constructed, which is why it could hide
+            # indefinitely.
+            #
+            # Only ``AttributeError`` changes meaning here. Every other
+            # exception type already propagated, because the guard never caught
+            # them.
             try:
-                x = getattr(self, f"set_{k}")
-                x(v)
+                setter = getattr(self, f"set_{k}")
             except AttributeError:
-                pass
+                continue
+            setter(v)
 
 def as_cuemsdict(x: dict) -> CuemsDict | None:
     if not x:
@@ -79,12 +392,19 @@ def check_path(x: str, dir_only: bool = False) -> bool:
 
 def ensure_items(x: dict, requiered: dict) -> dict:
     """Ensure that all the items are present in a dictionary
-    
+
     Args:
         x (dict): The dictionary to check
         requiered (dict): The items (key-value pairs) to check for
 
+    Works on a **copy**. Every cue ``__init__`` follows the pattern
+    ``if not init_dict: init_dict = REQ_ITEMS`` and then hands that straight
+    here, so mutating the argument wrote the parent class's fields into the
+    subclass's module-level ``REQ_ITEMS`` — permanently, process-wide, from a
+    single bare ``AudioCue()``. Callers have always used the return value, so
+    copying changes nothing for them.
     """
+    x = dict(x)
     for k,v in requiered.items():
         if k not in x.keys():
             if v == None:
