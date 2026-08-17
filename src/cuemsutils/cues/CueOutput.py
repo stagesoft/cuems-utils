@@ -8,7 +8,7 @@ off-canvas, multi-custom, drag/resize).
 import re
 from decimal import Decimal
 
-from ..helpers import CuemsDict
+from ..helpers import CuemsDict, Unset
 
 _UUID_PATTERN = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
 _ALIAS_RE = re.compile(rf'^{_UUID_PATTERN}_\d+$')
@@ -89,6 +89,9 @@ class CueOutput(CuemsDict):
     to different types of devices or systems.
     """
 
+    #: Self-wrapping JSON projection: ``{"CueOutput": {...}}`` (T018).
+    JSON_SELF_WRAPS = True
+
     def __init__(self, init_dict=None):
         """Initialize a CueOutput.
 
@@ -114,7 +117,14 @@ class AudioCueOutput(CueOutput):
     Free-form output_name; no canvas/region concerns. Left unvalidated by design
     — audio channels use domain-specific names (e.g. 'system:playback_1').
     """
-    pass
+
+    #: Declared fields, in ``AudioCueOutputsType``'s schema order (T027).
+    #: Every field is required, so none needs the ``Unset`` sentinel.
+    DECLARED_DEFAULTS = {
+        'output_name': Unset,
+        'output_vol': Unset,
+        'channels': Unset,
+    }
 
 
 class VideoCueOutput(CueOutput):
@@ -135,6 +145,24 @@ class VideoCueOutput(CueOutput):
     by the editor when authoring a custom cue); it is neither a
     physical display-layout directive nor a substitute for this field.
     """
+
+    #: Declared fields, in ``VideoCueOutputsType``'s schema order (T027).
+    #:
+    #: ``canvas_region`` is ``minOccurs="0"`` and so defaults to ``Unset``: an
+    #: alias output must **not** carry it, and inserting it as ``None`` would
+    #: both emit an element the documents never contained and trip
+    #: ``__init__``'s own alias/custom consistency rule.
+    #:
+    #: This ordering is what the hand-written ``items()`` override used to
+    #: supply. That override existed to keep ``canvas_region`` after
+    #: ``output_geometry`` for the XSD sequence; the declaration states the same
+    #: thing once, and the mapper derives emission order from the schema
+    #: independently.
+    DECLARED_DEFAULTS = {
+        'output_name': Unset,
+        'output_geometry': Unset,
+        'canvas_region': Unset,
+    }
 
     def __init__(self, init_dict=None):
         """Initialize a VideoCueOutput.
@@ -219,26 +247,11 @@ class VideoCueOutput(CueOutput):
 
     canvas_region = property(get_canvas_region, set_canvas_region)
 
-    def items(self):
-        """Return items in XSD element order: output_name, output_geometry, canvas_region.
-
-        canvas_region is emitted only when present.
-        """
-        ordered = {}
-        for key in ('output_name', 'output_geometry'):
-            if key in self:
-                ordered[key] = super().__getitem__(key)
-        if 'canvas_region' in self:
-            ordered['canvas_region'] = super().__getitem__('canvas_region')
-        for key, value in super().items():
-            if key not in ordered:
-                ordered[key] = value
-        return ordered.items()
-
-
 class DmxCueOutput(CueOutput):
     """Output configuration for DMX cues.
 
     Free-form output_name; left unvalidated by design.
     """
-    pass
+
+    #: Declared fields, in ``DmxCueOutputsType``'s schema order (T027).
+    DECLARED_DEFAULTS = {'output_name': Unset}

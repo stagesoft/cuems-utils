@@ -1,7 +1,6 @@
 from deprecated import deprecated
 
 from ..tools.CTimecode import CTimecode
-from ..tools.Uuid import Uuid
 from ..helpers import CuemsDict, ensure_items, extract_items, format_timecode, new_uuid, as_cuemsdict
 
 REQ_ITEMS = {
@@ -26,6 +25,13 @@ class Cue(CuemsDict):
     A cue represents a single action or event that can be triggered in the system.
     It contains properties like timing, target, and behavior settings.
     """
+
+    #: Self-wrapping JSON projection: ``{"Cue": {...}}`` (T018).
+    JSON_SELF_WRAPS = True
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = REQ_ITEMS
     
     def __init__(self, init_dict = None):
         """Initialize a new Cue.
@@ -37,7 +43,13 @@ class Cue(CuemsDict):
         if init_dict:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
             self.setter(init_dict)
+        self._fill_declared_defaults()
 
+        self._init_runtime()
+
+    def _init_runtime(self) -> None:
+        """The nine non-persisted attributes every cue carries (FR-004a)."""
+        super()._init_runtime()
         self._target_object = None
         self._conf = None
         self._armed_list = None
@@ -62,8 +74,7 @@ class Cue(CuemsDict):
         Args:
             id: The new unique identifier.
         """
-        id = Uuid(id)
-        super().__setitem__('id', id)
+        super().__setitem__('id', self.coerce('id', id))
 
     id = property(get_id, set_id)
 
@@ -264,9 +275,7 @@ class Cue(CuemsDict):
         Args:
             target: The new target identifier.
         """
-        if target is not None:
-            target = Uuid(target)
-        super().__setitem__('target', target)
+        super().__setitem__('target', self.coerce('target', target))
 
     target = property(get_target, set_target)
 
@@ -317,14 +326,6 @@ class Cue(CuemsDict):
             dict: A dictionary representation of the cue.
         """
         return {type(self).__name__: dict(self.items())}
-
-    def items(self):
-        """Get all items in the cue as a dictionary.
-        
-        Returns:
-            dict_items: A view of the cue's items.
-        """
-        return extract_items(super().items(), REQ_ITEMS.keys())
 
     def target_object(self, target_object):
         """Set the target object for the cue.
@@ -392,22 +393,22 @@ class Cue(CuemsDict):
         """Stop the execution of the cue."""
         pass
 
-class UI_properties(CuemsDict):
-    """Class for managing UI-specific properties of cues."""
-    
-    def __init__(self, init_dict = None):
-        """Initialize UI properties.
-        
-        Args:
-            init_dict (dict, optional): Dictionary containing initial UI properties.
-        """
-        if init_dict:
-            super().__init__(init_dict)
-    
-    def get_timeline_position(self):
-        """Get the timeline position of the cue.
-        
-        Returns:
-            The timeline position value.
-        """
-        return super().__getitem__('timeline_position')
+#: The wildcard ``ui_properties`` container — an **alias**, resolved by T028a.
+#:
+#: This was a hand-written class that had **never run**. The tag→class lookup
+#: searched for the lowercase element name ``ui_properties`` while the class is
+#: spelled ``UI_properties``, so all 20 hits across the corpus fell through to a
+#: generic container, with no error and no log line. Feature 004 measured that
+#: and bound the type to a generic to preserve it; FR-011 requires this feature
+#: to leave no handler present-but-unreachable.
+#:
+#: Adopting the class outright was rejected in drafting: it would change the
+#: *built* path too, which no requirement asks for, and its one accessor
+#: (``get_timeline_position``) has never been called by anything. The
+#: reconciliation target is the type the programmatic path already produces —
+#: a ``CuemsDict`` — so the name now refers to exactly that.
+#:
+#: Kept as a name rather than deleted because ``xml/Parsers.py`` and
+#: ``xml/XmlBuilder.py`` still import it; both are the frozen legacy tree,
+#: removed with the deprecation shims in feature 006.
+UI_properties = CuemsDict

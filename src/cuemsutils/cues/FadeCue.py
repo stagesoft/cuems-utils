@@ -41,6 +41,10 @@ class FadeCue(ActionCue):
     FadeCue does not store it.
     """
 
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = REQ_ITEMS
+
     def __init__(self, init_dict: dict = None):
         """Initialise a FadeCue.
 
@@ -212,17 +216,3 @@ class FadeCue(ActionCue):
     # items()                                                              #
     # ------------------------------------------------------------------ #
 
-    def items(self):
-        """Return all items with own REQ_ITEMS appended in XSD sequence order.
-
-        The XSD sequence for FadeCueType (extending ActionCueType) is:
-        ...CommonProperties..., action_target, action_type,
-        curve_type, duration, target_value.
-
-        Returns:
-            dict_items: Ordered items suitable for XML serialisation.
-        """
-        x = dict(super().items())
-        for k in ('curve_type', 'duration', 'target_value'):
-            x[k] = self[k]
-        return x.items()

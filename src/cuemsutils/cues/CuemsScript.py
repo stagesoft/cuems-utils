@@ -13,17 +13,41 @@ REQ_ITEMS = {
     'description': None,
     'created': new_datetime,
     'modified': new_datetime,
-    'CueList': CueList({}),
+    # The **class**, not an instance — ``ensure_items`` and
+    # ``from_decoded`` both call a callable default, exactly as they do for
+    # ``new_uuid`` and ``new_datetime`` above. ``CueList()`` and ``CueList({})``
+    # build the same object, so the defaulted value is unchanged.
+    #
+    # It used to be ``CueList({})``, evaluated once at **module import**, which
+    # made a single cue-list instance the shared default for every script ever
+    # constructed. It also could not survive this feature: the setters now
+    # consult the schema-derived adapter table, so building a cue list at module
+    # scope re-entered the registry while this very module was still
+    # initialising, and ``import cuemsutils.cues.CuemsScript`` died with a
+    # circular import. Deferring construction fixes both.
+    'CueList': CueList,
     'ui_properties': None
 }
 
-class CuemsScript(dict):
+class CuemsScript(CuemsDict):
     """A class representing a complete CueMS script.
-    
-    This class manages a collection of cues organized in a cue list, along with
-    metadata about the script such as creation time and UI properties.
+
+    The script root is an **ordinary model object** (FR-012). Until feature 005
+    it was a plain ``dict``, and that one exception is what forced a duplicated
+    ``setter``, a divergent ``items()``, a missing build hook and the key-casing
+    heuristic in ``__json__``: no guarantee about "every model object" could be
+    stated while one object in the model answered "no" to *is this a
+    declared-field model object?*
     """
-    
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = REQ_ITEMS
+
+    #: The root is the **only** model class that does not self-wrap: it is the
+    #: document body, so its JSON is the payload rather than an entry in one.
+    JSON_SELF_WRAPS = False
+
     def __init__(self, init_dict = None):
         """Initialize a CuemsScript.
         
@@ -34,6 +58,7 @@ class CuemsScript(dict):
         if init_dict:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
             self.setter(init_dict)
+        self._fill_declared_defaults()
 
     def get_id(self):
         """Get the unique identifier of the script.
@@ -49,8 +74,7 @@ class CuemsScript(dict):
         Args:
             id: The new unique identifier.
         """
-        id = Uuid(id)
-        super().__setitem__('id', id)
+        super().__setitem__('id', self.coerce('id', id))
 
     id: Uuid = property(get_id, set_id)
 
@@ -265,45 +289,42 @@ class CuemsScript(dict):
         """
         return json.dumps({'CuemsScript': self})
 
-    def setter(self, settings: dict):
-        """Set the object properties from a dictionary.
-        
-        Args:
-            settings (dict): Dictionary containing property values to set.
-            
-        Raises:
-            AttributeError: If settings is not a dictionary.
-        """
-        if not isinstance(settings, dict):
-            raise AttributeError(f"Invalid type {type(settings)}. Expected dict.")
-        for k, v in settings.items():
-            try:
-                x = getattr(self, f"set_{k}")
-                x(v)
-            except AttributeError:
-                pass
-
     def __json__(self):
-        """Convert the script to a JSON-compatible dictionary.
-        
-        Returns:
-            dict: A dictionary representation of the script.
-        """
-        x = dict(super().items())
-        for k, v in x.items():
-            if hasattr(v, '__json__'):
-                x[k] = v.__json__()
-            else:
-                x[k] = v
-            if k.lower() != k:
-                x[k] = x[k][k]
-        return x
+        """The script's JSON payload — the editor's ``project_load`` body.
 
-    def items(self):
-        """Get all items in the script as a dictionary.
-        
-        Returns:
-            dict_items: A view of the script's items.
+        The root does not self-wrap, so a child that *does* would arrive
+        double-wrapped: ``CueList.__json__`` returns ``{"CueList": {...}}`` and
+        the root already files it under the key ``CueList``. One of the two
+        wrappers has to go, and it is the child's.
+
+        This used to be decided by testing ``k.lower() != k`` — reading a
+        structural property off the **casing of a key name**, which happened to
+        work because the one wrapped child on the root is spelled ``CueList``.
+        It now asks the child whether it self-wraps (``JSON_SELF_WRAPS``), which
+        is the same question stated directly.
+
+        Only *direct* children are unwrapped. List members stay wrapped —
+        ``contents`` is a list of ``{"AudioCue": {...}}`` entries, and that
+        wrapper is what tells the editor which cue type it is holding.
+
+        **Arrival order, not declared order**, and this is the one projection
+        where that distinction bites. ``CuemsScript`` is an ``xs:all`` type: the
+        schema imposes no order, so emission order *is* arrival order. This
+        payload is what the editor rebuilds and writes back, so ordering it by
+        ``REQ_ITEMS`` — which lists ``CueList`` before ``ui_properties`` while
+        every document carries the reverse — would re-sort the root element of
+        every hand-authored script on the next save. ``items()`` is ordered by
+        the declaration for the benefit of ordered (``xs:sequence``) types; the
+        root filters by the same declared set but keeps its own order.
         """
-        x = dict(super().items())
-        return x.items()
+        declared = set(self.declared_fields())
+        payload = {}
+        for key in list(self):
+            if key not in declared:
+                continue
+            value = self[key]
+            rendered = value.__json__() if hasattr(value, '__json__') else value
+            if getattr(value, 'JSON_SELF_WRAPS', False):
+                rendered = rendered[type(value).__name__]
+            payload[key] = rendered
+        return payload

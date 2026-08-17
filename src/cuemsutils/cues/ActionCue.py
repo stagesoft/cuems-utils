@@ -12,6 +12,10 @@ class ActionCue(Cue):
     This cue is used to trigger actions on other objects in the system, such as
     playing, pausing, or stopping media cues.
     """
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = REQ_ITEMS
     
     def __init__(self, init_dict: dict = None):
         """Initialize an ActionCue.
@@ -31,7 +35,13 @@ class ActionCue(Cue):
         else:
             init_dict = REQ_ITEMS
         super().__init__(init_dict)
+        # Not part of ``_init_runtime()``: this flag gates ``set_action_target``
+        # below, so it must go true only *after* population. See the hook's
+        # docstring in ``helpers.py``.
         self._initialized = True
+
+    def _init_runtime(self) -> None:
+        super()._init_runtime()
         self._action_target_object = None
 
     def get_action_target(self):
@@ -53,7 +63,9 @@ class ActionCue(Cue):
         """
         if getattr(self, '_initialized', False) and action_target is None:
             raise ValueError('action_target is required')
-        super().__setitem__('action_target', action_target)
+        super().__setitem__(
+            'action_target', self.coerce('action_target', action_target)
+        )
 
     action_target = property(get_action_target, set_action_target)
 
@@ -75,13 +87,3 @@ class ActionCue(Cue):
 
     action_type = property(get_action_type, set_action_type)
 
-    def items(self):
-        """Get all items in the cue as a dictionary.
-        
-        Returns:
-            dict_items: A view of the cue's items, with required items sorted first.
-        """
-        x = dict(super().items())
-        for k in sorted(REQ_ITEMS.keys()):
-            x[k] = self[k]
-        return x.items()

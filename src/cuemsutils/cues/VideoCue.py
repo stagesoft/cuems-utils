@@ -4,11 +4,11 @@ from ..helpers import ensure_items
 from ..log import Logger
 
 REQ_ITEMS = {
-    'opacity': 100,  # Default to fully opaque — 0-100 percent scale (cms:PercentType)
     # Declared here rather than on MediaCue because script.xsd declares
     # fade_profiles on AudioCueType and VideoCueType, not on MediaCueType
     # (feature 004, T059).
     'fade_profiles': None,
+    'opacity': 100,  # Default to fully opaque — 0-100 percent scale (cms:PercentType)
 }
 
 
@@ -18,6 +18,10 @@ class VideoCue(MediaCue):
     This class extends MediaCue to provide specific functionality for video playback,
     including frame rate handling and OSC communication for video routing.
     """
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = REQ_ITEMS
 
     def __init__(self, init_dict = None):
         """Initialize a VideoCue.
@@ -32,6 +36,8 @@ class VideoCue(MediaCue):
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
 
+    def _init_runtime(self) -> None:
+        super()._init_runtime()
         self._player = None
         self._osc_route = None
         self._go_thread = None
@@ -58,17 +64,6 @@ class VideoCue(MediaCue):
         super().__setitem__('opacity', opacity)
 
     opacity = property(get_opacity, set_opacity)
-
-    def items(self):
-        """Get all items in the cue as a dictionary.
-
-        Returns:
-            dict_items: A view of the cue's items, with required items sorted first.
-        """
-        x = dict(super().items())
-        for k in sorted(REQ_ITEMS.keys()):
-            x[k] = self[k]
-        return x.items()
 
     def player(self, player):
         """Set the video player instance.

@@ -13,6 +13,10 @@ class CueList(Cue):
     This class extends Cue to provide functionality for managing collections of cues,
     including nested cue lists and media tracking.
     """
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = REQ_ITEMS
     
     def __init__(self, init_dict = None):
         """Initialize a CueList.
@@ -140,16 +144,6 @@ class CueList(Cue):
                 return cue_to_return
 
         return super().get_next_cue()
-
-    def items(self):
-        """Get all items in the cue list as a dictionary.
-        
-        Returns:
-            dict_items: A view of the cue list's items.
-        """
-        x = dict(super().items())
-        x['contents'] = self.contents
-        return x.items()
 
     def times(self):
         """Get a list of all cue offsets in this cue list.

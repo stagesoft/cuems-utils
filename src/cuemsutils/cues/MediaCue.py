@@ -2,9 +2,8 @@ from typing import Tuple
 
 from .Cue import Cue
 from .FadeProfile import FadeProfile
-from ..helpers import CuemsDict, ensure_items, format_timecode
+from ..helpers import CuemsDict, ensure_items, format_timecode, Unset
 from ..tools.CTimecode import CTimecode
-from ..tools.Uuid import Uuid
 
 REQ_ITEMS = {
     'Media': None,
@@ -30,9 +29,55 @@ REGION_REQ_ITEMS = {
     'out_time': None
 }
 
+def _as_region(item) -> "Region":
+    """One region, from any of the four shapes it is supplied in (FR-009).
+
+    Unwraps the reader's ``{'Region': {...}}`` form before construction: that
+    single-key wrapper is the element name the schema states, not a field, and
+    building a ``Region`` from it directly would produce a region whose only
+    key is ``Region``.
+    """
+    if isinstance(item, Region):
+        return item
+    if not isinstance(item, dict):
+        raise ValueError(
+            f"a region must be a mapping or a Region, got "
+            f"{type(item).__name__}: {item!r}"
+        )
+
+    if len(item) == 1 and 'Region' in item:
+        item = item['Region']
+        if not isinstance(item, dict):
+            raise ValueError(
+                f"wrapped region content must be a mapping, got "
+                f"{type(item).__name__}"
+            )
+
+    # A non-empty mapping sharing no key with the declared field set is not a
+    # region in any of the four shapes — most likely a wrapper with the wrong
+    # tag. ``Region``'s setter would skip every unknown key in silence and hand
+    # back an empty region, which is the shape of failure FR-009a exists to
+    # prevent. An empty mapping keeps its existing meaning ("defaults").
+    if item and not set(item) & set(Region.declared_fields()):
+        raise ValueError(
+            f"region mapping declares none of "
+            f"{list(Region.declared_fields())}: {sorted(item)}"
+        )
+    return Region(item)
+
+
 class Region(CuemsDict):
     """A class representing a region within a media file."""
-    
+
+    #: Declared fields, in ``RegionType``'s schema order (T026).
+    #:
+    #: ``REGION_REQ_ITEMS`` existed before this feature and **nothing read it**:
+    #: ``__init__`` used a local ``empty_keys = {"id": "0"}`` literal instead,
+    #: so a region's declared field set was a dict that documented an intention
+    #: no code carried out. Promoting it to the real declaration is what moves
+    #: coherence coverage off 13/18.
+    DECLARED_DEFAULTS = REGION_REQ_ITEMS
+
     def __init__(self, init_dict = None):
         """Initialize a Region.
         
@@ -40,11 +85,12 @@ class Region(CuemsDict):
             init_dict (dict, optional): Dictionary containing initialization values.
                 If not provided, default values will be used.
         """
-        empty_keys= {"id": "0"}
-        if (init_dict):
+        if init_dict:
             self.setter(init_dict)
-        else:
-            self.setter(empty_keys)
+        # The declared field set, replacing a local ``empty_keys = {'id': '0'}``
+        # literal that made a bare region the one object in the model whose
+        # defaults lived inside its own ``__init__`` (T026).
+        self._fill_declared_defaults()
     
     def get_id(self):
         """Get the region ID.
@@ -130,6 +176,26 @@ class Region(CuemsDict):
 
 class Media(CuemsDict):
     """A class representing a media file with associated regions."""
+
+    #: Self-wrapping JSON projection: ``{"Media": {...}}`` (T018).
+    JSON_SELF_WRAPS = True
+
+    #: Declared fields, in ``MediaType``'s schema order (T026).
+    #:
+    #: All four are required by the schema, so each takes ``Unset``: a ``Media``
+    #: built bare must not start emitting four empty elements.
+    #:
+    #: ``duration`` is a ``TimecodeType`` — a restricted **string** — not the
+    #: ``CTimecodeType`` that ``FadeCue.duration`` uses. It is out of scope for
+    #: every coercion change in this feature (FR-009b); the schema-derived
+    #: adapter table already resolves it to a passthrough, so this needs no
+    #: special case, only the discipline not to add one.
+    DECLARED_DEFAULTS = {
+        'file_name': Unset,
+        'id': Unset,
+        'duration': Unset,
+        'regions': Unset,
+    }
     
     def __init__(self, init_dict = None):
         """Initialize a Media object.
@@ -173,8 +239,7 @@ class Media(CuemsDict):
         Args:
             id (str): The new UUID of the media file.
         """
-        id = Uuid(id)
-        super().__setitem__('id', id)
+        super().__setitem__('id', self.coerce('id', id))
 
     id = property(get_id, set_id)
 
@@ -233,18 +298,47 @@ class Media(CuemsDict):
         return super().__getitem__('regions')
 
     def set_regions(self, regions):
-        """Set the list of regions in the media file.
-        
+        """Set the list of regions in the media file, coercing every member.
+
+        The previous body computed the coercion and **threw it away** (F12): it
+        iterated ``for r in regions`` and rebound the *loop variable* rather
+        than the list member, so ``Region(r)`` was constructed and discarded on
+        every pass and the raw mapping stayed in the list. Combined with the
+        decoder never reaching ``RegionType``'s binding (F19), that is why no
+        region anywhere was ever a ``Region``.
+
+        Four supply shapes reach here, all measured (FR-009):
+
+        * a single mapping — one region, not wrapped in a list;
+        * a list of mappings;
+        * a list of already-typed ``Region`` objects — idempotent (FR-004);
+        * the wrapped ``{'Region': {...}}`` form the reader produces, which is
+          what every document and every editor payload carries today.
+
+        Anything else **raises** (FR-009a). Passing an unrecognised shape
+        through unchanged would leave a plain dictionary in ``regions`` — this
+        very defect, silently restored — and no golden would catch it, because
+        a shape that never round-trips never reaches a comparison.
+
         Args:
-            regions (list or Region): A list of regions or a single region.
-                If not already Region objects, they will be converted.
+            regions: ``None``, a mapping, a ``Region``, or a list of either.
+
+        Raises:
+            ValueError: If a member matches none of the four supported shapes.
         """
-        if not isinstance(regions, list):
+        if regions is None:
+            super().__setitem__('regions', None)
+            return
+
+        if isinstance(regions, (Region, dict)):
             regions = [regions]
-        for r in regions:
-            if not isinstance(r, Region):
-                r = Region(r)
-        super().__setitem__('regions', regions)
+        elif not isinstance(regions, list):
+            raise ValueError(
+                f"regions must be a mapping, a Region, or a list of either — "
+                f"got {type(regions).__name__}"
+            )
+
+        super().__setitem__('regions', [_as_region(item) for item in regions])
 
     regions: list[Region] = property(get_regions, set_regions)
 
@@ -254,6 +348,10 @@ class MediaCue(Cue):
     This class extends Cue to provide common functionality for media playback,
     including media file handling and output routing.
     """
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = REQ_ITEMS
     
     def __init__(self, init_dict = None):
         """Initialize a MediaCue.
@@ -392,13 +490,3 @@ class MediaCue(Cue):
         self._local = any(x[0] == node_id for x in self.get_all_output_names())
         
 
-    def items(self):
-        """Get all items in the cue as a dictionary.
-        
-        Returns:
-            dict_items: A view of the cue's items, with required items included.
-        """
-        x = dict(super().items())
-        for k in REQ_ITEMS.keys():
-            x[k] = self[k]
-        return x.items()

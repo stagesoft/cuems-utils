@@ -21,6 +21,13 @@ VALID_FADE_MODES = ('preset', 'parametric')
 class FadeFunctionParameter(CuemsDict):
     """A named numeric parameter for a parametric fade function."""
 
+    #: Self-wrapping JSON projection: ``{"FadeFunctionParameter": {...}}`` (T018).
+    JSON_SELF_WRAPS = True
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = FADE_PARAM_REQ_ITEMS
+
     def __init__(self, init_dict=None):
         if not init_dict:
             init_dict = FADE_PARAM_REQ_ITEMS
@@ -64,6 +71,13 @@ class FadeProfile(CuemsDict):
     - ``preset``: system-defined function, no user parameters required.
     - ``parametric``: user-supplied parameters control the fade curve.
     """
+
+    #: Self-wrapping JSON projection: ``{"FadeProfile": {...}}`` (T018).
+    JSON_SELF_WRAPS = True
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = FADE_PROFILE_REQ_ITEMS
 
     def __init__(self, init_dict=None):
         if not init_dict:

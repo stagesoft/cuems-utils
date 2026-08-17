@@ -32,6 +32,10 @@ class DmxCue(Cue):
     This class extends Cue to provide specific functionality for DMX lighting control,
     including scene management, fade timing, and OSC communication for DMX routing.
     """
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = REQ_ITEMS
     
     def __init__(self, init_dict = None):
         """Initialize a DmxCue.
@@ -46,6 +50,8 @@ class DmxCue(Cue):
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
 
+    def _init_runtime(self) -> None:
+        super()._init_runtime()
         self._player = None
         self._osc_route = None
         self._offset_route = '/offset'
@@ -240,19 +246,12 @@ class DmxCue(Cue):
         
         return True
     
-    def items(self):
-        """Get all items in the cue as a dictionary.
-        
-        Returns:
-            dict_items: A view of the cue's items, with required items included.
-        """
-        x = dict(super().items())
-        for k in REQ_ITEMS.keys():
-            x[k] = self[k]
-        return x.items()
-
 class DmxScene(CuemsDict):
     """A class representing a DMX scene containing multiple universes."""
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = SCENE_REQ_ITEMS
     
     def __init__(self, init_dict=None):
         """Initialize a DMX scene.
@@ -322,6 +321,10 @@ class DmxScene(CuemsDict):
 
 class DmxUniverse(CuemsDict):
     """A class representing a DMX universe containing multiple channels."""
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = UNIVERSE_REQ_ITEMS
     
     def __init__(self, init_dict=None):
         """Initialize a DMX universe.
@@ -336,6 +339,9 @@ class DmxUniverse(CuemsDict):
             init_dict = ensure_items(init_dict, UNIVERSE_REQ_ITEMS)
         if init_dict:
             self.setter(init_dict)
+        # ``set_dmx_channels`` swallows a ``None`` rather than storing it, so
+        # the setter alone leaves a declared field absent (FR-017).
+        self._fill_declared_defaults()
 
     def get_universe_num(self):
         """Get the universe number.
@@ -420,6 +426,10 @@ class DmxUniverse(CuemsDict):
 
 class DmxChannel(CuemsDict):
     """A class representing a single DMX channel."""
+
+    #: Declared fields and their defaults for this class alone;
+    #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
+    DECLARED_DEFAULTS = DMXCHANNEL_REQ_ITEMS
     
     def __init__(self, init_dict = None):
         """Initialize a DMX channel.
