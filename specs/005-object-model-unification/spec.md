@@ -304,7 +304,19 @@ document.
 - **FR-008**: `ui_properties` MUST have the same wrapper type on all three paths — the type
   the programmatic path produces today.
 - **FR-009**: Media regions MUST be region objects on all three paths, in every shape regions
-  are supplied in.
+  are supplied in: a single mapping, a list of mappings, a list of already-typed regions, and
+  the wrapped `{'Region': …}` form the reader produces.
+- **FR-009a**: A region supplied in a shape matching **none** of those four MUST raise, naming
+  the shape received. It MUST NOT pass through unchanged: an unrecognised shape that survives
+  coercion is a plain-dictionary region — precisely the defect change 2 removes — and it would
+  reappear silently, which is the failure mode this feature exists to end.
+- **FR-009b**: `MediaType.duration` is **out of scope for every coercion change in this
+  feature**. It is a `TimecodeType` — a restricted string — whose getter contract is `str` and
+  which emits as bare text, unlike the identically-named `FadeCueType.duration` (a
+  `CTimecodeType`, emitted as a wrapped child). It is already `str` on both the built and the
+  loaded path, so FR-007 is satisfied without touching it; coercing it would change the emitted
+  element for every media document and break `cuems-engine`'s getter contract. See
+  `data-model.md` §4 and the hazard note in T048.
 - **FR-010**: Type identity MUST hold recursively — at every depth of cue lists, media,
   outputs and regions — not only at the top level.
 - **FR-011**: Registry bindings that were deliberately pointed at generic containers in 004 to

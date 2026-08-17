@@ -26,6 +26,10 @@ it untouched (research R8).
   004's swap; T011 updates that sentence rather than leaving it false.
 - **Enforcement**: `git diff --stat tests/golden/` must be empty in the feature's final diff.
   A changed golden is a failed feature, not a passed test.
+- **If a golden is found to be genuinely wrong** — encoding a defect rather than the intended
+  output — that halts this feature. It is corrected in its own change, with its own evidence,
+  never inside 005, because a golden edited mid-feature stops being independent evidence that
+  the refactor did not leak.
 
 ### C2 — Accept/reject parity, in both directions
 
@@ -79,6 +83,29 @@ built / XML-decoded / JSON-decoded objects reports zero differences, `ui_propert
   `probe_construction` comparison, wired into the D14 chain.
 - **Fails before**: `ui_properties` is `dict` and `regions` is `list[dict]` on the decoded side.
 - **Spec**: FR-007–FR-011, SC-001.
+
+> **Measured 2026-08-17 at `79632c3`: the divergence is wider than FR-019 enumerates.**
+> The harness reports **44** type differences between a built object and the same content
+> decoded, in four groups:
+>
+> | group | count | closed by |
+> |---|---|---|
+> | `ui_properties`: `CuemsDict` → `dict` | 4 | BC1 (T028) |
+> | region wrapper shape and its structural cascade | 24 | BC2 (T024/T026) |
+> | built side uncoerced — `int`→`float`, `action_target` `str`→`Uuid` | 6 | FR-001, once coercion runs on the programmatic path |
+> | **`ui_properties` wildcard `None` → `"None"`** | 6 | **nothing in 005** |
+> | **`DmxCue` fields left raw (`Mapper.OPAQUE_TYPES`)** | 4 | **nothing in 005** |
+>
+> The last two groups are inherited from 004 and deliberate *there*: the wildcard round-trip is
+> recorded at `mapper.py:344` as "it reads like a bug, and it is one", deferred because fixing
+> it rewrites editor state for every cue in every project; and `OPAQUE_TYPES` decodes a
+> `DmxCue` with `model(body)` without recursing, so its `autoload`/`enabled`/`timecode` stay
+> strings. Neither is enumerated in FR-019 and neither has a task.
+>
+> **Consequence: SC-001's "zero type differences" is not reachable within 005's enumerated
+> scope.** The question is open — widen 005, narrow SC-001 to the enumerated groups, or defer
+> both to 006. `test_the_unenumerated_divergence_is_exactly_as_measured` pins the counts so the
+> answer is deliberate rather than discovered at T032.
 
 ### C6 — Regions are typed from every source (change 2)
 

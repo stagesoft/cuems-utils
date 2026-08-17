@@ -158,6 +158,22 @@ They stay instance attributes and stay out of every projection. This feature onl
 they are initialized on **every** construction mode, via `_init_runtime()`.
 
 > **`_initialized` is not inert, and must not be treated as one of the others.**
+>
+> **Corrected 2026-08-17 against the code — it gates *three* classes, not one.** This document,
+> `spec.md` (FR-004a), `contracts/README.md` (C12), `tasks.md` (T008) and `quickstart.md` all
+> named only `VideoCueOutput`. Measured by grep across `cues/`:
+>
+> | class | gated rule | site |
+> |---|---|---|
+> | `ActionCue` | `set_action_target` raises on `None` | `ActionCue.py:58` |
+> | `FadeCue` | `set_action_type` raises on anything but `fade_action` | `FadeCue.py:100` |
+> | `VideoCueOutput` | `set_output_name` / `set_canvas_region` region consistency | `CueOutput.py:178,199,211` |
+>
+> The requirement is unchanged and the blast radius is wider: setting the flag true before
+> population would newly reject a decoded `ActionCue` whose `action_target` is absent and a
+> `FadeCue` whose `action_type` differs — documents that load today. `tests/unit/test_runtime_state.py`
+> pins all three sites.
+>
 > `VideoCueOutput.__init__` sets it `False` *before* population (`CueOutput.py:146`) and
 > `set_output_name`'s region-consistency rules are gated on it (`CueOutput.py:178`).
 > `CuemsDict.setter` does call those setters during construction (`helpers.py:33-35`), so that
