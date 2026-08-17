@@ -1,0 +1,155 @@
+# Contracts — 005 object model unification
+
+Each contract below is a checkable guarantee with a named test file. `C1`–`C4` are
+**preservation** contracts (they must hold before and after); `C5`–`C11` are **change**
+contracts (they must fail before and pass after — constitution principle II).
+
+The library exposes no network or CLI interface, so "contract" here means the observable
+behaviour of the object model and its projections, which is what consumers bind to.
+
+---
+
+## Preservation contracts
+
+### C1 — Goldens are byte-identical, all four sets
+
+`tests/golden/xml/*`, `tests/golden/dict/*`, `tests/golden/generated/*` and
+`tests/golden/outcomes.json` are unchanged by this feature. Measured basis: the generated
+document restamps the ids F16 stops randomising before serialization, so even change 3 leaves
+it untouched (research R8).
+
+- **Test**: existing `tests/contract/test_byte_identity_xml.py`,
+  `test_byte_identity_dict.py`, `tests/integration/test_d14_chain.py` — unmodified.
+- **Enforcement**: `git diff --stat tests/golden/` must be empty in the feature's final diff.
+  A changed golden is a failed feature, not a passed test.
+
+### C2 — Accept/reject parity, in both directions
+
+Every corpus document keeps its pinned outcome. Specifically: the two legacy documents
+rejected at object decode by `CueOutput`'s `output_name` rule stay rejected, with the same
+rule firing, and the nil-UUID payloads in `tests/data/sample_script.json` stay accepted.
+
+- **Test**: existing `tests/contract/test_accept_reject_parity.py`, plus a new case naming
+  the nil UUID explicitly.
+- **Spec**: FR-006, FR-006a, FR-024, SC-007.
+
+### C3 — Emission order is unchanged, root included
+
+A decoded `CuemsScript` re-serializes with its source key order. Construction must not route
+decode through the sorting path.
+
+- **Test**: `test_byte_identity_xml.py` (existing) covers it; a focused regression test pins
+  the root key order of a hand-authored document directly, so the failure names the cause
+  rather than a 24 KB byte diff.
+- **Spec**: FR-005, research R10.
+
+### C4 — The UI payload is untouched
+
+`read()`'s dict — what `cuems-editor` transmits verbatim on `project_load` — is byte-identical,
+repeated-element shape included. This feature changes objects, not that projection.
+
+- **Test**: existing `tests/contract/test_ui_payload_contract.py`.
+- **Spec**: FR-022 (hard constraint).
+
+---
+
+## Change contracts
+
+### C5 — Identical internals across entry points (change 1)
+
+For every corpus document, a recursive field-by-field type comparison of
+built / XML-decoded / JSON-decoded objects reports zero differences, `ui_properties`
+(`CuemsDict`) and `regions` (`list[Region]`) included.
+
+- **Test**: new `tests/integration/test_construction_parity.py`, the promoted
+  `probe_construction` comparison, wired into the D14 chain.
+- **Fails before**: `ui_properties` is `dict` and `regions` is `list[dict]` on the decoded side.
+- **Spec**: FR-007–FR-011, SC-001.
+
+### C6 — Regions are typed from every source (change 2)
+
+Regions supplied as a single mapping, a list of mappings, a list of `Region`s, or the wrapped
+`{'Region': {…}}` shape the reader produces all yield `list[Region]`, with `in_time`/`out_time`
+as `CTimecode`.
+
+- **Test**: new `tests/unit/test_region_coercion.py` (four shapes) plus C1 for the emission.
+- **Fails before**: `Media.set_regions` rebinds its loop variable and discards the coercion.
+- **Spec**: FR-009, SC-006.
+
+### C7 — Clearing an id clears it (change 3)
+
+`script.id = None` leaves the field empty; generating an id remains the job of the `new_uuid`
+default at construction time, not of assignment.
+
+- **Test**: new `tests/unit/test_id_clearing.py`, plus an assertion on `create_script()`'s
+  returned template.
+- **Fails before**: `Uuid(None)` mints a uuid4, so the template ships two random ids.
+- **Spec**: FR-019 row 3.
+
+### C8 — A failing setter is not swallowed (change 4)
+
+A key with no setter is skipped, exactly as today. An `AttributeError` raised *inside* a
+setter propagates.
+
+- **Test**: new `tests/unit/test_setter_error_propagation.py` (both halves).
+- **Fails before**: the blanket `except AttributeError: pass` swallows both.
+- **Spec**: FR-019 row 4.
+
+### C9 — One defaulting protocol (change 5)
+
+Bare construction of every model class yields that class's declared defaults, by the same
+mechanism. The five classes that had no defaults dict get one, and coherence coverage reaches
+18/18.
+
+- **Test**: new `tests/unit/test_defaulting_protocol.py` (parametrized over every model
+  class); `tests/unit/test_coherence.py` updated so the uncovered set is empty.
+- **Fails before**: `Cue()`, `CuemsScript()`, `Media()` and the three `CueOutput` subclasses
+  return empty objects.
+- **Spec**: FR-017, FR-018, SC-005.
+
+### C10 — One declared-field rule, stray keys dropped and logged (change 6)
+
+`items()` has exactly one definition; the engine selects fields by the same rule for model
+objects; a key the rule does not recognise is absent from every projection and produces
+exactly one log record naming class and key, with no value in the message.
+
+- **Test**: new `tests/contract/test_stray_keys.py` — root and cue, XML and JSON projections,
+  plus the log assertion and a wildcard-subtree case proving `ui_properties` content is *not*
+  filtered.
+- **Fails before**: the root emits stray keys while cues drop them silently.
+- **Spec**: FR-014, FR-015, FR-015a, SC-004.
+
+### C11 — DMX scene failure raises (change 7)
+
+A DMX scene that cannot be serialized aborts the write with an error naming the scene. No
+ambient `except Exception` replaces it.
+
+- **Test**: `tests/contract/test_dmx_failure_path.py`, inverted from "swallowed" to "raised".
+- **Fails before**: the write succeeds and the document is missing the scene.
+- **Spec**: FR-023, SC-003.
+
+### C12 — Runtime state survives every entry point
+
+Every cue class arrives from all three entry points with its runtime attributes initialized,
+and none of them appears in `items()`, the XML, or either wire projection.
+
+- **Test**: new `tests/unit/test_runtime_state.py`, parametrized over the cue classes.
+- **Fails before**: not a regression today — it is a guarantee this feature must not lose
+  while replacing the constructor path. It is written first for exactly that reason.
+- **Spec**: FR-004a, SC-004a.
+
+---
+
+## Performance contract
+
+### C13 — Decode budget, spent once
+
+Decode of the largest corpus document (24 KB) stays **≤ 2×** its pre-005 measurement **and**
+**≤ 75 ms** absolute. Full-suite wall time and the write path stay within 10% of the
+2026-08-12 baseline (1251 passed, 43 skipped, 36.71 s; decode 36.3 ms). The adapter table is
+built once per class, never per object, and no value passes through an adapter twice.
+
+- **Test**: new `tests/integration/test_construction_performance.py`, capturing the pre-005
+  number **before** the first behaviour change lands, plus a ≥1000-cue construction benchmark
+  as a baseline for later features.
+- **Spec**: FR-PERF-001, SC-PERF-001, SC-PERF-002, SC-PERF-003.

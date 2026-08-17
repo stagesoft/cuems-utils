@@ -336,6 +336,30 @@ WHAT MUST BE TRUE WHEN DONE:
   stay hand-written.
 - Semantic validation (canvas_region containment, one custom template per node, media
   duration) is a named, separate tier from schema validation.
+
+REQUIRED DECISION STOP (1 of 2) — runtime data in the new persistence methods. The object
+model is used for two different things and the design has never said so: a CuemsScript is
+static between saves, while the Cue objects inside it are mutated continuously by the engine
+during playback. Runtime state (_player, _osc_route, _go_thread, _start_mtc, _end_mtc,
+_armed_list, _local, _stop_requested, _end_reached, _initialized, _target_object, _conf) is
+kept out of serialization only by an underscore-prefix habit that nothing declares or
+enforces, and no point is defined at which a loaded document becomes a runnable show. Decide
+whether the split is declared or conventional, what save() means mid-show, whether load()
+returns something runnable or something the engine promotes, how to_wire() is kept clean by
+construction, and how copy/equality treat playback state. The five questions are written out
+in specs/planning/xml-rebuild-06-target-design.md §8.1. "Convention, documented and tested"
+is an acceptable answer; leaving it undecided while defining the persistence API is not.
+
+REQUIRED DECISION STOP (2 of 2) — do not pass /speckit.clarify without resolving this. Feature 005
+measured that the T2 tier is not three rules but FOURTEEN value-rejecting property setters,
+every one of them bypassed on the load path and firing on the programmatic path only, plus
+Uuid's own uuid4 rejection reached through set_id. 005 deliberately left that asymmetry
+standing (its FR-006/FR-006a) because closing it would make reading stricter, which the
+rebuild forbids. 006 is where it is decided. The inventory and the five questions the
+decision must answer — read/write symmetry, a per-rule corpus sweep proving nothing
+currently accepted becomes rejected, the setters' fate, the failure mode, and the unit of
+registration — are in specs/planning/xml-rebuild-06-target-design.md §9.1 and §9.2. Record
+the outcome as a clarification entry with the corpus sweep attached as evidence.
 - The xml package exports nothing public. XmlReaderWriter and CuemsParser are removed
   from the public API, with a deprecation path for one release.
 - schema_name disappears from every call site.
@@ -389,6 +413,11 @@ the convention above is adopted and documented here, but applies to future schem
 ```
 /speckit.clarify
 ```
+
+**Not skippable for this feature.** Both decision stops above — runtime-vs-persisted state,
+and the validation asymmetry with its corpus sweep — are resolved here, before
+`/speckit.plan` runs. A 006 spec that reaches planning without them is incomplete regardless
+of what else it contains.
 ```
 /speckit.plan <PASTE SHARED CONTEXT BLOCK>
 
@@ -427,8 +456,9 @@ Include a check that no xml/ symbol remains reachable from the public API.
 ```
 
 **Exit criteria:** `to_wire()` byte-equal to golden `read()` output; public API complete
-and documented; `xml/` exports nothing; deprecation warnings on old entry points; suite
-green.
+and documented; `xml/` exports nothing; deprecation warnings on old entry points; both
+decision stops recorded and implemented (runtime-vs-persisted state; validation asymmetry
+with its corpus sweep); suite green.
 
 ---
 

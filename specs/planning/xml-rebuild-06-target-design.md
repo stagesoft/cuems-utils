@@ -253,6 +253,52 @@ already reaches for.
 
 ---
 
+### 8.1 Required decision stop in feature 006 — runtime state vs persisted state
+
+**Feature 006 MUST NOT proceed past `/speckit.clarify` without an explicit, recorded decision
+on how runtime data is accommodated by the new persistence methods.** Raised during feature
+005's clarification (2026-08-12); 005 only guarantees that runtime state keeps working
+(its FR-004a), it does not decide what the model *is*.
+
+The unexamined assumption is that a show file and a running show share one object model. They
+do not behave alike:
+
+| | `CuemsScript` | the `Cue` objects inside it |
+|---|---|---|
+| lifetime | loaded, edited, saved — **static** between saves | **mutated continuously** during playback |
+| mutation source | the editor, through the UI | the engine, from playback threads |
+| what changes | declared fields | non-persisted attributes: `_player`, `_osc_route`, `_go_thread`, `_start_mtc`, `_end_mtc`, `_armed_list`, `_local`, `_stop_requested`, `_end_reached`, `_initialized`, `_target_object`, `_conf`, `_action_target_object` |
+| identity | the document | a live participant in a show |
+
+Measured today: runtime state is carried as underscore-prefixed instance attributes set in
+each class's `__init__`, so it is invisible to `dict` iteration and therefore never
+serialized — by convention, not by declaration. Nothing states the rule; it holds because
+every author so far has followed the same prefix habit. There is also no declared point at
+which a loaded document *becomes* a runnable show.
+
+The decision must answer:
+
+1. **Is the runtime/persisted split declared or conventional?** If declared, where — a
+   runtime-state descriptor on the model, a separate companion object, or a documented
+   attribute convention the coherence test enforces?
+2. **Does `save()` on a running show mean anything?** `save()` validates and writes declared
+   fields, so today it silently ignores playback state. Is saving mid-show supported,
+   refused, or undefined?
+3. **Does `load()` return something runnable, or something the engine promotes?** D12 says
+   `load()` returns objects. Whether those objects are already armed for playback, or need an
+   explicit preparation step, is an API question 006 owns.
+4. **Where does `to_wire()` stand?** The UI payload is a projection of persisted state only.
+   Confirm no runtime attribute can reach it, by construction rather than by prefix habit.
+5. **Copy and equality semantics.** `load(save(x)) == load(x)` (SC-003a in 004) compares
+   declared fields. If two objects differ only in playback state, are they equal? The engine
+   copies cues; whether runtime state copies with them is currently accidental.
+
+Record the outcome in 006's spec as a clarification entry. If the answer is "convention,
+documented and tested", that is an acceptable outcome — what is not acceptable is leaving it
+undecided while the public persistence API is being defined around it.
+
+---
+
 ## 9. Validation tiers
 
 | Tier | Source | Runs |
@@ -262,6 +308,76 @@ already reaches for.
 
 T2 registry seeds with what exists today: `canvas_region` containment, ≤1 custom template
 per node, media `duration`. Explicitly separated so neither tier silently absorbs the other.
+
+### 9.1 What T2 actually inherits — measured (2026-08-12, during feature 005 clarification)
+
+The seeds above are not three rules in three places. An AST sweep of every `set_*` in the
+package found **14 setters that can reject a value**, and *all of them are bypassed on the
+load path*, because decoding assigns with raw `dict.__setitem__`. They fire on the
+programmatic path only.
+
+| Setter | Rule |
+|---|---|
+| `ActionCue.set_action_target` | required, non-empty |
+| `CueOutput.set_output_name` | name shape (two accepted forms) |
+| `CueOutput.set_canvas_region` | **containment**: exact key set, numeric, `x+width ≤ 1`, `y+height ≤ 1`, ranges |
+| `CuemsScript.set_CueList` | type/shape of the root cue list |
+| `FadeCue.set_action_type` | enum membership |
+| `FadeCue.set_curve_type` | enum membership |
+| `FadeCue.set_duration` | positive, non-zero |
+| `FadeCue.set_target_value` | range |
+| `FadeProfile.set_parameter_value` | finite number |
+| `FadeProfile.set_type` | enum membership |
+| `FadeProfile.set_mode` | enum membership |
+| `FadeProfile.set_parameters` | parameter shape |
+| `Media.set_duration` | **media duration** validity |
+| `MediaCue.set_fade_profiles` | **caps**: duplicate profile type, non-empty `function_id`, per-type limits |
+
+Separately, `Uuid.__init__` rejects anything that is not a real uuid4 — including the nil
+UUID, which appears three times in `tests/data/sample_script.json` and therefore in live
+editor payloads. It is reached through `set_id`, so it behaves like a fifteenth rule, but it
+lives in the value type rather than in a setter. The `_UuidAdapter` written in 004 keeps an
+unparseable value as its raw string, which is what preserves read parity today.
+
+**And the load path is already mixed** — measured the same day, and worse than "setters never
+fire on read". `mapper._decode_member` builds repeated members by calling the model
+constructor (`model(body)`), which runs setters and their validation, while everything else
+is populated by raw assignment that bypasses them. So whether a rule fires on load depends on
+whether its type happens to appear as a repeated member. The visible consequence: two legacy
+corpus documents are **rejected at object decode today** by `CueOutput.set_output_name`
+(`output_name 'VideoOut1' does not match alias …`), pinned in `tests/golden/outcomes.json` as
+`read: ok` / `to_objects: error`.
+
+**Consequence for T2**: the tier is not being written from scratch. It is being *relocated*
+from 14 setters that fire on some construction paths and some types, by accident of decode
+strategy rather than by design. Feature 005 deliberately leaves that standing (its
+FR-006/FR-006a/FR-006b, which require per-document outcome parity in both directions) because
+closing it would change what loads, and because three of the rules are these very seeds.
+
+### 9.2 Required decision stop in feature 006
+
+**Feature 006 MUST NOT proceed past `/speckit.clarify` without an explicit, recorded decision
+on the load/write validation asymmetry.** This is a required stop, not a suggestion, and it
+is the reason feature 005 was allowed to leave the asymmetry in place.
+
+The decision must answer, against the engine and public API that exist by then — not against
+today's code:
+
+1. **Symmetry**: does T2 run on read, on write, on both, or on an explicit `validate()` call
+   only? Each answer implies a different contract for `load()`, which D12 says returns
+   objects, and for `save()`, which validates before writing.
+2. **Never-stricter-on-read**: if T2 runs on read, which of the 14 rules would reject a
+   document currently accepted? Answer with a corpus sweep, per rule, before deciding — not
+   with a judgement call.
+3. **Setter fate**: do the setters keep their rules (two enforcement sites, one of them
+   path-dependent), delegate to the T2 registry, or lose them entirely?
+4. **Failure mode**: does a T2 failure raise, or produce a collected report? A cue-level rule
+   failing mid-document has no obvious answer, and `load()`'s guarantee depends on it.
+5. **Structural placement**: T2 is registered per type; the 14 rules are currently per
+   property. Is the unit of registration a type, a field, or a named rule spanning both?
+
+Record the outcome in 006's spec as a clarification entry, with the corpus sweep from (2)
+attached as evidence.
 
 ---
 

@@ -70,6 +70,14 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
+- `005-object-model-unification` (planned): one construction path for the model — coercion
+  moves from property setters into a schema-resolved adapter table, `CuemsScript` becomes a
+  `CuemsDict`, and `items()`/defaulting/JSON-wrapping each collapse to one definition. Seven
+  enumerated behaviour changes (F4, F12/F19, F16, F17, F18, F20, root `items()`). Baseline
+  2026-08-12: 1251 passed, 43 skipped, 36.71 s; largest corpus decode 36.3 ms. Load-bearing
+  facts: **all four golden sets stay byte-identical**, decode must preserve *arrival* key
+  order (the root is `xs:all`), and two legacy corpus documents are pinned as *rejected* —
+  parity runs in both directions. See `specs/005-object-model-unification/`.
 - `004-xml-serialization-core` (in progress): replacing the four duplicated XML mapping
   implementations with one schema-derived engine. Pure refactor — byte-identical output,
   deprecation shims at every old import path. See `specs/004-xml-serialization-core/`.

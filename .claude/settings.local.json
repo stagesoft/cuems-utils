@@ -62,7 +62,9 @@
       "Read(//disk/Projects/StageLab/**)",
       "Bash(~/.pyenv/versions/3.11.9/bin/python /tmp/claude-1000/-disk-Projects-StageLab-cuems-utils/3908d88a-3c2a-4ea8-88ef-5e264e355f2a/scratchpad/probe_schema.py)",
       "Bash(~/.pyenv/versions/3.11.9/bin/python /tmp/claude-1000/-disk-Projects-StageLab-cuems-utils/3908d88a-3c2a-4ea8-88ef-5e264e355f2a/scratchpad/probe_edge.py)",
-      "Bash(~/.pyenv/versions/3.11.9/bin/python -)"
+      "Bash(~/.pyenv/versions/3.11.9/bin/python -)",
+      "Bash(export PYENV_VERSION=3.11.9)",
+      "Bash(pyenv exec *)"
     ]
   }
 }
