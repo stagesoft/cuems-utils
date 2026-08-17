@@ -168,3 +168,58 @@ def test_outcome_coverage_is_total():
     """
     missing = [d.relpath for d in DOCUMENTS if d.relpath not in OUTCOMES]
     assert not missing
+
+
+# --- feature 005 additions (T012a) ----------------------------------------
+#
+# Additive only: no assertion above changes. Both cases below **pass on
+# pre-005 code** — they are guards on acceptance that must survive coercion
+# moving out of the property setters.
+
+
+def test_the_nil_uuid_stays_accepted():
+    """C2 — the nil UUID loads, and must keep loading (FR-006, SC-007).
+
+    ``00000000-0000-0000-0000-000000000000`` appears three times in
+    ``tests/data/sample_script.json``, so real editor payloads carry it. It
+    fails ``Uuid``'s uuid4 shape check (version nibble 4, variant 8-b), and is
+    accepted today only because ``_UuidAdapter.decode`` keeps an unparseable
+    value as its **raw string** rather than calling ``Uuid()``.
+
+    That is precisely the leniency feature 005 could destroy by accident: once
+    the uuid-bearing setters delegate to the adapter (T037), the path that
+    accepts this value changes. Asserted explicitly rather than inherited from
+    the corpus parametrisation, because no corpus *document* contains it —
+    only the JSON payload does, and a parametrisation over documents would
+    report full coverage while testing none of this.
+    """
+    from cuemsutils.xml.adapters import adapter_for
+
+    nil = "00000000-0000-0000-0000-000000000000"
+    for type_name in ("UuidType", "TargetType"):
+        decoded = adapter_for(type_name).decode(nil)
+        assert decoded == nil, f"{type_name} rejected the nil uuid"
+        assert isinstance(decoded, str)
+
+
+def test_the_nil_uuid_survives_a_full_payload_parse():
+    """The same value, through the real entry point rather than the adapter.
+
+    ``Uuid(nil)`` raises, so a construction path that reached it would turn
+    three values in a shipped payload into a load failure.
+    """
+    import json
+    from pathlib import Path
+
+    from cuemsutils.tools.Uuid import Uuid
+
+    nil = "00000000-0000-0000-0000-000000000000"
+    payload = Path("tests/data/sample_script.json").read_text()
+    assert payload.count(nil) == 3, "the payload no longer carries the nil uuid"
+
+    # The value that must not reach ``Uuid.__init__`` — pinned so the reason
+    # this case exists stays visible.
+    with pytest.raises(ValueError):
+        Uuid(nil)
+
+    assert json.loads(payload) is not None
