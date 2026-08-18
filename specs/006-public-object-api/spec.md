@@ -1,0 +1,674 @@
+# Feature Specification: Public object API — one surface, internal machinery
+
+**Feature Branch**: `006-public-object-api`
+**Created**: 2026-08-18
+**Status**: Clarified 2026-08-18 — **both required decision stops resolved**; ready for `/speckit.plan`
+**Input**: Give the library a single public surface — `CuemsScript` for show data,
+`ConfigManager`/`ConfigBase` for configuration — and make the XML machinery internal.
+Adds `load`/`save`/`validate`/`from_json`/`to_json`/`to_wire`, typed config accessors, a
+named semantic validation tier, and the schema evolution convention.
+
+**Planning context** (authoritative, read before planning):
+`specs/planning/xml-rebuild-01-audit.md` (findings F1–F24, schema audit X1–X17),
+`specs/planning/xml-rebuild-02-node-model-ownership.md`,
+`specs/planning/xml-rebuild-03-design-inputs.md` (Q11/Q14 rationale, F14/F15 evidence),
+`specs/planning/xml-rebuild-04-object-model.md` (construction paths, measured divergence),
+`specs/planning/xml-rebuild-05-ui-wire-contract.md` (**the editor↔UI payload evidence**),
+`specs/planning/xml-rebuild-06-target-design.md` §§8, 9, 10 (**the target design**),
+`specs/planning/xml-rebuild-07-speckit-prompts.md` §5 (this feature's place in the sequence).
+
+This is feature 3 of 5 in the XML rebuild. It covers phases 5 and 7 of the target design
+(§13) and is **the API-defining feature**: it carries the UI hard constraint and both of the
+rebuild's deferred decision stops. Feature 004 built one schema-derived engine with
+byte-identical output; feature 005 unified the object model onto one construction path.
+Features 007 (node model migration) and 008 (consumer migration) follow and are out of scope
+here.
+
+**Settled decisions** (from the planning phase — not reopened by this spec): D1, D2, D3, D5,
+D9, D11, D12, D13, D14, D15, Q11→(c), Q14→(i).
+
+---
+
+## Clarifications
+
+### Session 2026-08-18
+
+- Q: Decision stop 2 — does the semantic tier (T2) run on read, on write, on both, or on an explicit `validate()` call only? → A: **On write and on explicit `validate()` only** (option A). Read stays structural (T1), exactly as today. Evidence: the per-rule corpus sweep ([corpus-sweep.md](corpus-sweep.md)) measured **zero** rejections from the 14 setter rules against every document the library accepts today — but only 6 of the 14 have corpus coverage, and all 8 `FadeCue`/`FadeProfile` rules are unproven because no vendored document contains a fade cue. Turning them on for the read path would therefore be an unevidenced change to what loads, against standing rule 8. The 15th rule (the uuid4 shape, reached through `set_id`) **would** reject live editor traffic — three nil `Media.id` values in one ordinary payload — so it stays a coercion concern absorbed by the adapter, not a T2 rule. `save()` still validates, so nothing invalid is persisted, and a consumer wanting the semantic check on a loaded document calls `validate()` explicitly.
+
+- Q: Decision stop 2 — do the fourteen value-rejecting setters keep their rules, delegate to the T2 registry, or lose them? → A: **Delegate** (option B). One definition per rule, invoked from two call sites: the setter, so programmatic assignment still fails immediately and ergonomically, and the write/validate tier. Duplicating rule text across a setter and a registry entry is the documented drift mechanism behind F15's three incompatible `mappings` shapes, two of which fossilised in unreachable code; this feature exists partly to close that class. The pinned `to_objects: error` outcomes are preserved because the constructor call path is unchanged. **Derived from this answer** — decision stop 2's sub-question 5: the **unit of registration is a named rule**, bound to the (type, field) pairs it applies to, rather than a type-level or field-level entry; that is what lets one definition serve both call sites.
+
+- Q: Decision stop 2 — does a semantic failure raise, or produce a collected report? → A: **Split by call site** (option C). `validate()` returns a **collected report** naming every violation; `save()` **raises on the first failure** and writes nothing. Rationale: `save()` is a single atomic outcome that only needs a yes/no, and answering it early keeps FR-003's "no file written or truncated" cheap to honour; `validate()` is the call a caller makes *in order to inspect*, and an editor user fixing a document needs the whole list rather than one error per round trip. Splitting lets each path be right instead of compromising both.
+
+- Q: Decision stop 1 — is the runtime/persisted split declared or conventional? → A: **Declared** (option C). Runtime attributes become a class-level `RUNTIME_FIELDS` mapping of name → default *factory*, accumulated across the MRO exactly as `REQ_ITEMS` already is for declared fields; the five hand-written `_init_runtime()` overrides collapse into five data declarations plus one inherited implementation that applies them. This is not a new mechanism: feature 005 already built `_init_runtime()` as a chained hook called from both construction paths (`helpers.py:160` on decode, `Cue.py:48` on `__init__`), so the marginal cost over merely testing the convention is converting imperative bodies into data. Factories rather than values are required because `_start_mtc`/`_end_mtc` are fresh `CTimecode()` instances per object. Attribute names and how consumers access them do not change. **Named exception**: `_initialized` is deliberately *not* set by the hook — it gates value-rejecting rules in `ActionCue`, `FadeCue` and `VideoCueOutput` and must stay false during population (`helpers.py:236-247`), so it is declared as "not initialized by the hook" rather than omitted silently.
+
+- Q: Decision stop 1 — does `load()` return something runnable or something the engine promotes, what does `save()` mean mid-show, and how do copy and equality treat playback state? → A: **Runnable on load; mid-show save is document-only; equality over declared fields** (option A). `load()` returns an object with runtime state already initialized — which is what the code does today, since `_init_runtime()` runs on *both* construction paths — so no promotion step is added and no engine call site gains an obligation feature 008 has not budgeted. `save()` persists declared fields and is **documented as ignoring playback state**; it does not refuse, because "a show is running" is engine state the library never observes, and refusing would mean inventing a lock it does not own. Equality and the round-trip identity test compare **declared fields only**, without which `load(save(x)) == load(x)` cannot hold — a live thread handle never compares equal to a fresh one. Copying a cue produces **fresh** runtime state rather than sharing handles.
+
+---
+
+## Required decision stops *(both resolved 2026-08-18)*
+
+The target design names two decisions that feature 005 deliberately deferred to this
+feature. Both are recorded here as open, with the questions each must answer. A 006 spec
+that reaches `/speckit.plan` without them is incomplete regardless of what else it contains
+(`xml-rebuild-06-target-design.md` §8.1, §9.2; `…-07-speckit-prompts.md` §5.2).
+
+### Stop 1 — runtime state versus persisted state ✅ **RESOLVED 2026-08-18**
+
+**Outcome: the split is declared (`RUNTIME_FIELDS`); `load()` returns a runnable object;
+`save()` is document-only and does not refuse mid-show; equality and copy are over declared
+fields, with fresh runtime state per copy.** All five sub-questions are answered in the
+Clarifications entries above. The original framing is kept for the record:
+
+A `CuemsScript` is static between saves; the `Cue` objects inside it are mutated continuously
+by the engine during playback. Runtime state (`_player`, `_osc_route`, `_go_thread`,
+`_start_mtc`, `_end_mtc`, `_armed_list`, `_local`, `_stop_requested`, `_end_reached`,
+`_initialized`, `_target_object`, `_conf`, `_action_target_object`) is kept out of
+serialization **only by an underscore-prefix habit that nothing declares or enforces**, and
+no point is defined at which a loaded document becomes a runnable show. The decision must
+answer, per §8.1:
+
+1. Is the runtime/persisted split **declared or conventional**? If declared, where — a
+   runtime-state descriptor, a companion object, or a documented convention the coherence
+   test enforces?
+2. Does **`save()` on a running show** mean anything — supported, refused, or undefined?
+3. Does **`load()` return something runnable**, or something the engine explicitly promotes?
+4. Where does **`to_wire()`** stand — confirm no runtime attribute can reach it *by
+   construction*, not by prefix habit.
+5. **Copy and equality**: if two objects differ only in playback state, are they equal? Does
+   runtime state copy with a cue?
+
+"Convention, documented and tested" is an acceptable answer. Leaving it undecided while the
+persistence API is defined around it is not.
+
+### Stop 2 — the load/write validation asymmetry ✅ **RESOLVED 2026-08-18**
+
+**Outcome: T2 runs on write and on explicit `validate()` only.** See the Clarifications
+entry above and [corpus-sweep.md](corpus-sweep.md) for the per-rule evidence. Sub-questions
+1 (symmetry), 2 (never-stricter-on-read) and, below, 3 (setter fate), 4 (failure mode) and
+5 (unit of registration) are answered there. The original framing is kept for the record:
+
+Feature 005 measured that the T2 tier is not three rules but
+**fourteen value-rejecting property setters** (inventory in §9.1 of the target design), every
+one of them bypassed on the load path and firing on the programmatic path only — plus
+`Uuid`'s own uuid4 rejection reached through `set_id`, and a load path that is **already
+mixed** (repeated members are built through the model constructor and so do run their
+validation, which is why two legacy corpus documents are pinned as `read: ok` /
+`to_objects: error` in `tests/golden/outcomes.json`). 005 left the asymmetry standing (its
+FR-006/FR-006a) because closing it would make reading stricter, which the rebuild forbids.
+The decision must answer, per §9.2:
+
+1. **Symmetry** — read, write, both, or explicit `validate()` only. Each answer implies a
+   different contract for `load()` and for `save()`.
+2. **Never-stricter-on-read** — if T2 runs on read, which of the 14 rules would reject a
+   document currently accepted? **Answer with a per-rule corpus sweep, attached as
+   evidence**, not with a judgement call.
+3. **Setter fate** — do the setters keep their rules, delegate to the T2 registry, or lose
+   them?
+4. **Failure mode** — does a T2 failure raise, or produce a collected report? A cue-level
+   rule failing mid-document has no obvious answer, and `load()`'s guarantee depends on it.
+5. **Unit of registration** — a type, a field, or a named rule spanning both?
+
+Record the outcome as a clarification entry with the corpus sweep attached.
+
+---
+
+## Decisions taken in drafting *(to be confirmed at `/speckit.clarify`)*
+
+Questions the input prompt did not settle, answered here with evidence rather than left as
+markers.
+
+- **Q: What does `from_json()` accept — a JSON string or a decoded mapping?** → **Both.**
+  It is named as `to_json()`'s inverse, so it must accept `to_json()`'s output (a string);
+  and the requirement it replaces is `cuems-editor`'s `CuemsParser(data).parse()`, which
+  receives an **already-decoded dict** from the WebSocket layer
+  (`xml-rebuild-03-design-inputs.md` §4 records source-agnostic ingestion as a genuine
+  requirement, not an interface detail). Accepting only one form would force one of the two
+  first-party callers to serialize and re-parse.
+- **Q: Does the deprecated surface get removed in this feature?** → **No — deprecated for
+  one release, removed in the next.** The existing shim mechanism already declares
+  `REMOVAL_RELEASE = "v0.1.1"` (`src/cuemsutils/xml/_deprecation.py`); this feature adds to
+  it rather than starting a second scheme. Removal is feature 008's exit condition, after
+  consumers migrate.
+- **Q: Do the existing `ConfigBase` accessor *names* change when they start returning
+  objects?** → **No.** The existing accessors are the model for the façade
+  (`xml-rebuild-06-target-design.md` §3.3, Q11→(c)); renaming them would add consumer churn
+  this feature does not need, and constitution principle III forbids gratuitous naming
+  drift. Only their **return types** change, and only where the value is a structure rather
+  than a scalar.
+- **Q: Where does the schema evolution convention live?** → **`specs/planning/`**, per
+  `CLAUDE.md`'s rule that contributor-workflow and cross-feature conventions belong there
+  and are looked for there first. It is also referenced from the feature's own artifacts so
+  a future schema change finds it from either direction.
+
+---
+
+## User Scenarios & Testing *(mandatory)*
+
+The "users" here are the CUEMS components that consume this library (`cuems-engine`,
+`cuems-editor`, `cuems-nodeconf`), the maintainers of the library, and — indirectly, through
+the editor's payloads — the Angular UI and the people operating a show.
+
+### User Story 1 - One supported way to move show data in and out (Priority: P1)
+
+A consumer wants a script. It asks `CuemsScript` for one — by path, or from a payload the
+frontend sent — and gets a fully coerced object back. It changes the script and asks the
+object to save itself, or to validate itself without writing anything. It never names a
+schema, never constructs a reader, and never receives a raw dictionary.
+
+**Why this priority**: this is the feature. Every other story is either a precondition for
+it (the machinery going internal) or a consequence of it (the payload projection, the typed
+config surface). It is also the only item consumers touch directly.
+
+**Independent Test**: exercise `load` → mutate → `validate` → `save` → `load` on every
+corpus script document, and `from_json` → `to_json` → `from_json` on the editor's sample
+payload, without importing anything from the `xml` package and without passing a schema name.
+
+**Acceptance Scenarios**:
+
+1. **Given** a show file on disk, **When** a consumer calls `CuemsScript.load(path)`,
+   **Then** it receives a `CuemsScript` whose every field is fully coerced — with no
+   dependence on which construction path ran, and no way for the caller to obtain a
+   partially coerced one.
+2. **Given** a script object built in memory and never written to a file, **When**
+   `validate()` is called, **Then** validation runs and raises on failure — reproducing the
+   capability `create_script` reaches today through `xmlfile=None`.
+3. **Given** a valid script, **When** `save(path)` is called, **Then** the document is
+   validated first and only then written.
+4. **Given** an invalid script, **When** `save(path)` is called, **Then** it raises and
+   **no file is written or truncated** at the target path.
+5. **Given** a decoded frontend payload, **When** `CuemsScript.from_json(payload)` is
+   called, **Then** the resulting object is indistinguishable — class and internal types at
+   every depth — from the same script loaded from XML.
+6. **Given** any corpus document, **When** it goes `load → to_json → from_json → save`,
+   **Then** the written XML is byte-identical to the input document's golden.
+
+---
+
+### User Story 2 - The UI payload does not move under the editor's feet (Priority: P1)
+
+The editor loads a project and transmits the result verbatim to the Angular UI. After this
+feature it obtains that payload from the public object instead of from the machinery — and
+the bytes the UI receives are the same bytes, except for one stray XML artifact that is
+removed deliberately. Separately, the *other* payload the UI receives — `initial_template` —
+stops disagreeing with the first.
+
+**Why this priority**: this is the hard constraint. `project_load` is the heaviest,
+most-used path in the system, and it is transmitted without inspection to a frontend this
+feature does not edit. If it moves, the UI breaks in production and the failure is not
+visible in this repository's tests.
+
+**Independent Test**: for every corpus script document, compare `CuemsScript.load(path)
+.to_wire()` against the pre-feature `read()` golden captured in `tests/golden/dict/`, with
+the `schemaLocation` key removed from the expectation. Zero differences. Separately, render
+one script through both payload paths and diff them field by field.
+
+**Acceptance Scenarios**:
+
+1. **Given** any corpus script document, **When** `to_wire()` is called on the loaded
+   object, **Then** the dict is byte-identical to the golden `read()` output for that
+   document, minus the leaked `schemaLocation` key.
+2. **Given** a script with boolean-typed fields (`enabled`, `autoload`, `loop`-adjacent
+   flags), **When** it is projected to the wire, **Then** those fields are the **strings**
+   `"True"`/`"False"`, because `cms:BoolType` is `xs:string` in the schema.
+3. **Given** the same script, **When** it is rendered through the template path and through
+   the project-load path, **Then** the two payloads are identical — booleans as strings,
+   `ui_properties` scalars as strings — closing the inconsistency the frontend's
+   `=== true || === 'True'` dual-check exists to absorb.
+4. **Given** a wire payload, **When** the UI's existing inbound handling is applied to it,
+   **Then** no frontend change is required — the dual-check still succeeds and the outbound
+   string form still round-trips.
+5. **Given** the wire dict, **When** its keys are enumerated, **Then** no
+   `schemaLocation` key is present, and the evidence that no consumer reads it is recorded.
+
+---
+
+### User Story 3 - Configuration answers with objects, not nested dictionaries (Priority: P2)
+
+An operator's node reads its configuration and asks for the network map, the mappings, or a
+project's settings. It receives typed objects with named fields. Nobody walks five levels of
+nesting, and nobody has to guess whether a mappings entry is keyed by name or indexed by
+position.
+
+**Why this priority**: it is the second half of D12/D15 and it removes a measured,
+active defect class — three shape compensations in `ConfigManager`, and three mutually
+incompatible recorded shapes for the same mappings data, two of them fossilised in
+unreachable code. It is P2 rather than P1 because no consumer is blocked on it the way the
+editor is blocked on Story 2.
+
+**Independent Test**: call every `ConfigManager`/`ConfigBase` accessor against the corpus
+config files and assert each returns a typed object (or a scalar), never a raw nested dict;
+then delete the three compensations and show the accessors still return the same values.
+
+**Acceptance Scenarios**:
+
+1. **Given** a loaded configuration, **When** `network_map` is read, **Then** it yields
+   typed node objects rather than nested dictionaries.
+2. **Given** a loaded configuration, **When** the mappings accessors are read, **Then** the
+   returned shape is declared in one place and identical at every call site.
+3. **Given** the code that today flattens a list of single-key dicts, walks five nested
+   levels, and walks the mappings structure generically, **When** this feature lands,
+   **Then** those three compensations are gone rather than relocated.
+4. **Given** the two unreachable `check_mappings` bodies carrying fossilised shape
+   assumptions, **When** this feature lands, **Then** each is either reached and correct, or
+   removed — no fossil survives.
+5. **Given** an existing consumer that calls an accessor by its current name, **When** it
+   runs against the new surface, **Then** the name still exists and still means the same
+   thing.
+
+---
+
+### User Story 4 - The machinery is machinery (Priority: P2)
+
+A maintainer reads the public API and sees two entry points: a script object and a config
+manager. The XML layer is not among them. Consumers still on the old entry points keep
+working for one release and are told, on every use, what to move to and when it goes away.
+
+**Why this priority**: it is what makes Story 1's guarantee a guarantee rather than a
+convention — a second public construction path would keep the divergence representable. It
+is P2 because the guarantee is testable before the old surface is hidden.
+
+**Independent Test**: assert the `xml` package exports nothing; assert the public API golden
+contains no `xml` symbol; assert every removed entry point still resolves for one release
+and emits a warning naming its replacement and its removal release.
+
+**Acceptance Scenarios**:
+
+1. **Given** the `xml` package, **When** its public exports are enumerated, **Then** the
+   list is empty.
+2. **Given** a consumer that imports a removed entry point, **When** it uses it, **Then** it
+   works and emits a deprecation warning that names the replacement and the removal release,
+   in the one message format this package already uses.
+3. **Given** the public API surface, **When** it is searched for a schema-name parameter,
+   **Then** none is found — no caller has to know that a script is described by the script
+   schema.
+4. **Given** the public API golden, **When** it is compared against the shipped surface,
+   **Then** the difference is exactly the intentional set enumerated in this spec.
+
+---
+
+### User Story 5 - Semantic rules are a named tier, not a side effect of assignment (Priority: P3)
+
+A maintainer asks "what does this library check beyond the schema?" and gets a list: canvas
+region containment, at most one custom template per node, media duration — plus whatever
+Stop 2 relocates into the tier. The answer is a registry, not an archaeology exercise across
+fourteen property setters.
+
+**Why this priority**: the value is maintainability and honest error reporting rather than
+new capability. It is also the story Stop 2 reshapes, so it is specified after the two P1
+stories that Stop 2 does not affect.
+
+**Independent Test**: enumerate the registered semantic rules; run each against a document
+that violates it and one that satisfies it; confirm the structural tier ran first and that
+the two tiers report distinguishably.
+
+**Acceptance Scenarios**:
+
+1. **Given** a document that is structurally valid but semantically wrong (a canvas region
+   extending past its canvas), **When** it is validated, **Then** the failure is reported as
+   a **named semantic rule**, distinguishable from a schema failure.
+2. **Given** a document that fails structural validation, **When** it is validated, **Then**
+   the structural failure is reported and the semantic tier does not mask or absorb it.
+3. **Given** the set of registered semantic rules, **When** it is enumerated, **Then** it
+   includes canvas-region containment, the per-node custom template cap, and media duration.
+4. **Given** every document the library accepts today, **When** it is loaded after this
+   feature, **Then** it is still accepted — reading never becomes stricter — and the two
+   documents pinned as rejected at object decode keep exactly their pinned outcomes.
+
+---
+
+### User Story 6 - Documents are portable, and the next schema change does not strand them (Priority: P3)
+
+A show file written on one machine opens on another, and looks the same in version control
+regardless of where it was written. And when someone later adds an element to the schema,
+there is a written rule that stops it from invalidating every file already on disk.
+
+**Why this priority**: it is small, self-contained, and fixes two real problems — one
+measured in the writer (every show file carries the writing machine's local layout), one
+measured in the schemas (an element added without `minOccurs="0"` invalidated every settings
+file written before it, including two this project shipped). It ships with Story 2's wire
+change so the format moves once, not twice.
+
+**Independent Test**: write the same object on two different installation layouts and
+compare the bytes; then check the convention document exists and states all four rules with
+its measured precedent.
+
+**Acceptance Scenarios**:
+
+1. **Given** a script object, **When** it is written to disk, **Then** the document contains
+   no absolute filesystem path, and the same object written under a different installation
+   layout produces byte-identical output.
+2. **Given** documents already on disk carrying an absolute schema location, a relative one,
+   or none at all, **When** they are loaded, **Then** all three load and validate to equal
+   results — files already on disk are unaffected.
+3. **Given** the schema evolution convention, **When** a maintainer looks for the rules
+   governing a schema change, **Then** they find all four (optional-by-default in existing
+   types, a model-layer default, required elements only in new types, anything else is a
+   versioned migration) together with the measured precedent that motivated them.
+4. **Given** the settings element that was added as required and invalidated older files,
+   **When** the convention is applied to it, **Then** it is recorded as scheduled work under
+   the convention — **not fixed here**, because this feature edits no schema.
+
+---
+
+### Edge Cases
+
+- **Saving during playback.** `save()` succeeds and persists declared fields, ignoring
+  playback state. The library never observes that a show is running, so this is defined
+  behaviour rather than a refusal.
+- **Equality between a played script and a fresh load of the same file.** Equal — equality is
+  over declared fields, so accumulated playback state does not make two copies of the same
+  document differ.
+- **A semantic rule failing on cue 400 of 500.** During `save()`: raises at that cue, nothing
+  written. During `validate()`: reported alongside every other violation in the document.
+  Neither path runs on `load()`.
+- **A document that violates a semantic rule but is structurally valid.** It **loads** — the
+  semantic tier does not run on read — and fails only when saved or explicitly validated.
+  This is the deliberate consequence of never making reading stricter.
+- **`from_json` on a payload with keys the schema does not declare.** Feature 005 settled the
+  model-layer answer — dropped, but logged, one record per dropped key. The public API must
+  not silently change that answer.
+- **`from_json` on a payload that is not a script at all.** Must fail with an actionable
+  message naming what was expected, not with a structural error from deep in the machinery.
+- **`to_wire()` on a script that has never been validated.** The wire projection is not a
+  validation gate; state whether it validates, and be consistent with `to_json()`.
+- **`save()` to a path that exists.** The existing file must not be truncated before
+  validation succeeds.
+- **A configuration file that no longer validates because the schema gained a required
+  element** (the measured X13 case). Out of scope to fix here; the convention exists so it
+  does not recur, and the failure must be reported as a schema failure naming the element.
+- **A consumer that both imports a deprecated entry point and uses the new API** in the same
+  process. Both must work simultaneously for the deprecation release.
+- **A document whose schema location attribute points at a path that does not exist.** Must
+  still load — the toolchain neither writes nor reads that value for resolution.
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+**Public show-data surface**
+
+- **FR-001**: `CuemsScript.load(path)` MUST return a `CuemsScript` whose every field is
+  fully coerced, as a **guarantee** — no public API may return a partially coerced script.
+- **FR-002**: `CuemsScript.from_json(payload)` MUST accept both a JSON string (the inverse of
+  `to_json()`) and an already-decoded mapping (the editor's frontend payload), producing an
+  object with the same internal types as `load()` on the equivalent document.
+- **FR-003**: `CuemsScript.save(path)` MUST validate before writing, and MUST NOT create,
+  truncate or partially write the target file when validation fails.
+- **FR-004**: `CuemsScript.validate()` MUST validate an in-memory object with **no file
+  involved**, preserving the capability `create_script` reaches today via `xmlfile=None`. It
+  MUST run both tiers and return a **collected report** naming every violation found, rather
+  than stopping at the first.
+- **FR-004a**: `save()` MUST raise on the **first** validation failure and write nothing,
+  so persistence stays an atomic yes/no. The two call sites deliberately differ: `validate()`
+  exists to inspect, `save()` exists to persist.
+- **FR-005**: `CuemsScript.to_wire()` MUST return the schema-faithful dict, and
+  `to_json()` MUST be its serialization, so the two cannot diverge.
+- **FR-006**: Building, validating and writing MUST remain separable operations; none may be
+  reachable only as a side effect of another.
+- **FR-007**: These six methods MUST be the only supported way to move script data in or
+  out; no supported alternative path may remain on the public surface.
+- **FR-008**: The full chain `xml → object → json → object → xml` MUST round-trip to
+  byte-identical XML for every corpus script document, exercised through the public API only.
+
+**Wire contract (hard constraint)**
+
+- **FR-009**: `to_wire()` MUST produce a dict byte-identical to the pre-feature reader
+  output for the same document, **minus** the leaked schema-location key, asserted against
+  goldens captured before this feature and never regenerated to make a test pass.
+- **FR-010**: Boolean-typed fields MUST remain the strings `"True"`/`"False"` on the wire,
+  because the schema types them as strings. Converting them to JSON booleans is explicitly
+  forbidden in this feature.
+- **FR-011**: The schema-location key MUST be absent from the wire dict, and the evidence
+  that no consumer reads it MUST be recorded in the feature's artifacts.
+- **FR-012**: The template payload and the project-load payload MUST be the **same
+  projection** of the same object — booleans as strings, `ui_properties` scalars as strings —
+  so that the two payloads the UI receives can no longer disagree.
+- **FR-013**: The eight hand-written JSON projection methods MUST be replaced by the derived
+  projection; none may survive as a second, parallel definition.
+
+**Configuration surface**
+
+- **FR-014**: `ConfigManager` and `ConfigBase` accessors MUST return typed objects (or
+  scalars) rather than raw nested dictionaries — **including the network map**.
+- **FR-015**: Config structure MUST be derived from the schemas; the curated accessors and
+  the semantic rules MUST stay hand-written (Q11→(c)).
+- **FR-016**: The three shape compensations in the config layer — the hand flattening of a
+  list of single-key dicts, the five-level nested walk, and the generic structural walk —
+  MUST be removed, not relocated.
+- **FR-017**: The mappings data MUST have **one** declared shape. The recorded incompatible
+  shapes — including the two fossilised in unreachable code — MUST each be corrected or
+  removed; none may remain unreachable and unverifiable.
+- **FR-018**: Every accessor name that exists today MUST continue to exist and mean the same
+  thing; only return types change, and only where the value is a structure.
+
+**Machinery goes internal**
+
+- **FR-019**: The `xml` package MUST export nothing publicly.
+- **FR-020**: The former public entry points MUST remain importable and functional for
+  **one release**, each emitting a deprecation warning naming its replacement and its removal
+  release, in the package's existing single message format.
+- **FR-021**: No public API may require a schema name from the caller; the schema is a
+  property of the type, not of the call site.
+- **FR-022**: The recorded public API surface MUST be updated deliberately, and the diff
+  against the previous surface MUST be exactly the set this spec enumerates.
+
+**Validation tiers**
+
+- **FR-023**: Structural validation (derived from the schemas) MUST run on load, on
+  ingestion from JSON, on explicit validation, and on save.
+- **FR-024**: Semantic validation MUST be a **named, separately registered tier** that runs
+  after structural validation **on write and on explicit validation only** — never on the
+  read path. It is seeded with canvas-region containment, the per-node custom template cap,
+  and media duration. Neither tier may silently absorb the other.
+- **FR-024a**: The uuid4 shape check MUST NOT become a semantic rule. It stays a coercion
+  concern, and an unparseable identifier MUST continue to be preserved as its raw value on
+  the read path, because the editor sends the nil UUID in ordinary traffic.
+- **FR-024c**: Each semantic rule MUST have **exactly one definition**, registered as a
+  named rule bound to the (type, field) pairs it applies to, and invoked from both call
+  sites: the property setter, so programmatic assignment still fails immediately, and the
+  write/validate tier. No rule may be stated twice.
+- **FR-024d**: Delegation MUST NOT change which documents reach an error at object decode;
+  the outcomes pinned in the recorded golden outcomes stay exactly as they are.
+- **FR-024b**: Before any `FadeCue` or `FadeProfile` rule may be relied on as proven, the
+  corpus MUST gain a document that exercises it. Eight of the fifteen rules have **no**
+  corpus coverage today, and that gap MUST be recorded rather than read as a clean result.
+- **FR-025**: Reading MUST NOT become stricter. Every document accepted by the library today
+  MUST still be accepted, and the documents whose rejection is pinned in the recorded
+  outcomes MUST keep exactly those outcomes.
+- **FR-026**: `load()` and `from_json()` MUST NOT run semantic validation, so that every
+  document accepted today is still accepted (FR-025). `save()` MUST run it, and `validate()`
+  MUST run both tiers. Resolved by decision stop 2; evidence in
+  [corpus-sweep.md](corpus-sweep.md).
+
+**Runtime versus persisted state**
+
+- **FR-027**: No runtime attribute may appear in the wire projection, in the JSON
+  projection, or in a written document — enforced **by construction**, with a test that
+  fails if a runtime attribute is introduced without the enforcement covering it.
+- **FR-027a**: Runtime state MUST be **declared**, as a per-class mapping of attribute name
+  to default factory, accumulated across the class hierarchy in the same way declared field
+  defaults already are. The hand-written per-class initialization bodies MUST be replaced by
+  one inherited implementation driven by that declaration.
+- **FR-027b**: Defaults MUST be factories, not shared values, so that each object receives
+  its own timecode marks rather than aliasing one instance.
+- **FR-027c**: The gate flag that holds value-rejecting rules off during population MUST be
+  declared as **not** initialized by the runtime hook, preserving the arrival-order-dependent
+  behaviour the current code documents. It is a named exception, not an omission.
+- **FR-027d**: Attribute names and the way consumers read and write runtime state MUST NOT
+  change; this requirement is about where the set is declared, not about how it is accessed.
+- **FR-028**: `load()` MUST return an object whose runtime state is already initialized, with
+  **no separate promotion step** required before the engine can run it.
+- **FR-028a**: `save()` MUST persist declared fields and MUST NOT refuse because a show is
+  running; that it ignores playback state MUST be documented rather than left implicit. The
+  library does not observe playback and MUST NOT acquire a mechanism to do so for this.
+- **FR-028b**: Equality between script objects MUST compare **declared fields only**, so that
+  a document round-tripped through save and load equals the original regardless of playback
+  state.
+- **FR-028c**: Copying a cue MUST produce **fresh** runtime state rather than sharing handles
+  with the original.
+
+**Portability and schema evolution**
+
+- **FR-029**: A written document MUST NOT embed an absolute filesystem path; the schema
+  location MUST be written as a relative reference, so the same object written under
+  different installation layouts produces byte-identical output.
+- **FR-030**: Documents already on disk MUST keep loading and validating whether their
+  schema location is absolute, relative, or absent.
+- **FR-031**: FR-029 and FR-011 MUST ship together, so the wire format moves once.
+- **FR-032**: The schema evolution convention MUST be documented in the repository's
+  canonical location for cross-feature conventions, stating all four rules — an element
+  added to an existing complex type is optional; it carries a model-layer default so a
+  document omitting it loads to the same object; required elements appear only in new types;
+  anything else is a versioned file-format migration with a conversion path — together with
+  the measured precedent that motivated it.
+- **FR-033**: The measured convention violation already in the schemas MUST be recorded as
+  scheduled work under the convention. **No schema file is edited in this feature.**
+
+**Cross-cutting**
+
+- **FR-UX-001**: The new API's naming, error messages and defaults MUST follow the
+  conventions already established in this package; every removed or changed entry point MUST
+  have its replacement documented for the consumer migration guide, even though consumer
+  edits are out of scope. The two UI payloads becoming consistent MUST be documented for the
+  frontend team despite requiring no frontend change.
+- **FR-PERF-001**: The wire projection is called on every project load and MUST carry a
+  measured budget: a baseline captured before implementation, a stated ceiling for the
+  largest corpus document, and no regression beyond 10% on suite wall time or on the write
+  path. Feature 005's measurements (decode 18.0 ms warm; 49.6 ms by the cold-inclusive
+  method) are the inherited starting point, not a new allowance.
+
+### Key Entities
+
+- **`CuemsScript`** — the public show object. Owns its schema, its validation, and its three
+  projections (XML document, wire dict, JSON string). The only supported way script data
+  enters or leaves the library.
+- **`ConfigManager` / `ConfigBase`** — the public configuration object. A curated façade of
+  named accessors over schema-derived structure, returning typed objects.
+- **Wire dict** — the schema-faithful projection transmitted verbatim to the UI. Booleans
+  are strings; there is exactly one definition of it; it contains no XML artifacts and no
+  runtime state.
+- **Semantic rule (T2)** — a named, registered check that runs after structural validation
+  and expresses what the schema cannot: containment, caps, durations.
+- **Runtime state** — attributes a running engine mutates on cues during playback. Never
+  persisted, never projected; its declaration status is decision stop 1.
+- **Deprecation shim** — a former public entry point kept working for one release, warning
+  on every use with its replacement and removal release.
+- **Schema evolution convention** — the written rule set governing every future schema
+  change, adopted here and applied from here on.
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: For **100%** of corpus script documents, the wire projection is byte-identical
+  to the pre-feature reader golden minus the schema-location key — zero differences.
+- **SC-002**: For **100%** of corpus documents, the full chain load → JSON → object → save
+  produces byte-identical XML.
+- **SC-003**: The two payloads the UI receives for the same script differ in **0** fields.
+  Today they differ in every boolean field and in the `ui_properties` integer fields.
+- **SC-004**: The number of schema-name arguments on the public surface is **0** (today: a
+  parameter reached at six call sites across three repositories).
+- **SC-005**: The number of names publicly exported by the `xml` package is **0** (today: 5).
+- **SC-006**: The number of hand-written JSON projection methods is **0** (today: 8).
+- **SC-007**: The number of raw-dict shape compensations in the configuration layer is **0**
+  (today: 3), and the number of mutually incompatible recorded shapes for the same mappings
+  data is **1** (today: 3, two of them unreachable).
+- **SC-008**: **100%** of documents the library accepts today are still accepted, and every
+  pinned rejection outcome is unchanged.
+- **SC-009**: A document written under two different installation layouts is byte-identical,
+  and documents with an absolute, relative, or absent schema location all load to equal
+  results.
+- **SC-010**: **100%** of removed public entry points remain functional for one release and
+  emit a warning naming both the replacement and the removal release.
+- **SC-011**: Both required decision stops are recorded as clarification entries, with the
+  per-rule corpus sweep attached as evidence for stop 2, before planning begins. ✅ *Done —
+  see Clarifications and [corpus-sweep.md](corpus-sweep.md).*
+- **SC-012**: A test proves that no runtime attribute reaches any projection or written
+  document, and fails if a new runtime attribute escapes the enforcement.
+- **SC-014**: Every runtime attribute is declared rather than conventional: the count of
+  hand-written per-class runtime initialization bodies is **0** (today: 5), and a runtime
+  attribute added without a declaration fails the suite.
+- **SC-015**: Each semantic rule has exactly **1** definition (today: rules live in 14
+  setters with 3 of them also named as tier seeds), reachable from both the setter and the
+  write/validate tier.
+- **SC-016**: `load()` runs **0** semantic rules; `save()` and `validate()` run all of them.
+  A script that violates a semantic rule loads successfully and fails on save.
+- **SC-013**: The schema evolution convention is documented with all four rules and its
+  measured precedent, and is discoverable from the repository's canonical conventions
+  location.
+- **SC-QUALITY-001**: Lint is clean and no new warnings are introduced.
+- **SC-TEST-001**: Each of the four enumerated behaviour changes has a test that fails
+  before the change and passes after it; the wire byte-equality test is the feature's gating
+  test.
+- **SC-PERF-001**: The measured budget in FR-PERF-001 is met, with before/after numbers
+  recorded.
+
+## Behaviour changes — intentional and enumerated
+
+The constitution's Engineering Standards clause requires a refactor that changes behaviour to
+enumerate every change. There are four.
+
+1. **The template payload aligns with the project-load payload.** Booleans become the strings
+   `"True"`/`"False"`; `ui_properties` integers become strings. The two payloads are
+   inconsistent today and the frontend carries a dual-check to absorb it. **No frontend
+   change is required.**
+2. **The schema-location key is dropped from the wire dict.** An XML artifact with no meaning
+   to the UI. Evidence that nothing reads it is a deliverable.
+3. **The eight hand-written JSON projection methods are replaced by the derived projection**,
+   and the JSON output gains its missing inverse.
+4. **The written schema location becomes relative rather than an absolute filesystem path.**
+   Today every show file carries the writing machine's local layout, so files are neither
+   portable nor reproducible. The schema toolchain neither writes nor reads the value, and
+   documents load with the attribute absolute, relative, or absent — so files already on disk
+   are unaffected. Ships with change 2 so the wire format moves once.
+
+Changes to the **public API shape** (methods added, entry points deprecated, config accessors
+returning objects) are the feature itself rather than incidental behaviour changes, and are
+specified in FR-001…FR-022 above.
+
+## Assumptions
+
+- Both decision stops were resolved in the 2026-08-18 clarification session, before planning.
+  Nothing in this spec remains blocked on them.
+- **Eight of the fifteen semantic rules have no corpus coverage** (all `FadeCue` and
+  `FadeProfile` rules — no vendored document contains a fade cue). The decision to keep the
+  semantic tier off the read path means this gap does not endanger anything today, but it
+  MUST NOT be read as "those rules are proven safe". FR-024b records the obligation.
+- The pre-feature goldens under `tests/golden/` (reader dicts, XML output, recorded outcomes,
+  recorded public API surface) are the arbiter for every "unchanged" claim. They were
+  captured before features 004/005 landed their changes and are never regenerated to make a
+  test pass (standing rule 3).
+- "One release" for the deprecation window means the release this feature ships in; removal
+  lands in the next one, after consumers migrate (feature 008).
+- The corpus vendored under `tests/data/corpus/` is representative of documents in the field.
+  Where it is not — the corpus sweep for stop 2 may reveal gaps — the gap is recorded rather
+  than assumed away.
+- Semantic rules that decision stop 2 relocates out of property setters keep their **current
+  messages** where those messages are already actionable, to avoid gratuitous UX drift.
+- No consumer currently reads the schema-location key from the wire payload. This is stated
+  as an assumption because FR-011 makes confirming it a deliverable.
+
+## Dependencies
+
+- Features 004 (schema-derived serialization core) and 005 (object model unification) are
+  landed and green. This feature builds directly on their engine, adapters, registry and
+  single construction path.
+- Feature 005's recorded outcomes, goldens and performance baseline are inputs, not
+  assumptions to re-derive.
+- The frontend's inbound dual-check (`=== true || === 'True'`) is what makes behaviour
+  change 1 safe without a frontend edit. It is verified as present; this feature does not
+  remove it.
+
+## Out of Scope
+
+- **Node model migration** — feature 007.
+- **Consumer repository edits** — feature 008. This feature defines the API and the migration
+  guidance; the edits happen in each consumer repo as its own change.
+- **Any `.xsd` edit.** The schema evolution convention is adopted and documented here and
+  governs future schema work; the measured violation already in the schemas is recorded as
+  scheduled, not fixed.
+- **Converting wire booleans to JSON booleans.** That is the deferred schema item and a
+  file-format migration touching every XML on disk.
+- **Removing the deprecated entry points.** Deprecated here, removed after consumers migrate.
+- **Removing the frontend's dual-check.** An optional follow-up in the frontend repo once
+  both payloads agree — not a blocker and not this feature's work.
