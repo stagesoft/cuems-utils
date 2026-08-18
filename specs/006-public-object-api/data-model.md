@@ -177,13 +177,49 @@ pins two legacy corpus documents as `to_objects: error` in the golden outcomes. 
 must preserve the **constructor call**, not merely setter invocation. Feature 005 had to
 correct this same misreading in flight; it is written down here so 006 does not repeat it.
 
+**The existing closed list is derived from the registry, not maintained beside it.**
+`validators.py` already holds `SEMANTIC_RULES` — a hand-written tuple of three human-readable
+names (`"canvas_region containment"`, `"at most one custom template per node"`,
+`"media duration"`) that `test_config_parity` and the coherence test read to assert the tier
+has not grown silently. Once `RULES` exists, keeping both is two inventories of one thing —
+the same drift FR-024c forbids one level up. So `SEMANTIC_RULES` is **derived from `RULES`**
+(or deleted and its two readers pointed at the registry). Note the name *form* also changes,
+from prose with spaces to identifiers (`canvas_region_containment`); the two tests that read
+the list must be updated with it, and the rule messages — which are what users see — are
+preserved unchanged.
+
 **Execution**: never on `load()`/`from_json()`; all rules on `save()` (raising at the first,
-writing nothing) and on `validate()` (collecting every violation into a report).
+writing nothing) and on `validate()` (collecting every violation into a report). The seam
+(`run_rules`) is built when `save()`/`validate()` first need it, wrapping the rules
+`validators.py` already holds; the registry then **fills** that seam rather than introducing
+it. Nothing calls a function that does not yet exist.
 
 ## 6. The wire projection
 
-`Mapper.encode_wire(obj, spec) -> dict`, mirroring `decode`, sharing the same `Adapter`
-instances so encode and decode cannot disagree by construction.
+**Signature, pinned** (so the two call sites cannot drift):
+
+```python
+class Mapper:
+    def __init__(self, schema_name: str) -> None: ...
+    def encode_wire(self, obj, spec=None) -> dict: ...
+```
+
+The schema is bound at **construction** — `Mapper('script')`, `Mapper('settings')` — exactly as
+it already is for `decode_document`. `spec` is an **optional** parameter naming the type spec to
+project *within* that schema; omitted, it is resolved from the object's class through the
+registry, which is what every call site in this feature does. It exists because the recursive
+descent needs to pass the child spec down, not because callers supply one.
+
+The consequence that matters for FR-014a: `CuemsScript.to_wire()` and a config object's
+`to_wire()` differ **only in which `Mapper` they hold**, which is what makes "one projection
+implementation" (SC-017) true of the code and not merely of the intent. The shared method lives
+on the `CuemsDict` base in `src/cuemsutils/helpers.py` — defined there when `CuemsScript` first
+needs it and *relocated* rather than duplicated when config does. Placing it on the base means
+every `CuemsDict` subclass exposes `to_wire()`/`to_json()`; that is intended, and it is counted
+in the enumerated API-surface diff rather than discovered when the golden fails.
+
+Mirrors `decode`, sharing the same `Adapter` instances so encode and decode cannot disagree by
+construction.
 
 | Element | Wire form | Why |
 |---|---|---|

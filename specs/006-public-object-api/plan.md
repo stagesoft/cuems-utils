@@ -82,9 +82,12 @@ specified part of the design — is settled concretely in [data-model.md](data-m
   document. Goldens are **never regenerated** to make a test pass (standing rule 3).
 - **Second gate**: `encode_wire(obj) == schema.to_dict(build_document(obj))` — the round-trip
   oracle from R1, which is what makes the fast path safe.
-- Fail-before/pass-after for each of the four enumerated behaviour changes, plus the API
+- Fail-before/pass-after for each of the **five** enumerated behaviour changes, plus the API
   additions. The `initial_template`-vs-`project_load` divergence must be captured as a
-  **failing** test first: it is the bug being fixed, and it is currently invisible.
+  **failing** test first: it is the bug being fixed, and it is currently invisible. The fifth
+  (cue equality widening from `id` alone to all declared fields) is included: it was found by
+  the API checklist after the enumeration was written, and both this gate and SC-TEST-001 said
+  "four" until 2026-08-18 from staleness rather than exclusion.
 - Deprecation shims: one test per removed entry point asserting it still resolves, still
   works, and warns with the replacement and removal release.
 - Suite must stay ≥ 1485 passing.
@@ -124,18 +127,35 @@ empty.
 ```text
 specs/006-public-object-api/
 ├── plan.md              # This file
-├── spec.md              # Feature specification (clarified 2026-08-18)
+├── spec.md              # Feature specification (clarified + analyzed 2026-08-18)
+├── tasks.md             # The task breakdown
 ├── research.md          # Phase 0 — R1..R7
 ├── data-model.md        # Phase 1 — the config derived/hand-written line, settled
 ├── quickstart.md        # Phase 1 — how to verify the feature end to end
-├── corpus-sweep.md      # Decision stop 2 evidence
+├── corpus-sweep.md      # Decision stop 2 evidence (+ post-implementation section, T077)
 ├── sweep_t2.py          # …and the script that produced it
 ├── bench_to_wire.py     # R1's measurement
 ├── contracts/
 │   ├── public-api.md    # The public surface, method by method
 │   ├── wire-format.md   # to_wire() byte-identity guarantees
 │   └── deprecations.md  # Every removed entry point and its replacement
-└── checklists/requirements.md
+└── checklists/
+    ├── requirements.md  # 16 items, all resolved
+    └── api.md           # 43 items, all resolved — the source of CHK001..CHK043
+```
+
+**Produced during implementation** (each has an owning task; T089a audits that spec.md,
+plan.md, contracts/ and tasks.md name the same set):
+
+```text
+baseline.md                 # T001, T083, T091 — counts, bench, budgets, measurement context
+schemalocation-evidence.md  # T038 — the FR-011 negative result, to a stated standard
+api-surface-diff.md         # T057a, T065 — "public name" defined + the enumerated diff
+legacy-coverage.md          # T060 — zero-hit proof before the legacy tree is deleted
+golden-changes.md           # T080 — the deliberate golden edit, justified
+migration-guide.md          # T084 — the D2 map, feature 008's input
+frontend-note.md            # T085 — both payloads agree; no frontend change required
+../planning/schema-evolution-convention.md   # T081, T082 — cross-feature, so specs/planning/
 ```
 
 ### Source Code (repository root)
@@ -190,8 +210,11 @@ Ordered so each step is independently green, per target design §13 steps 5 and 
    `_initialized` declared as the named exception.
 4. **T2 registry** in `validators.py`; setters delegate; `validate()` reports, `save()` raises.
 5. **`config/` models**; readers bind to them; `ConfigManager`'s three compensations deleted.
-6. **Wire-format changes shipped together** (FR-031): drop `schemaLocation` from the dict,
-   write the relative one, align `initial_template`.
+6. **Wire-format changes shipped in one release** (FR-031): write the relative schema
+   location, and align `initial_template`. The read-side half — `schemaLocation` absent from
+   the wire dict — is **not a step here**: it is a property of `encode_wire` from step 1, which
+   the byte-identity gate asserts against the golden *minus* that key. Making it a later step
+   would mean writing the projection wrong on purpose so there was something to change.
 7. **`xml/` goes internal**; shims added; legacy tree deleted; `create_script` migrated.
 
 Step 1 before step 2 is deliberate and is the same rule 004 followed: the guarantee is proven
