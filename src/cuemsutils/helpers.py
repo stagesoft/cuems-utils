@@ -49,6 +49,10 @@ Unset = _UnsetType()
 #: subclass would silently answer with its parent's field set.
 _DECLARED_DEFAULTS: dict[type, dict[str, Any]] = {}
 
+#: Accumulated ``RUNTIME_FIELDS`` declarations, keyed on the exact class — the
+#: same reasoning as ``_DECLARED_DEFAULTS`` (T010, data-model.md §4).
+_RUNTIME_FIELDS: dict[type, dict[str, Any]] = {}
+
 
 class CuemsDict(dict):
     """Custom dictionary class to handle cuemsutils specific items."""
@@ -73,6 +77,15 @@ class CuemsDict(dict):
     #: turn every cue's editor state into ``{"CuemsDict": {...}}`` in the
     #: payload. The six model classes that self-wrap say so explicitly.
     JSON_SELF_WRAPS: bool = False
+
+    #: This class's **own** non-persisted runtime attributes and their
+    #: defaults (T010, data-model.md §4). Subclasses declare only what they
+    #: add or override; :meth:`runtime_fields` accumulates the chain exactly
+    #: as :meth:`declared_defaults` does. A default that is *callable* is a
+    #: **factory**, called fresh per object — required for ``CTimecode``
+    #: defaults, so two cues never share one instance. Left empty on the
+    #: base: ``CuemsDict`` itself carries no runtime state.
+    RUNTIME_FIELDS: dict[str, Any] = {}
 
     def build(self, parent: Element):
         build_xml_dict(self, parent)
@@ -231,8 +244,10 @@ class CuemsDict(dict):
         *playback*, not at load, which is the worst possible place to find out
         (FR-004a, contract C12).
 
-        Overrides chain through ``super()._init_runtime()``. They set the same
-        attributes ``__init__`` sets today, with no additions.
+        **The single inherited implementation** (T010, SC-014): driven by
+        :attr:`RUNTIME_FIELDS`/:meth:`runtime_fields` rather than by a
+        per-class override. No subclass defines this method any more — it
+        sets exactly the attributes the declaration names, with no additions.
 
         **This hook must never touch ``_initialized``.** That flag is not an
         inert runtime attribute: it gates value-rejecting rules in three classes
@@ -244,8 +259,11 @@ class CuemsDict(dict):
         forbids, and the resulting failure is **arrival-order dependent** (a
         ``custom`` ``output_name`` arriving before ``canvas_region`` raises,
         the reverse order does not), so the corpus would catch it only by luck.
-        The flag stays owned by the three classes that use it.
+        The flag stays owned by the three classes that use it, and it is
+        deliberately absent from ``RUNTIME_FIELDS`` everywhere.
         """
+        for name, default in type(self).runtime_fields().items():
+            setattr(self, name, default() if callable(default) else default)
 
     @classmethod
     def declared_defaults(cls) -> dict[str, Any]:
@@ -281,6 +299,27 @@ class CuemsDict(dict):
                 if own:
                     merged.update(own)
             cached = _DECLARED_DEFAULTS[cls] = merged
+        return cached
+
+    @classmethod
+    def runtime_fields(cls) -> dict[str, Any]:
+        """This class's declared runtime attributes, accumulated across the
+        MRO exactly as :meth:`declared_defaults` accumulates document fields
+        (T010, data-model.md §4). Base-class fields first, each class's own
+        additions or overrides layered on top — so ``VideoCue`` can replace
+        ``Cue``'s plain ``CTimecode`` factory for ``_start_mtc``/``_end_mtc``
+        with a 25fps one, exactly as it does today.
+
+        The returned dict is the cached one. Do not mutate it.
+        """
+        cached = _RUNTIME_FIELDS.get(cls)
+        if cached is None:
+            merged: dict[str, Any] = {}
+            for klass in reversed(cls.__mro__):
+                own = klass.__dict__.get("RUNTIME_FIELDS")
+                if own:
+                    merged.update(own)
+            cached = _RUNTIME_FIELDS[cls] = merged
         return cached
 
     @classmethod

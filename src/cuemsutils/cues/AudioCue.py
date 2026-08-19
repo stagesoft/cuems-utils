@@ -23,7 +23,13 @@ class AudioCue(MediaCue):
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = REQ_ITEMS
-    
+
+    #: T012.
+    RUNTIME_FIELDS = {
+        '_player': None,
+        '_osc_route': None,
+    }
+
     def __init__(self, init_dict = None):
         """Initialize an AudioCue.
         
@@ -36,11 +42,6 @@ class AudioCue(MediaCue):
         else:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
-
-    def _init_runtime(self) -> None:
-        super()._init_runtime()
-        self._player = None
-        self._osc_route = None
 
     def get_master_vol(self):
         """Get the master volume level.

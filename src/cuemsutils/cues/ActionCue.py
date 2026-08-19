@@ -16,7 +16,14 @@ class ActionCue(Cue):
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = REQ_ITEMS
-    
+
+    #: T015. ``_initialized`` (below) is deliberately **not** here — it is
+    #: the named exception the runtime hook must never touch; see
+    #: ``CuemsDict._init_runtime``'s docstring.
+    RUNTIME_FIELDS = {
+        '_action_target_object': None,
+    }
+
     def __init__(self, init_dict: dict = None):
         """Initialize an ActionCue.
 
@@ -39,10 +46,6 @@ class ActionCue(Cue):
         # below, so it must go true only *after* population. See the hook's
         # docstring in ``helpers.py``.
         self._initialized = True
-
-    def _init_runtime(self) -> None:
-        super()._init_runtime()
-        self._action_target_object = None
 
     def get_action_target(self):
         """Get the target object for the action.

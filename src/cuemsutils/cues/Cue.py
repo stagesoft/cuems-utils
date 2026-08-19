@@ -32,7 +32,22 @@ class Cue(CuemsDict):
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = REQ_ITEMS
-    
+
+    #: The nine non-persisted attributes every cue carries (FR-004a, T011).
+    #: ``CTimecode`` is the bare class, used as a **factory** — called fresh
+    #: per object, so two cues never share one instance.
+    RUNTIME_FIELDS = {
+        '_target_object': None,
+        '_conf': None,
+        '_armed_list': None,
+        '_start_mtc': CTimecode,
+        '_end_mtc': CTimecode,
+        '_end_reached': False,
+        '_go_thread': None,
+        '_stop_requested': False,
+        '_local': False,
+    }
+
     def __init__(self, init_dict = None):
         """Initialize a new Cue.
         
@@ -46,19 +61,6 @@ class Cue(CuemsDict):
         self._fill_declared_defaults()
 
         self._init_runtime()
-
-    def _init_runtime(self) -> None:
-        """The nine non-persisted attributes every cue carries (FR-004a)."""
-        super()._init_runtime()
-        self._target_object = None
-        self._conf = None
-        self._armed_list = None
-        self._start_mtc = CTimecode()
-        self._end_mtc = CTimecode()
-        self._end_reached = False
-        self._go_thread = None
-        self._stop_requested = False
-        self._local = False
 
     def get_id(self):
         """Get the unique identifier of the cue.

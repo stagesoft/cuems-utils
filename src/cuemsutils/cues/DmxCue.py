@@ -36,10 +36,17 @@ class DmxCue(Cue):
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = REQ_ITEMS
-    
+
+    #: T014.
+    RUNTIME_FIELDS = {
+        '_player': None,
+        '_osc_route': None,
+        '_offset_route': '/offset',
+    }
+
     def __init__(self, init_dict = None):
         """Initialize a DmxCue.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to set initial properties.
@@ -49,12 +56,6 @@ class DmxCue(Cue):
         else:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
-
-    def _init_runtime(self) -> None:
-        super()._init_runtime()
-        self._player = None
-        self._osc_route = None
-        self._offset_route = '/offset'
 
     def get_fadein_time(self):
         """Get the fade-in time for the DMX cue.

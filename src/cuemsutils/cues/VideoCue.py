@@ -23,6 +23,17 @@ class VideoCue(MediaCue):
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = REQ_ITEMS
 
+    #: T013. Overrides ``Cue``'s plain ``CTimecode`` factory for the two
+    #: timecode marks with a 25fps one.
+    # TODO: Adjust framerates for universal use, by now 25 fps for video
+    RUNTIME_FIELDS = {
+        '_player': None,
+        '_osc_route': None,
+        '_go_thread': None,
+        '_start_mtc': lambda: CTimecode(framerate=25),
+        '_end_mtc': lambda: CTimecode(framerate=25),
+    }
+
     def __init__(self, init_dict = None):
         """Initialize a VideoCue.
 
@@ -35,16 +46,6 @@ class VideoCue(MediaCue):
         else:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
-
-    def _init_runtime(self) -> None:
-        super()._init_runtime()
-        self._player = None
-        self._osc_route = None
-        self._go_thread = None
-
-        # TODO: Adjust framerates for universal use, by now 25 fps for video
-        self._start_mtc = CTimecode(framerate=25)
-        self._end_mtc = CTimecode(framerate=25)
 
     def get_opacity(self):
         """Get the cue's configured opacity level.
