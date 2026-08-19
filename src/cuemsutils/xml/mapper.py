@@ -232,7 +232,161 @@ class Mapper:
             return None
         return binding.model
 
-    # -- encode ------------------------------------------------------------
+    # -- encode: wire ---------------------------------------------------
+
+    def encode_wire(self, obj, spec: TypeSpec | None = None) -> dict:
+        """Encode ``obj`` to a wire dict — a **direct** object walk (T008).
+
+        The signature is pinned in data-model.md §6: the schema is bound at
+        construction, and ``spec`` is an optional recursion parameter naming
+        the type to project *within* that schema. Every call site in this
+        feature omits it, so it is resolved from ``obj``'s class through the
+        registry.
+
+        Mirrors ``decode``/``_decode_field``, reusing the **same** ``Adapter``
+        instances via ``Adapter.to_wire`` (rather than ``.decode``) so encode
+        and decode cannot disagree by construction. The result matches
+        ``schema.to_dict(build_document(obj))`` (the round-trip oracle, T004)
+        without paying for the tree build or the re-decode.
+
+        **The document body wraps; everything else is bare.** When ``spec``
+        is omitted and ``obj``'s class is bound as the schema's document body
+        (an anonymous root child, bound by *path* one level below the
+        registry root — ``CuemsScript`` is script.xsd's), the result is
+        ``{ClassName: {...fields}}``, matching ``read()``'s shape exactly
+        (W1). A recursive call always passes an explicit ``spec`` and is
+        never wrapped, matching ``decode``'s own field-level shape.
+        """
+        if spec is None:
+            body_tag = self._body_tag_for(obj)
+            spec = self._spec_for_model(type(obj))
+            if spec is None:
+                return obj
+            value = self._encode_wire_value(obj, spec)
+            return {body_tag: value} if body_tag is not None else value
+        return self._encode_wire_value(obj, spec)
+
+    def _body_tag_for(self, obj) -> str | None:
+        """``obj``'s class name, if it is bound as this schema's document body.
+
+        The document body is bound by *path*, one level below the registry
+        root (``CuemsProject/CuemsScript`` for script.xsd) — the encode-side
+        counterpart of ``_body_spec``'s ``body_tag`` extraction on decode.
+        Every other binding (by qname, or nested deeper) is not a document
+        body and stays bare.
+        """
+        class_name = type(obj).__name__
+        binding = self.registry.binding_for_path(f"{self.registry.root}/{class_name}")
+        if binding is not None and binding.model is type(obj):
+            return class_name
+        return None
+
+    def _encode_wire_value(self, obj, spec: TypeSpec) -> dict:
+        """The dict for one value against its type spec — mirrors ``decode``.
+
+        A key whose field is **optional and empty** is left out entirely
+        (matching the XML path's ``_omit`` and, empirically, what the
+        converter's own dict never carries for an absent element) rather
+        than emitted as ``null`` — reusing the same ``_omit`` the XML writer
+        uses, so the two paths cannot disagree on which fields vanish.
+        """
+        keys = self._selected_keys(obj)
+        ordered = spec.order_keys(keys)
+        result = {}
+        for key in ordered:
+            value = obj[key]
+            field = spec.field(key)
+            if self._omit(field, value):
+                continue
+            result[key] = self._encode_wire_field(key, value, spec)
+        return result
+
+    def _encode_wire_field(self, key: str, value, spec: TypeSpec):
+        """Mirrors ``_decode_field``, in the encode direction."""
+        field = spec.field(key)
+
+        if field is None:
+            # Undescribed: wildcard content, or a leaked attribute. Passed
+            # through untouched, matching decode's own passthrough (FR-009).
+            return value
+
+        adapter = adapter_for(field.xsd_type)
+        if adapter is not PASSTHROUGH:
+            return adapter.to_wire(value)
+
+        if field.child is None:
+            return value
+
+        if value is None:
+            # A required-but-empty complex field — ``<description />``,
+            # ``<outputs />``. Every adapter already returns ``None`` for
+            # ``None``; this is the passthrough types' equivalent, and it
+            # must come before RAW_TYPES/list/wildcard, none of which is
+            # meaningful on ``None``.
+            return None
+
+        if field.child.name in self.RAW_TYPES:
+            # Never decoded into objects (T045/decode docstring); still raw.
+            return value
+
+        child_spec = derive(field.child)
+
+        if isinstance(value, list):
+            return self._encode_wire_repeated(value, child_spec)
+
+        if child_spec.wildcard:
+            return self._encode_wildcard_value(value)
+
+        return self.encode_wire(value, child_spec)
+
+    def _encode_wire_repeated(self, items: list, child_spec: TypeSpec) -> list:
+        """A repeated block: object list -> ``[{Tag: {...}}, ...]`` (T009).
+
+        The **only** repeated-content shape on the wire (verified against
+        every corpus document's goldens): same-tag repetition (``Region``,
+        ``fade_profile``, ``VideoCueOutput``) and mixed-tag choice (cue list
+        contents) both decode — and therefore both re-encode — to a flat list
+        of single-key ``{Tag: body}`` dicts. There is no second, wrapper-dict
+        shape to reproduce on this side: decode's ``_decode_wrapper`` exists
+        for a raw shape this converter's output never actually takes for the
+        types it names, which is why encode has no corresponding branch.
+        """
+        out = []
+        for item in items:
+            if isinstance(item, SCALARS) or not hasattr(item, "keys"):
+                out.append(item)
+                continue
+            tag = self._tag_for_item(item, child_spec)
+            member = child_spec.field(tag)
+            item_spec = (
+                derive(member.child)
+                if member is not None and member.child
+                else self._spec_for_model(type(item))
+            )
+            body = (
+                self._encode_wire_value(item, item_spec)
+                if item_spec is not None
+                else dict(item.items())
+            )
+            out.append({tag: body})
+        return out
+
+    def _encode_wildcard_value(self, value):
+        """Wildcard (``ui_properties``) content — scalars become **strings**.
+
+        The mirror of ``as_cuemsdict`` (decode's wildcard fallback, FR-009):
+        nothing about a wildcard's children is derivable, so nothing here is
+        typed either. A value built programmatically as a real Python type
+        (``0``, ``None``) is stringified to match what decode would have
+        produced from the equivalent XML text node.
+        """
+        if isinstance(value, dict):
+            return {k: self._encode_wildcard_value(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self._encode_wildcard_value(v) for v in value]
+        return str(value)
+
+    # -- encode: xml ------------------------------------------------------
 
     def encode_xml(self, obj, spec: TypeSpec | None, parent: Element, tag: str) -> Element:
         """Emit ``obj`` as ``<tag>`` under ``parent``.

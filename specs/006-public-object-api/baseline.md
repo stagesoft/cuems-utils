@@ -99,6 +99,32 @@ self-wrap — so this is expected to clear once US2 lands. Marked as a scoped, d
 worked around, so it stays visible until US2 removes it. If it is still failing after
 T036, that is a real regression, not an artifact of this note.
 
+## Discovered during Foundational: `read()`'s golden and the decoded object legitimately diverge
+
+`encode_wire` (T008/T009) faithfully projects what a decoded object *holds*. For two corpus
+documents (`complex_test/script.xml`, `script_minimal.xml`), that is not byte-identical to
+`dict/*.reader.json` as literally captured: `VideoCue.opacity` is optional in the schema and
+defaults to `100` in the object model (`VideoCue.py` `REQ_ITEMS`), and `from_decoded`
+(feature 005, unrelated to and predating this feature) materializes every declared default a
+decoded object's document omits — including optional fields whose default is a real,
+non-empty value. `read()` never touches the object model, so its raw dict has no key at all
+for an omitted optional field; the decoded object does, once defaulted.
+
+**Confirmed pre-existing, not introduced here**: the *frozen* `tests/golden/xml/*.xml` write
+goldens (captured before this feature, untouched by it) already contain
+`<opacity>100</opacity>` written into documents whose source never had the element — proof
+this materialization already happened, and was already accepted, before `encode_wire` existed.
+
+**Resolution**: `tests/contract/test_wire_byte_identity.py` adjusts the oracle mechanically —
+from the schema and each bound model's `declared_defaults()`, not by naming `opacity`
+specially — rather than either weakening `encode_wire` or touching feature 005's tested
+`from_decoded` behaviour. Both were considered and rejected: weakening `encode_wire` would
+make it lie about what the object holds, and touching `from_decoded` risks regressing
+already-shipped, already-tested behaviour for a concern outside this feature's scope. Grep
+of `script.xsd` for other optional fields with a non-empty Python default found one further
+candidate (`ActionCue.action_type` defaults to `'play'`) that has not yet manifested a
+mismatch in the current corpus but would take the same, already-generic fix if it ever does.
+
 ## Performance budgets (for T083)
 
 - `load()` + `to_wire()` ≤ 25 ms — baseline `read()` = 16.95 ms (plan.md figure; this
