@@ -110,13 +110,24 @@ DOCUMENTS: tuple[CorpusDoc, ...] = (
     CorpusDoc("negative/settings_bad_dmx_auto.xml", "settings"),
     CorpusDoc("negative/settings-utils-v0.1.0rc2.xml", "settings"),
     CorpusDoc("negative/settings-utils-v0.1.0rc7.xml", "settings"),
+    # -- authored for feature 006 (T003b, T003c) -----------------------------
+    # Deliberately placed *after* the documents above, not merged into the
+    # cuems-utils block: a dozen tests use
+    # ``next(d for d in DOCUMENTS if d.schema == "script")`` to get "a plain,
+    # representative script document" and rely on it being
+    # ``cuems-engine/projects/complex_test/script.xml``. These two are neither
+    # plain nor representative on purpose — they exist to exercise fade
+    # profiles and non-ASCII text, which is exactly what a "give me any
+    # script" call site does not want.
+    CorpusDoc("cuems-utils/fade_showcase.xml", "script"),
+    CorpusDoc("cuems-utils/unicode_showcase.xml", "script"),
 )
 
 #: Pinned per-directory counts, mirroring ``PROVENANCE.md``. A corpus whose size
 #: can drift silently cannot anchor SC-PERF-001's absolute budget, and a
 #: document that disappears takes its coverage with it without failing anything.
 PINNED_COUNTS = {
-    "cuems-utils": 5,
+    "cuems-utils": 7,
     "cuems-engine": 16,
     "cuems-editor": 1,
     "cuems-common": 1,
@@ -133,6 +144,18 @@ def documents(category: str | None = None, schema: str | None = None):
         if (category is None or d.category == category)
         and (schema is None or d.schema == schema)
     ]
+
+
+def script_documents() -> list[CorpusDoc]:
+    """The corpus entries bound to the ``script`` schema (T003).
+
+    Every 006 contract test that claims "100% of corpus script documents"
+    enumerates *this* set, so the claim names one population everywhere
+    rather than being retyped per test file and drifting. See
+    ``baseline.md`` for the recorded count SC-001's "100%" is checked
+    against.
+    """
+    return documents(schema="script")
 
 
 def by_relpath(relpath: str) -> CorpusDoc:

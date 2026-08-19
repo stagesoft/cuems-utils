@@ -165,6 +165,8 @@ def test_write_path_scope_is_pinned():
         "cuems-editor/script_minimal.xml",
         "cuems-engine/projects/complex_test/script.xml",
         "cuems-engine/projects/empty_test/script.xml",
+        "cuems-utils/fade_showcase.xml",
+        "cuems-utils/unicode_showcase.xml",
     ]
 
 

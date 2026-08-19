@@ -33,6 +33,8 @@ __all__ = [
     "read_config_dict",
     "read_dict",
     "read_objects",
+    "wire_diff",
+    "wire_equal",
     "write_bytes",
 ]
 
@@ -91,6 +93,53 @@ def golden_bytes(relpath: str) -> bytes:
 
 def golden_json(relpath: str) -> str:
     return (GOLDEN_ROOT / relpath).read_text(encoding="utf-8")
+
+
+def wire_diff(produced, golden, path: str = "$") -> list[str]:
+    """Structural differences between two wire payloads, per contracts §W1a.
+
+    Empty when they are equal under W1a: same recursive structure and list
+    order/length, matching dict key **order**, and exact scalar **type** —
+    checked with ``type(a) is type(b)``, not ``==``, because ``True == 1`` in
+    Python. Text is compared as plain ``str``, which is already
+    codepoint-equality once both sides are decoded from JSON. Every
+    byte-equality test in this feature (T005, T030, T043a) uses this one
+    predicate.
+    """
+    if isinstance(golden, dict) or isinstance(produced, dict):
+        if not (isinstance(golden, dict) and isinstance(produced, dict)):
+            return [f"{path}: type {type(produced).__name__} != {type(golden).__name__}"]
+        pk, gk = list(produced.keys()), list(golden.keys())
+        if pk != gk:
+            return [f"{path}: key order {pk!r} != {gk!r}"]
+        diffs = []
+        for k in gk:
+            diffs.extend(wire_diff(produced[k], golden[k], f"{path}.{k}"))
+        return diffs
+
+    if isinstance(golden, list) or isinstance(produced, list):
+        if not (isinstance(golden, list) and isinstance(produced, list)):
+            return [f"{path}: type {type(produced).__name__} != {type(golden).__name__}"]
+        if len(produced) != len(golden):
+            return [f"{path}: length {len(produced)} != {len(golden)}"]
+        diffs = []
+        for i, (p, g) in enumerate(zip(produced, golden)):
+            diffs.extend(wire_diff(p, g, f"{path}[{i}]"))
+        return diffs
+
+    if type(produced) is not type(golden):
+        return [
+            f"{path}: type {type(produced).__name__} != {type(golden).__name__} "
+            f"({produced!r} vs {golden!r})"
+        ]
+    if produced != golden:
+        return [f"{path}: {produced!r} != {golden!r}"]
+    return []
+
+
+def wire_equal(produced, golden) -> bool:
+    """``True`` iff ``wire_diff`` finds nothing — see its docstring for W1a."""
+    return not wire_diff(produced, golden)
 
 
 # Re-exported, not reimplemented: the tests must build the generated document

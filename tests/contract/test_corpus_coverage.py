@@ -114,14 +114,15 @@ def test_no_golden_without_a_document():
     covering nothing.
     """
     slugs = {d.slug for d in DOCUMENTS} | {"create_script"}
-    # ``outcomes.json`` and ``api/`` are per-feature, not per-document: the
-    # first records verdicts for the whole corpus, the second snapshots the
-    # public API surface (T019a). Neither maps to a slug.
+    # ``outcomes.json``, ``MANIFEST.sha256`` and ``api/`` are per-feature, not
+    # per-document: the first records verdicts for the whole corpus, the
+    # second (T002) hashes every golden for the immutability guard, the third
+    # snapshots the public API surface (T019a). None maps to a slug.
     orphans = [
         str(p.relative_to(GOLDEN_ROOT))
         for p in GOLDEN_ROOT.rglob("*")
         if p.is_file()
-        and p.name != "outcomes.json"
+        and p.name not in ("outcomes.json", "MANIFEST.sha256")
         and p.parent.name != "api"
         and p.name.split(".")[0] not in slugs
     ]

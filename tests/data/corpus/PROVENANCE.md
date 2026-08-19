@@ -27,13 +27,13 @@ that vanishes without the count changing takes its coverage with it.
 
 | Directory | Documents |
 |---|---|
-| `cuems-utils/` | **5** |
+| `cuems-utils/` | **7** |
 | `cuems-engine/` | **16** |
 | `cuems-editor/` | **1** |
 | `cuems-common/` | **1** |
 | `legacy/` | **2** |
 | `negative/` | **3** |
-| **Total** | **28** |
+| **Total** | **30** |
 
 Generated documents from `src/cuemsutils/create_script.py` are **not** counted here: they
 are produced by the harness at capture time rather than vendored, and their goldens live
@@ -53,9 +53,36 @@ where the existing suite expects them.
 | `project_mappings.xml` | `99e60090` | `5ac1d46` | 2026-04-21 |
 | `default_mappings.xml` | `ad253162` | `5ac1d46` | 2026-04-21 |
 | `outputs.xml` | `cd178d84` | **derived — see below** | 2026-08-11 |
+| `fade_showcase.xml` | **authored — see below** | `006-public-object-api` T003c | 2026-08-19 |
+| `unicode_showcase.xml` | **authored — see below** | `006-public-object-api` T003b | 2026-08-19 |
 
 `settings_bad_dmx_auto.xml` is vendored under `negative/` instead, since its whole purpose
 is to be rejected.
+
+### `cuems-utils/fade_showcase.xml` — authored for feature 006, T003c
+
+No vendored document anywhere in the four repositories contains a `FadeCue` or a
+`fade_profiles` block (`corpus-sweep.md` confirms this by grep). Eight of the fifteen
+value-rejecting setter rules — `FadeCue.set_action_type`, `set_curve_type`, `set_duration`,
+`set_target_value`, `FadeProfile.set_type`, `set_mode`, `set_parameters`,
+`FadeProfile.set_parameter_value` (via `MediaCue.set_fade_profiles`'s `fade_profile_caps`
+check) — therefore have zero corpus coverage (R05–R12 in `corpus-sweep.md`).
+
+This document is hand-authored, not vendored: one `AudioCue` carrying both an `in` (preset)
+and an `out` (parametric, one parameter) `fade_profiles` entry, and one `FadeCue` targeting
+that `AudioCue`. It loads, decodes to objects and writes back under the pre-feature code
+(verified directly against `XmlReaderWriter` before this feature's goldens were captured),
+so it enters the corpus the same way `outputs.xml` did — as a document this library itself
+is proven to accept today, not as a claim about any other repository's fixtures.
+
+### `cuems-utils/unicode_showcase.xml` — authored for feature 006, T003b
+
+The corpus contained **zero non-ASCII bytes** before this feature (measured 2026-08-18), so
+no existing test could catch a UTF-8 or locale-encoding regression (FR-036d). This document
+is hand-authored: accented vowels, `ç`, `ñ` and an apostrophe appear in the show name, in
+cue names, in a cue description and inside `ui_properties` wildcard content. It loads,
+decodes to objects and writes back under the pre-feature code, verified the same way as
+`fade_showcase.xml` above.
 
 ### `cuems-utils/outputs.xml` is derived, not vendored — and why it had to be
 

@@ -317,6 +317,19 @@
       "ok": false
     }
   },
+  "cuems-utils/fade_showcase.xml": {
+    "category": "cuems-utils",
+    "read": {
+      "ok": true
+    },
+    "schema": "script",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "ok": true
+    }
+  },
   "cuems-utils/network_map.xml": {
     "category": "cuems-utils",
     "config_class": "NetworkMap",
@@ -387,6 +400,19 @@
       "error_head": "'NoneType' object has no attribute 'tag'",
       "error_type": "AttributeError",
       "ok": false
+    }
+  },
+  "cuems-utils/unicode_showcase.xml": {
+    "category": "cuems-utils",
+    "read": {
+      "ok": true
+    },
+    "schema": "script",
+    "to_objects": {
+      "ok": true
+    },
+    "write": {
+      "ok": true
     }
   },
   "legacy/script_complex_test-engine-e6fc6c9.xml": {
