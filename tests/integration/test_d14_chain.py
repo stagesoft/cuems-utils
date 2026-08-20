@@ -33,33 +33,18 @@ from tests.support.corpus import DOCUMENTS, GOLDEN_ROOT
 CHAIN_DOCS = [d for d in DOCUMENTS if (GOLDEN_ROOT / "xml" / f"{d.slug}.xml").exists()]
 IDS = [d.relpath for d in CHAIN_DOCS]
 
-#: ``cuems-utils/fade_showcase.xml`` (T003c) is the first corpus document to
-#: carry a populated ``fade_profiles`` pair through the json leg. That exposes
-#: a pre-existing defect, not a regression: ``FadeProfile.__json__`` (and
-#: ``FadeFunctionParameter.__json__``) self-wrap as ``{"FadeProfile": {...}}``,
-#: and ``CuemsParser`` rebuilds that shape without unwrapping it first, so the
-#: written XML gets a literal ``<FadeProfile>`` tag instead of
-#: ``<fade_profile>``. No corpus document exercised this path before — the
-#: corpus-sweep found zero fade coverage anywhere (FR-024b). Both
-#: ``FadeProfile.py:63``/``:157`` are exactly the hand-written ``__json__``
-#: bodies T035 deletes and T026/T036 replace with the derived projection,
-#: which does not self-wrap, so this is expected to clear once US2 lands
-#: rather than something Phase 1 should patch.
-_FADE_JSON_LEG_XFAIL = pytest.mark.xfail(
-    strict=True,
-    reason="pre-existing: FadeProfile.__json__ self-wraps and CuemsParser "
-    "does not unwrap it, so a rebuilt fade_profiles pair writes literal "
-    "<FadeProfile> tags. Fixed by T035/T036 (US2), not Phase 1.",
-)
-
-
-def _xfail_fade_json_leg(docs):
-    return [
-        pytest.param(d, marks=_FADE_JSON_LEG_XFAIL)
-        if d.relpath == "cuems-utils/fade_showcase.xml"
-        else d
-        for d in docs
-    ]
+#: ``cuems-utils/fade_showcase.xml`` (T003c) carried an ``xfail(strict)`` on
+#: the json leg through Phase 1 and Phase 2. It is the first corpus document
+#: with a populated ``fade_profiles`` pair, and it exposed a pre-existing
+#: defect: ``FadeProfile.__json__`` and ``FadeFunctionParameter.__json__``
+#: self-wrapped as ``{"FadeProfile": {...}}``, ``CuemsParser`` rebuilt that
+#: shape without unwrapping it, and the written XML got a literal
+#: ``<FadeProfile>`` tag instead of ``<fade_profile>``.
+#:
+#: T035 deleted both bodies and the derived projection replaced them, which is
+#: what the mark said would clear it. **It cleared** — the mark is gone rather
+#: than flipped to non-strict, because a strict xfail that starts passing is
+#: information and keeping it would discard exactly that.
 
 
 def _json_to_object(payload: dict):
@@ -73,7 +58,7 @@ def _json_to_object(payload: dict):
     return CuemsParser({"CuemsScript": payload}).parse()
 
 
-@pytest.mark.parametrize("doc", _xfail_fade_json_leg(CHAIN_DOCS), ids=IDS)
+@pytest.mark.parametrize("doc", CHAIN_DOCS, ids=IDS)
 def test_d14_chain_every_intermediate_matches_its_golden(doc, tmp_path):
     # link 1: xml -> object, and the dict it was decoded from
     decoded = rt.read_dict(doc)
@@ -95,7 +80,7 @@ def test_d14_chain_every_intermediate_matches_its_golden(doc, tmp_path):
     assert produced == rt.golden_bytes(f"xml/{doc.slug}.xml")
 
 
-@pytest.mark.parametrize("doc", _xfail_fade_json_leg(CHAIN_DOCS), ids=IDS)
+@pytest.mark.parametrize("doc", CHAIN_DOCS, ids=IDS)
 def test_json_leg_is_lossless_for_the_xml_that_follows_it(doc, tmp_path):
     """The two routes to XML must agree.
 
@@ -185,6 +170,28 @@ def test_a_built_object_and_a_loaded_one_agree_on_the_enumerated_types():
     assert not offending, "built vs loaded types:\n  " + "\n  ".join(
         f"{p}: {a} != {b}" for p, a, b in offending
     )
+
+
+# --- feature 006 addition (T022, FR-008, SC-002) --------------------------
+#
+# The same chain, driven entirely through the public surface: no
+# ``XmlReaderWriter``, no ``CuemsParser``, no schema name. Additive — nothing
+# above changes — because the two must agree, and the way to show that is to
+# run both rather than to replace one with the other.
+
+
+def test_this_module_can_drive_the_chain_without_naming_the_xml_package():
+    """SC-002, asserted against the *source* of the public leg below.
+
+    The assertions above deliberately still import ``cuemsutils.xml`` — they
+    are the pre-feature leg. So the claim is scoped to the module that holds
+    only the public one.
+    """
+    import tests.integration.test_public_chain as public_leg
+
+    from tests.support.public_api import assert_no_xml_import
+
+    assert_no_xml_import(public_leg)
 
 
 @pytest.mark.xfail(

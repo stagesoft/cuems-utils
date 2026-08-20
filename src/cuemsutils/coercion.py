@@ -37,6 +37,12 @@ if TYPE_CHECKING:  # pragma: no cover - typing only, never imported at runtime
 #: the two happen not to share. A dict keyed on the class object cannot do that.
 _TABLES: dict[type, dict[str, "Adapter"]] = {}
 
+#: Resolved schema names, keyed on the exact class — the same reasoning, and
+#: the same scan, as ``_TABLES``. A sentinel distinguishes "resolved to
+#: nothing" from "not yet resolved", because ``None`` is a legitimate answer:
+#: a bare ``CuemsDict`` is bound in no registry at all.
+_SCHEMAS: dict[type, str | None] = {}
+
 
 class AmbiguousBindingError(RuntimeError):
     """A model class is bound in more than one schema registry.
@@ -87,10 +93,31 @@ def adapter_table(cls: type) -> dict[str, "Adapter"]:
     return table
 
 
-def _resolve(cls: type) -> dict[str, "Adapter"]:
-    # Function-local, and that is the load-bearing detail — see the module
-    # docstring. Moving these to module scope closes the import cycle.
-    from .xml.adapters import adapter_for
+def schema_for(cls: type) -> str | None:
+    """The schema registry ``cls`` is bound in, or ``None`` if it is bound in none.
+
+    The projection needs this (``CuemsDict.to_wire``): ``Mapper`` binds its
+    schema at construction, so an object asked to project itself has to say
+    which schema describes it. Resolved through the **same** scan
+    ``adapter_table`` uses — two resolvers would be a second source of truth
+    for "which spec describes this class", and disagreeing about it is exactly
+    how a config object would end up projected against the script schema.
+
+    ``None`` is a real answer, not a failure: a bare ``CuemsDict`` is what
+    wildcard ``ui_properties`` content decodes to and it is bound nowhere.
+    """
+    if cls not in _SCHEMAS:
+        schema_name, _ = _find_binding(cls)
+        _SCHEMAS[cls] = schema_name
+    return _SCHEMAS[cls]
+
+
+def _find_binding(cls: type):
+    """``(schema name, spec)`` for ``cls``, or ``(None, None)``.
+
+    Function-local imports, and that is the load-bearing detail — see the
+    module docstring. Moving these to module scope closes the import cycle.
+    """
     from .xml.registry import all_registries
 
     found = [
@@ -101,10 +128,16 @@ def _resolve(cls: type) -> dict[str, "Adapter"]:
 
     if len(found) > 1:
         raise AmbiguousBindingError(cls, [name for name, _ in found])
-    if not found:
+    return found[0] if found else (None, None)
+
+
+def _resolve(cls: type) -> dict[str, "Adapter"]:
+    from .xml.adapters import adapter_for
+
+    _, spec = _find_binding(cls)
+    if spec is None:
         return {}
 
-    _, spec = found[0]
     # The wildcard field spec carries an empty name (``UiPropertiesType``'s
     # ``xs:any``); it describes no field, so it gets no entry.
     return {
@@ -115,3 +148,4 @@ def _resolve(cls: type) -> dict[str, "Adapter"]:
 def clear_cache() -> None:
     """Drop every resolved table. For tests that rebuild registries."""
     _TABLES.clear()
+    _SCHEMAS.clear()

@@ -1,11 +1,20 @@
 import json
 import json_fix
 
+from collections.abc import Mapping
+
 from .CueList import CueList
 from .MediaCue import MediaCue
+from ..errors import IngestError, SchemaError, ValidationError
 from ..log import logged, Logger
 from ..helpers import as_cuemsdict, ensure_items, new_uuid, new_datetime, unique_values_to_list, CuemsDict
 from ..tools.Uuid import Uuid
+
+#: The schema every script document is described by. Bound here, once, so that
+#: **no public signature takes a schema name** (FR-021, SC-004): it is a
+#: property of the type, not of the caller, and it is passed at six call sites
+#: across three repositories today.
+SCHEMA_NAME = 'script'
 
 REQ_ITEMS = {
     'id': new_uuid,
@@ -281,50 +290,294 @@ class CuemsScript(CuemsDict):
             self.get_own_media(config=config, cuelist=cuelist)
         )
 
-    def to_json(self):
-        """Convert the script to a JSON string.
-        
+    # -- the public surface (T024, T025, T027, T028) ------------------------
+    #
+    # Six methods, and after this feature they are the only supported way
+    # script data enters or leaves the library. ``to_wire``/``to_json`` are
+    # inherited from ``CuemsDict`` unchanged — one body, shared with the config
+    # models (FR-014a) — so they do not appear here.
+
+    @classmethod
+    def load(cls, path) -> 'CuemsScript':
+        """Read a script document from disk.
+
+        The returned object is **fully coerced**: every field holds its
+        declared type, at every depth, regardless of how the document was
+        written. That is a guarantee rather than a convention — there is no
+        public path that produces a partially coerced script.
+
+        Runs T1 (schema-derived, structural) validation and **no** T2
+        (semantic) validation: a document that violates a semantic rule
+        *loads*, because reading never becomes stricter (FR-026). Its runtime
+        state is already initialized, so the engine can run it with no
+        promotion step.
+
+        Replaces ``XmlReaderWriter(schema_name="script",
+        xmlfile=path).read_to_objects()``.
+
+        Args:
+            path (str | os.PathLike): the document. Relative paths resolve
+                against the process working directory, not against the package.
+
         Returns:
-            str: A JSON string representation of the script.
+            CuemsScript: the decoded script.
+
+        Raises:
+            SchemaError: the document does not match ``script.xsd``.
+            OSError: propagated **unwrapped** — ``FileNotFoundError`` for a
+                missing file, ``PermissionError`` for an unreadable one. Every
+                consumer already handles these, and wrapping them would force
+                callers to unwrap them to find out what happened (FR-035).
         """
-        return json.dumps({'CuemsScript': self})
+        from ..xml.documents import read_document
+
+        try:
+            source = read_document(SCHEMA_NAME, path)
+        except OSError:
+            raise
+        except Exception as exc:
+            raise SchemaError(f"{path} is not a valid script document: {exc}") from exc
+
+        return cls._decode(source)
+
+    @classmethod
+    def from_json(cls, payload) -> 'CuemsScript':
+        """Build a script from a JSON payload — the editor's ingestion path.
+
+        Accepts **all three** forms (contracts §C0): a JSON ``str``, UTF-8
+        ``bytes``, or an already-decoded ``Mapping``. ``bytes`` is decoded as
+        UTF-8 **only** and never sniffed for another codec (FR-036c). Both the
+        wrapped shape ``{"CuemsScript": {...}}`` and a bare script body are
+        accepted, because the editor sends both.
+
+        Same coercion guarantee and same validation posture as :meth:`load`.
+        Keys the schema does not declare are dropped and logged at ``DEBUG``,
+        one record naming the class and the key.
+
+        **What "structural validation" means here** (FR-023a): there is no XML
+        document to hand the schema, so T1 is the mapper's *decode-time* check
+        — every key resolved against a declared field, every value accepted by
+        its adapter. It is deliberately not a second pass that builds a
+        document in order to validate it, which would pay the projection cost
+        FR-005a exists to avoid on the hottest ingestion path in the system.
+        The asymmetry that follows, stated rather than left to be inferred: a
+        payload accepted here can still fail :meth:`save`'s document-level
+        check for a constraint only expressible on the assembled document
+        (``xs:assert``). :meth:`load` carries the same asymmetry today; it is
+        not new.
+
+        Replaces ``CuemsParser(payload).parse()``.
+
+        Args:
+            payload (str | bytes | Mapping): the script payload.
+
+        Returns:
+            CuemsScript: the decoded script.
+
+        Raises:
+            IngestError: the payload is **not a script at all** — a JSON array
+                or scalar, malformed JSON, a mapping whose root nothing
+                recognises, or bytes that are not valid UTF-8. The message
+                names what was expected.
+            SchemaError: the payload *is* a script and fails the decode-time
+                structural check.
+        """
+        return cls._decode(cls._ingest(payload))
+
+    def validate(self):
+        """Validate this object, with **no file involved**.
+
+        Runs T1 **and** T2 and **collects** every violation rather than
+        stopping at the first. That is the deliberate asymmetry with
+        :meth:`save`: ``validate()`` exists to *inspect*, so it answers
+        exhaustively; ``save()`` exists to *persist*, so it answers atomically
+        and early.
+
+        Replaces ``XmlReaderWriter(schema_name="script",
+        xmlfile=None).validate_object(obj)``.
+
+        Returns:
+            A validation report. The type is internal — a caller inspects the
+            report it is handed and never constructs one — so its shape is
+            documented here in full, and this is the only place it is
+            published:
+
+            * the report is **falsy when empty**, so ``if script.validate():``
+              reads as *"there are violations"*;
+            * it reports ``len()`` and **iterates its violations**;
+            * each violation carries four fields: ``tier`` (``"T1"``
+              structural or ``"T2"`` semantic, so the two are distinguishable
+              and neither absorbs the other), ``rule`` (the registered rule
+              name for T2, the schema constraint for T1), ``location`` — a
+              **pair** ``(cue_id, field)``, with ``cue_id`` ``None`` for a
+              document-scoped rule, so a caller can address either half
+              without parsing a string — and ``message``.
+
+        Raises:
+            Nothing on a violation: it reports them. Raising is :meth:`save`'s
+            job, and only :meth:`save`'s. Errors from a genuinely
+            unserializable object (a DMX scene that cannot be written)
+            propagate.
+        """
+        from ..xml.validators import ValidationReport, Violation
+
+        try:
+            tree = self._build_tree()
+        except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+            return ValidationReport(
+                [Violation('T1', 'document_build', (None, None), str(exc))]
+            )
+        return ValidationReport(self._violations(tree))
+
+    def save(self, path) -> None:
+        """Validate, **then** write.
+
+        Runs T1 and T2 and raises at the **first** failure. On failure no file
+        is created, truncated or partially written at the target path: the
+        document is serialized to a temporary file in the target's directory
+        and moved into place with an atomic rename, so a reader sees either the
+        previous document or the new one.
+
+        Persists **declared fields only**. Saving while a show is running is
+        supported and document-only: playback state is ignored and the call
+        does not refuse. The library never observes that a show is running and
+        does not acquire a mechanism to.
+
+        Replaces ``XmlReaderWriter(...).write_from_object(obj)``.
+
+        Args:
+            path (str | os.PathLike): where to write.
+
+        Raises:
+            SchemaError: a structural (T1) violation. Carries the violation.
+            ValidationError: a semantic (T2) violation. Carries the violation,
+                in the same form :meth:`validate` reports it (FR-034b) — a
+                consumer catching this has something to show a user.
+            OSError: propagated **unwrapped**, exactly as in :meth:`load`. A
+                missing parent directory or a full filesystem is not a
+                validation failure and must not arrive as one.
+        """
+        from ..xml.documents import write_tree
+
+        tree = self._build_tree()
+        for violation in self._violations(tree):
+            error = SchemaError if violation.tier == 'T1' else ValidationError
+            raise error(str(violation), violation=violation)
+        write_tree(tree, path)
+
+    # -- the machinery behind the six --------------------------------------
+
+    @classmethod
+    def _ingest(cls, payload) -> dict:
+        """One of the three accepted forms, as a mapping — or ``IngestError``.
+
+        Every refusal here is *"this is not a script"*, which is why they share
+        an exception type distinct from ``SchemaError``: nothing was validated,
+        because there was nothing of the right shape to validate.
+        """
+        if isinstance(payload, (bytes, bytearray)):
+            try:
+                payload = bytes(payload).decode('utf-8')
+            except UnicodeDecodeError as exc:
+                raise IngestError(
+                    f"expected UTF-8 bytes for a {cls.__name__} payload; the "
+                    f"input is not valid UTF-8 and no other codec is guessed: "
+                    f"{exc}"
+                ) from exc
+
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except ValueError as exc:
+                raise IngestError(
+                    f"expected JSON text describing a {cls.__name__}: {exc}"
+                ) from exc
+
+        if not isinstance(payload, Mapping):
+            raise IngestError(
+                f"expected a {cls.__name__} payload as a mapping, JSON text or "
+                f"UTF-8 bytes; got {type(payload).__name__}"
+            )
+
+        body = payload.get(cls.__name__) if len(payload) == 1 else None
+        if body is not None:
+            if not isinstance(body, Mapping):
+                raise IngestError(
+                    f"{cls.__name__} payload body must be a mapping, got "
+                    f"{type(body).__name__}"
+                )
+            return {cls.__name__: dict(body)}
+
+        # A bare body: accepted when it names at least one declared field. The
+        # alternative — accepting any mapping — turns "this is not a script"
+        # into a ``KeyError`` from somewhere inside the decoder, which is the
+        # shape of failure FR-002 exists to prevent.
+        if not set(payload) & set(cls.declared_fields()):
+            raise IngestError(
+                f"expected a {cls.__name__} payload; the mapping declares none "
+                f"of {list(cls.declared_fields())} (got {sorted(payload)})"
+            )
+        return {cls.__name__: dict(payload)}
+
+    @classmethod
+    def _decode(cls, source: dict) -> 'CuemsScript':
+        """The one decode path both public entry points share (FR-001)."""
+        from ..xml.mapper import Mapper
+
+        try:
+            return Mapper(SCHEMA_NAME).decode_document(source)
+        except (ValueError, TypeError, KeyError) as exc:
+            raise SchemaError(
+                f"the payload does not match {SCHEMA_NAME}.xsd: {exc}"
+            ) from exc
+
+    def _build_tree(self):
+        from ..xml.documents import build_tree
+
+        return build_tree(self, SCHEMA_NAME)
+
+    def _violations(self, tree) -> list:
+        """T1 then T2, in that order — the one list both call sites read.
+
+        ``save()`` takes the first and ``validate()`` takes them all, from the
+        **same** production, so the two cannot report a document differently
+        and the violation carried on a raised exception is a value
+        ``validate()`` also reports (FR-034b).
+
+        T1 runs first because a structurally broken document makes every
+        semantic finding on it unreliable, and because the two tiers must stay
+        distinguishable rather than one absorbing the other.
+        """
+        from ..xml.documents import iter_schema_errors
+        from ..xml.validators import run_rules, violation_from_schema_error
+
+        violations = [
+            violation_from_schema_error(error)
+            for error in iter_schema_errors(SCHEMA_NAME, tree)
+        ]
+        violations.extend(run_rules(self))
+        return violations
 
     def __json__(self):
-        """The script's JSON payload — the editor's ``project_load`` body.
+        """The script's JSON payload — the editor's ``initial_template`` body.
 
-        The root does not self-wrap, so a child that *does* would arrive
-        double-wrapped: ``CueList.__json__`` returns ``{"CueList": {...}}`` and
-        the root already files it under the key ``CueList``. One of the two
-        wrappers has to go, and it is the child's.
+        **The one ``__json__`` this feature keeps, and it projects nothing**
+        (T036). It unwraps the document body: :meth:`to_wire` names the root
+        element it produces — ``{"CuemsScript": {...}}``, matching what
+        ``project_load`` carries — while ``json.dumps(script)`` has
+        historically produced the body alone.
 
-        This used to be decided by testing ``k.lower() != k`` — reading a
-        structural property off the **casing of a key name**, which happened to
-        work because the one wrapped child on the root is spelled ``CueList``.
-        It now asks the child whether it self-wraps (``JSON_SELF_WRAPS``), which
-        is the same question stated directly.
+        That single line is what closes F21 without editing a consumer
+        repository. ``cuems-editor``'s ``initial_template`` call site receives
+        the **same** projection ``project_load`` does, so the two payloads stop
+        disagreeing on every boolean (``true`` against ``"True"``) and on
+        ``ui_properties`` integers. No frontend change is required: the
+        existing ``=== true || === 'True'`` dual-check already absorbs it.
 
-        Only *direct* children are unwrapped. List members stay wrapped —
-        ``contents`` is a list of ``{"AudioCue": {...}}`` entries, and that
-        wrapper is what tells the editor which cue type it is holding.
-
-        **Arrival order, not declared order**, and this is the one projection
-        where that distinction bites. ``CuemsScript`` is an ``xs:all`` type: the
-        schema imposes no order, so emission order *is* arrival order. This
-        payload is what the editor rebuilds and writes back, so ordering it by
-        ``REQ_ITEMS`` — which lists ``CueList`` before ``ui_properties`` while
-        every document carries the reverse — would re-sort the root element of
-        every hand-authored script on the next save. ``items()`` is ordered by
-        the declaration for the benefit of ordered (``xs:sequence``) types; the
-        root filters by the same declared set but keeps its own order.
+        Everything the old body did by hand — filtering to declared fields,
+        preserving the root's *arrival* order (``CuemsScript`` is an ``xs:all``
+        type, so emission order is arrival order), unwrapping a self-wrapping
+        direct child — now happens once inside the projection, for every model
+        object rather than for this one.
         """
-        declared = set(self.declared_fields())
-        payload = {}
-        for key in list(self):
-            if key not in declared:
-                continue
-            value = self[key]
-            rendered = value.__json__() if hasattr(value, '__json__') else value
-            if getattr(value, 'JSON_SELF_WRAPS', False):
-                rendered = rendered[type(value).__name__]
-            payload[key] = rendered
-        return payload
+        return self.to_wire()[type(self).__name__]

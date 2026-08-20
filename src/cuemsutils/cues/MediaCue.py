@@ -166,14 +166,6 @@ class Region(CuemsDict):
 
     out_time = property(get_out_time, set_out_time)
 
-    def __json__(self):
-        """Convert the region to a JSON-compatible dictionary.
-        
-        Returns:
-            dict: A dictionary representation of the region.
-        """
-        return {type(self).__name__: dict(self.items())}
-
 class Media(CuemsDict):
     """A class representing a media file with associated regions."""
 

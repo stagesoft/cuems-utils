@@ -37,6 +37,26 @@ from .spec import FieldKind, TypeSpec, derive, derive_path
 SCALARS = (str, bool, int, float, Enum, Uuid)
 
 
+def encode_wildcard(value):
+    """Wildcard (``ui_properties``) content — scalars become **strings**.
+
+    The mirror of ``as_cuemsdict`` (decode's wildcard fallback, FR-009):
+    nothing about a wildcard's children is derivable, so nothing here is typed
+    either. A value built programmatically as a real Python type (``0``,
+    ``None``) is stringified to match what decode would have produced from the
+    equivalent XML text node.
+
+    Module-level rather than a method because it needs no schema — which is
+    precisely why ``CuemsDict.to_wire()`` can fall back to it for a class the
+    registry binds nowhere.
+    """
+    if isinstance(value, dict):
+        return {k: encode_wildcard(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [encode_wildcard(v) for v in value]
+    return str(value)
+
+
 class Mapper:
     """Encodes model objects to XML, driven by the derived specification."""
 
@@ -371,20 +391,10 @@ class Mapper:
             out.append({tag: body})
         return out
 
-    def _encode_wildcard_value(self, value):
-        """Wildcard (``ui_properties``) content — scalars become **strings**.
-
-        The mirror of ``as_cuemsdict`` (decode's wildcard fallback, FR-009):
-        nothing about a wildcard's children is derivable, so nothing here is
-        typed either. A value built programmatically as a real Python type
-        (``0``, ``None``) is stringified to match what decode would have
-        produced from the equivalent XML text node.
-        """
-        if isinstance(value, dict):
-            return {k: self._encode_wildcard_value(v) for k, v in value.items()}
-        if isinstance(value, list):
-            return [self._encode_wildcard_value(v) for v in value]
-        return str(value)
+    @staticmethod
+    def _encode_wildcard_value(value):
+        """Wildcard (``ui_properties``) content — see ``encode_wildcard``."""
+        return encode_wildcard(value)
 
     # -- encode: xml ------------------------------------------------------
 

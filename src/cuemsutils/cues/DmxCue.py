@@ -481,11 +481,3 @@ class DmxChannel(CuemsDict):
         """
         super().__setitem__('value', value)
     value = property(get_value, set_value)
-
-    def __json__(self):
-        """Convert the region to a JSON-compatible dictionary.
-        
-        Returns:
-            dict: A dictionary representation of the region.
-        """
-        return {type(self).__name__: dict(self.items())}

@@ -60,9 +60,6 @@ class FadeFunctionParameter(CuemsDict):
 
     parameter_value = property(get_parameter_value, set_parameter_value)
 
-    def __json__(self):
-        return {type(self).__name__: dict(self.items())}
-
 
 class FadeProfile(CuemsDict):
     """Typed fade profile (``in`` or ``out``) attached to a MediaCue.
@@ -153,6 +150,3 @@ class FadeProfile(CuemsDict):
     parameters: list[FadeFunctionParameter] | None = property(
         get_parameters, set_parameters
     )
-
-    def __json__(self):
-        return {type(self).__name__: dict(self.items())}

@@ -1,6 +1,5 @@
 """ For the moment it works with pip3 install xmlschema==1.2.2
  """
-from os import path
 from xml.etree.ElementTree import ElementTree
 
 from deprecated import deprecated
@@ -8,20 +7,15 @@ from xmlschema import XMLSchema11
 
 from ..log import Logger, logged
 from .converter import CuemsConverter
+from .documents import get_pkg_schema as _get_pkg_schema
 from .mapper import build_document
 from .Parsers import CuemsParser
 
-
-@logged
-def get_pkg_schema(schema_name: str):
-    """Get the schema file from package resources"""
-    schemas_dir = path.join(path.dirname(__file__), 'schemas')
-    if not schema_name[len(schema_name)-4:] == '.xsd':
-        schema_name = schema_name + '.xsd'
-    schema = path.join(schemas_dir, schema_name)
-    if not path.isfile(schema):
-        raise FileNotFoundError(f"Schema file {schema_name} not found")
-    return schema
+# Resolved in ``documents`` now, so that module can stay the one place the
+# schema path is computed while ``XmlReaderWriter`` becomes a shim over it
+# (US4). Re-exported under its old name because consumers — and
+# ``xml/XmlReaderWriter.py``'s deprecated path — import it from here.
+get_pkg_schema = logged(_get_pkg_schema)
 
 class CuemsXml():
     def __init__(self, schema_name, xmlfile, namespace={'cms':'https://stagelab.coop/cuems/'}, xml_root_tag='CuemsProject'):

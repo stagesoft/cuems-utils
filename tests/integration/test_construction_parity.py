@@ -149,16 +149,56 @@ def test_built_and_xml_decoded_have_identical_internal_types(three_ways):
 
 
 def test_built_and_json_decoded_have_identical_internal_types(three_ways):
-    """SC-001 on the JSON leg — **zero** differences, and it holds.
+    """The JSON leg, after the two payloads became one projection.
 
-    The editor's payload round-trip is exact: JSON carries ``int`` and ``null``
-    as themselves, so the wildcard content that XML flattens to text survives
-    intact. This is the strongest single statement the feature can make, and it
-    is unqualified.
+    **This assertion was unqualified until feature 006, and the change is
+    deliberate.** Feature 005 could say "zero differences" here because the
+    JSON payload was a *different, richer* encoding from the one
+    ``project_load`` carried: ``__json__`` emitted the object's own Python
+    values, so ``int`` and ``None`` survived a JSON round-trip that XML
+    flattens to text.
+
+    That richness was the defect (F21). The editor received two mutually
+    inconsistent encodings of the same document — ``true`` on one path and
+    ``"True"`` on the other, ``ui_properties`` integers on one and strings on
+    the other — and 006 collapses them onto the single schema-faithful
+    projection. The cost is exactly this: the JSON leg now reproduces the XML
+    leg's type behaviour, because it *is* the XML leg's projection.
+
+    So the enumerated groups are still zero (that is
+    ``test_the_enumerated_divergence_is_closed``), and what remains is the
+    wildcard/opaque residual the XML leg has always had, now shared. Pinning
+    it by group rather than deleting the test keeps the change visible.
     """
     built, _, json_decoded = three_ways
     found = differences(type_map(built), type_map(json_decoded))
-    assert not found, "built vs JSON-decoded:\n  " + render(found)
+    unexpected = [r for r in found if classify(*r) not in ALIGNED_PAYLOAD_GROUPS]
+    assert not unexpected, "built vs JSON-decoded:\n  " + render(unexpected)
+
+
+#: The groups the aligned payload inherits from the XML projection — wildcard
+#: ``ui_properties`` content stringified (X10's documented fallback) and
+#: ``OPAQUE_TYPES`` members never recursed into. Neither is new; both were
+#: already the ``project_load`` behaviour before this feature made
+#: ``initial_template`` match it.
+ALIGNED_PAYLOAD_GROUPS = {"wildcard_none", "opaque_dmx"}
+
+
+def test_the_json_leg_now_matches_the_xml_leg_group_for_group(three_ways):
+    """The positive form of the change above: one projection, one behaviour.
+
+    Without this, relaxing the assertion above would be indistinguishable from
+    giving up on it. The claim is not "some differences are tolerated" but
+    "the two payloads have stopped disagreeing" — which is checkable, and is
+    what SC-003 is about.
+    """
+    built, xml_decoded, json_decoded = three_ways
+    xml_groups = {classify(*r) for r in differences(type_map(built), type_map(xml_decoded))}
+    json_groups = {classify(*r) for r in differences(type_map(built), type_map(json_decoded))}
+    assert json_groups <= xml_groups, (
+        f"the JSON leg diverges in groups the XML leg does not: "
+        f"{sorted(json_groups - xml_groups)}"
+    )
 
 
 def test_ui_properties_is_the_same_wrapper_type_everywhere(three_ways):

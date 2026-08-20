@@ -300,34 +300,29 @@ class Cue(CuemsDict):
 
     ui_properties = property(get_ui_properties, set_ui_properties)
     
-    def __eq__(self, other):
-        """Compare two cues by their id.
-        
-        Args:
-            other: The other cue to compare with.
-            
-        Returns:
-            bool: True if the cues have the same id, False otherwise.
-        """
-        if isinstance(other, Cue):
-            return self.id == other.id
-        return False
+    # ``__eq__`` is **deliberately absent** (T029, behaviour change 5).
+    #
+    # It used to compare by ``id`` alone, so two cues sharing an id and
+    # differing in every other field were equal — which made
+    # ``load(save(x)) == load(x)`` a claim about identifiers rather than about
+    # content. The declared-field comparison on ``CuemsDict`` replaces it, and
+    # is inherited: one definition for every model object rather than one for
+    # cues and dict semantics for everything else.
 
     def __hash__(self):
         """Hash the cue by its id.
-        
+
+        **Restated here on purpose, and it must stay.** ``CuemsDict`` defines
+        ``__eq__``, which sets ``__hash__`` to ``None`` on every subclass that
+        does not say otherwise — and an unhashable cue is a ``TypeError`` the
+        first time the engine puts one in a set. ``hash(self.id)`` stays
+        consistent with the wider equality because ``id`` is a declared field:
+        equal cues share an id, so they hash equal (FR-028d).
+
         Returns:
             int: The hash value of the cue's id.
         """
         return hash(self.id)
-
-    def __json__(self):
-        """Convert the cue to a JSON-compatible dictionary.
-        
-        Returns:
-            dict: A dictionary representation of the cue.
-        """
-        return {type(self).__name__: dict(self.items())}
 
     def target_object(self, target_object):
         """Set the target object for the cue.

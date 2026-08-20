@@ -102,14 +102,6 @@ class CueOutput(CuemsDict):
         if init_dict:
             super().__init__(init_dict)
 
-    def __json__(self):
-        """Convert the output configuration to a JSON-compatible dictionary.
-
-        Returns:
-            dict: A dictionary representation of the output configuration.
-        """
-        return {type(self).__name__: dict(self.items())}
-
 
 class AudioCueOutput(CueOutput):
     """Output configuration for audio cues.
