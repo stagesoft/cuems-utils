@@ -105,19 +105,42 @@ def test_root_carries_schema_location(golden):
 
 
 @pytest.mark.parametrize("golden", ALL_XML)
-def test_schema_location_absolute_path_is_the_only_normalization(golden):
-    """FR-010b — one carve-out, and it is visible.
+def test_the_schema_location_carries_no_machine_path_at_all(golden):
+    """FR-029 — **the carve-out is gone**, and its absence is what is asserted.
 
-    The written ``schemaLocation`` embeds the *writing machine's* absolute path
-    to the ``.xsd`` (F24), so an un-normalized golden would be machine-specific
-    and could never be compared in CI. Every other byte is compared as-is; this
-    asserts the placeholder is present and that no raw absolute path leaked in
-    beside it.
+    Until feature 006 this test read the other way round: it required
+    ``SCHEMA_PATH_PLACEHOLDER`` to be *present*, because the written
+    ``schemaLocation`` embedded the writing machine's absolute path to the
+    ``.xsd`` (F24) and an un-normalized golden could never be compared in CI.
+    That one normalization was the only thing standing between "byte-identical"
+    and a machine-specific artifact.
+
+    T037 writes the bare filename, so there is nothing left to normalize:
+    ``normalize_schema_location`` still runs and is now a no-op, and the
+    goldens carry ``script.xsd`` literally. The placeholder's *presence* would
+    now mean a golden had not been migrated, so it is asserted absent.
     """
     raw = rt.golden_bytes(golden)
-    assert SCHEMA_PATH_PLACEHOLDER.encode() in raw
+    assert SCHEMA_PATH_PLACEHOLDER.encode() not in raw, (
+        "this golden still carries the normalization placeholder, so it was "
+        "not migrated by T080"
+    )
+    assert b'xsi:schemaLocation="https://stagelab.coop/cuems/ script.xsd"' in raw
     assert b"/disk/" not in raw and b"/home/" not in raw
     assert b"site-packages" not in raw
+
+
+@pytest.mark.parametrize("doc", WRITABLE, ids=IDS)
+def test_a_freshly_written_document_needs_no_normalization(doc):
+    """The same claim on live output rather than on a recorded artifact.
+
+    A golden could be correct and the writer still wrong — the goldens were
+    edited by hand in T080. This drives the writer and compares the raw bytes
+    *without* normalizing them, which is the assertion T037 actually makes
+    possible.
+    """
+    produced = rt.write_bytes_raw(doc, rt.read_objects(doc))
+    assert produced == rt.golden_bytes(f"xml/{doc.slug}.xml")
 
 
 @pytest.mark.parametrize("golden", ALL_XML)

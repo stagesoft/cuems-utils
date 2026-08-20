@@ -158,6 +158,26 @@ def script_documents() -> list[CorpusDoc]:
     return documents(schema="script")
 
 
+def loadable_script_documents() -> list[CorpusDoc]:
+    """Script documents that reach the **object layer**, as one named set.
+
+    ``script_documents()`` is the whole population — the referent for every
+    "100% of corpus script documents" claim. A subset of it is pinned as
+    ``to_objects: error`` in ``tests/golden/outcomes.json`` and must **stay**
+    rejected (FR-025): the two ``legacy/`` documents carry a ``VideoCueOutput``
+    whose ``output_name`` matches neither the alias nor the custom shape, and
+    ``VideoCueOutput.__init__`` refuses it before ``super().__init__`` runs.
+
+    So any test that calls ``CuemsScript.load`` over the corpus needs this set
+    rather than that one, and it is defined here once instead of being
+    re-derived per test file. Membership is read from the presence of an XML
+    write golden, which exists exactly for the documents that round-trip.
+    """
+    return [
+        d for d in script_documents() if (GOLDEN_ROOT / "xml" / f"{d.slug}.xml").exists()
+    ]
+
+
 def by_relpath(relpath: str) -> CorpusDoc:
     for d in DOCUMENTS:
         if d.relpath == relpath:

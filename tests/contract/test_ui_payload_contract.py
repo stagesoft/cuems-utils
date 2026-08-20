@@ -114,6 +114,66 @@ def test_repeated_elements_stay_lists_of_single_key_dicts(doc):
             assert len(item) == 1, f"{path} item has keys {sorted(item)}"
 
 
+# --- feature 006 addition (T034, W3, F22) ---------------------------------
+#
+# Everything above reads the *decoder's* output. The projection now produces
+# the same shape from the object side, and that is a second implementation of
+# one contract — so it gets its own assertion rather than being covered by
+# transitivity through a golden comparison. A future change to the decode
+# shape has to fail here, loudly, naming the shape.
+
+
+def test_the_projection_reproduces_the_repeated_element_shape_exactly():
+    """``to_wire()`` emits ``[{Tag: {...}}, ...]``, not a grouped dict.
+
+    Stated as its own rule because the alternative is genuinely tempting:
+    upstream ``xmlschema`` groups repeated children by name
+    (``{"AudioCue": [...], "VideoCue": [...]}``), which is tidier and wrong
+    here. A cue list **interleaves** cue types and its order is the running
+    order of the show; grouping discards it. The key inside each wrapper is
+    also how the frontend knows what it is holding.
+    """
+    from cuemsutils.cues.CuemsScript import CuemsScript
+
+    doc = next(
+        d
+        for d in SCRIPT_DOCS
+        if (GOLDEN_ROOT / "xml" / f"{d.slug}.xml").exists()
+    )
+    wire = CuemsScript.load(doc.path).to_wire()
+
+    contents = wire["CuemsScript"]["CueList"]["contents"]
+    assert isinstance(contents, list), type(contents).__name__
+    assert contents, "the fixture carries no cues, so the shape is untested"
+    for item in contents:
+        assert isinstance(item, dict), f"bare {type(item).__name__} in contents"
+        assert len(item) == 1, f"wrapper has keys {sorted(item)}"
+        tag, body = next(iter(item.items()))
+        assert tag.endswith("Cue") or tag == "CueList", tag
+        assert isinstance(body, dict), f"{tag} body is {type(body).__name__}"
+
+
+def test_the_projection_and_the_decoder_agree_on_that_shape():
+    """One contract, two implementations — asserted against each other.
+
+    ``rt.read_dict`` is the decoder and ``to_wire()`` is the projection. If
+    they ever disagree about repeated content the UI sees one shape on
+    ``project_load`` and another on ``initial_template``, which is the class of
+    divergence this whole feature exists to close.
+    """
+    from cuemsutils.cues.CuemsScript import CuemsScript
+
+    doc = next(
+        d
+        for d in SCRIPT_DOCS
+        if (GOLDEN_ROOT / "xml" / f"{d.slug}.xml").exists()
+    )
+    decoded = rt.read_dict(doc)["CuemsScript"]["CueList"]["contents"]
+    projected = CuemsScript.load(doc.path).to_wire()["CuemsScript"]["CueList"]["contents"]
+
+    assert [sorted(i) for i in decoded] == [sorted(i) for i in projected]
+
+
 def test_no_script_document_decodes_a_python_bool():
     """The negative form of the boolean rule, across the whole corpus.
 

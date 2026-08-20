@@ -36,6 +36,7 @@ __all__ = [
     "wire_diff",
     "wire_equal",
     "write_bytes",
+    "write_bytes_raw",
 ]
 
 
@@ -76,10 +77,25 @@ def write_bytes(doc: CorpusDoc, obj) -> bytes:
     Writes to a scratch file because ``XmlReaderWriter.write`` takes its
     destination from the instance, not from an argument — the bytes on disk are
     the artifact C1 compares.
+
+    ``normalize_schema_location`` is retained and is now a **no-op**: T037
+    writes the bare schema filename, so there is no machine path left to
+    replace. Keeping the call rather than deleting it is deliberate — it is the
+    thing that would start substituting again if the absolute path ever came
+    back, and ``write_bytes_raw`` below is the assertion that it has not.
+    """
+    return normalize_schema_location(write_bytes_raw(doc, obj))
+
+
+def write_bytes_raw(doc: CorpusDoc, obj) -> bytes:
+    """``write_bytes`` with **no** normalization at all (T037).
+
+    Exists because "the normalization is a no-op now" is a claim that a
+    normalizing comparison cannot make.
     """
     out = Path(tempfile.mkdtemp()) / "written.xml"
     _reader(doc.schema, str(out)).write_from_object(obj)
-    return normalize_schema_location(out.read_bytes())
+    return out.read_bytes()
 
 
 def json_dumps(value) -> str:

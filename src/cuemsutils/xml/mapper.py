@@ -14,6 +14,7 @@ Three things this engine does **not** do, each deliberately:
 
 from __future__ import annotations
 
+import os.path
 from enum import Enum
 from xml.etree.ElementTree import (
     Element,
@@ -763,19 +764,32 @@ def build_document(
 ) -> ElementTree:
     """Build a complete document tree from a model object.
 
-    The write path's single entry point, replacing ``XmlBuilder.build``. The
-    root element, its namespace registration and the ``xsi:schemaLocation``
-    attribute are reproduced exactly — including the fact that ``xsd_path`` is
-    the writing machine's **absolute** path, which is a defect (F24) whose fix
-    is deferred to feature 006 because changing it changes every document's
-    root.
+    The write path's single entry point, replacing ``XmlBuilder.build``.
+
+    **``xsi:schemaLocation`` carries the bare schema filename** (T037, F24's
+    fix). It used to carry ``xsd_path`` — the *writing machine's* absolute path
+    to the bundled ``.xsd`` — so every show file recorded the local filesystem
+    layout of whichever node last saved it. Documents were therefore neither
+    portable nor reproducible, and the golden harness had to normalise the
+    attribute out before it could compare bytes at all.
+
+    Nothing resolves the value: validation always uses the explicitly loaded
+    schema object, never the hint in the document. Files already on disk are
+    unaffected in either direction — ``test_legacy_compatibility`` pins all
+    three forms (absolute, relative, absent) as loadable, and one pointing at a
+    path that does not exist still loads.
+
+    ``xsd_path`` stays in the signature because it is where the filename comes
+    from; only the part written into the document narrows.
     """
     namespace_uri = next(iter(namespace.values()))
     register_namespace(next(iter(namespace)), namespace_uri)
 
     root = Element(f"{{{namespace_uri}}}{xml_root_tag}")
     root.attrib = {
-        f"{{{SCHEMA_INSTANCE_URI}}}schemaLocation": f"{namespace_uri} {xsd_path}"
+        f"{{{SCHEMA_INSTANCE_URI}}}schemaLocation": (
+            f"{namespace_uri} {os.path.basename(xsd_path)}"
+        )
     }
 
     mapper = Mapper(schema_name)
