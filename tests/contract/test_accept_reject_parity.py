@@ -223,3 +223,80 @@ def test_the_nil_uuid_survives_a_full_payload_parse():
         Uuid(nil)
 
     assert json.loads(payload) is not None
+
+
+# --- feature 006 addition (T069, FR-024d, FR-025, SC-008) ------------------
+#
+# The T2 rules moved into a named registry (US5) and their setters now
+# delegate. Delegation must change **nothing** about which documents load.
+
+
+def test_every_document_that_loaded_before_still_loads_through_the_public_api():
+    """FR-025 through the surface consumers use, not through the reader.
+
+    ``read_objects`` is the internal path the outcome goldens were captured
+    from; ``CuemsScript.load`` is what a consumer calls. Both must agree with
+    the recorded verdict, and asserting only the first would leave the public
+    surface free to be stricter without anything noticing.
+    """
+    from cuemsutils.cues.CuemsScript import CuemsScript
+
+    for doc in DOCUMENTS:
+        if doc.schema != "script":
+            continue
+        record = OUTCOMES[doc.relpath]
+        expected_ok = record["read"]["ok"] and record["to_objects"]["ok"]
+        try:
+            CuemsScript.load(doc.path)
+            actual_ok = True
+        except Exception:  # noqa: BLE001 - the verdict is the measurement
+            actual_ok = False
+        assert actual_ok == expected_ok, (
+            f"{doc.relpath}: load() {'accepted' if actual_ok else 'rejected'} a "
+            f"document recorded as {'accepted' if expected_ok else 'rejected'}"
+        )
+
+
+LEGACY_REJECTED = [
+    "legacy/script_complex_test-engine-e6fc6c9.xml",
+    "legacy/script_complex_test-engine-e7215ae.xml",
+]
+
+
+@pytest.mark.parametrize("relpath", LEGACY_REJECTED)
+def test_the_two_pinned_documents_keep_exactly_their_outcomes(relpath):
+    """FR-024d — ``read: ok`` and ``to_objects: error``, still.
+
+    These two are the reason T074 exists. ``VideoCueOutput.__init__`` calls
+    ``_classify_output_name`` **before** ``super().__init__``, and it is that
+    *constructor* call — not the setter — that rejects them. Delegation moves a
+    rule's body; moving the call would have quietly made both documents load.
+
+    Feature 005 had to correct this same misreading in flight, which is why it
+    is asserted rather than assumed.
+    """
+    record = OUTCOMES[relpath]
+    assert record["read"]["ok"] is True
+    assert record["to_objects"]["ok"] is False
+
+    doc = next(d for d in DOCUMENTS if d.relpath == relpath)
+    rt.read_dict(doc)  # reads fine
+    with pytest.raises(Exception):  # noqa: B017 - the type is pinned by the golden
+        rt.read_objects(doc)
+
+
+def test_the_constructor_is_what_rejects_them_not_the_setter():
+    """Stated directly, on the class rather than on a document.
+
+    A ``VideoCueOutput`` built with a malformed ``output_name`` must fail in
+    ``__init__``, before ``super().__init__`` has run — so the object never
+    exists. Building one *past* the constructor (``from_decoded``) and only
+    then assigning shows the setter is a second gate, not the first.
+    """
+    from cuemsutils.cues.CueOutput import VideoCueOutput
+
+    with pytest.raises(ValueError, match="does not match alias"):
+        VideoCueOutput({"output_name": "VideoOut1"})
+
+    survivor = VideoCueOutput.from_decoded({"output_name": "VideoOut1"})
+    assert survivor["output_name"] == "VideoOut1"

@@ -64,8 +64,24 @@ class ActionCue(Cue):
         Raises:
             ValueError: If action_target is None after initialisation is complete.
         """
-        if getattr(self, '_initialized', False) and action_target is None:
-            raise ValueError('action_target is required')
+        # Delegates to the named rule; the **gate stays here** (T073, T074).
+        # ``_initialized`` is what holds the rule off during population, and
+        # moving the rule body does not move the gate: with it open on decode,
+        # fourteen setters would gain new reach on the read path, which FR-026
+        # forbids.
+        # Delegates to the named rule; the **gate stays here** (T073, T074).
+        # ``_initialized`` is what holds the rule off during population, and
+        # moving a rule *body* never moves its gate: with the gate open on
+        # decode, fourteen setters would gain new reach on the read path, which
+        # FR-026 forbids.
+        #
+        # Imported inside the function on purpose — ``cuemsutils.xml``'s
+        # package ``__init__`` imports ``cues``, so a module-scope import here
+        # closes the cycle the package is arranged to keep open.
+        from ..xml.validators import enforce
+
+        if getattr(self, '_initialized', False):
+            enforce('action_target_required', action_target, self)
         super().__setitem__(
             'action_target', self.coerce('action_target', action_target)
         )

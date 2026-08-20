@@ -1,5 +1,3 @@
-import math
-
 from ..helpers import CuemsDict, ensure_items
 
 FADE_PARAM_REQ_ITEMS = {
@@ -48,15 +46,10 @@ class FadeFunctionParameter(CuemsDict):
         return super().__getitem__('parameter_value')
 
     def set_parameter_value(self, value):
-        try:
-            v = float(value)
-        except (TypeError, ValueError) as e:
-            raise ValueError(
-                f"parameter_value must be numeric, got {value!r}"
-            ) from e
-        if math.isnan(v) or math.isinf(v):
-            raise ValueError("parameter_value must be a finite number")
-        super().__setitem__('parameter_value', v)
+        from ..xml.validators import enforce
+
+        enforce('fade_profile_parameter_value', value, self)
+        super().__setitem__('parameter_value', float(value))
 
     parameter_value = property(get_parameter_value, set_parameter_value)
 
@@ -90,10 +83,9 @@ class FadeProfile(CuemsDict):
         return super().__getitem__('type')
 
     def set_type(self, value):
-        if value not in VALID_FADE_TYPES:
-            raise ValueError(
-                f"Invalid fade type '{value}'. Must be one of {VALID_FADE_TYPES}"
-            )
+        from ..xml.validators import enforce
+
+        enforce('fade_profile_type', value, self)
         super().__setitem__('type', value)
 
     type = property(get_type, set_type)
@@ -104,10 +96,9 @@ class FadeProfile(CuemsDict):
         return super().__getitem__('mode')
 
     def set_mode(self, value):
-        if value not in VALID_FADE_MODES:
-            raise ValueError(
-                f"Invalid fade mode '{value}'. Must be one of {VALID_FADE_MODES}"
-            )
+        from ..xml.validators import enforce
+
+        enforce('fade_profile_mode', value, self)
         super().__setitem__('mode', value)
 
     mode = property(get_mode, set_mode)
@@ -133,18 +124,16 @@ class FadeProfile(CuemsDict):
             return
         if not isinstance(value, list):
             value = [value]
-        converted = []
-        seen_names: set[str] = set()
-        for item in value:
-            if not isinstance(item, FadeFunctionParameter):
-                item = FadeFunctionParameter(item)
-            name = item.parameter_name
-            if name in seen_names:
-                raise ValueError(
-                    f"Duplicate parameter_name {name!r} in fade profile"
-                )
-            seen_names.add(name)
-            converted.append(item)
+        from ..xml.validators import enforce
+
+        converted = [
+            item if isinstance(item, FadeFunctionParameter)
+            else FadeFunctionParameter(item)
+            for item in value
+        ]
+        # The duplicate-name rule, by name. Coercion runs first so the rule
+        # sees the same objects the tier will see on ``validate()``.
+        enforce('fade_profile_parameters', converted, self)
         super().__setitem__('parameters', converted)
 
     parameters: list[FadeFunctionParameter] | None = property(

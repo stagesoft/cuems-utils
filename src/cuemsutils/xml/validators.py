@@ -113,13 +113,94 @@ def validate_custom_templates(processed: dict) -> None:
             check_one_custom_template_per_node(template_count, node_uuid)
 
 
+# --- the named-rule registry (T072) ----------------------------------------
+#
+# One definition per rule, registered by name and bound to the ``(type, field)``
+# pairs it applies to, invoked from **two** call sites: the property setter
+# (immediate, programmatic) and the write/validate tier.
+#
+# Before this, each rule existed once inside the setter that happened to need
+# it. That is not a second copy — it is *no* name at all, which is why the tier
+# could only be enumerated by reading fourteen setters and hoping none had been
+# missed. Naming them is what makes "which rules are there?" a question with an
+# answer.
+#
+# ``applies_to`` is keyed on **class-name strings**, not classes. Importing
+# ``cues/`` at this module's scope would close the import cycle the whole
+# package is arranged to keep open, and a rule that has to wait for its class
+# to exist cannot be registered at import time. Matching walks the object's MRO
+# names, so a rule bound to ``VideoCueOutput`` does not fire on an
+# ``AudioCueOutput`` and one bound to a base does fire on its subclasses.
+
+
+@dataclass(frozen=True)
+class Rule:
+    """One semantic rule: a name, what it applies to, and the check itself."""
+
+    name: str
+
+    #: ``(class name, field name)`` pairs. A rule may apply to more than one —
+    #: ``canvas_region_containment`` governs both a per-cue video output and a
+    #: project-mappings video port.
+    applies_to: tuple[tuple[str, str], ...]
+
+    #: ``check(value, obj) -> None``. Raises ``ValueError`` with the message
+    #: the user sees. Messages are **preserved unchanged** from the setters
+    #: they came from: the rule names are new, the wording is not.
+    check: object
+
+    def fields_for(self, class_names: frozenset[str]) -> tuple[str, ...]:
+        return tuple(
+            field for cls, field in self.applies_to if cls in class_names
+        )
+
+
+#: Every registered rule, by name. **The tier's inventory**, and the only one.
+RULES: dict[str, Rule] = {}
+
+
+def register(name: str, applies_to):
+    """Register a rule under ``name``, bound to ``(type, field)`` pairs.
+
+    Returns the undecorated function, so the setter that used to hold the body
+    can call it directly and the registry and the setter cannot drift — which
+    is the whole content of FR-024c. Two call sites, one function object.
+    """
+
+    def decorator(fn):
+        if name in RULES:
+            raise ValueError(f"rule {name!r} is already registered")
+        RULES[name] = Rule(name, tuple(applies_to), fn)
+        return fn
+
+    return decorator
+
+
+def enforce(name: str, value, obj=None) -> None:
+    """Run one rule by name — **the setter's call site**.
+
+    Raises whatever the rule raises, which is a ``ValueError`` carrying the
+    message that setter has always produced. Programmatic assignment therefore
+    still fails immediately and with the same words (FR-024c, T071).
+    """
+    RULES[name].check(value, obj)
+
+
 #: The closed list. ``test_config_parity`` and the coherence test read this to
 #: assert the tier has not grown silently.
-SEMANTIC_RULES = (
-    "canvas_region containment",
-    "at most one custom template per node",
-    "media duration",
-)
+#:
+#: **Derived from ``RULES``, not maintained beside it** (T072a). It used to be a
+#: hand-written tuple of three prose names — ``"canvas_region containment"``,
+#: ``"at most one custom template per node"``, ``"media duration"``. Once the
+#: registry existed, keeping both would have been two inventories of one thing:
+#: FR-024c's prohibition one level up, and precisely the mechanism behind F15's
+#: three incompatible shapes.
+#:
+#: The name **form** changed with it — prose with spaces became identifiers —
+#: and its two readers were updated. Rule *messages*, which are what users see,
+#: are unchanged.
+def _semantic_rules() -> tuple[str, ...]:
+    return tuple(sorted(RULES))
 
 
 # --- what validation *reports* (T023) --------------------------------------
@@ -255,8 +336,219 @@ def _walk(obj, cue_type: type, cue_id: str | None = None):
             yield from _walk(item, cue_type, cue_id)
 
 
-def _check_media_duration(media, cue_id: str | None):
-    """``Media.duration`` parses as a timecode — the rule ``set_duration`` holds.
+def run_rules(obj) -> list[Violation]:
+    """Every T2 violation in ``obj`` — **the seam, now filled** (T072).
+
+    ``save()`` and ``validate()`` bound to this signature two phases before the
+    registry existed (T023b). Building the seam first is what kept US1 from
+    calling a function no task created, and what lets this task *fill* it
+    rather than introduce it — so the signature the public surface depends on
+    never changed.
+
+    The walk asks the **registry**, not a list of special cases: for every
+    object below ``obj``, every rule bound to one of its MRO names and to a
+    field it actually carries is run, and a ``ValueError`` becomes a
+    ``Violation``. Adding a rule therefore extends this without editing it,
+    which is the difference between a tier and an archaeology exercise.
+
+    Rules are run in **registration order** so a document with several
+    violations reports them in a stable order rather than a dict-iteration one.
+    """
+    from ..cues.Cue import Cue
+
+    violations: list[Violation] = []
+    for cue_id, node in _walk(obj, Cue):
+        class_names = frozenset(cls.__name__ for cls in type(node).__mro__)
+        for rule in RULES.values():
+            for field in rule.fields_for(class_names):
+                if field not in node:
+                    continue
+                try:
+                    rule.check(node[field], node)
+                except (ValueError, TypeError) as exc:
+                    # ``TypeError`` is here for one rule: ``media_duration``
+                    # rejects a wrong *type* with a ``TypeError`` because that
+                    # is what its setter has always raised, and T071 keeps the
+                    # setter's behaviour. A report is a report either way.
+                    violations.append(
+                        Violation("T2", rule.name, (cue_id, field), str(exc))
+                    )
+    return violations
+
+
+# --- the rules themselves (T073) -------------------------------------------
+#
+# Each body came from the property setter that used to hold it, and each
+# **message is preserved verbatim** — the rule names are new, the words a user
+# reads are not (T072a).
+#
+# Every one takes ``(value, obj)``. Most ignore ``obj``; the three that do not
+# need the object to answer at all — a canvas region's legality depends on the
+# output's ``output_name``, and a fade profile's on its siblings.
+
+
+@register("action_target_required", [("ActionCue", "action_target")])
+def _action_target_required(value, obj=None) -> None:
+    """An action cue must name what it acts on."""
+    if value is None:
+        raise ValueError("action_target is required")
+
+
+@register("fade_action_type", [("FadeCue", "action_type")])
+def _fade_action_type(value, obj=None) -> None:
+    if value != "fade_action":
+        raise ValueError(
+            f"action_type must be 'fade_action' for FadeCue, got '{value}'"
+        )
+
+
+@register("fade_curve_type", [("FadeCue", "curve_type")])
+def _fade_curve_type(value, obj=None) -> None:
+    from ..cues.FadeCue import FadeCurveType
+
+    if isinstance(value, FadeCurveType):
+        return
+    try:
+        FadeCurveType(value)
+    except ValueError:
+        valid = [member.value for member in FadeCurveType]
+        raise ValueError(f"curve_type must be one of {valid}, got '{value}'")
+
+
+@register("fade_duration_positive", [("FadeCue", "duration")])
+def _fade_duration_positive(value, obj=None) -> None:
+    """``None`` is accepted — it means "not set yet", not "zero"."""
+    from ..cues.FadeCue import _ZERO_TC
+    from ..helpers import format_timecode
+
+    if value is None:
+        return
+    if format_timecode(value) <= _ZERO_TC:
+        raise ValueError("duration must be positive and non-zero")
+
+
+@register("fade_target_value_range", [("FadeCue", "target_value")])
+def _fade_target_value_range(value, obj=None) -> None:
+    number = int(value)
+    if not (0 <= number <= 100):
+        raise ValueError(f"target_value must be between 0 and 100, got {number}")
+
+
+@register("fade_profile_type", [("FadeProfile", "type")])
+def _fade_profile_type(value, obj=None) -> None:
+    from ..cues.FadeProfile import VALID_FADE_TYPES
+
+    if value not in VALID_FADE_TYPES:
+        raise ValueError(
+            f"Invalid fade type '{value}'. Must be one of {VALID_FADE_TYPES}"
+        )
+
+
+@register("fade_profile_mode", [("FadeProfile", "mode")])
+def _fade_profile_mode(value, obj=None) -> None:
+    from ..cues.FadeProfile import VALID_FADE_MODES
+
+    if value not in VALID_FADE_MODES:
+        raise ValueError(
+            f"Invalid fade mode '{value}'. Must be one of {VALID_FADE_MODES}"
+        )
+
+
+@register("fade_profile_parameters", [("FadeProfile", "parameters")])
+def _fade_profile_parameters(value, obj=None) -> None:
+    """No two parameters of one profile may share a name."""
+    if value is None:
+        return
+    items = value if isinstance(value, list) else [value]
+    seen: set[str] = set()
+    for item in items:
+        name = item["parameter_name"] if hasattr(item, "keys") else None
+        if name is None:
+            continue
+        if name in seen:
+            raise ValueError(f"Duplicate parameter_name {name!r} in fade profile")
+        seen.add(name)
+
+
+@register(
+    "fade_profile_parameter_value",
+    [("FadeFunctionParameter", "parameter_value")],
+)
+def _fade_profile_parameter_value(value, obj=None) -> None:
+    import math
+
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"parameter_value must be numeric, got {value!r}") from exc
+    if math.isnan(number) or math.isinf(number):
+        raise ValueError("parameter_value must be a finite number")
+
+
+@register("fade_profile_caps", [("MediaCue", "fade_profiles")])
+def _fade_profile_caps(value, obj=None) -> None:
+    """The V1 caps on a cue's fade profiles: one per type, complete."""
+    if not value:
+        return
+    items = value if isinstance(value, list) else [value]
+    seen: set[str] = set()
+    for profile in items:
+        if not hasattr(profile, "keys"):
+            continue
+        kind = profile.get("type")
+        if kind in seen:
+            raise ValueError(f"Duplicate fade profile type {kind!r}")
+        seen.add(kind)
+        if not str(profile.get("function_id") or "").strip():
+            raise ValueError("function_id must be non-empty")
+        if profile.get("mode") == "parametric" and not profile.get("parameters"):
+            raise ValueError("parametric fade profile requires non-empty parameters")
+
+
+@register("output_name_shape", [("VideoCueOutput", "output_name")])
+def _output_name_shape(value, obj=None) -> None:
+    """A video output name is an alias or a custom slot, and nothing else."""
+    from ..cues.CueOutput import _classify_output_name
+
+    _classify_output_name(value)
+
+
+@register("canvas_region_containment", [("VideoCueOutput", "canvas_region")])
+def _canvas_region_containment(value, obj=None) -> None:
+    """The region fits the canvas, **and** matches the output's mode.
+
+    Two clauses, one rule, because they are the same question asked of the same
+    field: an alias output must not carry a region, a custom one must, and a
+    region that is present must fit. Splitting them would put the mode check
+    somewhere a caller reading "canvas_region" would not look.
+    """
+    from ..cues.CueOutput import _classify_output_name, _validate_canvas_region
+
+    output_name = obj.get("output_name") if obj is not None else None
+    kind = None
+    if isinstance(output_name, str):
+        try:
+            kind = _classify_output_name(output_name)
+        except ValueError:
+            kind = None  # reported by ``output_name_shape``, not twice here
+
+    if value is None:
+        if kind == "custom":
+            raise ValueError(
+                f"canvas_region is required for custom output_name {output_name!r}"
+            )
+        return
+
+    if kind == "alias":
+        raise ValueError(
+            f"canvas_region must be absent for alias output_name {output_name!r}"
+        )
+    _validate_canvas_region(value)
+
+
+@register("media_duration", [("Media", "duration")])
+def _media_duration(value, obj=None) -> None:
+    """``Media.duration`` parses as a timecode.
 
     XSD constrains the *lexical shape* (``TimecodeType`` is a pattern), which
     cannot express that ``CTimecode`` can actually parse it, nor reject a value
@@ -264,71 +556,74 @@ def _check_media_duration(media, cue_id: str | None):
     """
     from ..tools.CTimecode import CTimecode
 
-    duration = media.get("duration")
-    if duration is None:
+    if value is None or isinstance(value, CTimecode):
         return
-    if isinstance(duration, CTimecode):
-        return
-    if not isinstance(duration, str):
-        yield Violation(
-            "T2",
-            "media_duration",
-            (cue_id, "duration"),
-            f"media duration must be a str, CTimecode or None, got "
-            f"{type(duration).__name__}",
+    if not isinstance(value, str):
+        # ``TypeError``, not ``ValueError``, and the message is the setter's
+        # verbatim. This is the one rule whose two failure modes had **two**
+        # exception types before it was named, and T071 keeps the setter's
+        # behaviour exactly — so the rule carries both and ``run_rules``
+        # catches both.
+        raise TypeError(
+            f"Media duration must be str, CTimecode, or None, "
+            f"not {type(value).__name__}"
         )
-        return
     try:
-        CTimecode(duration)
+        CTimecode(value)
     except Exception as exc:  # noqa: BLE001 - any parse failure is the finding
-        yield Violation(
-            "T2",
-            "media_duration",
-            (cue_id, "duration"),
-            f"Invalid media duration {duration!r}: {exc}",
-        )
+        raise ValueError(f"Invalid media duration {value!r}: {exc}") from exc
 
 
-def _check_output_canvas_region(output, cue_id: str | None):
-    """A video output's canvas region fits inside the canvas."""
-    region = output.get("canvas_region")
-    if not isinstance(region, dict):
+@register("cuelist_shape", [("CuemsScript", "CueList")])
+def _cuelist_shape(value, obj=None) -> None:
+    from ..cues.CueList import CueList
+
+    if isinstance(value, CueList):
         return
     try:
-        check_canvas_region_containment(region, cue_id or "<unknown>")
-    except ValueError as exc:
-        yield Violation(
-            "T2",
-            "canvas_region_containment",
-            (cue_id, "canvas_region"),
-            str(exc),
-        )
+        CueList(value)
+    except Exception as exc:  # noqa: BLE001 - the constructor is the check
+        raise ValueError(
+            f"CueList {value} is not a CueList object or a valid dict"
+        ) from exc
 
 
-def run_rules(obj) -> list[Violation]:
-    """Every T2 violation in ``obj`` — **the seam**, not yet the registry.
+@register("one_custom_template_per_node", [("NodeType", "video")])
+def _one_custom_template_per_node(value, obj=None) -> None:
+    """At most one custom template — an entry carrying a ``canvas_region``.
 
-    ``save()`` and ``validate()`` bind to this signature (T027/T028) two phases
-    before the named-rule registry exists (T072). Building the seam first is
-    what keeps US1 from calling a function no task creates, and what lets T072
-    *fill* it rather than introduce it — so the signature the public surface
-    depends on never changes.
-
-    Until then it wraps the rules this module already holds:
-    ``check_canvas_region_containment`` over each video output's region, and
-    ``Media.set_duration``'s parse rule over each media duration.
-    ``check_one_custom_template_per_node`` is document-scoped over
-    *project mappings*, not over a script, and is reached through
-    ``validate_custom_templates`` from the config path.
+    A **V1 product constraint**, not a structural one, and document-scoped over
+    *project mappings* rather than over a script. Registered against the
+    mappings ``NodeType`` so ``run_rules`` reaches it if a config object is
+    ever validated; the live call site remains ``validate_custom_templates``,
+    which ``ProjectMappings`` runs on read.
     """
-    from ..cues.Cue import Cue
-    from ..cues.CueOutput import VideoCueOutput
-    from ..cues.MediaCue import Media
+    if not value:
+        return
+    node_uuid = obj.get("uuid", "<unknown>") if obj is not None else "<unknown>"
+    count = 0
+    for group in value if isinstance(value, list) else [value]:
+        if not hasattr(group, "keys"):
+            continue
+        for wrapper in group.get("outputs") or []:
+            output = _unwrap_single(wrapper)
+            if output is None:
+                continue
+            region = output.get("canvas_region")
+            if region is None:
+                continue
+            check_canvas_region_containment(region, node_uuid)
+            count += 1
+    check_one_custom_template_per_node(count, node_uuid)
 
-    violations: list[Violation] = []
-    for cue_id, node in _walk(obj, Cue):
-        if isinstance(node, Media):
-            violations.extend(_check_media_duration(node, cue_id))
-        elif isinstance(node, VideoCueOutput):
-            violations.extend(_check_output_canvas_region(node, cue_id))
-    return violations
+
+def _unwrap_single(wrapper):
+    if hasattr(wrapper, "keys") and len(wrapper) == 1:
+        only = next(iter(wrapper.values()))
+        if hasattr(only, "keys"):
+            return only
+    return wrapper if hasattr(wrapper, "keys") else None
+
+
+#: Derived, never hand-maintained — see ``_semantic_rules``.
+SEMANTIC_RULES = _semantic_rules()

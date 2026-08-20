@@ -102,3 +102,74 @@ def test_the_initial_template_still_carries_its_content():
     assert template["name"]
     assert template["CueList"]["contents"]
     assert len(template["CueList"]["contents"]) == 5
+
+
+# --- feature 006 addition (T070, FR-024a) ----------------------------------
+
+
+def test_the_uuid_shape_check_is_not_in_the_t2_registry():
+    """The fifteenth rule, and the one that stayed out.
+
+    The corpus sweep measured every rule against the values the load path
+    actually produces. Fourteen would reject nothing. The uuid4 shape check
+    would reject **live editor traffic** — three nil ``Media.id`` values in one
+    ordinary payload — so it is not a validation rule here at all. It stays a
+    *coercion* concern: ``_UuidAdapter`` keeps an unparseable identifier as its
+    raw string.
+
+    Asserted as an absence because that is what it is. A registry that acquired
+    this rule would be correct-looking and would break the editor on first use.
+    """
+    from cuemsutils.xml.validators import RULES
+
+    for name in RULES:
+        assert "uuid" not in name.lower(), name
+
+
+def test_an_unparseable_identifier_is_preserved_as_its_raw_string():
+    from cuemsutils.xml.adapters import adapter_for
+
+    nil = "00000000-0000-0000-0000-000000000000"
+    for type_name in ("UuidType", "TargetType"):
+        decoded = adapter_for(type_name).decode(nil)
+        assert decoded == nil
+        assert isinstance(decoded, str)
+
+
+def test_the_nil_uuid_survives_the_public_ingestion_path():
+    """Through ``from_json``, which is the editor's actual route (FR-002)."""
+    import json
+    from pathlib import Path
+
+    from cuemsutils.cues.CuemsScript import CuemsScript
+
+    payload = json.loads(Path("tests/data/sample_script.json").read_text())
+    script = CuemsScript.from_json(payload["value"])
+
+    media_ids = [
+        cue["Media"]["id"]
+        for cue in script.cuelist.contents
+        if isinstance(cue, dict) and cue.get("Media")
+    ]
+    assert "00000000-0000-0000-0000-000000000000" in [str(i) for i in media_ids]
+
+
+def test_validate_does_not_object_to_the_nil_uuid():
+    """The rule is absent from the tier, so ``validate()`` says nothing.
+
+    If the uuid check ever joined the registry, this would start reporting
+    violations for a payload the editor sends every day — which is the failure
+    the sweep exists to have prevented.
+    """
+    import json
+    from pathlib import Path
+
+    from cuemsutils.cues.CuemsScript import CuemsScript
+
+    payload = json.loads(Path("tests/data/sample_script.json").read_text())
+    script = CuemsScript.from_json(payload["value"])
+
+    offenders = [
+        v for v in script.validate() if "uuid" in v.message.lower()
+    ]
+    assert not offenders, offenders

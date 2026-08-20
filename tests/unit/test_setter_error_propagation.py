@@ -114,3 +114,142 @@ def test_construction_surfaces_the_error_too():
 
     with pytest.raises(AttributeError, match="coercion failed"):
         Broken({"name": "probe", "master_vol": 50})
+
+
+# --- feature 006 addition (T071, FR-024c) ----------------------------------
+#
+# The fourteen value-rejecting rules moved into a named registry and their
+# setters now delegate. Two properties must survive that, and neither is
+# implied by "the tier works":
+#
+#   1. programmatic assignment still fails **immediately**, with the **current
+#      message**. A rule that only fires on ``save()`` would leave a consumer
+#      assigning nonsense and discovering it an hour later.
+#   2. ``_initialized`` still holds the rules off **during population**, in all
+#      three classes that use it. Moving a rule body must not move its gate.
+
+
+def test_assignment_still_fails_immediately_with_the_current_message():
+    from cuemsutils.cues.FadeCue import FadeCue
+
+    cue = FadeCue()
+    with pytest.raises(ValueError, match="target_value must be between 0 and 100"):
+        cue.target_value = 101
+    with pytest.raises(ValueError, match="duration must be positive and non-zero"):
+        cue.duration = "00:00:00.000"
+    with pytest.raises(ValueError, match="curve_type must be one of"):
+        cue.curve_type = "corkscrew"
+
+
+def test_the_fade_profile_messages_are_unchanged():
+    from cuemsutils.cues.FadeProfile import FadeProfile
+
+    profile = FadeProfile()
+    with pytest.raises(ValueError, match="Invalid fade type"):
+        profile.type = "sideways"
+    with pytest.raises(ValueError, match="Invalid fade mode"):
+        profile.mode = "improvised"
+
+
+def test_the_media_duration_messages_are_unchanged():
+    from cuemsutils.cues.MediaCue import Media
+
+    media = Media()
+    with pytest.raises(ValueError, match="Invalid media duration"):
+        media.duration = "garbage"
+    with pytest.raises(TypeError, match="must be str, CTimecode, or None"):
+        media.duration = 12345
+
+
+@pytest.mark.parametrize(
+    "factory,field,value",
+    [
+        pytest.param(
+            lambda: __import__(
+                "cuemsutils.cues.ActionCue", fromlist=["ActionCue"]
+            ).ActionCue(),
+            "action_target",
+            None,
+            id="ActionCue.action_target",
+        ),
+        pytest.param(
+            lambda: __import__(
+                "cuemsutils.cues.FadeCue", fromlist=["FadeCue"]
+            ).FadeCue(),
+            "action_type",
+            "play",
+            id="FadeCue.action_type",
+        ),
+    ],
+)
+def test_the_gate_is_open_after_construction_and_shut_during_it(factory, field, value):
+    """``_initialized`` gates the rule, and construction must not trip it.
+
+    Both classes hold the flag ``False`` while populating, precisely so the
+    rule stays off the decode path. The pairing is the test: constructing
+    succeeds, assigning the *same* value afterwards raises.
+    """
+    obj = factory()
+    assert getattr(obj, "_initialized", False) is True, (
+        "the object finished construction without opening its gate"
+    )
+    with pytest.raises(ValueError):
+        setattr(obj, field, value)
+
+
+def test_all_three_gating_classes_still_gate():
+    """``_initialized`` lives in **three** classes, not one.
+
+    Feature 005's spec said one; the measurement said ``ActionCue``,
+    ``FadeCue`` and ``VideoCueOutput``. Named here so a fourth cannot be added
+    silently and a third cannot be dropped.
+    """
+    import inspect
+
+    from cuemsutils.cues.ActionCue import ActionCue
+    from cuemsutils.cues.CueOutput import VideoCueOutput
+    from cuemsutils.cues.FadeCue import FadeCue
+
+    for cls in (ActionCue, FadeCue, VideoCueOutput):
+        source = inspect.getsource(cls)
+        assert "_initialized" in source, cls.__name__
+
+
+def test_the_gate_is_never_a_declared_runtime_field():
+    """It is not inert state; it gates value-rejecting rules during population.
+
+    Declaring it would let ``_init_runtime`` set it — and setting it true
+    before population gives fourteen setters new reach on decode, with an
+    **arrival-order dependent** failure the corpus would catch only by luck.
+    """
+    from cuemsutils.cues.ActionCue import ActionCue
+    from cuemsutils.cues.CueOutput import VideoCueOutput
+    from cuemsutils.cues.FadeCue import FadeCue
+
+    for cls in (ActionCue, FadeCue, VideoCueOutput):
+        assert "_initialized" not in cls.runtime_fields(), cls.__name__
+
+
+def test_the_setter_and_the_tier_call_the_same_function():
+    """FR-024c's "one definition, two call sites", by identity.
+
+    ``enforce`` looks the rule up in ``RULES``; ``run_rules`` runs the same
+    entry. There is no second copy for either to drift from.
+    """
+    from cuemsutils.xml.validators import RULES, enforce
+
+    with pytest.raises(ValueError, match="target_value must be between 0 and 100"):
+        enforce("fade_target_value_range", 101)
+
+    from cuemsutils.cues.FadeCue import FadeCue
+
+    cue = FadeCue()
+    try:
+        cue.target_value = 101
+    except ValueError as exc:
+        setter_message = str(exc)
+    try:
+        RULES["fade_target_value_range"].check(101, cue)
+    except ValueError as exc:
+        rule_message = str(exc)
+    assert setter_message == rule_message

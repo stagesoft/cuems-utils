@@ -261,6 +261,12 @@ class Media(CuemsDict):
             ValueError: If a string cannot be parsed as a timecode.
             TypeError: If *duration* is not a str, CTimecode, or None.
         """
+        from ..xml.validators import enforce
+
+        # The rule, by name (T073). It accepts ``None``, a ``CTimecode`` and a
+        # parseable string, and rejects everything else with the message this
+        # setter has always produced.
+        enforce('media_duration', duration, self)
         if duration is None:
             super().__setitem__('duration', None)
             return
@@ -268,12 +274,11 @@ class Media(CuemsDict):
             super().__setitem__('duration', str(duration))
             return
         if isinstance(duration, str):
-            try:
-                canonical = str(CTimecode(duration))
-            except Exception as e:
-                raise ValueError(f"Invalid media duration {duration!r}: {e}")
-            super().__setitem__('duration', canonical)
+            super().__setitem__('duration', str(CTimecode(duration)))
             return
+        # Unreachable: the rule above rejects every other type, with this
+        # setter's own ``TypeError`` and its own message. Left as a guard
+        # rather than as a fall-through into silence.
         raise TypeError(
             f"Media duration must be str, CTimecode, or None, "
             f"not {type(duration).__name__}"
@@ -425,23 +430,15 @@ class MediaCue(Cue):
         if len(value) == 0:
             super().__setitem__('fade_profiles', None)
             return
-        seen_types: set[str] = set()
-        result: list[FadeProfile] = []
-        for item in value:
-            fp = item if isinstance(item, FadeProfile) else FadeProfile(item)
-            t = fp.type
-            if t in seen_types:
-                raise ValueError(f"Duplicate fade profile type {t!r}")
-            seen_types.add(t)
-            if not str(fp.function_id or '').strip():
-                raise ValueError("function_id must be non-empty")
-            if fp.mode == 'parametric':
-                params = fp.parameters
-                if not params:
-                    raise ValueError(
-                        "parametric fade profile requires non-empty parameters"
-                    )
-            result.append(fp)
+        from ..xml.validators import enforce
+
+        result = [
+            item if isinstance(item, FadeProfile) else FadeProfile(item)
+            for item in value
+        ]
+        # Coercion first, then the named rule — so the rule sees exactly the
+        # objects the write/validate tier will see (T073).
+        enforce('fade_profile_caps', result, self)
         super().__setitem__('fade_profiles', result)
 
     fade_profiles = property(get_fade_profiles, set_fade_profiles)

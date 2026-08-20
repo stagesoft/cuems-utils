@@ -194,6 +194,9 @@ class VideoCueOutput(CueOutput):
         return super().__getitem__('output_name')
 
     def set_output_name(self, output_name: str) -> None:
+        from ..xml.validators import enforce
+
+        enforce('output_name_shape', output_name, self)
         kind = _classify_output_name(output_name)
         if getattr(self, '_initialized', False):
             has_region = 'canvas_region' in self
@@ -215,6 +218,22 @@ class VideoCueOutput(CueOutput):
         return super().__getitem__('canvas_region') if 'canvas_region' in self else None
 
     def set_canvas_region(self, canvas_region) -> None:
+        """Set or clear the region, keeping the alias/custom modes consistent.
+
+        **The shared definition is ``_validate_canvas_region``**, and that is
+        how T073's "one definition, two call sites" is met here: this setter
+        calls it, and so does the ``canvas_region_containment`` rule in
+        ``xml/validators.py``. Neither reimplements the shape or the
+        containment arithmetic.
+
+        What is *not* shared is the wording, and deliberately. A setter is
+        asked about a **transition** — "can I clear this?", "can I set this?" —
+        while the tier is asked about a **state**. ``canvas_region cannot be
+        cleared on custom output`` is the right thing to tell someone who just
+        tried to clear it and meaningless in a validation report, where the
+        object is simply missing a required region. Forcing one string would
+        make one of the two call sites worse (T071 keeps the setter's).
+        """
         if canvas_region is None:
             if getattr(self, '_initialized', False):
                 output_name = super().__getitem__('output_name')
