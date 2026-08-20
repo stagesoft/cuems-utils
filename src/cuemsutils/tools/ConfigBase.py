@@ -2,7 +2,10 @@ from os import environ, path
 
 from ..errors import SchemaError
 from ..log import Logger, logged
-from ..xml import Settings
+# The concrete module, not the package root: ``cuemsutils.xml.Settings``
+# is a deprecation shim as of T061, and contract C8 forbids the library
+# calling one of its own deprecated names.
+from ..xml.settings import Settings
 from ..helpers import mkdir_recursive
 
 

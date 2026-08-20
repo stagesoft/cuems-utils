@@ -3,7 +3,8 @@ from typing import Any
 
 from .ConfigBase import ConfigBase, load_config_document
 from ..log import Logger, logged
-from ..xml import ProjectSettings, NetworkMap, ProjectMappings
+# The concrete module, not the package root — see ConfigBase.
+from ..xml.settings import NetworkMap, ProjectMappings, ProjectSettings
 
 CUEMS_CONF_PATH = '/etc/cuems/'
 

@@ -24,25 +24,41 @@ from deprecated import deprecated
 REMOVAL_RELEASE = "v0.1.1"
 
 
-def deprecation_reason(replacement: str) -> str:
-    """The single message body: what to use instead, and when this goes away."""
-    return f"use {replacement} instead; removed in {REMOVAL_RELEASE}"
+def deprecation_reason(replacement: str, note: str | None = None) -> str:
+    """The single message body: what to use instead, and when this goes away.
+
+    ``note`` appends one clause, and exists for exactly one message (D2a):
+    ``XmlReaderWriter.read`` is replaced by ``CuemsScript.to_wire()``, whose
+    output differs from ``read()``'s by one key — the ``schemaLocation``
+    artifact. A consumer told only "use ``to_wire`` instead" would find that
+    out by comparing payloads in production.
+
+    Still **one** function producing every message, so the standing "no second
+    warning system" rule holds. Every message without a note renders
+    byte-identically to what it rendered before this parameter existed.
+    """
+    body = f"use {replacement} instead; removed in {REMOVAL_RELEASE}"
+    return f"{body}; note: {note}" if note else body
 
 
-def deprecated_symbol(replacement: str, extra_stacklevel: int = 0):
+def deprecated_symbol(
+    replacement: str, extra_stacklevel: int = 0, note: str | None = None
+):
     """Decorator for a deprecated function or class.
 
     Warns on **every** call rather than once per import (FR-027b), and reports
     the caller's line rather than the shim's.
     """
     return deprecated(
-        reason=deprecation_reason(replacement),
+        reason=deprecation_reason(replacement, note),
         category=DeprecationWarning,
         extra_stacklevel=extra_stacklevel,
     )
 
 
-def deprecated_alias(target: type, replacement: str) -> type:
+def deprecated_alias(
+    target: type, replacement: str, notes: dict[str, str] | None = None
+) -> type:
     """Build a warning stand-in for ``target`` to publish at its old path.
 
     A bare module-level re-export cannot satisfy FR-027b — importing a name
@@ -58,7 +74,13 @@ def deprecated_alias(target: type, replacement: str) -> type:
     Instances remain ``isinstance`` of ``target``, so code that mixes old and
     new import paths keeps working — which is the entire point of shipping a
     shim rather than a breaking change.
+
+    ``notes`` attaches a per-method clause, keyed by method name. One method
+    needs it (D2a): ``read``'s replacement returns a payload that differs from
+    ``read()``'s by the ``schemaLocation`` key, and a consumer told only the
+    replacement's name would discover that in production.
     """
+    notes = notes or {}
     namespace = {
         "__module__": target.__module__,
         "__doc__": (
@@ -72,7 +94,9 @@ def deprecated_alias(target: type, replacement: str) -> type:
         member = inspect.getattr_static(target, name, None)
         if not inspect.isfunction(member):
             continue
-        namespace[name] = deprecated_symbol(f"{replacement}.{name}")(member)
+        namespace[name] = deprecated_symbol(
+            f"{replacement}.{name}", note=notes.get(name)
+        )(member)
 
     alias = type(target.__name__, (target,), namespace)
     return deprecated_symbol(replacement)(alias)

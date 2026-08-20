@@ -9,7 +9,6 @@ from .cues.FadeCue import FadeCurveType
 from .cues.MediaCue import Media, Region
 from .helpers import new_datetime, new_uuid
 from .log import Logger
-from .xml import XmlReaderWriter
 
 now = new_datetime()
 def create_script():
@@ -207,9 +206,20 @@ def create_script():
 
 
 def validate_template(project_template):
-    writer = XmlReaderWriter(schema_name = "script", xmlfile = None)
-    result=writer.validate_object(project_template)
-    Logger.debug(f'initial template validation result: {result}')
+    """Validate the blank template before it is handed to the editor.
+
+    Migrated to the public surface (T064). It used to be
+    ``XmlReaderWriter(schema_name="script", xmlfile=None).validate_object(...)``
+    — the ``xmlfile=None`` idiom that existed only so a *reader/writer* could
+    be built without a file to read or write. ``validate()`` has no file to
+    pass, which is the point of it.
+
+    This is the one first-party consumer that migrates **in** this feature.
+    Everything else is listed in the migration guide for feature 008.
+    """
+    report = project_template.validate()
+    Logger.debug(f'initial template validation result: {report!r}')
+    return report
 
 
 

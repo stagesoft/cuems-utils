@@ -1,108 +1,147 @@
 {
-  "__all__": [
+  "deprecated_dotted": [
+    "CuemsParser",
     "NetworkMap",
     "ProjectMappings",
     "ProjectSettings",
     "Settings",
     "XmlReaderWriter"
   ],
-  "symbols": {
-    "NetworkMap": {
+  "errors": {
+    "CuemsError": {
       "bases": [
-        "Settings"
+        "Exception"
       ],
       "kind": "type",
       "methods": {
-        "__init__": "(self, xmlfile, schema_name='network_map', **kwargs)",
-        "backup": "(self)",
-        "build_xml_from_object": "(self, project_object)",
-        "get_dict": "(self) -> dict[str, typing.Any]",
-        "get_node": "(self, uuid)",
-        "get_nodes_by_adoption": "(network_map_dict: dict[str, typing.Any]) -> tuple[list[dict[str, typing.Any]], list[dict[str, typing.Any]]]",
-        "read": "(self) -> None",
-        "read_to_objects": "(self)",
-        "validate": "(self)",
-        "validate_object": "(self, project_object)",
-        "write": "(self, xml_data: xml.etree.ElementTree.ElementTree)",
-        "write_from_dict": "(self, project_dict)",
-        "write_from_object": "(self, project_object)"
+        "__init__": "(self, /, *args, **kwargs)",
+        "add_note": "<no signature>",
+        "with_traceback": "<no signature>"
       }
     },
-    "ProjectMappings": {
+    "IngestError": {
       "bases": [
-        "Settings"
+        "CuemsError"
       ],
       "kind": "type",
       "methods": {
-        "__init__": "(self, xmlfile, schema_name='project_mappings', **kwargs)",
-        "backup": "(self)",
-        "build_xml_from_object": "(self, project_object)",
-        "get_dict": "(self) -> dict[str, typing.Any]",
-        "get_node": "(self, uuid)",
-        "process_xml_dict": "(self)",
-        "read": "(self) -> None",
-        "read_to_objects": "(self)",
-        "validate": "(self)",
-        "validate_object": "(self, project_object)",
-        "write": "(self, xml_data: xml.etree.ElementTree.ElementTree)",
-        "write_from_dict": "(self, project_dict)",
-        "write_from_object": "(self, project_object)"
+        "__init__": "(self, /, *args, **kwargs)",
+        "add_note": "<no signature>",
+        "with_traceback": "<no signature>"
       }
     },
-    "ProjectSettings": {
+    "SchemaError": {
       "bases": [
-        "Settings"
+        "ValidationError"
       ],
       "kind": "type",
       "methods": {
-        "__init__": "(self, xmlfile, schema_name='project_settings', **kwargs)",
-        "backup": "(self)",
-        "build_xml_from_object": "(self, project_object)",
-        "get_dict": "(self) -> dict[str, typing.Any]",
-        "read": "(self) -> None",
-        "read_to_objects": "(self)",
-        "validate": "(self)",
-        "validate_object": "(self, project_object)",
-        "write": "(self, xml_data: xml.etree.ElementTree.ElementTree)",
-        "write_from_dict": "(self, project_dict)",
-        "write_from_object": "(self, project_object)"
+        "__init__": "(self, message: 'str', violation=None)",
+        "add_note": "<no signature>",
+        "with_traceback": "<no signature>"
       }
     },
-    "Settings": {
+    "ValidationError": {
       "bases": [
-        "XmlReaderWriter"
+        "CuemsError"
       ],
       "kind": "type",
       "methods": {
-        "__init__": "(self, xmlfile, schema_name='settings', **kwargs)",
-        "backup": "(self)",
-        "build_xml_from_object": "(self, project_object)",
-        "get_dict": "(self) -> dict[str, typing.Any]",
-        "read": "(self) -> None",
-        "read_to_objects": "(self)",
-        "validate": "(self)",
-        "validate_object": "(self, project_object)",
-        "write": "(self, xml_data: xml.etree.ElementTree.ElementTree)",
-        "write_from_dict": "(self, project_dict)",
-        "write_from_object": "(self, project_object)"
-      }
-    },
-    "XmlReaderWriter": {
-      "bases": [
-        "CuemsXml"
-      ],
-      "kind": "type",
-      "methods": {
-        "__init__": "(self, schema_name, xmlfile, namespace={'cms': 'https://stagelab.coop/cuems/'}, xml_root_tag='CuemsProject')",
-        "build_xml_from_object": "(self, project_object)",
-        "read": "(self, **kwargs)",
-        "read_to_objects": "(self)",
-        "validate": "(self)",
-        "validate_object": "(self, project_object)",
-        "write": "(self, xml_data: xml.etree.ElementTree.ElementTree)",
-        "write_from_dict": "(self, project_dict)",
-        "write_from_object": "(self, project_object)"
+        "__init__": "(self, message: 'str', violation=None)",
+        "add_note": "<no signature>",
+        "with_traceback": "<no signature>"
       }
     }
-  }
+  },
+  "symbols": {
+    "ConfigBase": {
+      "bases": [
+        "object"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, config_dir: str)",
+        "conf_path": "(self, file_name: str) -> str",
+        "load_base_settings": "(self, base_dir: str)",
+        "set_dir_hierarchy": "(self) -> None"
+      }
+    },
+    "ConfigManager": {
+      "bases": [
+        "ConfigBase"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, config_dir: str = '/etc/cuems/', load_all: bool = True)",
+        "check_project_mappings": "(self) -> bool",
+        "conf_path": "(self, file_name: str) -> str",
+        "get_audio_output_id": "(self, mapping_name: str)",
+        "get_video_output_id": "(self, mapping_name: str)",
+        "load_base_settings": "(self, base_dir: str)",
+        "load_config": "(self) -> None",
+        "load_net_and_node_mappings": "(self)",
+        "load_network_map": "(self)",
+        "load_project_config": "(self, project_uname: str) -> None",
+        "load_project_mappings": "(self, project_uname: str)",
+        "load_project_settings": "(self, project_uname: str)",
+        "project_path": "(self, project_uname: str, file_name: str) -> str",
+        "set_dir_hierarchy": "(self) -> None",
+        "to_wire": "(self, section: str = 'settings') -> dict"
+      }
+    },
+    "CuemsScript": {
+      "bases": [
+        "CuemsDict"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, init_dict=None)",
+        "build": "(self, parent: xml.etree.ElementTree.Element)",
+        "clear": "<no signature>",
+        "coerce": "(self, key: str, value)",
+        "coercion_table": "() -> dict[str, typing.Any]",
+        "copy": "<no signature>",
+        "declared_defaults": "() -> dict[str, typing.Any]",
+        "declared_fields": "() -> tuple[str, ...]",
+        "find": "(self, uuid)",
+        "from_decoded": "(mapping: dict)",
+        "from_json": "(payload) -> 'CuemsScript'",
+        "fromkeys": "(iterable, value=None, /)",
+        "get": "(self, key, default=None, /)",
+        "get_CueList": "(self) -> cuemsutils.cues.CueList.CueList",
+        "get_created": "(self)",
+        "get_description": "(self)",
+        "get_id": "(self)",
+        "get_media": "(self) -> dict",
+        "get_media_filenames": "(self) -> list",
+        "get_modified": "(self)",
+        "get_name": "(self)",
+        "get_own_media": "(self, config: dict, cuelist: cuemsutils.cues.CueList.CueList | None = None) -> dict",
+        "get_own_media_filenames": "(self, config: dict, cuelist: cuemsutils.cues.CueList.CueList | None = None) -> list",
+        "get_ui_properties": "(self) -> cuemsutils.helpers.CuemsDict",
+        "items": "(self)",
+        "keys": "<no signature>",
+        "load": "(path) -> 'CuemsScript'",
+        "pop": "<no signature>",
+        "popitem": "(self, /)",
+        "runtime_fields": "() -> dict[str, typing.Any]",
+        "save": "(self, path) -> None",
+        "set_CueList": "(self, cuelist: cuemsutils.cues.CueList.CueList | dict)",
+        "set_created": "(self, created)",
+        "set_description": "(self, description)",
+        "set_id": "(self, id)",
+        "set_modified": "(self, modified)",
+        "set_name": "(self, name)",
+        "set_ui_properties": "(self, ui_properties: dict | cuemsutils.helpers.CuemsDict)",
+        "setdefault": "(self, key, default=None, /)",
+        "setter": "(self, settings: dict)",
+        "to_json": "(self) -> str",
+        "to_wire": "(self) -> dict",
+        "update": "<no signature>",
+        "validate": "(self)",
+        "values": "<no signature>"
+      }
+    }
+  },
+  "xml_exports": []
 }

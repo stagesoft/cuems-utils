@@ -8,8 +8,7 @@ from xmlschema import XMLSchema11
 from ..log import Logger, logged
 from .converter import CuemsConverter
 from .documents import get_pkg_schema as _get_pkg_schema
-from .mapper import build_document
-from .Parsers import CuemsParser
+from .mapper import Mapper, build_document
 
 # Resolved in ``documents`` now, so that module can stay the one place the
 # schema path is computed while ``XmlReaderWriter`` becomes a shim over it
@@ -69,8 +68,18 @@ class XmlReaderWriter(CuemsXml):
         )
 
     def write_from_dict(self, project_dict):
-        project_object = CuemsParser(project_dict).parse()
-        self.write_from_object(project_object)
+        """Decode a payload and write it.
+
+        Calls ``Mapper.decode_document`` directly (T061a). It used to go
+        through ``CuemsParser``, which delegates to exactly this — so the
+        result is unchanged and the hop is gone.
+
+        The hop had to go **before** ``CuemsParser`` could be deprecated:
+        contract C8 asserts that no internal caller invokes a deprecated
+        symbol, so a library that both deprecates a name and calls it fails its
+        own test. C8 is satisfied here, not amended.
+        """
+        self.write_from_object(Mapper(self.schema_name).decode_document(project_dict))
 
     def build_xml_from_object(self, project_object):
         """Build XML data from a project object, via the schema-derived engine.
@@ -109,8 +118,14 @@ class XmlReaderWriter(CuemsXml):
         )
 
     def read_to_objects(self):
-        xml_dict = self.read()
-        return CuemsParser(xml_dict).parse()
+        """Read and decode — ``Mapper.decode_document``, directly (T061a).
+
+        Same reasoning as ``write_from_dict``: the ``CuemsParser`` hop
+        delegated here anyway, and it had to go before ``CuemsParser`` could
+        carry a deprecation warning without the library tripping contract C8
+        on itself.
+        """
+        return Mapper(self.schema_name).decode_document(self.read())
 
 @deprecated(
     reason="Use XmlReaderWriter instead",

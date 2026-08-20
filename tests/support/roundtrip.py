@@ -58,13 +58,17 @@ def read_config_dict(doc: CorpusDoc, source: str | Path | None = None):
     """Reader configuration B: the config classes (FR-013).
 
     ``strip_namespaces=True``, explicit ``dict``/``list``, ``attr_prefix=''``.
-    Resolved off the package rather than ``cuemsutils.xml.Settings``, whose name
-    is shadowed by the class of the same name.
+
+    Resolved off ``cuemsutils.xml.settings`` — the implementation module —
+    rather than off the package root. As of T061 the root's ``Settings``,
+    ``NetworkMap``, ``ProjectMappings`` and ``ProjectSettings`` are deprecation
+    aliases that warn on every call, and this helper is the harness for the
+    byte-identity goldens: it must measure the library, not the shim.
     """
-    import cuemsutils.xml as xml_package
+    import cuemsutils.xml.settings as settings_module
 
     assert doc.config_class is not None
-    cls = getattr(xml_package, doc.config_class)
+    cls = getattr(settings_module, doc.config_class)
     return cls(str(source or doc.path)).xml_dict
 
 

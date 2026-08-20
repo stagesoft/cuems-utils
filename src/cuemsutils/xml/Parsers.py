@@ -132,304 +132,44 @@ class CuemsParser():
 
         return Mapper('script').decode_document(self.init_dict)
 
-class CuemsScriptParser(CuemsParser):
-    def __init__(self, init_dict, class_string):
-        self.init_dict = init_dict
-        self.class_string = class_string
-        self._class = self.get_class(class_string)
-        self.item_csp = self._class()
-    
-    def parse(self):
-        for k, v in self.init_dict.items():
-            if type(v) is dict:
-                if (len(list(v))> 0):
-                    parser_class, class_string = self.get_parser_class(k)
-                    self.item_csp[k] = parser_class(init_dict=v, class_string=class_string).parse()                    
-            else:
-                v = self.str_to_value(v, key = k)
-                self.item_csp[k] = v
 
-        return self.item_csp
-
-class CueListParser(CuemsScriptParser):
-    def __init__(self, init_dict, class_string):
-        super().__init__(init_dict, class_string)
-        self.item_clp = self._class()
-
-    def parse(self):
-        for k, v in self.init_dict.items():
-            if isinstance(v, list):
-                local_list = []
-                for cue in v:
-                    Logger.debug(f"Parsing cue {next(iter(cue.keys()))}")
-                    parser_class, unused_class_string = self.get_parser_class(self.get_first_key(cue))
-                    item_obj = parser_class(
-                        init_dict=self.get_contained_dict(cue),
-                        class_string=self.get_first_key(cue)
-                    ).parse()
-                    local_list.append(item_obj)
-
-                self.item_clp['contents'] = local_list
-            elif isinstance(v, dict):
-                key_parser_class, key_class_string = self.get_parser_class(k)
-                if key_parser_class == GenericParser:
-                    value_parser_class, value_class_string = self.get_parser_class(self.get_first_key(v))
-                    if value_parser_class == GenericParser:
-                        self.item_clp[k] = key_parser_class(init_dict=v, class_string=key_class_string).parse()
-                    else:
-                        self.item_clp[k] = value_parser_class(init_dict=v, class_string=value_class_string).parse()
-
-            else:
-                v = self.str_to_value(v, key = k)
-                self.item_clp[k] = v
-        return self.item_clp
-
-class GenericParser(CuemsScriptParser): 
-    def __init__(self, init_dict, class_string):
-        self.init_dict = init_dict
-        self.class_string = class_string
-        self._class = self.get_class(class_string)
-        self.item_gp = self._class()
-        
-    def parse(self):
-        Logger.debug(f"Parsing {self.class_string} with GenericParser")
-        if self._class == GenericDict:
-            Logger.debug("GenericDict class found, using default dict")
-            self.item_gp = self.init_dict
-        elif isinstance(self.init_dict, dict):
-            for dict_key, dict_value in self.init_dict.items():
-                if isinstance (dict_value, dict):
-                    key_parser_class, key_class_string = self.get_parser_class(dict_key)
-                    if key_parser_class == GenericParser:
-                        value_parser_class, value_class_string = self.get_parser_class(self.get_first_key(dict_value))
-                        if value_parser_class == GenericParser:
-                            self.item_gp[dict_key] = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
-                        else:
-                            self.item_gp[dict_key] = value_parser_class(init_dict=dict_value, class_string=value_class_string).parse()
-                    else:
-                        self.item_gp[dict_key] = key_parser_class(
-                            init_dict=dict_value, class_string=key_class_string
-                        ).parse()
-                elif isinstance(dict_value, list):
-                    parser_class, class_string = self.get_parser_class(dict_key)
-                    local_list = []
-                    for list_item in dict_value:
-                        item_obj = parser_class(
-                            init_dict=list_item, class_string=class_string
-                        ).parse()
-                        local_list.append(item_obj)
-                    if class_string == 'fade_profiles':
-                        merged: list = []
-                        for x in local_list:
-                            if isinstance(x, list):
-                                merged.extend(x)
-                            elif x is not None:
-                                merged.append(x)
-                        self.item_gp[dict_key] = merged if merged else None
-                    else:
-                        self.item_gp[dict_key] = local_list
-                else:
-                    dict_value = self.str_to_value(dict_value, key = dict_key)
-                    self.item_gp[dict_key] = dict_value
-        return self.item_gp
-
-class GenericSubObjectParser(GenericParser):
-    def parse(self):
-        self.item_gp = self._class(self.init_dict)
-        return self.item_gp
-    
-
-
-class CTimecodeParser(GenericParser):  
-    def parse(self):
-        for dict_key, dict_value in self.init_dict.items():
-            self.item_gp = self._class(dict_value)
-        return self.item_gp
-
-# class CTimecodeKeyParser(GenericParser):
-#     def parse(self):
-#         if not self.init_dict:
-#             pass
-#         if not "CTimecode" in self.init_dict.keys():
-#             raise KeyError("CTimecode key not found in dictionary")
-#         self.item_gp = CTimecode(self.init_dict["CTimecode"])
-#         return self.item_gp
-
-# class offsetParser(CTimecodeKeyParser):
-#     pass
-
-# class prewaitParser(CTimecodeKeyParser):
-#     pass
-
-# class postwaitParser(CTimecodeKeyParser):
-#     pass
-
-# class in_timeParser(CTimecodeKeyParser):
-#     pass
-
-# class out_timeParser(CTimecodeKeyParser):
-#     pass
-
-class mediaParser(GenericParser):
-    def parse(self):
-        Logger.debug(f"Parsing with mediaParser {self.init_dict}")
-        if not self.init_dict:
-            pass
-        if not "Media" in self.init_dict.keys():
-            try:
-                self.item_gp = Media(self.init_dict)
-            except:
-                raise KeyError("Media key not found in dictionary")
-        if not isinstance(self.item_gp, Media):
-            try:
-                regions = self.init_dict["Media"]["regions"]
-                if regions:
-                    parsed_regions = []
-                    for region in regions:
-                        parsed_regions.append(
-                            Region(GenericParser(self.get_contained_dict(region), "Region").parse())
-                        )
-                    self.init_dict["Media"]["regions"] = parsed_regions
-            except KeyError:
-                pass
-            self.item_gp = Media(self.init_dict["Media"])
-        return self.item_gp
-
-class outputsParser(GenericParser):
-    def __init__(self, init_dict, class_string, parent_class=None):
-        self.init_dict = init_dict
-
-    def parse(self):
-        Logger.debug("Parsing Outputs")
-        for dict_key, dict_value in self.init_dict.items():
-            self._class = self.get_class(dict_key)
-            # Schema may produce a list when multiple outputs (e.g. DmxCueOutput maxOccurs)
-            if isinstance(dict_value, list):
-                self.item_op = [self._class(item) for item in dict_value if isinstance(item, dict)]
-            else:
-                self.item_op = self._class(dict_value)
-
-        return self.item_op
-
-# class regionsParser(GenericParser):
-#     def __init__(self, init_dict, class_string, parent_class=None):
-#         self.init_dict = init_dict
-#         self.class_string = class_string
-#         self._class = self.get_class(class_string)
-#         self.item_rp = self._class()
-        
-#     def parse(self):
-#         for dict_key, dict_value in self.init_dict.items():
-#             key_parser_class, key_class_string = self.get_parser_class(dict_key)
-#             self.item_rp = key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()
-
-#         return self.item_rp
-
-class CuemsNodeDictParser(GenericParser):
-    def parse(self):
-        self.item_rp = list()
-        for item in self.init_dict:
-            for dict_key, dict_value in item.items():
-                key_parser_class, key_class_string = self.get_parser_class(dict_key)
-                self.item_rp.append(key_parser_class(init_dict=dict_value, class_string=key_class_string).parse()) 
-
-        return self.item_rp
-
-class AudioCueOutputParser(outputsParser):
-    pass
-
-class VideoCueOutputParser(outputsParser):
-    pass
-
-class DmxCueOutputParser(outputsParser):
-    pass
-
-class DmxCueParser(CuemsScriptParser):
-    def parse(self):
-        Logger.debug(f"Parsing DmxCue with DmxCueParser, {self._class}, {self.init_dict}")
-        self.item_gp = self._class(self.init_dict)
-        return self.item_gp
-
-
-class fade_profilesParser(GenericParser):
-    """Parse ``fade_profiles`` wrapper content into a list of :class:`FadeProfile`."""
-
-    def parse(self):
-        if not self.init_dict or not isinstance(self.init_dict, dict):
-            return []
-        raw = self.init_dict.get('fade_profile')
-        if raw is None:
-            return []
-        if not isinstance(raw, list):
-            raw = [raw]
-        return [
-            item
-            if isinstance(item, FadeProfile)
-            else fade_profileParser(
-                init_dict=item, class_string='fade_profile'
-            ).parse()
-            for item in raw
-        ]
-
-
-def _normalize_fade_parameters(raw):
-    if raw is None:
-        return None
-    if isinstance(raw, dict):
-        if 'parameter' in raw:
-            raw = raw['parameter']
-        else:
-            return []
-    if not isinstance(raw, list):
-        raw = [raw]
-    out = []
-    for p in raw:
-        if isinstance(p, FadeFunctionParameter):
-            out.append(p)
-            continue
-        if isinstance(p, dict) and 'parameter' in p:
-            p = p['parameter']
-        out.append(FadeFunctionParameter(p))
-    return out
-
-
-class fade_profileParser(GenericParser):
-    """Parse a single ``fade_profile`` element into a :class:`FadeProfile`."""
-
-    def parse(self):
-        d = {}
-        for dict_key, dict_value in self.init_dict.items():
-            if dict_key == 'parameters':
-                d['parameters'] = _normalize_fade_parameters(dict_value)
-            elif isinstance(dict_value, dict):
-                sub_parser, sub_cls = self.get_parser_class(dict_key)
-                d[dict_key] = sub_parser(
-                    init_dict=dict_value, class_string=sub_cls
-                ).parse()
-            elif isinstance(dict_value, list):
-                pcls, pstr = self.get_parser_class(dict_key)
-                d[dict_key] = [
-                    pcls(init_dict=li, class_string=pstr).parse() for li in dict_value
-                ]
-            else:
-                d[dict_key] = self.str_to_value(dict_value, key = dict_key)
-        return FadeProfile(d)
-
-
-class NoneTypeParser():
-    def __init__(self, init_dict, class_string):
-        pass
-
-    def parse(self):
-        return None
+# --- the frozen legacy tree, deleted (T063, D3) ------------------------------
+#
+# ~355 lines stood here: ``CuemsScriptParser``, ``CueListParser``,
+# ``GenericParser`` and the fifteen ``*Parser`` classes below them — the
+# name-mangled dispatch tree ``CuemsParser.parse()`` used to drive.
+#
+# Feature 004 replaced the dispatch with ``Mapper.decode_document`` and kept
+# the tree frozen "until feature 006 removes it with the deprecation shims".
+# This is that removal, and the shims are in ``xml/__init__.py``.
+#
+# **Unreachability was measured, not assumed** (T060): the whole suite run
+# under coverage restricted to this file reports every line below
+# ``CuemsParser.parse()`` as unexecuted. The record is in
+# ``specs/006-public-object-api/legacy-coverage.md``.
+#
+# What stays above, and why each one:
+#
+# ``CuemsParser``
+#     the entry point itself. ``parse()`` still delegates, and the class now
+#     carries a deprecation warning at ``cuemsutils.xml.CuemsParser`` (T061) —
+#     which it could not do while the library still called it, hence T061a.
+# ``CuemsParser.str_to_value`` and ``STRING_TYPED_KEYS``
+#     the type-guessing heuristic and the denylist that held its damage back.
+#     Retired in favour of schema-declared adapters and kept as named history:
+#     ``test_name_coercion`` reads both to assert the defect class is
+#     unrepresentable rather than merely unreached.
+# ``GenericDict``
+#     imported by ``XmlBuilder.py``, which is itself a frozen shim. Deleting it
+#     would break that module's import, not just its behaviour.
 
 
 # ---------------------------------------------------------------------------
-# Deprecation surface (T028, FR-026b/c)
+# Deprecation surface (T028, FR-026b/c — trimmed by T063)
 #
-# Everything above this line is FROZEN. It is not edited by feature 004, only
-# deprecated: the engine stops routing through it, and contract C8 proves no
-# live path reaches it. Removal belongs to feature 007's migration.
+# What is left of the facade after the tree below it was deleted. The sixteen
+# frozen ``*Parser`` classes it used to decorate are gone; the two symbols that
+# survive are decorated here for the same reason they always were.
 #
 # The decorators are applied here rather than inline so the frozen bodies keep a
 # zero-line diff — a legacy implementation nobody is allowed to change should
@@ -445,39 +185,24 @@ from ._deprecation import deprecated_symbol  # noqa: E402
 
 _MIGRATION = "the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md)"
 
-#: **``CuemsParser`` is deliberately absent.** It is not a retired symbol: it
-#: becomes the engine's delegating facade at T048 and stays a supported entry
-#: point (Assumption 3a, FR-026d). It is also `cuems-editor`'s primary
-#: JSON -> object path at five call sites, and contract C8 depends on its
-#: silence — a warning here would fail the very test that proves the library no
-#: longer calls its own deprecated code.
-_FROZEN_PARSERS = (
-    GenericDict,
-    CuemsScriptParser,
-    CueListParser,
-    GenericParser,
-    GenericSubObjectParser,
-    CTimecodeParser,
-    mediaParser,
-    outputsParser,
-    CuemsNodeDictParser,
-    AudioCueOutputParser,
-    VideoCueOutputParser,
-    DmxCueOutputParser,
-    DmxCueParser,
-    fade_profilesParser,
-    fade_profileParser,
-    NoneTypeParser,
-)
-
-for _frozen in _FROZEN_PARSERS:
-    deprecated_symbol(_MIGRATION)(_frozen)
-del _frozen
+#: ``CuemsParser`` is deliberately absent **from this list**, and that is no
+#: longer the same statement it was in feature 004.
+#:
+#: Then, it was not deprecated at all: it was the engine's delegating facade and
+#: `cuems-editor`'s primary JSON -> object path, and contract C8 depended on its
+#: silence because the library itself called it.
+#:
+#: Now it *is* deprecated — as the sixth retired entry point (contract C3) — but
+#: at ``cuemsutils.xml.CuemsParser``, where the alias lives, rather than here.
+#: The library stopped calling it in T061a, which is what makes that possible
+#: without failing C8. Decorating the class in place instead would also warn for
+#: ``xml/__init__.py``'s own import.
+deprecated_symbol(_MIGRATION)(GenericDict)
 
 # The type-guessing heuristic itself (FR-003). Deprecated on ``CuemsParser``
-# even though the class is not, because the class survives and the heuristic
-# must not: after the swap nothing in this library calls it, and this warning is
-# what makes that checkable rather than asserted.
+# even though the class object is not decorated here, because the class survives
+# and the heuristic must not: nothing in this library calls it, and this warning
+# is what makes that checkable rather than asserted.
 CuemsParser.str_to_value = deprecated_symbol(
     "schema-declared types; the engine no longer guesses"
 )(CuemsParser.str_to_value)

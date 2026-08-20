@@ -35,6 +35,8 @@ OLD_IMPORT_PATHS = [
     "cuemsutils.xml.CMLCuemsConverter",
 ]
 
+_CONFIG_REPLACEMENT = "cuemsutils.tools.ConfigManager.ConfigManager"
+
 SETTINGS_FILE = "tests/data/corpus/cuems-utils/settings.xml"
 SCRIPT_FILE = "tests/data/corpus/cuems-editor/script_minimal.xml"
 
@@ -186,27 +188,110 @@ def test_warning_is_reported_at_the_callers_line():
     assert records[0].filename == __file__
 
 
-# --- the one symbol that must stay silent ---------------------------------
+# --- feature 006 addition (T059) — the six retired entry points -----------
+#
+# Contract C3's **two counts, both right**: five names left ``__all__``
+# (SC-005's number) and *six* supported entry points were retired — the five
+# plus ``CuemsParser``, which was never exported but is reached by dotted path
+# and is `cuems-editor`'s primary JSON -> object route.
+#
+# Each is exercised through ``cuemsutils.xml.<Name>``, because that is the path
+# a consumer writes.
+
+RETIRED_ENTRY_POINTS = {
+    "XmlReaderWriter": (
+        lambda m: m.XmlReaderWriter(schema_name="script", xmlfile=SCRIPT_FILE),
+        "cuemsutils.cues.CuemsScript.CuemsScript",
+    ),
+    "Settings": (lambda m: m.Settings(SETTINGS_FILE), _CONFIG_REPLACEMENT),
+    "NetworkMap": (
+        lambda m: m.NetworkMap("tests/data/corpus/cuems-utils/network_map.xml"),
+        _CONFIG_REPLACEMENT,
+    ),
+    "ProjectMappings": (
+        lambda m: m.ProjectMappings("tests/data/corpus/cuems-utils/project_mappings.xml"),
+        _CONFIG_REPLACEMENT,
+    ),
+    "ProjectSettings": (
+        lambda m: m.ProjectSettings(
+            "tests/data/corpus/cuems-engine/project_settings.xml"
+        ),
+        _CONFIG_REPLACEMENT,
+    ),
+    "CuemsParser": (
+        lambda m: m.CuemsParser({"CuemsScript": {}}),
+        "cuemsutils.cues.CuemsScript.CuemsScript.from_json",
+    ),
+}
+
+RETIRED_IDS = sorted(RETIRED_ENTRY_POINTS)
 
 
-def test_cuems_parser_emits_no_warning():
-    """FR-026d, Assumption 3a — ``CuemsParser`` is supported, not retired.
+@pytest.mark.parametrize("name", RETIRED_IDS)
+def test_every_retired_entry_point_still_resolves(name):
+    import cuemsutils.xml as xml_package
 
-    It was already library-internal before this feature
-    (``XmlReaderWriter.write_from_dict`` and ``read_to_objects`` both call it)
-    and is `cuems-editor`'s primary JSON -> object path at five call sites. C8
-    runs the whole corpus through the library's own entry points and expects
-    zero deprecation warnings; a warning here would fail that test by design.
+    assert hasattr(xml_package, name)
+
+
+@pytest.mark.parametrize("name", RETIRED_IDS)
+def test_every_retired_entry_point_warns_per_call(name):
+    import cuemsutils.xml as xml_package
+
+    build, _ = RETIRED_ENTRY_POINTS[name]
+    assert_warns_per_call(lambda: build(xml_package))
+
+
+@pytest.mark.parametrize("name", RETIRED_IDS)
+def test_every_retired_entry_point_names_its_replacement(name):
+    import cuemsutils.xml as xml_package
+
+    build, replacement = RETIRED_ENTRY_POINTS[name]
+    records = _records(lambda: build(xml_package), times=1)
+    assert records
+    text = "\n".join(str(record.message) for record in records)
+    assert replacement in text, text
+    assert REMOVAL_RELEASE in text, text
+
+
+def test_the_read_shim_carries_the_wire_format_note():
+    """D2a — the one per-method note in the feature.
+
+    ``read()``'s replacement is ``to_wire()``, whose output differs from
+    ``read()``'s by the ``schemaLocation`` key. A consumer told only the
+    replacement's name would find that out by diffing payloads in production,
+    so the message says it.
+
+    Still **one** message function producing every string (FR-027): the note is
+    a parameter of ``deprecation_reason``, not a second format.
     """
-    from cuemsutils.xml.Parsers import CuemsParser
+    import cuemsutils.xml as xml_package
 
-    assert _records(lambda: CuemsParser({"CuemsScript": {}})) == []
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        reader = xml_package.XmlReaderWriter(
+            schema_name="script", xmlfile=SCRIPT_FILE
+        )
+
+    records = _records(reader.read, times=1)
+    assert records
+    text = str(records[0].message)
+    assert "schemaLocation" in text, text
+    assert "to_wire" in text or "CuemsScript" in text, text
 
 
-def test_cuems_parser_parse_emits_no_warning():
-    from cuemsutils.xml.Parsers import CuemsParser
+def test_no_other_message_grew_a_note():
+    """The note is scoped to one method, and that is checkable."""
+    import cuemsutils.xml as xml_package
 
-    assert _records(lambda: CuemsParser({"CuemsScript": {}}).parse) == []
+    records = _records(
+        lambda: xml_package.NetworkMap(
+            "tests/data/corpus/cuems-utils/network_map.xml"
+        ),
+        times=1,
+    )
+    assert records
+    assert "note:" not in str(records[0].message)
 
 
 # --- shims stay equivalent, not merely importable -------------------------
