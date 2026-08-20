@@ -180,3 +180,84 @@ def test_the_attribute_is_the_only_difference(base_document, tmp_path):
         return body
 
     assert len({strip(body) for body in bodies.values()}) == 1
+
+
+# --- feature 006 addition (T079, FR-030, SC-009) --------------------------
+#
+# The write side narrowed (T037): ``xsi:schemaLocation`` now carries the bare
+# schema filename. **Files already on disk are unaffected**, and that is the
+# half a portability test cannot show — it writes new documents.
+#
+# The three-form matrix above proves the *reader* is indifferent. These extend
+# it to the public surface, to a fourth form the matrix does not cover, and to
+# equality of the resulting objects rather than equality of decoded dicts.
+
+
+@pytest.mark.parametrize("form", ["absolute", "relative", "absent"])
+def test_every_form_loads_through_the_public_api(base_document, tmp_path, form):
+    from cuemsutils.cues.CuemsScript import CuemsScript
+
+    assert CuemsScript.load(_variant(base_document, tmp_path, form)) is not None
+
+
+def test_all_three_forms_load_to_equal_objects(base_document, tmp_path):
+    """Equality of **objects**, which is what a consumer holds.
+
+    ``test_all_three_forms_decode_equally`` compares decoded dicts. That was
+    the right assertion while the reader was the surface; now that
+    ``CuemsScript.load`` is, the claim has to be made where the guarantee is
+    given — and declared-field equality (feature 006) is a stricter comparison
+    than the dict one, so it can fail where that passes.
+    """
+    from cuemsutils.cues.CuemsScript import CuemsScript
+
+    scripts = {
+        form: CuemsScript.load(_variant(base_document, tmp_path, form))
+        for form in ("absolute", "relative", "absent")
+    }
+    assert scripts["absolute"] == scripts["relative"] == scripts["absent"]
+
+
+def test_a_document_pointing_at_a_path_that_does_not_exist_still_loads(
+    base_document, tmp_path
+):
+    """FR-030's sharpest case, and the one the matrix omits.
+
+    An absolute path to a machine that no longer exists is not hypothetical: it
+    is what every show file written before this feature carries, once the node
+    that wrote it is reimaged or the package moves. If anything resolved the
+    hint, those files would stop opening — which is exactly the failure the
+    narrowing is meant to prevent, arriving from the other direction.
+    """
+    from cuemsutils.cues.CuemsScript import CuemsScript
+
+    tree = ET.parse(base_document.path)
+    tree.getroot().set(
+        SCHEMA_LOCATION_ATTR,
+        "https://stagelab.coop/cuems/ /nonexistent/machine/schemas/script.xsd",
+    )
+    target = tmp_path / "stale.xml"
+    tree.write(target, encoding="utf-8", xml_declaration=True)
+
+    assert CuemsScript.load(target) is not None
+
+
+def test_an_old_document_rewrites_to_the_new_form(base_document, tmp_path):
+    """The migration path, such as it is: open and save.
+
+    No conversion tool is needed and none is provided. A document carrying the
+    old absolute path loads, and the next ``save()`` writes the bare filename —
+    so files migrate as they are edited, and files that are never edited keep
+    working indefinitely.
+    """
+    from cuemsutils.cues.CuemsScript import CuemsScript
+
+    source = _variant(base_document, tmp_path, "absolute")
+    assert b"/opt/cuems/schemas/script.xsd" in source.read_bytes()
+
+    target = tmp_path / "rewritten.xml"
+    CuemsScript.load(source).save(target)
+
+    written = target.read_text(encoding="utf-8")
+    assert 'xsi:schemaLocation="https://stagelab.coop/cuems/ script.xsd"' in written
+    assert "/opt/cuems" not in written

@@ -301,14 +301,14 @@ changes to ship in one commit. This phase verifies it and adopts the convention.
 
 ### Tests for User Story 6 (REQUIRED) ⚠️
 
-- [ ] T078 [P] [US6] Contract test in `tests/contract/test_schema_location_portability.py`: write the same object with the package's schemas directory monkeypatched to two different installation layouts and assert byte-identical output, and assert the written document contains no absolute filesystem path (FR-029, SC-009)
-- [ ] T079 [P] [US6] Extend `tests/contract/test_legacy_compatibility.py`: documents already on disk with an absolute, a relative, or an absent schema location all still load and validate to **equal** results, and one whose attribute points at a path that does not exist still loads (FR-030, SC-009)
+- [X] T078 [P] [US6] Contract test in `tests/contract/test_schema_location_portability.py`: write the same object with the package's schemas directory monkeypatched to two different installation layouts and assert byte-identical output, and assert the written document contains no absolute filesystem path (FR-029, SC-009)
+- [X] T079 [P] [US6] Extend `tests/contract/test_legacy_compatibility.py`: documents already on disk with an absolute, a relative, or an absent schema location all still load and validate to **equal** results, and one whose attribute points at a path that does not exist still loads (FR-030, SC-009)
 
 ### Implementation for User Story 6
 
 - [X] T080 [US6] Update `tests/golden/xml/*.xml` **deliberately**: `schemaLocation="https://stagelab.coop/cuems/ @@SCHEMAS_DIR@@/script.xsd"` becomes `"https://stagelab.coop/cuems/ script.xsd"` across **every file in that directory** — three today, more once T003b/T003c's documents land, which is why this is stated as a glob and never as a count (contracts §W6). `SCHEMA_PATH_PLACEHOLDER` in `tests/support/capture_goldens.py:52` becomes a no-op the harness no longer needs. Record the justification in `specs/006-public-object-api/golden-changes.md` as enumerated behaviour change 4, and update `tests/golden/MANIFEST.sha256` in the same commit. **This and T065 are the only tasks that modify a recorded golden** (standing rule 1)
-- [ ] T081 [US6] Write `specs/planning/schema-evolution-convention.md` stating all four rules — an element added to an existing complex type is optional; it carries a model-layer default so a document omitting it loads to the same object; required elements appear only in new types; anything else is a versioned file-format migration with a conversion path — together with the X13 measured precedent that motivated them (FR-032, SC-013)
-- [ ] T082 [US6] Record the existing violation as scheduled work in `specs/planning/schema-evolution-convention.md`: `gradient_osc_port` was added to `settings.xsd` as required and invalidated every settings file written before it, including two this project shipped. **No `.xsd` file is edited in this feature** (FR-033)
+- [X] T081 [US6] Write `specs/planning/schema-evolution-convention.md` stating all four rules — an element added to an existing complex type is optional; it carries a model-layer default so a document omitting it loads to the same object; required elements appear only in new types; anything else is a versioned file-format migration with a conversion path — together with the X13 measured precedent that motivated them (FR-032, SC-013)
+- [X] T082 [US6] Record the existing violation as scheduled work in `specs/planning/schema-evolution-convention.md`: `gradient_osc_port` was added to `settings.xsd` as required and invalidated every settings file written before it, including two this project shipped. **No `.xsd` file is edited in this feature** (FR-033)
 
 **Checkpoint**: all six stories independently functional.
 
