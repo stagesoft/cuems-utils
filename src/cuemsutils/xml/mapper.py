@@ -28,7 +28,7 @@ from ..log import Logger
 from ..tools.Uuid import Uuid
 from .adapters import PASSTHROUGH, adapter_for
 from .registry import get_registry
-from .spec import FieldKind, TypeSpec, derive, derive_path
+from .spec import FieldKind, TypeKey, TypeSpec, derive, derive_path
 
 #: Values written straight to element text rather than recursed into.
 #:
@@ -253,6 +253,120 @@ class Mapper:
             return None
         return binding.model
 
+    # -- decode: configuration ---------------------------------------------
+
+    def decode_config(self, raw):
+        """Decode a configuration document — **class substitution only** (T049).
+
+        Same registry, same specs, same walk shape as :meth:`decode`. Two
+        differences, both of which are the config domain stating a fact about
+        itself rather than the engine acquiring a mode:
+
+        **No adapters run.** ``decode`` coerces every scalar through the
+        schema-derived adapter table, because a cue has two construction paths
+        — built and decoded — and feature 005 exists to make them produce the
+        same object. A config object has one path, so there is nothing to
+        reconcile and coercion would not unify anything; it would *change*
+        values. The measured case is ``network_map.xsd``'s ``adopted`` and
+        ``online``, typed ``cms:BoolType``: the adapter decodes those to Python
+        ``bool``, while the recorded goldens carry ``"True"``,
+        ``NetworkMap.get_nodes_by_adoption`` calls ``strtobool`` on them, and
+        ``cuems-engine`` branches on the string. FR-018 freezes accessor
+        meaning, and retyping two fields across a repository boundary is not a
+        naming change. See ``config/base.py``.
+
+        **Repeated wrappers are preserved.** ``decode`` collapses
+        ``[{"AudioCue": {...}}, ...]`` into a list of cue objects, because the
+        show model's ``CueList.contents`` is a list of cues. Config keeps
+        ``[{"node": {...}}, ...]``, because ``cuems-engine`` and
+        ``cuems-editor`` iterate it in that shape and this feature does not
+        edit consumer repositories (FR-UX-001). Feature 008 executes the
+        migration guide; until then the shape is a contract, and the
+        five-level walk T051 deletes is deleted because the *types* are named,
+        not because the nesting went away.
+
+        The projection is unaffected either way: ``encode_wire`` emits
+        ``[{tag: body}, ...]`` for repeated content whether it was given
+        objects or wrappers, which is what keeps the config ``to_wire()``
+        equal to its recorded ``*.config.json`` golden (T043a, W8).
+        """
+        return self._decode_config_value(raw, root_spec(self.schema_name))
+
+    def _decode_config_value(self, value, spec: TypeSpec | None):
+        if spec is None or not isinstance(value, dict):
+            return value
+
+        decoded = {}
+        for key, raw in value.items():
+            field = spec.field(key)
+            if field is None:
+                # Undescribed — the leaked ``schemaLocation``. Kept exactly as
+                # ``read_config_document`` produced it.
+                decoded[key] = raw
+                continue
+
+            child = field.child
+            if child is None:
+                child = self._anonymous_child(spec, field, key)
+            if child is None:
+                # A scalar, or content the schema does not name. Unchanged.
+                decoded[key] = raw
+                continue
+            decoded[key] = self._decode_config_child(raw, derive(child))
+
+        model = self._model_for_spec(spec)
+        if model is None:
+            return decoded
+        return model.from_decoded(decoded)
+
+    @staticmethod
+    def _anonymous_child(spec: TypeSpec, field, key: str) -> TypeKey | None:
+        """A child type reachable only by **element path** (research R3).
+
+        ``FieldSpec.child`` is ``None`` for an anonymous complex type, because
+        there is no qname to key it by — ``settings.xsd``'s ``<Settings>``
+        element declares its type inline, exactly as ``script.xsd``'s
+        ``<CuemsScript>`` does. The show path handles the one case it has with
+        ``_body_spec``; the config path meets it wherever a *root* element
+        wraps its content, so it is resolved generally.
+
+        Two guards, and both are load-bearing:
+
+        * ``field.xsd_type is None`` — the element's type is genuinely
+          **anonymous**. Without it, a simple-typed element (``<id>`` is a
+          ``cms:UuidType``) resolves to a fieldless ``TypeSpec`` and every
+          scalar on the script root would start being treated as a complex
+          child.
+        * ``spec.key.is_path`` — the enclosing spec is itself reachable by
+          path, which is what makes the path well-defined. This leaves inline
+          types nested inside a *named* one (``PutType.mappings``) raw, which
+          is what the recorded config goldens carry.
+        """
+        if field.xsd_type is not None or not spec.key.is_path:
+            return None
+        candidate = TypeKey(spec.key.schema, f"{spec.key.name}/{key}", is_path=True)
+        try:
+            derive(candidate)
+        except (KeyError, StopIteration, AttributeError):
+            return None
+        return candidate
+
+    def _decode_config_child(self, value, child_spec: TypeSpec):
+        if child_spec.wildcard:
+            return value
+        if isinstance(value, list):
+            return [self._decode_config_item(item, child_spec) for item in value]
+        return self._decode_config_value(value, child_spec)
+
+    def _decode_config_item(self, item, child_spec: TypeSpec):
+        """One member of a repeated block, **keeping** its single-key wrapper."""
+        if isinstance(item, dict) and len(item) == 1:
+            tag, body = next(iter(item.items()))
+            member = child_spec.field(tag)
+            if member is not None and member.child is not None:
+                return {tag: self._decode_config_child(body, derive(member.child))}
+        return self._decode_config_value(item, child_spec)
+
     # -- encode: wire ---------------------------------------------------
 
     def encode_wire(self, obj, spec: TypeSpec | None = None) -> dict:
@@ -313,11 +427,12 @@ class Mapper:
         """
         keys = self._selected_keys(obj)
         ordered = spec.order_keys(keys)
+        omits_empty = getattr(obj, "OMIT_EMPTY_OPTIONAL", True)
         result = {}
         for key in ordered:
             value = obj[key]
             field = spec.field(key)
-            if self._omit(field, value):
+            if omits_empty and self._omit(field, value):
                 continue
             result[key] = self._encode_wire_field(key, value, spec)
         return result
@@ -335,7 +450,10 @@ class Mapper:
         if adapter is not PASSTHROUGH:
             return adapter.to_wire(value)
 
-        if field.child is None:
+        child = field.child
+        if child is None:
+            child = self._anonymous_child(spec, field, key)
+        if child is None:
             return value
 
         if value is None:
@@ -346,11 +464,11 @@ class Mapper:
             # meaningful on ``None``.
             return None
 
-        if field.child.name in self.RAW_TYPES:
+        if child.name in self.RAW_TYPES:
             # Never decoded into objects (T045/decode docstring); still raw.
             return value
 
-        child_spec = derive(field.child)
+        child_spec = derive(child)
 
         if isinstance(value, list):
             return self._encode_wire_repeated(value, child_spec)
@@ -377,6 +495,10 @@ class Mapper:
             if isinstance(item, SCALARS) or not hasattr(item, "keys"):
                 out.append(item)
                 continue
+            wrapped = self._encode_wrapped_item(item, child_spec)
+            if wrapped is not None:
+                out.append(wrapped)
+                continue
             tag = self._tag_for_item(item, child_spec)
             member = child_spec.field(tag)
             item_spec = (
@@ -391,6 +513,41 @@ class Mapper:
             )
             out.append({tag: body})
         return out
+
+    def _encode_wrapped_item(self, item, child_spec: TypeSpec) -> dict | None:
+        """A repeated member that is **already** a single-key wrapper.
+
+        The config layer preserves ``{"node": {...}}`` rather than collapsing it
+        (``decode_config``), so on the way back out the wrapper is re-encoded in
+        place instead of being re-derived from the member's class. Returns
+        ``None`` when ``item`` is not such a wrapper, so the show path — where
+        a member *is* the object — falls through unchanged.
+
+        The discrimination is ``type(item) is dict``: a show-side member is a
+        ``CuemsDict`` subclass, a preserved wrapper is a plain ``dict`` built by
+        the decoder. The key must also name a declared child element, so an
+        object that merely happens to have one key is not mistaken for one.
+        """
+        if type(item) is not dict or len(item) != 1:
+            return None
+
+        tag, body = next(iter(item.items()))
+        member = child_spec.field(tag)
+        if member is None:
+            return None
+
+        if member.child is None:
+            # A repeated element of *simple* type — ``mapped_to``. Its adapter
+            # (usually the passthrough) is the whole encoding.
+            adapter = adapter_for(member.xsd_type)
+            return {tag: adapter.to_wire(body) if adapter is not PASSTHROUGH else body}
+
+        member_spec = derive(member.child)
+        if isinstance(body, list):
+            return {tag: self._encode_wire_repeated(body, member_spec)}
+        if body is None or not hasattr(body, "keys"):
+            return {tag: body}
+        return {tag: self._encode_wire_value(body, member_spec)}
 
     @staticmethod
     def _encode_wildcard_value(value):

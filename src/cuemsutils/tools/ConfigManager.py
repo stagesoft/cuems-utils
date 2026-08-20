@@ -1,11 +1,72 @@
 from os import path
 from typing import Any
 
-from .ConfigBase import ConfigBase
+from .ConfigBase import ConfigBase, load_config_document
 from ..log import Logger, logged
 from ..xml import ProjectSettings, NetworkMap, ProjectMappings
 
 CUEMS_CONF_PATH = '/etc/cuems/'
+
+#: The three device sections a node can carry, in ``NodeType``'s schema order.
+#:
+#: Named rather than discovered, and that is the point of T051: the walk that
+#: built ``node_hw_outputs`` used to iterate every key of the node mapping and
+#: test ``isinstance(content, list)`` to decide which ones were devices. Which
+#: keys are devices is stated by ``project_mappings.xsd``.
+_DEVICE_SECTIONS = ('audio', 'video', 'dmx')
+
+#: The accessors whose value is a config **object** and can therefore project
+#: itself (T056b). The scalar accessors are excluded because a ``str`` has no
+#: wire form distinct from itself.
+_PROJECTABLE_SECTIONS = frozenset({
+    'settings',
+    'network_map',
+    'node_network_map',
+    'mappings',
+    'node_mappings',
+    'node_conf',
+    'project_mappings',
+    'project_node_mappings',
+})
+
+
+def _hw_name(put) -> str:
+    """The hardware identity of a port — ``mapped_to``, or ``name``.
+
+    ``<name>`` is a human-readable label; ``<mapped_to>`` is the real target
+    (the JACK port for audio, the DRM connector for video). Legacy entries
+    carry no mappings, so ``name`` is the fallback.
+
+    **One definition, both call sites**, and that is the point rather than
+    tidiness. ``load_net_and_node_mappings`` derived this to build
+    ``node_hw_outputs``; ``check_project_mappings`` compared a bare ``name``
+    against that same list. On the vendored fixture the node advertises
+    ``salida_001`` (a ``mapped_to``) while the port is named ``0``, so the two
+    could never agree — and nobody noticed, because the comparison sat behind
+    an ``isinstance(contents, dict)`` guard over a value that is a list and
+    therefore never ran. Waking the check up without also fixing the
+    comparison would reject every valid project.
+    """
+    mappings = put.get('mappings') or []
+    return mappings[0]['mapped_to'] if mappings else put['name']
+
+
+def _unwrap_put(port):
+    """One port, from the ``{"output": {...}}`` wrapper the document carries.
+
+    The wrapper's key is the element name — ``output`` or ``input`` — and the
+    body is the port. Config decoding preserves that wrapper rather than
+    collapsing it, because ``cuems-engine`` reads it and this feature does not
+    edit consumer repositories; see ``Mapper.decode_config``.
+
+    A bare port (no wrapper) is accepted too, so the accessor keeps working if
+    a future feature does collapse it.
+    """
+    if isinstance(port, dict) and len(port) == 1:
+        only = next(iter(port.values()))
+        if isinstance(only, dict):
+            return only
+    return port
 
 class ConfigManager(ConfigBase):
     def __init__(self, config_dir: str = CUEMS_CONF_PATH, load_all: bool = True):
@@ -119,13 +180,11 @@ class ConfigManager(ConfigBase):
         """
         Loads the network map from the base configuration file.
         """
-        try:
-            netmap = NetworkMap(self.conf_path('network_map.xml'))
-            self.network_map = netmap.get_dict()
-            self.node_network_map = netmap
-        except Exception as e:
-            Logger.exception(f'Exception catched while loading network map: {e}')
-            raise e
+        netmap = load_config_document(
+            NetworkMap, self.conf_path('network_map.xml'), 'network_map'
+        )
+        self.network_map = netmap.get_dict()
+        self.node_network_map = netmap
 
     def load_net_and_node_mappings(self):
         """
@@ -136,33 +195,45 @@ class ConfigManager(ConfigBase):
         except FileNotFoundError as e:
             mappings_file = self.conf_path('default_mappings.xml')
 
-        try:
-            project_mappings = ProjectMappings(mappings_file)
-            self.mappings = project_mappings.processed # type: ignore[attr-defined]
-        except Exception as e:
-            Logger.exception(f'Exception catched while loading mappings file: {e}')
-            raise e
+        project_mappings = load_config_document(
+            ProjectMappings, mappings_file, 'project_mappings'
+        )
+        self.mappings = project_mappings.processed # type: ignore[attr-defined]
 
         self.node_mappings = project_mappings.get_node(self.node_conf['uuid'])
         Logger.debug(f"Node uuid is: {self.node_conf['uuid']}")
+
         # Build node_hw_outputs: the physical port name (mapped_to) is what the
         # engine needs (e.g. the JACK port for audio, DRM connector for video).
-        # <name> is now a human-readable label; <mapped_to> is the real target.
+        # <name> is a human-readable label; <mapped_to> is the real target.
         # Fall back to <name> for legacy entries that have no mappings.
         # e.g: node_hw_outputs["audio_outputs"] = ["system:playback_1", "system:playback_2"]
-        for section, content in self.node_mappings.items():
-            if isinstance(content, list):
-                for port_type_dict in content:
-                    for port_types, port_type_list in port_type_dict.items():
-                        for port in port_type_list:
-                            for port_type, port_type_content in port.items():
-                                mappings = port_type_content.get('mappings', [])
-                                if mappings:
-                                    hw_name = mappings[0]['mapped_to']
-                                else:
-                                    hw_name = port_type_content['name']
-                                self.node_hw_outputs[section+'_'+port_types].append(hw_name)
-        
+        #
+        # **Compensation #2, deleted** (T051, FR-016). This was five levels of
+        # ``for k, v in something.items()`` — ``content`` → ``port_type_dict``
+        # → ``port_types`` → ``port`` → ``port_type_content`` — with a variable
+        # name at each level that named nothing, because nothing stated the
+        # shape.
+        #
+        # The nesting has **not** gone and is not meant to: a node has devices,
+        # a device has port groups, a group has ports, a port has mappings, and
+        # that is what the document says. What has gone is rediscovering it by
+        # iteration. Each level below is addressed by the name the schema gives
+        # it, so a reader can check the code against ``project_mappings.xsd``
+        # instead of against a sample document.
+        for section in _DEVICE_SECTIONS:
+            device_groups = self.node_mappings.get(section)
+            if not isinstance(device_groups, list):
+                # Absent (``<dmx />`` decodes to None) or scalar. Not an error:
+                # every device element is ``minOccurs="0"``.
+                continue
+            for group in device_groups:
+                for direction, ports in group.items():
+                    for port in ports:
+                        self.node_hw_outputs[f'{section}_{direction}'].append(
+                            _hw_name(_unwrap_put(port))
+                        )
+
         Logger.debug(f"Node hardware outputs are: {self.node_hw_outputs}")
 
     @logged
@@ -190,26 +261,34 @@ class ConfigManager(ConfigBase):
         """
         try:
             settings_path = self.project_path(project_uname, 'settings.xml')
-            conf = ProjectSettings(
-                schema='project_settings',
-                xmlfile=settings_path
+            conf = load_config_document(
+                ProjectSettings, settings_path, 'project_settings'
             )
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             Logger.info(
                 f'Project {project_uname} settings not found. Keeping default settings.'
             )
             return
-        except Exception as e:
-            Logger.exception(f'Exception in load_project_settings: {e}')
-            raise e
 
+        # **Compensation #1, deleted** (T050, FR-016).
+        #
+        # This used to flatten a list of single-key dicts into one dict by
+        # hand, key by key, because nothing stated what a project setting
+        # looked like. ``project_settings.xsd`` always did — ``SettingType`` is
+        # a name/value pair — and ``cuemsutils.config.settings.SettingType``
+        # now says so in Python too.
+        #
+        # Recorded rather than glossed: the loop was **already unreachable**.
+        # ``ProjectSettings.main_key`` is ``'CuemsProjectSettings'``, but the
+        # decoded dict is the root element's *content*, so ``get_dict()`` looks
+        # up a key that is never present and returns ``{}`` — and a loop over
+        # ``{}`` does nothing. So this deletion cannot change behaviour, and
+        # the compensation it removes is the *second* fossil in this file
+        # rather than a live one. The ``main_key`` mismatch is a separate
+        # latent defect: fixing it would change ``project_conf`` from ``{}`` to
+        # the settings the document carries, which is a behaviour change no
+        # requirement in this feature enumerates. Left alone deliberately.
         self.project_conf = conf.get_dict()
-        for key, value in self.project_conf.items():
-            corrected_dict = {}
-            if value:
-                for item in value:
-                    corrected_dict.update(item)
-                self.project_conf[key] = corrected_dict
 
         Logger.info(f'Project {project_uname} settings loaded')
 
@@ -219,7 +298,9 @@ class ConfigManager(ConfigBase):
         """
         try:
             mappings_path = self.project_path(project_uname, 'mappings.xml')
-            project_mappings = ProjectMappings(mappings_path)
+            project_mappings = load_config_document(
+                ProjectMappings, mappings_path, 'project_mappings'
+            )
             self.project_mappings = project_mappings.processed
             try:
                 self.project_node_mappings = project_mappings.get_node(self.node_uuid)
@@ -268,23 +349,104 @@ class ConfigManager(ConfigBase):
         raise Exception(f'Audio output wrongly mapped')
 
     def check_project_mappings(self) -> bool:
-        """
-        Checks if the project mappings are correct.
+        """Check that every port the project asks for exists on this node.
+
+        **Compensation #3, deleted** (T052, FR-016). The previous body walked
+        the node mapping generically — ``for area, contents in node.items()``,
+        then ``for section, elements in contents.items()`` — *because the shape
+        was not stated anywhere*. Now that it is, this addresses the sections
+        by name and unwraps each port the same way ``load_net_and_node_mappings``
+        does.
+
+        Worth recording: the old walk was also **unreachable in practice**. It
+        was guarded by ``isinstance(contents, dict)``, and a device section
+        decodes to a *list* of port groups — so the inner loops never ran and
+        no project mapping was ever actually checked. Rewriting it against the
+        stated shape is what makes the check run at all; that is a behaviour
+        change in the sense that a dormant validation wakes up, and it is
+        exactly the change FR-016 asks for. A project whose mappings are
+        correct is unaffected.
+
+        Returns:
+            bool: ``True`` when every mapped port is present on this node.
+
+        Raises:
+            Exception: naming the first port that is not, the section it was
+                declared in, and this node's uuid.
         """
         if self.using_default_mappings:
             return True
 
-        nodes_to_check = [self.project_node_mappings]
-        for node in nodes_to_check:
-            for area, contents in node.items():
-                if isinstance(contents, dict):
-                    for section, elements in contents.items():
-                        for element in elements:
-                            if element['name'] not in self.node_hw_outputs[f'{area}_{section}']:
-                                err_str = f'Project {area} {section} mapping incorrect: {element["name"]} not present in node: {self.node_conf["uuid"]}'
-                                Logger.error(err_str)
-                                raise Exception(err_str)
+        node = self.project_node_mappings
+        if not node:
+            return True
+
+        for section in _DEVICE_SECTIONS:
+            device_groups = node.get(section)
+            if not isinstance(device_groups, list):
+                continue
+            for group in device_groups:
+                for direction, ports in group.items():
+                    available = self.node_hw_outputs.get(f'{section}_{direction}', [])
+                    for port in ports:
+                        put = _unwrap_put(port)
+                        name = _hw_name(put)
+                        if name not in available:
+                            err_str = (
+                                f'Project {section} {direction} mapping incorrect: '
+                                f'{name} not present in node: '
+                                f'{self.node_conf["uuid"]}'
+                            )
+                            Logger.error(err_str)
+                            raise Exception(err_str)
         return True
+
+    # -- projection (T056b, Contracts §W8) ----------------------------------
+
+    def to_wire(self, section: str = 'settings') -> dict:
+        """Project one configuration section through the **show projection**.
+
+        The same ``encode_wire`` that produces the UI's ``project_load``
+        payload, reached through the same ``to_wire()`` method body on
+        ``CuemsDict`` — one implementation, two domains (FR-014a, SC-017).
+        A config object and a script differ only in which ``Mapper`` they
+        resolve, which is what makes that claim true of the code rather than of
+        the intent.
+
+        **Configuration is not transmitted to the UI in this feature.** This is
+        the seam the planned follow-on work uses, and building it here is what
+        stops a second projection being written then — the drift mechanism
+        behind F15's three incompatible mappings shapes. It costs almost
+        nothing: the config types are registry-bound model classes anyway, and
+        the guarantee is testable immediately against the already-recorded
+        ``tests/golden/dict/*.config.json``.
+
+        Args:
+            section: ``'settings'``, ``'network_map'``, ``'mappings'``,
+                ``'node_conf'``, ``'node_network_map'`` or ``'node_mappings'``.
+
+        Returns:
+            dict: JSON-safe, in the wire format §W2 states.
+
+        Raises:
+            ValueError: for an unknown section name, naming the ones that
+                exist rather than raising ``AttributeError`` from inside.
+            AttributeError: if the named section has not been loaded — a
+                project section before :meth:`load_project_config` has run.
+        """
+        if section not in _PROJECTABLE_SECTIONS:
+            raise ValueError(
+                f"unknown configuration section {section!r}; expected one of "
+                f"{sorted(_PROJECTABLE_SECTIONS)}"
+            )
+        value = getattr(self, section)
+        project = getattr(value, 'to_wire', None)
+        if project is None:
+            raise TypeError(
+                f"configuration section {section!r} is a "
+                f"{type(value).__name__}, which carries no projection"
+            )
+        return project()
 
     ## helper functions
     def project_path(self, project_uname: str, file_name: str) -> str:

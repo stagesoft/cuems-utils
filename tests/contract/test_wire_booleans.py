@@ -23,7 +23,7 @@ import sys
 import pytest
 
 from cuemsutils.cues.CuemsScript import CuemsScript
-from tests.support.corpus import GOLDEN_ROOT, loadable_script_documents
+from tests.support.corpus import loadable_script_documents
 from tests.support.public_api import assert_no_xml_import
 
 #: The documents that reach the object layer — ``script_documents()`` minus

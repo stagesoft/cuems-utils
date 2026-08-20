@@ -1,7 +1,6 @@
 from .MediaCue import MediaCue
 from ..tools.CTimecode import CTimecode
 from ..helpers import ensure_items
-from ..log import Logger
 
 REQ_ITEMS = {
     # Declared here rather than on MediaCue because script.xsd declares
@@ -100,30 +99,21 @@ class VideoCue(MediaCue):
         """
         return super().check_mappings()
 
-        if not settings.project_node_mappings:
-            return True
-
-        found = True
-        map_list = ['default']
-
-        # DEV: List first index is an artifact of the way the mappings are parsed
-        Logger.debug(f'VideoCue check_mappings: {settings.project_node_mappings}')
-        if settings.project_node_mappings['video'][0]['outputs']:
-            for elem in settings.project_node_mappings['video'][0]['outputs']:
-                elem = elem['output']
-                Logger.debug(f'VideoCue elem: {elem}')
-                for map in elem['mappings']:
-                    Logger.debug(f'VideoCue map: {map}')
-                    map_list.append(map['mapped_to'])
-
-        for output in self.outputs:
-            if output['output_name'][:36] == settings.node_conf['uuid']:
-                self._local = True
-                if output['output_name'][37:] not in map_list:
-                    found = False
-                    break
-            else:
-                self._local = False
-                found = True
-            
-        return found
+        # The ~18 lines that stood here were **unreachable** and are deleted
+        # rather than corrected (T053, FR-017). They sat below an
+        # unconditional ``return super().check_mappings()`` — added at some
+        # point to short-circuit the method — so no test and no consumer could
+        # reach them, and nothing would have noticed if they were wrong.
+        #
+        # They were wrong. This body indexed
+        # ``settings.project_node_mappings['video'][0]['outputs']`` while
+        # ``ConfigManager``'s live walk indexed the same data as
+        # ``['video']`` groups without the ``[0]``, and a third shape existed
+        # in ``ProjectMappings.process_network_mappings``. Three mutually
+        # incompatible readings of one document (F15), two of them fossilised.
+        #
+        # Preserving either fossil would mean choosing between them on **no
+        # evidence**: a shape assumption no test can reach is not a contract.
+        # The one live shape is ``ConfigManager``'s, and it is now the derived
+        # one — ``cuemsutils.config.mappings`` states it, so a fourth reading
+        # cannot be invented by accident.

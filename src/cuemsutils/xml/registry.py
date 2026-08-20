@@ -252,19 +252,105 @@ def _build_script_registry() -> SchemaRegistry:
     return registry
 
 
-def _build_config_registry(schema_name: str) -> SchemaRegistry:
-    """Bindings for the five configuration schemas.
+def _config_models(schema_name: str) -> tuple[dict[str, type], dict[str, type]]:
+    """``({type name: model}, {element path: model})`` for one config schema (T048).
 
-    **Every type is GENERIC**, and that is not laziness: configuration
-    documents have no model classes at all today — ``Settings`` and its
-    subclasses hand back raw dicts. Giving them classes is feature 006's job
-    (data-model §6). Binding them explicitly is what lets C7 assert totality
-    across all six schemas now rather than after that work lands.
+    Function-local imports for the same reason ``coercion._resolve``'s are:
+    ``cuemsutils.config`` imports ``helpers``, which the ``xml`` package
+    already depends on, and resolving the classes lazily keeps the import
+    direction one-way.
+
+    ``outputs`` is absent from this table deliberately. It is a *show* schema
+    used by the editor's output picker, not a configuration document read by
+    ``ConfigManager``, and it has no accessors to take off FR-014's raw-dict
+    list. Giving it model classes would be scope this feature does not claim.
+    """
+    from ..config import mappings as m
+    from ..config import network_map as nm
+    from ..config import settings as s
+
+    if schema_name == "settings":
+        return (
+            {
+                "NodeConfType": s.NodeConfType,
+                "PlayerType": s.PlayerType,
+                "VideoPlayerType": s.VideoPlayerType,
+                "AudioPlayerType": s.AudioPlayerType,
+                "AudioMixerType": s.AudioMixerType,
+                "DmxPlayerType": s.DmxPlayerType,
+                "CTimecodeType": s.CTimecodeType,
+            },
+            {
+                "CuemsSettings": s.CuemsSettingsType,
+                "CuemsSettings/Settings": s.SettingsType,
+            },
+        )
+
+    if schema_name == "project_settings":
+        return (
+            {"SettingType": s.SettingType},
+            {"CuemsProjectSettings": s.CuemsProjectSettingsType},
+        )
+
+    if schema_name == "project_mappings":
+        return (
+            {
+                "NewNodesType": m.NewNodesType,
+                "NodesType": m.NodesType,
+                "NodeType": m.NodeType,
+                "DeviceType": m.DeviceType,
+                "PutGroupType": m.PutGroupType,
+                "PutType": m.PutType,
+                "VideoDeviceType": m.VideoDeviceType,
+                "VideoPutGroupType": m.VideoPutGroupType,
+                "VideoPutType": m.VideoPutType,
+                "CanvasRegionType": m.CanvasRegionType,
+                "MappedToType": m.MappedToType,
+            },
+            {"CuemsProjectMappings": m.CuemsProjectMappingsType},
+        )
+
+    if schema_name == "network_map":
+        return (
+            {
+                "NodeDictType": nm.node_list,
+                "NodeType": nm.node,
+                "PutType": nm.PutType,
+            },
+            {"CuemsNetworkMap": nm.CuemsNetworkMapType},
+        )
+
+    return {}, {}
+
+
+def _build_config_registry(schema_name: str) -> SchemaRegistry:
+    """Bindings for the configuration schemas (T048).
+
+    Every type used to be ``GENERIC``, and that was not laziness: configuration
+    documents had no model classes at all, so ``Settings`` and its subclasses
+    handed back raw dicts. Binding them explicitly to ``GENERIC`` was what let
+    C7 assert totality across all six schemas before the classes existed.
+
+    Feature 006 replaces those bindings with the ``cuemsutils.config`` models.
+    ``GENERIC`` remains for two things, and both are deliberate rather than
+    left over:
+
+    * the ``outputs`` schema, which is not a configuration document (see
+      ``_config_models``);
+    * anonymous inline types with no name to bind by — ``PutType.mappings``'s
+      wrapper is one — which stay generic and decode to plain dicts, exactly
+      as the corresponding ``script.xsd`` wrappers do.
     """
     registry = SchemaRegistry(schema_name)
-    registry.bind_path(SCHEMA_ROOTS[schema_name], GENERIC)
+    by_type, by_path = _config_models(schema_name)
+
+    registry.bind_path(SCHEMA_ROOTS[schema_name], by_path.get(SCHEMA_ROOTS[schema_name], GENERIC))
+    for element_path, model in by_path.items():
+        if element_path != SCHEMA_ROOTS[schema_name]:
+            registry.bind_path(element_path, model)
+
     for type_name in registry.complex_type_names():
-        registry.bind(type_name, GENERIC)
+        registry.bind(type_name, by_type.get(type_name, GENERIC))
     return registry
 
 

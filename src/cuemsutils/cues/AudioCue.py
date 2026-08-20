@@ -148,29 +148,21 @@ class AudioCue(MediaCue):
         """
         return super().check_mappings()
 
-        if not settings.project_node_mappings:
-            return True
-
-        found = True
-        map_list = ['default']
-
-        Logger.debug(f'AudioCue check_mappings: {settings.project_node_mappings}')
-        if settings.project_node_mappings['audio'][0]['outputs']:
-            for elem in settings.project_node_mappings['audio'][0]['outputs']:
-                Logger.debug(f'AudioCue elem: {elem}')
-                elem = elem['output']
-                for map in elem['mappings']:
-                    Logger.debug(f'AudioCue map: {map}')
-                    map_list.append(map['mapped_to'])
-        
-        for output in self.outputs:
-            if output['output_name'][:36] == settings.node_conf['uuid']:
-                    self._local = True
-                    if output['output_name'][37:] not in map_list:
-                        found = False
-                        break
-            else:
-                self._local = False
-                found = True
-            
-        return found
+        # The ~18 lines that stood here were **unreachable** and are deleted
+        # rather than corrected (T054, FR-017). They sat below an
+        # unconditional ``return super().check_mappings()`` — added at some
+        # point to short-circuit the method — so no test and no consumer could
+        # reach them, and nothing would have noticed if they were wrong.
+        #
+        # They were wrong. This body indexed
+        # ``settings.project_node_mappings['audio'][0]['outputs']`` while
+        # ``ConfigManager``'s live walk indexed the same data as
+        # ``['audio']`` groups without the ``[0]``, and a third shape existed
+        # in ``ProjectMappings.process_network_mappings``. Three mutually
+        # incompatible readings of one document (F15), two of them fossilised.
+        #
+        # Preserving either fossil would mean choosing between them on **no
+        # evidence**: a shape assumption no test can reach is not a contract.
+        # The one live shape is ``ConfigManager``'s, and it is now the derived
+        # one — ``cuemsutils.config.mappings`` states it, so a fourth reading
+        # cannot be invented by accident.

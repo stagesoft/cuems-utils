@@ -24,6 +24,7 @@ from tests.support.corpus import GOLDEN_ROOT, CorpusDoc
 
 __all__ = [
     "GENERATED_CREATED",
+    "as_plain",
     "GENERATED_MODIFIED",
     "build_generated_script",
     "golden_bytes",
@@ -98,9 +99,30 @@ def write_bytes_raw(doc: CorpusDoc, obj) -> bytes:
     return out.read_bytes()
 
 
+def as_plain(value):
+    """``value`` with every model object replaced by a plain ``dict``.
+
+    Insertion order is preserved, because that is what the dict goldens record
+    and what C2 compares.
+
+    Needed from feature 006 onward: ``CuemsDict`` gained a ``__json__`` hook, so
+    ``json.dumps`` on a decoded document now runs the **projection** rather than
+    serializing the mapping. That is correct for a payload and wrong for a
+    structural comparison — the projection filters undeclared keys (the leaked
+    ``schemaLocation``) and orders by declaration, neither of which the golden
+    is a record of. Stripping the classes first asks the question C2 has always
+    asked: *is the decoded structure the same?*
+    """
+    if isinstance(value, dict):
+        return {k: as_plain(v) for k, v in dict.items(value)}
+    if isinstance(value, list):
+        return [as_plain(v) for v in value]
+    return value
+
+
 def json_dumps(value) -> str:
     """The comparison C2 specifies — order-sensitive, and deliberately so."""
-    return json.dumps(value)
+    return json.dumps(as_plain(value))
 
 
 def golden_bytes(relpath: str) -> bytes:

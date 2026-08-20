@@ -105,15 +105,31 @@ def test_content_agrees_where_namespaces_are_not_involved(doc):
 def test_configuration_b_uses_plain_containers(doc):
     """``dict_class=dict``, ``list_class=list`` — asserted structurally.
 
-    The config classes pass plain builtins explicitly. A converter returning
-    its own mapping subclass would still compare equal and would still
-    serialize the same, and would break ``isinstance(x, dict)`` checks in
-    consumer code.
+    The config classes pass plain builtins explicitly, and the point of the
+    assertion is stated in the requirement rather than in the type name: a
+    container that is not a ``dict`` **breaks ``isinstance(x, dict)`` checks in
+    consumer code**. That is what is checked.
+
+    Feature 006 changed what a described container *is*: ``Settings`` and its
+    three subclasses now return ``cuemsutils.config`` model objects instead of
+    raw nested dicts (FR-014). Those are ``CuemsDict`` subclasses, so every
+    ``isinstance`` check in ``cuems-engine`` and ``cuems-editor`` still passes
+    — which is the whole reason the object layer could be introduced without
+    editing a consumer repository.
+
+    So the assertion is now two-sided: a mapping is either a **plain** ``dict``
+    (undescribed content — the anonymous ``mappings`` wrapper) or a
+    ``ConfigDict``, and never a third thing. Loosening it to bare
+    ``isinstance`` would have accepted any mapping subclass at all, which is
+    what this test exists to prevent.
     """
+    from cuemsutils.config import ConfigDict
 
     def check(node):
         if isinstance(node, dict):
-            assert type(node) is dict
+            assert type(node) is dict or isinstance(node, ConfigDict), (
+                f"unexpected mapping type {type(node).__name__}"
+            )
             for value in node.values():
                 check(value)
         elif isinstance(node, list):

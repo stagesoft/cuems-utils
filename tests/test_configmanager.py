@@ -47,7 +47,18 @@ def test_base_settings(config_manager):
     assert config_manager.osc_initial_port == 7000
 
 def test_network_map(config_manager):
-    assert type(config_manager.network_map) == dict
+    # ``type(...) == dict`` until feature 006. FR-014: config accessors answer
+    # with declared-field objects, never raw nested dicts — so the assertion
+    # names the class, and separately re-states the property every consumer
+    # actually depends on: a config object **is** a dict, so every
+    # ``isinstance(x, dict)`` check in cuems-engine and cuems-editor still
+    # passes. That is what let the object layer land without editing a
+    # consumer repository.
+    from cuemsutils.config.network_map import CuemsNetworkMapType, node
+
+    assert type(config_manager.network_map) is CuemsNetworkMapType
+    assert isinstance(config_manager.network_map, dict)
+    assert type(config_manager.node_network_map) is node
     assert 'node_list' in config_manager.network_map
     assert type(config_manager.network_map['node_list']) == list
     assert len(config_manager.network_map['node_list']) == 2
@@ -62,8 +73,14 @@ def test_network_map(config_manager):
 def test_project_load(config_manager):
     config_manager.load_project_config('test_project')
     assert config_manager.project_name == 'test_project'
-    assert type(config_manager.project_mappings) == dict
-    assert type(config_manager.project_node_mappings) == dict
+    # Objects rather than raw dicts (FR-014); see test_network_map above.
+    from cuemsutils.config.mappings import CuemsProjectMappingsType
+    from cuemsutils.config.mappings import NodeType as MappingsNodeType
+
+    assert type(config_manager.project_mappings) is CuemsProjectMappingsType
+    assert type(config_manager.project_node_mappings) is MappingsNodeType
+    assert isinstance(config_manager.project_mappings, dict)
+    assert isinstance(config_manager.project_node_mappings, dict)
     assert config_manager.project_mappings == config_manager.mappings
     assert config_manager.project_node_mappings == config_manager.node_mappings
     assert config_manager.number_of_nodes == 1

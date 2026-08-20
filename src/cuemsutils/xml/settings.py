@@ -2,13 +2,11 @@
  """
 
 import os
-import xml.etree.ElementTree as ET
 from typing import Any
 
 from ..helpers import strtobool
 from ..log import Logger
-from ..tools.CTimecode import CTimecode
-from .mapper import read_config_document
+from .mapper import Mapper, read_config_document
 from .validators import validate_custom_templates
 from .xml_reader_writer import XmlReaderWriter
 
@@ -64,54 +62,52 @@ class Settings(XmlReaderWriter):
 
         Decoding runs on the same engine as the show-document path: the schema
         comes from the shared cache and the converter is ``CuemsConverter``,
-        inherited from ``CuemsXml``. What these classes do **not** yet have is
-        a model layer — the four of them hand back raw dicts, which is why
-        their registry bindings are all ``GENERIC``. Giving configuration
-        documents real objects is feature 006.
+        inherited from ``CuemsXml``.
+
+        **The result is now objects** (T049, FR-014). These four classes handed
+        back raw nested dicts for as long as their registry bindings were all
+        ``GENERIC``; feature 006 binds the twenty-two config types to
+        ``cuemsutils.config`` models and routes the decoded dict through
+        ``Mapper.decode_config``, which substitutes classes and changes nothing
+        else — no coercion, no reshaping. See that method's docstring for why
+        both of those are the config domain stating a fact about itself rather
+        than the engine acquiring a mode.
         """
-        self.xml_dict = read_config_document(
-            self.schema_object,
-            self.xmlfile,
-        )
+        # A missing file raises ``FileNotFoundError`` rather than
+        # ``urllib.error.URLError``. Without the check ``xmlschema`` treats the
+        # path as a URL, and the resulting error — an ``OSError`` subclass that
+        # ``except FileNotFoundError`` does **not** catch, with a message about
+        # "urlopen error" — is the wrong answer to "is there a config file?".
+        #
+        # A **schema** failure is deliberately *not* wrapped here. This class
+        # is internal machinery (US4 makes it a deprecation shim), and its raw
+        # verdicts are what ``tests/golden/outcomes.json`` pins document by
+        # document. FR-014b's ``SchemaError`` belongs on the **accessor** — see
+        # ``ConfigBase.load_base_settings`` and ``ConfigManager`` — which is
+        # where contract C2 places it and where a consumer meets it.
+        if not os.path.exists(self.xmlfile):
+            raise FileNotFoundError(f'No such file: {self.xmlfile}')
+
+        raw = read_config_document(self.schema_object, self.xmlfile)
+        self.xml_dict = Mapper(self.schema_name).decode_config(raw)
         if (hasattr(self, 'process_xml_dict')):
             self.process_xml_dict() # type: ignore[attr-defined]
         self.loaded = True
 
-    def data2xml(self, obj):
-        xml_tree = ET.Element(self.main_key)
-        self.xmldata = self.buildxml(xml_tree, obj)
-
-    def buildxml(self, xml_tree, d): #TODO: clean variable names, simplify¿
-        if isinstance(d, dict):
-            for k, v in d.items():
-                if isinstance(k, str):
-                    s = ET.SubElement(xml_tree, k)
-
-                elif isinstance(k, (dict)):
-                    s = ET.SubElement(xml_tree, type(k).__name__)
-                    s.text = str(k)
-                elif isinstance(k, (int, float)):
-                    s = ET.SubElement(xml_tree, type(v).__name__, id=str(k))
-                    if not isinstance(v, dict):
-                        s.text =str(v)
-                else:
-                    s = ET.SubElement(xml_tree, type(k).__name__)
-
-                if isinstance(v, (type(None), CTimecode, dict, list, tuple, int, float, str)): #TODO: filter without using explicit classes (like CTimecode)
-                    self.buildxml(s, v)
-        elif isinstance(d, tuple) or isinstance(d, list):
-            for v in d:
-                s = ET.SubElement(xml_tree, type(v).__name__)
-                self.buildxml(s, v)
-        elif isinstance(d, str):
-            xml_tree.text = d
-        elif isinstance(d, (float, int)):
-      #  elif type(d) is int:
-            xml_tree.text = str(d)
-        else:
-            s = ET.SubElement(xml_tree, type(d).__name__)
-            self.buildxml(s, str(d))
-        return xml_tree
+    # ``data2xml`` / ``buildxml`` **deleted** (T056, D3).
+    #
+    # A ~35-line generic dict→ElementTree builder, on a class that has never
+    # had a working write path: building XML from a settings dict raised
+    # ``AttributeError`` inside the legacy ``XmlBuilder``, which is why the
+    # config classes' byte-identity contract has always been the read dict
+    # (C2) and never the written bytes. Nothing in this repository, in
+    # cuems-engine, in cuems-editor or in cuems-nodeconf called either method.
+    #
+    # It is deleted rather than fixed because the replacement already exists
+    # and is derived: ``Mapper.encode_xml`` builds from the schema, and the
+    # config types are registry-bound model classes as of this feature. A
+    # second, shape-guessing builder beside it is precisely the duplication
+    # 004 and 006 exist to remove.
 
 class NetworkMap(Settings):
     """
@@ -212,36 +208,17 @@ class ProjectMappings(Settings):
         """
         validate_custom_templates(self.processed)
 
-    def process_network_mappings(self, mappings):
-        '''Temporary process instead of reviewing xml read and convert to objects'''
-        # By now we need to correct the data structure from the xml
-        # the converter is not getting what we really intended but we'll
-        # correct it here by the moment
-        temp_nodes = []
-
-        # FR-033: identifiers only, never field values. This used to log the
-        # entire mappings dict at INFO — every node's uuid, name, ip and output
-        # routing, into the system log, once per project load.
-        Logger.debug(f'Processing network mappings for {len(mappings.get("nodes", []))} node(s)')
-
-        for node in mappings['nodes']:
-            temp_node = {}
-            for section, contents in node['node'].items():
-                if not isinstance(contents, list):
-                    temp_node[section] = contents
-                else:
-                    temp_node[section] = {}
-                    for item in contents:
-                        for key, values in item.items():
-                            temp_node[section][key] = []
-                            if values:
-                                for elem in values:
-                                    for subkey, subvalue in elem.items():
-                                        temp_node[section][key].append(subvalue)
-            temp_nodes.append(temp_node)
-
-        mappings['nodes'] = temp_nodes
-        return mappings
+    # ``process_network_mappings`` **deleted** (T056, D3).
+    #
+    # Its own docstring said what it was: *"Temporary process instead of
+    # reviewing xml read and convert to objects"* — a hand-written reshaping of
+    # the mappings dict, kept until the read path produced objects. It does
+    # now (T049), and nothing called this method.
+    #
+    # It was also F15's **third** incompatible reading of the node mappings,
+    # alongside the two unreachable ``check_mappings`` bodies deleted from
+    # ``VideoCue`` and ``AudioCue``. All three are gone; the one live shape is
+    # ``ConfigManager``'s, and ``cuemsutils.config.mappings`` states it.
 
 class ProjectSettings(Settings):
     """

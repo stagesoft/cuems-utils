@@ -46,15 +46,27 @@ def declared_fields(model: type) -> set[str]:
     return set(declared()) if declared is not None else set()
 
 
+#: Every schema whose types have model classes.
+#:
+#: ``script`` alone until feature 006. The four configuration schemas were
+#: excluded because *there was nothing to compare*: every one of their types
+#: was bound to ``GENERIC``, and this test's reach is real bindings. T048 gives
+#: all twenty-two of them model classes, so the exclusion is gone rather than
+#: merely smaller — which is the point of extending the test rather than
+#: writing a second one for config (T041).
+SCHEMAS = ("script", "settings", "project_settings", "project_mappings", "network_map")
+
+
 def bound_models():
     """(type name, model class, derived field names) for every real binding."""
-    registry = get_registry("script")
-    for type_name in sorted(registry.bound_type_names):
-        model = registry.model_for(type_name)
-        if model is None:
-            continue
-        spec = derive(registry.binding_for(type_name).key)
-        yield type_name, model, {f.name for f in spec.fields}
+    for schema_name in SCHEMAS:
+        registry = get_registry(schema_name)
+        for type_name in sorted(registry.bound_type_names):
+            model = registry.model_for(type_name)
+            if model is None:
+                continue
+            spec = derive(registry.binding_for(type_name).key)
+            yield f"{schema_name}:{type_name}", model, {f.name for f in spec.fields}
 
 
 COVERED = [
@@ -84,6 +96,39 @@ def test_declared_and_derived_field_sets_are_equal(type_name, model, derived):
 def test_coverage_is_not_silently_empty():
     """A parametrisation that shrank to nothing would pass in silence."""
     assert len(COVERED) >= 10
+
+
+def test_every_config_schema_is_covered():
+    """T041 — the four config schemas, named so they cannot drop out again.
+
+    Twenty-two complex types across four schemas, every one of which was
+    ``GENERIC`` before this feature. Naming the schemas rather than asserting a
+    count keeps this honest if a type is added: the new type appears in
+    ``COVERED`` or in ``UNCOVERED``, and both are asserted.
+    """
+    covered_schemas = {name.split(":", 1)[0] for name, _, _ in COVERED}
+    assert {
+        "settings",
+        "project_settings",
+        "project_mappings",
+        "network_map",
+    } <= covered_schemas, sorted(covered_schemas)
+
+
+def test_the_two_node_types_are_different_classes():
+    """``NodeType`` exists in two schemas and means two different things.
+
+    ``network_map.xsd``'s describes node **identity**; ``project_mappings.xsd``'s
+    describes node **mappings**. Binding one class to both would make its
+    coercion table ambiguous by construction (registries are per schema,
+    research R4) — and would be F15's failure in miniature, one type standing
+    for two shapes.
+    """
+    identity = get_registry("network_map").model_for("NodeType")
+    mapping = get_registry("project_mappings").model_for("NodeType")
+    assert identity is not None and mapping is not None
+    assert identity is not mapping
+    assert set(identity.declared_fields()) != set(mapping.declared_fields())
 
 
 def test_every_cue_type_is_covered():
@@ -120,8 +165,19 @@ def test_uncovered_classes_are_the_expected_ones():
 
 
 def test_coverage_reaches_every_bound_model():
-    """The positive half of the same claim: 18 bindings, 18 compared."""
-    assert len(COVERED) == 18
+    """The positive half of the same claim: every binding compared.
+
+    ``18`` until feature 006 — the script schema's bindings, all of them. T048
+    binds the four configuration schemas' twenty-two complex types plus their
+    four anonymous document roots, so the number is now **40**: 18 show
+    classes and 22 config ones.
+
+    Kept as an exact count rather than a lower bound, and rewritten rather than
+    relaxed. A count that only ever grows would let a binding disappear in
+    silence, which is the whole reason this assertion is stated positively
+    alongside the ``UNCOVERED`` one.
+    """
+    assert len(COVERED) == 40
     assert not UNCOVERED
 
 

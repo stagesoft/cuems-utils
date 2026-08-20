@@ -1,8 +1,39 @@
 from os import environ, path
 
+from ..errors import SchemaError
 from ..log import Logger, logged
 from ..xml import Settings
 from ..helpers import mkdir_recursive
+
+
+def load_config_document(cls, xmlfile: str, schema_name: str):
+    """Open one configuration document with the **accessor's** error posture.
+
+    One function, every call site (FR-014b, contract C2). The two failure kinds
+    a consumer must tell apart are kept apart here rather than at each of the
+    six places a configuration file is opened:
+
+    * ``OSError``/``FileNotFoundError`` propagate **unwrapped** — every
+      consumer already handles them, and wrapping would force callers to
+      unwrap to find out what actually happened (FR-035);
+    * anything else is a schema failure and becomes ``SchemaError``, carrying
+      the original reason so the offending element is still named.
+
+    The internal reader (``xml/settings.py``) deliberately does **not** wrap:
+    its raw verdicts are what ``tests/golden/outcomes.json`` pins document by
+    document, and the accessor is where contract C2 places the posture.
+    """
+    try:
+        return cls(xmlfile)
+    except OSError:
+        raise
+    except SchemaError:
+        raise
+    except Exception as exc:
+        message = f'{xmlfile} is not a valid {schema_name} document: {exc}'
+        Logger.error(message)
+        raise SchemaError(message) from exc
+
 
 class ConfigBase():
     def __init__(self, config_dir: str):
@@ -10,18 +41,32 @@ class ConfigBase():
 
     @logged
     def load_base_settings(self, base_dir: str):
+        """Read ``settings.xml`` from the resolved configuration directory.
+
+        Raises:
+            OSError: **unwrapped** — ``FileNotFoundError`` when the directory
+                or the file is absent, ``PermissionError`` when it cannot be
+                read. Identical to ``CuemsScript.load`` (FR-035), and
+                deliberately distinct from the next entry: *a node with no
+                config and a node with a corrupt one are different operational
+                problems* (FR-014b).
+            SchemaError: the file exists and does not match ``settings.xsd``,
+                naming the offending element. The measured case is **X13** —
+                ``gradient_osc_port`` was added to the schema as required,
+                which invalidated every settings file written before it,
+                including two this project shipped. That is *reported* here and
+                *fixed* under the schema evolution convention, not in this
+                feature; no ``.xsd`` is edited (FR-033).
+        """
         try:
             dir = environ['CUEMS_CONF_PATH']
         except KeyError:
             dir = base_dir
         self.config_dir = dir
 
-        try:
-            settings = Settings(self.conf_path('settings.xml'))
-            self.settings = settings.get_dict()
-        except Exception as e:
-            Logger.exception(f'Exception catched while loading settings: {e}')
-            raise e
+        self.settings = load_config_document(
+            Settings, self.conf_path('settings.xml'), 'settings'
+        ).get_dict()
 
     # HELPER FUNCTIONS #
     def conf_path(self, file_name: str) -> str:
@@ -115,8 +160,41 @@ class ConfigBase():
     def controller_lock_file(self):
         return self.settings['controller_lock_file']
 
+    # -- what the accessors return (T055, FR-014, FR-018) -------------------
+    #
+    # **Every name above and below is frozen**, and so is what it means. Only
+    # return *types* change, and only where the value is a structure rather
+    # than a scalar: the fourteen accessors that answer with a path, a URL or a
+    # filename still answer with a ``str``, and ``osc_initial_port`` still
+    # answers with an ``int``. The recorded inventory in
+    # ``tests/golden/api/config_accessors.json`` is the arbiter — it was
+    # captured by introspection *before* any of this landed, which is what
+    # makes "every name that exists today" verifiable rather than merely
+    # assertable.
+    #
+    # The structural ones — ``node_conf`` here, and ``network_map``,
+    # ``node_network_map``, ``mappings``, ``node_mappings`` and the project
+    # accessors on ``ConfigManager`` — now answer with declared-field objects
+    # from ``cuemsutils.config`` instead of raw nested dicts. Those objects are
+    # ``dict`` subclasses, so ``isinstance(x, dict)``, ``x['key']``,
+    # ``x.get(...)`` and iteration all behave exactly as before. That is what
+    # allowed the object layer to land without editing a consumer repository.
+
     @property
     def node_conf(self):
+        """The ``<node>`` section of ``settings.xml``.
+
+        Returns:
+            cuemsutils.config.settings.NodeConfType: a declared-field object,
+            not a raw nested dict (FR-014). Its ``videoplayer`` /
+            ``audioplayer`` / ``audiomixer`` / ``dmxplayer`` sections are
+            objects too, each of the type its schema declares.
+
+        Raises:
+            KeyError: if the settings document carries no ``<node>`` element.
+                ``settings.xsd`` requires one, so a document that reaches here
+                without it did not come through :meth:`load_base_settings`.
+        """
         return self.settings['node']
 
     @property
