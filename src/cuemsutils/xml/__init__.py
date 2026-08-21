@@ -60,13 +60,29 @@ _CONFIG = "cuemsutils.tools.ConfigManager.ConfigManager"
 #: find that out by diffing payloads in production.
 _READ_NOTE = "the returned dict no longer contains the schemaLocation key"
 
+#: The five methods that do **not** keep their name (D2's migration map).
+#:
+#: Without these the message is composed as ``f"{replacement}.{name}"`` and
+#: reports *"use CuemsScript.read"* — a method that does not exist. A warning
+#: naming a nonexistent replacement is worse than one naming none.
+_READER_WRITER_METHODS = {
+    "read": f"{_SCRIPT}.to_wire",
+    "read_to_objects": f"{_SCRIPT}.load",
+    "write_from_object": f"{_SCRIPT}.save",
+    "write_from_dict": f"{_SCRIPT}.from_json",
+    "validate_object": f"{_SCRIPT}.validate",
+}
+
 # The six supported entry points this feature retires (contract C3). Five were
 # in ``__all__``; ``CuemsParser`` never was, and is the sixth because feature
 # 004 made it a supported path deliberately — it is `cuems-editor`'s primary
 # JSON -> object route. The library stopped calling it in T061a, which is what
 # lets it carry a warning without tripping contract C8 on itself.
 XmlReaderWriter = deprecated_alias(
-    _XmlReaderWriter, _SCRIPT, notes={"read": _READ_NOTE}
+    _XmlReaderWriter,
+    _SCRIPT,
+    notes={"read": _READ_NOTE},
+    replacements=_READER_WRITER_METHODS,
 )
 CuemsParser = deprecated_alias(_CuemsParser, f"{_SCRIPT}.from_json")
 Settings = deprecated_alias(_Settings, _CONFIG)

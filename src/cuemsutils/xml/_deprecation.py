@@ -57,7 +57,10 @@ def deprecated_symbol(
 
 
 def deprecated_alias(
-    target: type, replacement: str, notes: dict[str, str] | None = None
+    target: type,
+    replacement: str,
+    notes: dict[str, str] | None = None,
+    replacements: dict[str, str] | None = None,
 ) -> type:
     """Build a warning stand-in for ``target`` to publish at its old path.
 
@@ -79,8 +82,19 @@ def deprecated_alias(
     needs it (D2a): ``read``'s replacement returns a payload that differs from
     ``read()``'s by the ``schemaLocation`` key, and a consumer told only the
     replacement's name would discover that in production.
+
+    ``replacements`` overrides the **name** a method is pointed at. Without it
+    the message is composed mechanically as ``f"{replacement}.{name}"``, which
+    is right when the method keeps its name and wrong when it does not:
+    ``XmlReaderWriter.read`` would be reported as *"use CuemsScript.read"* — a
+    method that does not exist. D2's migration map renames four of them
+    (``read`` -> ``to_wire``, ``read_to_objects`` -> ``load``,
+    ``write_from_object`` -> ``save``, ``validate_object`` -> ``validate``),
+    and a deprecation warning that names a nonexistent replacement is worse
+    than one that names none.
     """
     notes = notes or {}
+    replacements = replacements or {}
     namespace = {
         "__module__": target.__module__,
         "__doc__": (
@@ -95,7 +109,7 @@ def deprecated_alias(
         if not inspect.isfunction(member):
             continue
         namespace[name] = deprecated_symbol(
-            f"{replacement}.{name}", note=notes.get(name)
+            replacements.get(name, f"{replacement}.{name}"), note=notes.get(name)
         )(member)
 
     alias = type(target.__name__, (target,), namespace)

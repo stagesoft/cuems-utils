@@ -43,7 +43,7 @@ Read `.specify/memory/constitution.md` before starting. Two clauses bind this wo
   each spec MUST enumerate every change explicitly. The prompts below do that; do not drop
   those sections.
 - **Principle IV — Performance Budgets Are Requirements:** every plan MUST carry measurable
-  targets **before** implementation. Baseline: `hatch test` = **557 passed in ~7.4s**, plus
+  targets **before** implementation. Baseline: `hatch test` = **2222 passed, 94 skipped, 2 xfailed in ~59 s** (measured 2026-08-20, after feature 006; the "557 passed in ~7.4 s" this line carried until then predated features 004/005 and was stale by nearly 4x). Compare **per test** — ~27 ms — not wall time: the suite has grown with the features. Plus
   `tests/integration/test_mediacue_fade_performance.py`.
 
 **No amendment is needed.** If you disagree after reading, run:
@@ -174,7 +174,8 @@ Technical context:
 Constitution check (all four principles must be addressed):
 - II Tests: the D14 chain test is written FIRST, against current behaviour, and must pass
   unchanged after the swap. This is the feature's primary gate.
-- IV Performance: baseline is `hatch test` 557 passed in ~7.4s and
+- IV Performance: baseline is `hatch test` 2222 passed in ~59 s (~27 ms/test, measured
+  2026-08-20 after feature 006; was "557 passed in ~7.4s", stale since 004) and
   tests/integration/test_mediacue_fade_performance.py. Budget: no regression beyond 10%
   on the perf test; schema-walking must be cached, never per-object.
 - I Quality: ruff clean, no new warnings.

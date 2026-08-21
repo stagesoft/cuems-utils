@@ -67,30 +67,48 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 - `xmlschema==3.4.3` (pinned; XSD 1.1 required by `xs:assert` in `script.xsd`),
   `lxml==6.1.0` (**not** in the XML write path — the writer is stdlib `ElementTree`).
 - Six bundled XSD schemas under `src/cuemsutils/xml/schemas/`.
-- **Suite baseline (measured 2026-08-18): 1485 passed, 47 skipped, 2 xfailed in ~45 s.** The
-  "557 passed in ~7.4 s" figure quoted in `specs/planning/xml-rebuild-07-speckit-prompts.md`
-  predates features 004/005 and is stale by nearly 3×.
+- **Suite baseline (measured 2026-08-20, after feature 006): 2222 passed, 94 skipped,
+  2 xfailed in ~59 s** — about **27 ms per test**. Take the per-test figure, not the wall
+  time: the suite grew from 1485 tests (44.57 s, 30 ms/test) to 2222 across features 005
+  and 006, so an absolute wall-time budget compares different suites and reads a growing
+  test corpus as a regression. See `specs/006-public-object-api/baseline.md` for the
+  measurement context and the per-operation numbers.
 
 ## Recent Changes
 
-- `006-public-object-api` (**planned** 2026-08-18): one public surface — `CuemsScript` for
-  show data, `ConfigManager`/`ConfigBase` for config — with `xml/` going internal. The
-  engine from 004/005 is already in place (`CuemsParser.parse()` delegates to
-  `Mapper.decode_document`), so this feature adds the wire projection, the public facade, the
-  `config/` object layer and the T2 rule registry, and deletes the frozen legacy parser tree.
-  - **Measured design decision**: `to_wire()` is a *direct* projection, not a round trip
-    through XML. Round-tripping would cost **33.99 ms vs today's 16.95 ms `read()`** — a 2×
-    regression on `project_load` — because `to_dict` (15.49 ms) gets paid twice. The
-    round-trip is kept as the **test oracle** instead. See `bench_to_wire.py`.
-  - Both required decision stops resolved: T2 runs on **write and `validate()` only** (read
-    never becomes stricter); runtime state becomes **declared** (`RUNTIME_FIELDS`,
-    MRO-accumulated like `REQ_ITEMS`), with `_initialized` a named exception because it gates
-    value-rejecting rules during population.
-  - **Corpus sweep evidence** (`specs/006-public-object-api/corpus-sweep.md`): of the 14
-    value-rejecting setters, **zero** would reject anything accepted today — but only 6 have
-    corpus coverage; all 8 `FadeCue`/`FadeProfile` rules are **unproven** because no vendored
-    document contains a fade cue. The 15th rule (uuid4 shape) *would* reject live editor
-    traffic — 3 nil `Media.id` values in one payload — so it stays a coercion concern.
+- `006-public-object-api` (**landed** 2026-08-20): one public surface. `CuemsScript` gains
+  `load`/`save`/`validate`/`from_json`/`to_json`/`to_wire`; `ConfigManager`/`ConfigBase`
+  answer with objects; `cuemsutils.xml.__all__` is `[]`; the frozen legacy parser tree is
+  deleted. `cuemsutils.errors` is the one new public module — a returned type can stay
+  internal because the caller only inspects it, but an exception the caller cannot name is
+  one it cannot catch.
+  - **`to_wire()` is a direct projection, and the measurement says so**: 0.74 ms, below the
+    1.10 ms tree build that is the unavoidable half of the round trip. Round-tripping would
+    have cost 33.99 ms against `read()`'s 16.95 ms. The round trip is kept as the **test
+    oracle** (`test_wire_oracle.py`), not as the implementation.
+  - **The five enumerated behaviour changes all shipped**, each with a test that measured
+    the old behaviour and now measures the new one rather than being deleted: payload
+    parity, `schemaLocation` dropped from the wire dict, the derived projection replacing
+    eight `__json__` methods, the relative schema location, and cue equality widening from
+    `id` alone to every declared field.
+  - **Load-bearing facts for the next feature.** `Cue.__hash__` is *restated* rather than
+    inherited: `CuemsDict.__eq__` sets `__hash__` to `None` on any subclass that does not,
+    and an unhashable cue is a `TypeError` in the engine. `config/` decoding runs **no
+    adapters and no reshaping** — `adopted`/`online` stay strings and repeated content keeps
+    its `{"node": {...}}` wrapper, because `cuems-engine` reads both and consumer repos are
+    not edited here. `_initialized` gates value-rejecting setters in **three** classes and is
+    deliberately absent from every `RUNTIME_FIELDS`.
+  - **Open, carried to the PR**: the suite wall-time budget (≤10% over 44.57 s) is exceeded
+    at 59.17 s — because the suite grew by 737 tests. Per test it is 11% *faster*. Recorded
+    as exceeded rather than restated as passing; see `baseline.md`.
+  - Migration is **feature 008's**: ten call sites across `cuems-engine` and `cuems-editor`,
+    listed in `migration-guide.md`. All six retired entry points still resolve and warn in
+    `v0.1.0`; they are gone in `v0.1.1`. No frontend change is required — see
+    `frontend-note.md`.
+  - `specs/planning/schema-evolution-convention.md` is adopted: an element added to an
+    existing complex type is optional and carries a model-layer default. X13
+    (`gradient_osc_port`, added as required, invalidating every older settings file) is
+    recorded there as **scheduled work**; no `.xsd` is edited by this feature.
 
 - `005-object-model-unification` (**landed** 2026-08-17): one construction path for the
   model. Coercion moved from property setters into a schema-resolved adapter table

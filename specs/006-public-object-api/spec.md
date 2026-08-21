@@ -896,3 +896,30 @@ specified in FR-001…FR-022 above.
 - **Removing the deprecated entry points.** Deprecated here, removed after consumers migrate.
 - **Removing the frontend's dual-check.** An optional follow-up in the frontend repo once
   both payloads agree — not a blocker and not this feature's work.
+
+---
+
+## Deliverable artifacts (T089a)
+
+The non-code deliverables this feature produces, named here so that spec.md,
+[plan.md](plan.md), [tasks.md](tasks.md) and [contracts/](contracts/) enumerate
+**the same set**. Before T089a they did not: plan.md's documentation tree
+listed only `checklists/requirements.md` while this document cited
+`checklists/api.md` throughout, and it predated all eight of these.
+
+| Artifact | Task | What it records |
+|---|---|---|
+| [baseline.md](baseline.md) | T001, T083, T089, T091 | the pre-implementation measurement, the budgets, and every number claimed against them |
+| [corpus-sweep.md](corpus-sweep.md) | decision stop 2, T077 | the per-rule sweep, and what the corpus still does not prove |
+| [schemalocation-evidence.md](schemalocation-evidence.md) | T038 | the FR-011 consumer search, to a stated standard — repositories, branches, commits, patterns |
+| [api-surface-diff.md](api-surface-diff.md) | T057a, T065 | "public name" defined once, and the enumerated diff T065 is compared against |
+| [legacy-coverage.md](legacy-coverage.md) | T060 | zero-hit coverage proof, before **and** after deleting the legacy parser tree |
+| [golden-changes.md](golden-changes.md) | T080 | the deliberate golden edit and its justification |
+| [migration-guide.md](migration-guide.md) | T084 | every retired entry point, its replacement, and the ten consumer call sites feature 008 executes against |
+| [frontend-note.md](frontend-note.md) | T085 | both payloads agree; no frontend change required; the dual-check removal is theirs to schedule |
+| `specs/planning/schema-evolution-convention.md` | T081, T082 | the four rules, and X13 recorded as scheduled work |
+
+The convention document is the one artifact **outside** this feature's
+directory, and deliberately: `CLAUDE.md` requires cross-feature conventions to
+live in `specs/planning/`. It governs future schema work in every repository
+that reads these documents, not only this feature.

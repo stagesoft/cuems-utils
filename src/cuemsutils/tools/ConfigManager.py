@@ -119,6 +119,18 @@ class ConfigManager(ConfigBase):
 
     @property
     def network_map(self):
+        """The whole network map — every node the controller knows about.
+
+        Returns:
+            cuemsutils.config.network_map.CuemsNetworkMapType: a declared-field
+            object (FR-014), not a raw nested dict. Its ``node_list`` is a list
+            of ``{"node": <node>}`` wrappers, and the wrapper is **kept** —
+            ``cuems-engine`` iterates it in that shape and this feature does
+            not edit consumer repositories.
+
+        Raises:
+            AttributeError: before :meth:`load_config` has run.
+        """
         return self._network_map
 
     @network_map.setter
@@ -127,6 +139,19 @@ class ConfigManager(ConfigBase):
 
     @property
     def node_network_map(self):
+        """**This** node's entry in the network map, resolved by uuid.
+
+        Returns:
+            cuemsutils.config.network_map.node: identity fields for this node.
+            ``adopted`` and ``online`` are the **strings** ``"True"``/``"False"``
+            — ``cms:BoolType`` is an ``xs:string`` enum, ``get_nodes_by_adoption``
+            calls ``strtobool`` on them, and retyping them would be a silent
+            cross-repository change (see ``config/base.py``).
+
+        Raises:
+            AttributeError: before :meth:`load_network_map` has run.
+            ValueError: if no node in the map carries this node's uuid.
+        """
         return self._node_network_map
     
     @node_network_map.setter
@@ -138,6 +163,21 @@ class ConfigManager(ConfigBase):
 
     @property
     def mappings(self):
+        """The system-wide hardware mappings — every node's ports.
+
+        From the project's ``mappings.xml`` when one exists, and from
+        ``default_mappings.xml`` otherwise.
+
+        Returns:
+            cuemsutils.config.mappings.CuemsProjectMappingsType: a
+            declared-field object (FR-014). Each level of the nesting — device,
+            port group, port, mapping — is a named type, which is what let the
+            five-level rediscovery walk in
+            :meth:`load_net_and_node_mappings` be deleted (T051).
+
+        Raises:
+            AttributeError: before :meth:`load_config` has run.
+        """
         return self._mappings
 
     @mappings.setter
@@ -146,6 +186,18 @@ class ConfigManager(ConfigBase):
     
     @property
     def node_mappings(self):
+        """**This** node's hardware mappings, resolved by uuid.
+
+        Returns:
+            cuemsutils.config.mappings.NodeType: audio, video and dmx sections,
+            each a list of port groups. Distinct from
+            ``network_map``'s ``NodeType``, which describes node *identity*
+            rather than node *mappings* — two schemas, two types, two classes.
+
+        Raises:
+            AttributeError: before :meth:`load_config` has run.
+            ValueError: if the mappings name no node with this uuid.
+        """
         return self._node_mappings
 
     @node_mappings.setter
