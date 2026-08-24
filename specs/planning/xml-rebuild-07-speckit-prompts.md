@@ -27,10 +27,16 @@ independently green**, which is also what makes the constitution's test gate mea
 | `004-xml-serialization-core` | 1–3 | **No** — byte-identical output | — |
 | `005-object-model-unification` | 4 | Yes (bug fixes) | 004 |
 | `006-public-object-api` | 5, 7 | Yes (API + `initial_template`) | 005 |
-| `007-node-model-migration` | 6 | No (intake) | 006 + `feat/nodeconf-reenable` landing |
+| `007-node-model-migration` | 6 | **Yes** — `node_type` → `node_role`, a hard cutover across three repos | 006 + `feat/nodeconf-reenable` landing |
 | `008-consumer-migration` | 8 | Cross-repo | 006, 007 |
 
 Run them in order. Do not start the next until the previous is merged and green.
+
+**007 and 008 are the one pair that does not ship independently.** The row above said "No
+(intake)" until 2026-08-24; clarification enlarged 007 to edit `network_map.xsd` and three
+repositories, and the rename is a hard cutover with no dual-spelling release. So 007 and 008 are
+independently *green* but not independently *shippable*: nothing in the ecosystem releases between
+them (007 FR-030c), enforced by versioned `.deb` dependencies (007 FR-030d).
 
 ---
 
@@ -537,6 +543,15 @@ EXPLICITLY OUT OF SCOPE: Avahi discovery, adoption logic, systemd orchestration 
 stay in cuems-nodeconf. Also out of scope: network_map.xsd edits, node_type format change.
 ```
 
+> **The last two paragraphs above were superseded by `/speckit.clarify` on 2026-08-24, and are
+> left standing as the record of what was asked.** The clarification session decided the opposite
+> on both counts: `network_map.xsd` **is** edited, and `node_type` **becomes** `node_role` typed as
+> a real `NodeRoleType` enumeration over `controller`/`node`/`firstrun`. The reasoning is in
+> `specs/007-node-model-migration/spec.md` §Clarifications — the schema is the single source of
+> truth, this lands as a strong rebuild, and the rename is the migration `cuems-common/CLAUDE.md`
+> already had scheduled. That decision is what makes 008 a hard successor rather than a follow-up,
+> pulls `cuems-common` into 007's scope, and hands this feature the four items §7 lists.
+
 ```
 /speckit.clarify
 ```
@@ -589,27 +604,81 @@ injection.
 Cross-repo. This spec lives in `cuems-utils` and defines the **contract and guide**; the
 edits happen in each consumer repo as its own PR.
 
+**Updated 2026-08-24** from feature 007's migration checklist, which handed four items to this
+feature and changed its standing from follow-up to release gate.
+
+**008 is a hard successor to 007, not a follow-up.** 007 renames `<node_type>` to `<node_role>` as
+a **hard cutover** — no release accepts both spellings — so there is no working partially-deployed
+state between them. **Nothing in the ecosystem ships until this feature lands** (007 FR-030c),
+enforced by versioned `.deb` dependencies, not by instruction (007 FR-030d). Read
+`specs/007-node-model-migration/migration-guide.md` first; it is this feature's input, not context.
+
+Two of 007's findings shape the work before any prompt runs:
+
+- **Semantically-wrong callers are a named class** (007 FR-030a-ii). A caller that stops resolving
+  fails loudly at import; one in this class keeps running and returns the wrong answer —
+  `CONTROLLER_NETWORK_FLAG`'s string comparison, the role enum comparisons, the `node_type`
+  normalisations. Nothing fails when one is missed, so they are **searched for**, not waited for.
+  A green suite is not evidence this class is empty.
+- **The node model and its full testing live in `cuems-utils` exclusively** (007 FR-030a-i). No
+  consumer re-implements or re-tests it. A node-model test appearing in a consumer repo during this
+  migration is a regression, not coverage.
+
 ```
 /speckit.specify <PASTE SHARED CONTEXT BLOCK>
 
 Define and execute the consumer migration to the new public API, coordinated as a single
-version bump across the CUEMS ecosystem.
+version bump across the CUEMS ecosystem. Feature 007's migration guide
+(specs/007-node-model-migration/migration-guide.md) is the input inventory: it carries the
+moved-symbol table, every changed name and type against its live call site, the release
+gate, and the items 007 deferred here by name.
 
 WHAT MUST BE TRUE WHEN DONE:
 - A migration guide in this repo maps every removed or changed entry point to its
   replacement, with before/after examples.
-- cuems-engine obtains scripts via CuemsScript.load and consumes typed node objects.
+- cuems-engine obtains scripts via CuemsScript.load and consumes typed node objects, and
+  adopts NetworkMap.partition_by_adoption in place of its inline workaround for the
+  mutating get_nodes_by_adoption. CONTROLLER_NETWORK_FLAG = "NodeType.master" becomes
+  NodeRole.controller at all three sites (the constant and its two comparisons).
 - cuems-editor uses CuemsScript.load/save and from_json, and its project load path returns
-  script.to_wire() so the payload sent to the UI is byte-identical to today's.
-- cuems-nodeconf no longer ships node model or serializer code and no longer injects
-  classes into this package's module globals; deprecated XmlReader/XmlWriter usage is gone.
+  script.to_wire() so the payload sent to the UI is byte-identical to today's. Its node
+  field list at CuemsWsServer.py:425 and the reload_network_map_nodes reads follow the
+  node_role rename and the retyping: node_role is a NodeRole, adopted/online are bool,
+  uuid is a Uuid.
+- cuems-common's Avahi discovery surface follows the role vocabulary: the node_type TXT
+  record in etc/avahi/services/cuems.service and usr/share/cuems/cuems.service.{master,
+  slave,firstrun}. In the last two the retired word is in the FILENAME, so the change
+  reaches debian/install and anything resolving a template by name. Feature 007
+  inventoried these and deliberately left them (its Assumption 10, and they are the named
+  exclusion in its SC-004a count) because discovery is out of its scope — out of scope
+  there is not exempt.
+- cuems-common's postinst ordering is settled: the network-map conversion and
+  dh_installsystemd's service restart both run in postinst, and their relative order
+  decides whether a service reads the converted map or the old one. Feature 007 deferred
+  this here (its FR-011d-ii) because the services doing the reading are the ones this
+  feature migrates.
+- cuems-nodeconf needs no work here — feature 007 deleted its node model and serializers,
+  removed the four globals injections and retired XmlReader/XmlWriter. Confirm, do not
+  redo.
 - cuems-frontend requires no change. Optionally, its `=== true || === 'True'` dual-check
   can be simplified once both payloads agree — as a follow-up, not a blocker.
 - Deprecated entry points are removed from cuemsutils only after all consumers are on the
   new API.
+- Zero occurrences of node_type or the NodeType. prefix remain anywhere in the ecosystem,
+  counted rather than reviewed — including the four files 007 excluded from its own count
+  and handed here.
+
+CALLERS THAT KEEP RESOLVING BUT BECOME WRONG are a distinct class from callers that stop
+resolving (007 FR-030a-ii), and the second kind is the dangerous one: nothing fails, the
+suite stays green, and the answer is silently wrong. Search for them against 007's
+inventory rather than relying on a red suite to surface them.
+
+DO NOT re-implement or re-test the node model in any consumer repository. It lives in
+cuemsutils exclusively (007 FR-030a-i).
 
 VERIFICATION: an end-to-end check that a project saved by the editor loads in the engine
-and renders in the UI unchanged.
+and renders in the UI unchanged, plus a cluster upgrade — controller and at least one node
+— that comes back with its topology intact.
 ```
 
 ```
@@ -618,20 +687,30 @@ and renders in the UI unchanged.
 Follow specs/planning/xml-rebuild-06-target-design.md section 12.
 
 Per-repo scope:
-- cuems-engine: core/BaseEngine.py:509; ControllerEngine network-map access; adopt the
-  non-mutating get_nodes_by_adoption replacement.
+- cuems-engine: core/BaseEngine.py:509; ControllerEngine network-map access; adopt
+  NetworkMap.partition_by_adoption; CONTROLLER_NETWORK_FLAG and its two comparison sites.
 - cuems-editor: CuemsDBProject.load_xml / save_xml / the three CuemsParser call sites;
-  DBProject.load must return script.to_wire().
-- cuems-nodeconf: delete NodeXmlBuilders.py; drop XmlReader/XmlWriter.
+  DBProject.load must return script.to_wire(); the node field list at CuemsWsServer.py:425
+  and the reload_network_map_nodes reads.
+- cuems-common: the Avahi node_type TXT record in etc/avahi/services/cuems.service and
+  usr/share/cuems/cuems.service.{master,slave,firstrun}, INCLUDING the filenames of the
+  master/slave templates and the debian/install entries that place them; and the postinst
+  ordering of the network-map conversion against dh_installsystemd's service restart.
+- cuems-nodeconf: nothing — done in 007. Verify rather than repeat.
 - cuems-frontend: no change required; record the optional cleanup as a follow-up issue.
 
-Sequencing: cuemsutils releases first with both APIs live; consumers migrate; cuemsutils
-then removes the deprecated surface in a subsequent release.
+Sequencing: this is where the 007 release gate opens. Nothing ships between 007 and this
+feature (007 FR-030c/FR-030d), so "cuemsutils releases first with both APIs live" does NOT
+apply to the node surface — the node_role cutover is hard and has no dual-spelling state.
+It still applies to the show-API deprecations from 006. Keep the two apart in the plan.
 
 Constitution check:
-- II: each consumer PR carries its own green suite. The end-to-end check is the gate.
-- III: the migration guide is the UX deliverable.
-- IV: no regression in engine project-load time.
+- II: each consumer PR carries its own green suite. The end-to-end check is the gate. Note
+  that a green suite does NOT evidence the FR-030a-ii class — those callers keep resolving.
+  Each one needs a test that fails against the old value.
+- III: the migration guide is the UX deliverable. Feature 007's guide is its input.
+- IV: no regression in engine project-load time; network-map load stays within the budget
+  007 recorded in its baseline.md.
 ```
 ```
 /speckit.tasks
@@ -646,9 +725,16 @@ GitHub issues than as a single `tasks.md`.
 ```
 /speckit.checklist Cross-repo readiness: version pins aligned, no consumer left on a
 deprecated entry point, UI payload byte-equality verified end to end, rollback plan stated.
+Plus, from feature 007's handover: every caller in the "keeps resolving but becomes
+semantically wrong" class accounted for with a test that fails against the old value;
+zero node_type occurrences ecosystem-wide including the four files 007 excluded; the
+postinst-vs-service-restart ordering decided rather than inherited; and the cluster upgrade
+verified, not only the single-node one.
 ```
 
 **Exit criteria:** all consumers migrated and green; end-to-end save→load→render verified;
+a controller-plus-node cluster upgrade comes back with its topology intact; zero `node_type`
+occurrences ecosystem-wide, counted; the FR-030a-ii caller class closed with per-caller tests;
 deprecated surface removable.
 
 ---
@@ -687,13 +773,21 @@ Validates completion against the spec.
    from pre-refactor code, and are never regenerated to make a test pass.
 4. Commits are GPG-signed. Retry on "gpg failed to sign"; never `--no-gpg-sign`.
 5. Planning artifacts stay in `specs/planning/`; feature artifacts in `specs/NNN-*/`.
-6. No `.xsd` edits in any of these features. Schema work is deferred under D3 and tracked
-   as X1–X13 in the audit.
+6. No `.xsd` edits — **with one recorded exception**. D3 defers schema work, tracked as
+   X1–X13 in the audit, and continues to bind five of the six schemas. It was relaxed
+   **once**, for `network_map.xsd` only, by explicit clarification in feature 007: the
+   `node_type` → `node_role` rename with a real `NodeRoleType` enumeration, a `UuidType`
+   pattern, and X9 (`PutType`) deleted. That relaxation is scoped to that one file and does
+   not generalise; proposing a second one reopens D3 and needs its own decision.
 7. **Schema evolution convention** (adopted in feature 006, binds all later schema work):
    an element added to an **existing** complex type is `minOccurs="0"` with a model-layer
    default; required elements appear only in **new** types; anything else is a versioned
    file-format migration with a conversion path, never a silent edit. Measured precedent:
    `gradient_osc_port` broke every older settings file, `output_latency_ms` broke none.
+   **Feature 007 extends it with three precedents the convention did not cover** — renaming,
+   constraining and deleting — each recorded with the migration pattern it used: a hard
+   cutover with a stdlib conversion run from `postinst`, a timestamped backup before any
+   in-place write, and versioned package dependencies enforcing the release order.
 8. **Compatibility is defined against the current XSD configuration**, not against file
    history. A document valid under today's schemas must load; one that no longer validates
    because the schema evolved is out of scope by policy. Reading must never become

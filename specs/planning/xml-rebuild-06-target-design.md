@@ -427,12 +427,37 @@ Deleted: `XmlBuilder.py`, `Parsers.py`, `CMLCuemsConverter.py` (reduced into
 
 ## 12. Post-spec consumer migration
 
+**Updated 2026-08-24** from feature 007's migration checklist. Four items below were added by that
+verification and were not in the original table; they are marked ⬦. Feature 007 is a **hard
+predecessor**, not a follow-up — its `node_type` → `node_role` rename is a hard cutover with no
+working partially-deployed state, so nothing in the ecosystem ships until this feature lands
+(007 FR-030c/FR-030d).
+
 | Repo | Change |
 |---|---|
-| `cuems-engine` | `BaseEngine.py:509` → `CuemsScript.load(path)`; `ControllerEngine` network-map access → typed objects; non-mutating replacement for `get_nodes_by_adoption`. |
-| `cuems-editor` | `CuemsDBProject.{load_xml,save_xml}` → `CuemsScript.load/save`; `CuemsParser(data).parse()` → `CuemsScript.from_json(data)`; **`load()` must return `script.to_wire()`** so `project_load` stays byte-identical. |
-| `cuems-nodeconf` | Delete `NodeXmlBuilders.py` (model + serializers now upstream); drop deprecated `XmlReader`/`XmlWriter`. |
+| `cuems-engine` | `BaseEngine.py:509` → `CuemsScript.load(path)`; `ControllerEngine` network-map access → typed objects; adopt `NetworkMap.partition_by_adoption` in place of the mutating `get_nodes_by_adoption` workaround. ⬦ `CONTROLLER_NETWORK_FLAG = "NodeType.master"` → `NodeRole.controller`, and its **two comparison sites** — these keep resolving and silently return the wrong answer, so they are searched for, not waited for (007 FR-030a-ii). |
+| `cuems-editor` | `CuemsDBProject.{load_xml,save_xml}` → `CuemsScript.load/save`; `CuemsParser(data).parse()` → `CuemsScript.from_json(data)`; **`load()` must return `script.to_wire()`** so `project_load` stays byte-identical. ⬦ The node field list at `CuemsWsServer.py:425` and the `reload_network_map_nodes` reads follow the rename and the retyping (`node_role` is a `NodeRole`, `adopted`/`online` are `bool`, `uuid` is a `Uuid`). |
+| `cuems-nodeconf` | **Done in feature 007, not here.** `CuemsNode.py` and `NodeXmlBuilders.py` deleted, the four globals injections gone, `XmlReader`/`XmlWriter` retired. Listed to record that it left this table. |
+| `cuems-common` ⬦ | **New to this table.** The Avahi discovery surface still carries the retired vocabulary: the `node_type` TXT record in `etc/avahi/services/cuems.service` and `usr/share/cuems/cuems.service.{master,slave,firstrun}`. In the last two the retired word is in the **filename**, so the change reaches `debian/install` and anything resolving a template by name. Feature 007 inventoried these and deliberately did not edit them (its Assumption 10) — discovery is out of its scope, but they are not exempt. |
+| `cuems-common` ⬦ | **`postinst` ordering.** The network-map conversion and `dh_installsystemd`'s service restart both run in `postinst`, and their relative order decides whether a service reads the converted map or the old one. Feature 007 deferred this here (its FR-011d-ii) because the services doing the reading are the engine's and the editor's — settling it there would have fixed an ordering against consumers that had not migrated. |
 | `cuems-frontend` | **No change required.** Optional follow-up: drop the `=== true \|\| === 'True'` dual-check once `initial_template` aligns. |
+
+### 12.1 What feature 007 hands over
+
+Feature 007's `specs/007-node-model-migration/migration-guide.md` is the input to this feature, not
+background reading. It carries the moved-symbol table with an authorising-requirement column, the
+public import path (`cuemsutils.tools.NodeList` — and the warning that `cuemsutils.config` is
+internal), every changed name and type against its live call site, the release-ordering gate at
+node *and* cluster scope, the conversion's restore procedure, and the deliberate non-migrations.
+
+Two of its findings change how this feature is scoped:
+
+- **Semantically-wrong callers are a named class** (007 FR-030a-ii). A caller that stops resolving
+  fails loudly; one in this class keeps running and returns a wrong answer. Every repo entry above
+  contains at least one. They are found by search, not by a failing suite.
+- **Node model and its testing live in `cuems-utils` exclusively** (007 FR-030a-i). No consumer
+  repo re-implements or re-tests the node model. A node-model test appearing in a consumer during
+  this migration is a regression, not coverage.
 
 ---
 
@@ -446,7 +471,10 @@ Deleted: `XmlBuilder.py`, `Parsers.py`, `CMLCuemsConverter.py` (reduced into
 5. **Public surface** (`load/save/validate/from_json/to_wire`); old API deprecated.
 6. **Node model migration** (D11) — after `feat/nodeconf-reenable` lands.
 7. **Delete** the old machinery; `xml/` goes internal.
-8. **Consumer migration** (§12), coordinated bump.
+8. **Consumer migration** (§12), coordinated bump — and it is the **release gate for everything
+   before it**. Feature 007's schema rename is a hard cutover, so no repository in the ecosystem
+   ships between step 6 and step 8 (007 FR-030c), enforced by versioned `.deb` dependencies rather
+   than by instruction (007 FR-030d).
 
 Step 3's ordering is deliberate: **the chain test is written against today's behaviour
 first**, so it can prove the rebuild preserves it.
@@ -466,5 +494,13 @@ first**, so it can prove the rebuild preserves it.
 ## 15. Deferred (unchanged)
 
 X1 `BoolType` → `xs:boolean` (file-format migration, and the single change that would give
-the UI real JSON booleans), X5 `xs:all`, X2/X3/X4 dead and duplicate types, X9 `PutType`.
-All remain out of scope under D3.
+the UI real JSON booleans), X5 `xs:all`, X2/X3/X4 dead and duplicate types. These remain out of
+scope under D3.
+
+**X9 `PutType` is no longer deferred** — feature 007 resolved it, deleting the type from
+`network_map.xsd` along with its model class and registry binding (007 FR-029).
+`project_mappings.xsd`'s separate `PutType` is untouched. D3 was relaxed **once**, for
+`network_map.xsd` only, by recorded decision; it continues to bind the other five schemas, which is
+why the rest of this list stands. Feature 007 also set three precedents the schema evolution
+convention did not previously cover — renaming, constraining and deleting — each written up with
+the migration pattern it used.

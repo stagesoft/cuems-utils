@@ -458,6 +458,22 @@ are unchanged by the call while the returned selection is correct.
   schema. It MUST be implemented with the standard library only, because tools installed under
   `/usr/bin` cannot import `cuemsutils` (the shared-venv rule). Running it twice MUST be a
   no-op; running it on an already-converted or absent file MUST NOT fail the upgrade.
+  **Its ordering relative to the services that read the map at startup is feature 008's** — see
+  FR-011d-ii.
+- **FR-011d-i**: The conversion MUST emit **positive evidence that it ran and what it did** — how
+  many nodes were converted, and where the FR-011i backup was written — not only diagnostics on the
+  exceptional paths. Silence on success is indistinguishable from never having run, and an operator
+  debugging a cluster months later has no other way to tell "this file was already in the new
+  format" from "the conversion never reached this node". Each of the four outcomes — converted,
+  already converted, absent, refused — MUST be distinguishable from the others in that record.
+- **FR-011d-ii**: The ordering of the conversion **relative to the systemd services that read the
+  map at startup** is **deferred to feature 008** as part of the consumer migration, and MUST be
+  recorded in the migration guide as deferred rather than settled here. Both the conversion and
+  `dh_installsystemd`'s service restart run in `postinst`, so their relative order decides whether
+  a service reads the converted file or the old one — but the services that do the reading are
+  `cuems-engine`'s and `cuems-editor`'s, which this feature does not edit (FR-030). Settling it
+  here would fix an ordering against consumers that have not yet migrated. Feature 008 owns it
+  because it owns those readers.
 - **FR-011e**: The conversion MUST be exercised against every corpus network map and against an
   already-converted document, with the resulting file validated against the updated schema.
 - **FR-011h**: A role value the conversion does not recognise MUST cause it to **refuse the file
@@ -467,12 +483,24 @@ are unchanged by the call while the returned selection is correct.
   describes. The upgrade still succeeds (FR-011d), and the node then meets FR-011c's
   migration-naming failure at read, which is the loud outcome intended. This resolves the
   otherwise-undefined state where the conversion accepts a file the schema rejects.
+- **FR-011h-i**: The operator's path out of a refused file MUST be specified rather than left to
+  be inferred. Reading a map the conversion refused MUST **raise the corresponding named error** —
+  not a generic structural complaint — carrying the document, the node, the offending value, the
+  accepted values and the remedy: edit the value to an accepted one and re-run the conversion.
+  Where the offending value is a **recognisable legacy form** that the conversion would otherwise
+  have mapped, a **deprecation notice** MUST be emitted naming the replacement, so a value that is
+  merely old is distinguishable from one that is meaningless. A diagnostic that names the problem
+  without naming the action is half a diagnostic.
 - **FR-011i**: The conversion MUST write a **timestamped backup** of `/etc/cuems/network_map.xml`
   beside the original before modifying it, and the restore procedure MUST be documented where an
   operator will look. That file is the only record of node aliases and adoption state on a
   cluster; rewriting it in place with no recoverable prior version is a data-loss risk that no
   other requirement covers. Backups MUST NOT accumulate without bound — the requirement is a
-  recoverable prior version, not a history.
+  recoverable prior version, not a history. **Downgrade is not supported and MUST be stated as
+  unsupported**: installing a pre-rename `cuems-common` or `cuems-utils` over a converted file
+  leaves a document the older schema rejects, and the restore procedure this requirement mandates
+  is the only path back. No automatic reverse conversion is provided — a downgrade is an operator
+  action that restores the backup.
 - **FR-011f**: The three `cuems-common` tools that XPath on `node[node_type='NodeType.master']`
   — `cuems-write-chrony-source`, `cuems-log-collector-url` and `cuems-logs` — MUST be updated
   to the new element and vocabulary in the same coordinated release. They select the controller
@@ -481,6 +509,12 @@ are unchanged by the call while the returned selection is correct.
 - **FR-011g**: `cuems-engine`'s `CONTROLLER_NETWORK_FLAG = "NodeType.master"` and its two
   comparison sites, and `cuems-editor`'s node field list, MUST be accounted for in the
   migration guide with their new values. Those two repositories are not edited here (FR-030).
+  The guide MUST additionally record **`cuems-common`'s Avahi discovery surface** as feature 008
+  work — the `node_type` TXT record in `etc/avahi/services/cuems.service` and
+  `usr/share/cuems/cuems.service.{master,slave,firstrun}`, and the retired vocabulary in the last
+  three **filenames** — with the `debian/install` and template-resolution consequences of renaming
+  them. That repository *is* edited here, so this entry exists to state what is deliberately left
+  for 008 rather than overlooked, and it is what SC-004a's exclusion points at.
 - **FR-012**: Node values that the schema types as text MUST never be type-guessed on read. The
   guarded set is stated from `network_map.xsd`: `name`, `ip`, `mac`, `role_id`, `alias`,
   `hostname`. The role field leaves the guarded set because the schema now enumerates it — the
@@ -510,7 +544,12 @@ are unchanged by the call while the returned selection is correct.
   instances are `CuemsNodeDictXmlBuilder` and `cuems-nodeconf`'s `test_xml_roundtrip.py`;
   `CuemsNodeDictParser` was already removed by feature 006 and its absence must stay asserted.
   The definition is stated so the requirement can be *searched against* rather than satisfied by
-  the two names it happens to list — a search MUST be run and its result recorded.
+  the two names it happens to list — a search MUST be run and its result recorded. The search MUST
+  cover the **duplicate-named legacy modules** that survive in `cuemsutils/xml/`
+  (`Settings.py`/`settings.py`, `XmlReaderWriter.py`/`xml_reader_writer.py`,
+  `CMLCuemsConverter.py`/`converter.py`, `Parsers.py`, `XmlBuilder.py`), whose node-facing content
+  is otherwise unstated: the recorded result MUST say which of them hold node content and which
+  hold none, so "we looked" is distinguishable from "we did not think to look".
 - **FR-019**: The contract test that pins the 004 break MUST be updated to assert the repaired
   state rather than deleted, so the record of what was broken and when it was fixed survives.
 - **FR-020**: A search of `cuemsutils` and `cuems-nodeconf` for assignments into another
@@ -547,16 +586,19 @@ are unchanged by the call while the returned selection is correct.
   of this feature, with the regeneration shown as a reviewable diff whose every line is either
   the rename or the value mapping.
 - **FR-027**: Every node symbol moved MUST be accounted for: a table of source symbol → new home
-  → status (moved, replaced, deleted), with nothing unaccounted for. The source set is the symbol
-  inventory taken before any edit, so "complete" is measurable against a denominator rather than
-  asserted.
+  → status (moved, replaced, deleted) → **the requirement that authorises it**, with nothing
+  unaccounted for. The source set is the symbol inventory taken before any edit, so "complete" is
+  measurable against a denominator rather than asserted. The authorising-requirement column is what
+  makes each row traceable to a decision rather than to the plan alone: a symbol whose movement no
+  requirement authorises is a finding, not a row.
 - **FR-027a**: The migration guide's required contents MUST be enumerated in **one** place, and
   the requirements that feed it MUST reference that enumeration rather than each restating an
   obligation. The guide MUST contain: the moved-symbol table (FR-027); the public import path
   and the internal-module warning (FR-007); the changed names and types against their consumer
-  call sites (FR-023); what `cuems-engine` and `cuems-editor` must change in feature 008
-  (FR-028, FR-011g); the release-ordering gate (FR-030c); the restore procedure (FR-011i); and
-  the deliberate non-migrations, each with its reason.
+  call sites (FR-023); what **feature 008** must change — `cuems-engine`, `cuems-editor` and
+  `cuems-common`'s Avahi discovery surface (FR-028, FR-011g); the release-ordering gate, at node
+  *and* cluster scope (FR-030c); the restore procedure and the unsupported downgrade (FR-011i);
+  SC-004a's named exclusion list; and the deliberate non-migrations, each with its reason.
 - **FR-028**: The guide MUST record what `cuems-engine` and `cuems-editor` must change in feature
   008 as a consequence of nodes becoming objects and the role field being renamed, verified
   against the live call sites rather than transcribed from the planning documents.
@@ -577,14 +619,40 @@ are unchanged by the call while the returned selection is correct.
   `feat/nodeconf-reenable` at commit `0a3ce37ab8dd33501c4817fa57fd8e390732967d`, never on
   `main` directly and never by amending that branch. Merging it to `main` is not this feature's
   exit; the exit is a branch that is complete, green and documented.
-- **FR-030b**: `cuems-common` modifications MUST land on their own branch and MUST cover the
+- **FR-030a-i**: The `cuems-nodeconf` caller inventory (FR-027's denominator) is scoped to
+  **`cuemsnodeconf/` — the package directory — deliberately, and the repository root and `tests/`
+  are excluded by decision, not by oversight.** That code is partially implemented and nowhere near
+  the integration maturity of the other repositories, so inventorying it would measure completeness
+  against a moving target. The consequence is stated rather than implied: **the migrated node
+  standard and its full testing live in `cuems-utils` exclusively.** `cuems-nodeconf` keeps no node
+  model tests of its own — this is why T066 and T078 delete rather than relocate, and why the
+  106-case regression suite ports upstream instead of being duplicated. A node-model test added to
+  `cuems-nodeconf` after this feature is a regression against this requirement.
+- **FR-030a-ii**: Callers that **continue to resolve but become semantically wrong** are a named
+  class and MUST be accounted for separately from callers that stop resolving. A caller that stops
+  resolving fails loudly at import or attribute access; one in this class keeps running and returns
+  the wrong answer. The known members are the `node_type` normalisation in
+  `CuemsNodeConf.read_network_map` (normalising a spelling that no longer exists), the role enum
+  comparisons that would compare against a retired vocabulary, and `cuems-engine`'s
+  `CONTROLLER_NETWORK_FLAG` string comparison. The migration guide MUST list this class explicitly,
+  and the inventory MUST be searched for it rather than relying on a failing import to surface it —
+  nothing fails when this class is missed.
+- **FR-030b**: `cuems-common` modifications MUST land on a new branch created from `rc_1` at
+  commit `0be3506f22de6ea2dd6d20fbd211febe7b26c710`, stated to the same precision as FR-030a's
+  `cuems-nodeconf` branch point so both are checkable at review rather than one being exact and
+  the other being "their own branch". The branch MUST cover the
   mirrored `etc/cuems/network_map.xsd`, the shipped default `etc/cuems/network_map.xml`, the
   upgrade conversion (FR-011d), the three tools (FR-011f), and the documentation that states
   the field contract — `docs/node-identity-contract.md`, `CLAUDE.md` and `README.md` all
   currently document `node_type` and the `NodeType.master` spelling as the contract.
 - **FR-030c**: No release of any of the three repositories may ship before feature 008 lands
   the reader migration. The hard cutover has no partially-deployed state that works, and the
-  release ordering MUST be stated in the migration guide as a gate, not as advice.
+  release ordering MUST be stated in the migration guide as a gate, not as advice. The gate MUST
+  also cover the **cluster**, not only the node: FR-030d enforces package ordering *within* one
+  machine, but a staged rollout that upgrades the controller and leaves a node behind produces two
+  machines whose maps disagree on the vocabulary. The guide MUST state whether a staged rollout is
+  supported and, if it is not, say that the cluster upgrades as a unit — a per-node guarantee is
+  not a per-cluster one, and nothing else in this feature says so.
 - **FR-030d**: The ordering MUST additionally be **enforced by versioned package dependencies**
   between the `.deb` packages, not by documentation alone. On a single node `dpkg` is free to
   upgrade `cuems-utils` before `cuems-common`, which produces exactly the partially-deployed
@@ -652,6 +720,12 @@ are unchanged by the call while the returned selection is correct.
   appears in zero written documents, proven by round-trip against the corpus.
 - **SC-004a**: Zero occurrences of `node_type` or the `NodeType.` prefix remain across the three
   edited repositories' code, schemas, shipped files and documentation — counted, not reviewed.
+  **The count excludes the Avahi discovery surface**, which Assumption 10 scopes out of this
+  feature and assigns to feature 008: `cuems-common`'s `etc/avahi/services/cuems.service` and
+  `usr/share/cuems/cuems.service.{master,slave,firstrun}`. That exclusion is a named file list, not
+  a tolerance — the count is exact over everything else, and the excluded files are enumerated in
+  the migration guide as feature 008's work (FR-011g). Without this exemption the criterion
+  contradicts Assumption 10 and cannot be met.
 - **SC-004b**: A legacy `network_map.xml` converts idempotently: converting twice produces the
   same bytes as converting once, and the result validates against the updated schema.
 - **SC-005**: All 106 ported coercion cases pass against `cuemsutils`'s own read path, with no
@@ -715,10 +789,16 @@ are unchanged by the call while the returned selection is correct.
 9. **The role vocabulary maps to today's values as** `master` → `controller`, `slave` → `node`,
    `firstrun` → `firstrun`. `firstrun` keeps its name because it names a lifecycle state, not a
    cluster role, and nothing in the controller/node standardization displaces it.
-10. **`cuems-common`'s Avahi service templates are a separate surface.** They carry a
-    `node_type` TXT record used by discovery, not by the XML document. Discovery is out of scope
-    (FR-032), so those templates are inventoried and left alone unless the inventory shows they
-    read the XML — in which case they fall under FR-011f.
+10. **`cuems-common`'s Avahi service templates are a separate surface, and they change in feature
+    008.** They carry a `node_type` TXT record used by discovery, not by the XML document.
+    Discovery is out of scope here (FR-032), so this feature **inventories them and does not edit
+    them** — but they are *not* permanently exempt: they carry the retired vocabulary and must
+    follow it. Four files are affected — `etc/avahi/services/cuems.service` and
+    `usr/share/cuems/cuems.service.{master,slave,firstrun}` — and in the last three the retired
+    vocabulary is in the **filename** as well as the contents, so the change reaches
+    `debian/install` and anything that resolves a template by name. They are recorded as feature
+    008's work (FR-011g) and excluded from SC-004a's count. If the inventory shows any of them
+    reads the XML document, it falls under FR-011f and is changed here instead.
 
 ---
 
@@ -741,7 +821,9 @@ are unchanged by the call while the returned selection is correct.
 - **Avahi/mDNS discovery, adoption logic, role election, systemd orchestration, the
   config-serving protocol** — these stay in `cuems-nodeconf` (FR-032).
 - **The `node_type` TXT record in the Avahi service templates** — a discovery surface, not the
-  XML document. Inventoried, not changed (Assumption 10).
+  XML document. Inventoried here, **changed in feature 008** (Assumption 10, FR-011g). Four files,
+  three of which also carry the retired vocabulary in their filenames. Out of scope for this
+  feature is not the same as exempt, which is why they are named rather than waved at.
 - **Editing `cuems-engine` or `cuems-editor`** — feature 008 (FR-030).
 - **The five other `.xsd` files.** Only `network_map.xsd` is edited; D3 binds the rest
   unchanged (FR-010a).

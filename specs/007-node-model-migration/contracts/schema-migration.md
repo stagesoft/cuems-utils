@@ -68,6 +68,19 @@ exist nowhere else on the cluster.
 indentation, the `cms:` prefix and `xsi:schemaLocation`. This is why the implementation is a
 textual rewrite and not an ElementTree round trip (research R8).
 
+**Asserted — positive evidence** (FR-011d-i): a successful run records how many nodes it converted
+and where the backup went. All four outcomes are distinguishable in that record:
+
+| Outcome | Recorded as |
+|---|---|
+| converted | node count + backup path |
+| already converted | explicitly, not silence |
+| absent | explicitly |
+| refused | the FR-011h diagnostic |
+
+Silence on success would leave an operator unable to tell "already in the new format" from "the
+conversion never reached this node".
+
 **Asserted — validity**: the converted corpus documents validate against the updated schema.
 
 **Asserted — no import of `cuemsutils`**: the script runs from `/usr/bin` where the shared venv is
@@ -75,7 +88,9 @@ not importable.
 
 **Packaging obligations**:
 
-- Runs in `postinst`, after dpkg has resolved the conffile.
+- Runs in `postinst`, after dpkg has resolved the conffile. **Its ordering against
+  `dh_installsystemd`'s service restart — which runs in the same `postinst` — is deferred to
+  feature 008** (FR-011d-ii): the services that read the map are the ones 008 migrates.
 - Handles a `.dpkg-new` / `.dpkg-dist` sibling left by a conffile prompt — `/etc/cuems/network_map.xml`
   is a conffile that `cuems-nodeconf` rewrites on every adoption, so on a live node it is always
   locally modified.
@@ -98,14 +113,28 @@ Three tools select the controller by XPath on the old element and must move toge
 
 **Asserted**: all three resolve the controller's IP from a converted map, and zero occurrences of
 `node_type` or the `NodeType.` prefix remain in `cuems-common` source, shipped files or
-documentation (SC-004a).
+documentation (SC-004a) — **excluding the four Avahi discovery files named below**, which SC-004a
+exempts by name.
 
 **Also in scope**: `docs/node-identity-contract.md`, `CLAUDE.md` and `README.md` document
 `node_type` and the `NodeType.master` spelling as *the contract*. They are the ecosystem's
 reference for this field and are updated in the same branch.
 
-**Out of scope**: the Avahi service templates' `node_type` TXT record. That is a discovery
-surface, not the XML document (spec Assumption 10). Inventoried, not changed.
+**Deferred to feature 008, not exempt**: the Avahi service templates' `node_type` TXT record. That
+is a discovery surface, not the XML document (spec Assumption 10), so this feature inventories it
+and does not edit it — but it carries the retired vocabulary and must follow it.
+
+| File | Carries |
+|---|---|
+| `etc/avahi/services/cuems.service` | `node_type` TXT record |
+| `usr/share/cuems/cuems.service.master` | TXT record **and** the retired word in its filename |
+| `usr/share/cuems/cuems.service.slave` | TXT record **and** the retired word in its filename |
+| `usr/share/cuems/cuems.service.firstrun` | TXT record |
+
+**Asserted**: these four are named in the migration guide as feature 008's work, with the
+`debian/install` and template-resolution consequences of the filename change (FR-011g), and they
+are the exact set SC-004a's count excludes. Naming them is what keeps "deferred" distinguishable
+from "missed".
 
 ---
 
