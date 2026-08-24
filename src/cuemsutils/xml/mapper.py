@@ -954,6 +954,21 @@ def build_document(
 
     ``xsd_path`` stays in the signature because it is where the filename comes
     from; only the part written into the document narrows.
+
+    **Two document shapes, and which one a schema has is read off the
+    registry rather than assumed** (feature 007, first exercised by
+    ``network_map``). ``script.xsd``'s root (``CuemsProject``) is bound to
+    ``GENERIC`` — the object that matters (``CuemsScript``) is a **named
+    child** of it, so ``encode_xml`` creates that child as its own
+    ``<CuemsScript>`` element. ``network_map.xsd``'s root
+    (``CuemsNetworkMap``) has no such nested body element at all —
+    ``<node_list>`` is a **direct** child of the root — and its registry
+    binding says so: the root path is bound to ``CuemsNetworkMapType``
+    itself, not to ``GENERIC``. Wrapping ``project_object`` in a synthetic
+    ``<CuemsNetworkMapType>`` child (what the ``script`` logic would do,
+    unmodified) would emit an element the schema does not declare. When the
+    root is bound to the object's own class, the object *is* the root's
+    content, so it is filled directly into ``root`` instead.
     """
     namespace_uri = next(iter(namespace.values()))
     register_namespace(next(iter(namespace)), namespace_uri)
@@ -966,9 +981,13 @@ def build_document(
     }
 
     mapper = Mapper(schema_name)
-    body_tag = type(project_object).__name__
-    spec = _body_spec(schema_name, body_tag)
-    mapper.encode_xml(project_object, spec, root, body_tag)
+    root_binding = mapper.registry.binding_for_path(mapper.registry.root)
+    if root_binding is not None and root_binding.model is type(project_object):
+        mapper._fill(root, project_object, derive(root_binding.key))
+    else:
+        body_tag = type(project_object).__name__
+        spec = _body_spec(schema_name, body_tag)
+        mapper.encode_xml(project_object, spec, root, body_tag)
 
     # Element construction and per-cue work stay below INFO (FR-033): this is
     # one record per document built, not one per cue.

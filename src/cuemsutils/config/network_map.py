@@ -115,3 +115,38 @@ class CuemsNetworkMapType(ConfigDict):
     """
 
     DECLARED_DEFAULTS = {"node_list": Unset}
+
+    def save(self, path) -> None:
+        """Validate, **then** write (research R6, contract C5).
+
+        Mirrors ``CuemsScript.save`` — the write path's single entry point
+        (``documents.build_tree``/``write_tree``) is schema-generic and needed
+        no config-specific machinery, only a caller. Config has one validation
+        tier: ``network_map.xsd`` declares no ``xs:assert`` (T2 semantic
+        rules are a ``script.xsd`` concept), so this checks T1 only and raises
+        on the first structural violation — a role value outside the
+        enumeration is exactly that (FR-014).
+
+        Does not mutate ``self``: ``build_tree`` reads declared fields through
+        the adapters' ``to_lexical``/``to_wire``, never writing back into the
+        object (FR-015) — the workaround ``cuems-nodeconf`` built (a separate
+        serialization copy, because its old write path *did* mutate) has
+        nothing left to work around.
+
+        Args:
+            path (str | os.PathLike): where to write.
+
+        Raises:
+            SchemaError: the document does not match ``network_map.xsd`` —
+                carries the violation (FR-034b).
+            OSError: propagated unwrapped, exactly as ``CuemsScript.save``.
+        """
+        from ..errors import SchemaError
+        from ..xml.documents import build_tree, iter_schema_errors, write_tree
+        from ..xml.validators import violation_from_schema_error
+
+        tree = build_tree(self, "network_map")
+        for error in iter_schema_errors("network_map", tree):
+            violation = violation_from_schema_error(error)
+            raise SchemaError(str(violation), violation=violation)
+        write_tree(tree, path)

@@ -243,6 +243,26 @@ class ConfigManager(ConfigBase):
         self.network_map = netmap.get_dict()
         self.node_network_map = netmap
 
+    def save_network_map(self, path: str | None = None) -> None:
+        """Write the current ``network_map`` back to disk (research R6).
+
+        A thin façade over :meth:`cuemsutils.config.network_map.CuemsNetworkMapType.save`
+        — validates (T1), then writes atomically. ``path`` defaults to this
+        instance's own ``network_map.xml``, so the common case
+        (``manager.save_network_map()``) writes back where :meth:`load_network_map`
+        read from.
+
+        Args:
+            path (str | None): where to write. Defaults to
+                ``self.conf_path('network_map.xml')``.
+
+        Raises:
+            SchemaError: the in-memory map does not match ``network_map.xsd``
+                — a role value outside the enumeration, most commonly.
+            AttributeError: before :meth:`load_network_map` has run.
+        """
+        self.network_map.save(path or self.conf_path('network_map.xml'))
+
     def load_net_and_node_mappings(self):
         """
         Loads the network and node mappings.
