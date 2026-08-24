@@ -6,6 +6,7 @@ from typing import Any
 
 from ..helpers import strtobool
 from ..log import Logger
+from ._deprecation import deprecated_symbol
 from .mapper import Mapper, read_config_document
 from .validators import validate_custom_templates
 from .xml_reader_writer import XmlReaderWriter
@@ -149,7 +150,18 @@ class NetworkMap(Settings):
         return out
 
     @staticmethod
+    @deprecated_symbol(
+        f"{__name__}.NetworkMap.partition_by_adoption",
+        note=(
+            "the replacement returns node objects, not {'node': ...}-wrapped "
+            "dicts, and does not mutate its argument"
+        ),
+    )
     def get_nodes_by_adoption(network_map_dict: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Deprecated (T083) — mutates its argument in place (FR-015's
+        opposite), kept working until feature 008 migrates its
+        ``cuems-engine`` caller (Assumption 8). See
+        :meth:`partition_by_adoption` for the non-mutating replacement."""
         nodes = []
         new_nodes = []
 
@@ -175,6 +187,49 @@ class NetworkMap(Settings):
                     new_nodes.append(node_item)
 
         return nodes, new_nodes
+
+    @staticmethod
+    def partition_by_adoption(network_map) -> tuple[tuple, tuple]:
+        """Split a network map's nodes into ``(adopted, unadopted)`` (research R7, contract C6).
+
+        The non-mutating replacement for :meth:`get_nodes_by_adoption`
+        (Assumption 8 keeps that one available until feature 008 migrates its
+        caller). Every node value in ``network_map`` is unchanged, field by
+        field, before and after this call — it only reads ``adopted``,
+        through the same tolerant :func:`_as_bool` conversion (a caller may
+        still hold the pre-typing string shape), and never writes back.
+
+        Args:
+            network_map: a ``CuemsNetworkMapType`` (or a plain dict of the
+                same shape) — whatever :attr:`ConfigManager.network_map`
+                or :meth:`get_dict` returns.
+
+        Returns:
+            tuple[tuple[node, ...], tuple[node, ...]]: adopted nodes, then
+            unadopted — bare node objects, not ``{"node": ...}`` wrappers
+            (unlike the deprecated method, whose shape this does not carry
+            across).
+
+        Raises:
+            ValueError: no network map, or no node list, exactly as
+                :meth:`get_nodes_by_adoption`.
+        """
+        if not network_map:
+            raise ValueError('No network map dictionary found')
+        node_list = network_map.get('node_list', [])
+        if not node_list:
+            raise ValueError('No node list found in network map dictionary')
+
+        adopted = []
+        unadopted = []
+        for node_item in node_list:
+            candidate = node_item.get('node')
+            if candidate is None:
+                continue
+            is_adopted = _as_bool(candidate.get('adopted', False))
+            (adopted if is_adopted else unadopted).append(candidate)
+
+        return tuple(adopted), tuple(unadopted)
 
 class ProjectMappings(Settings):
     """
