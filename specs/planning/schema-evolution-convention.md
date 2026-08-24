@@ -140,6 +140,57 @@ made here.
 
 ---
 
+## The precedent: feature 007 — rule 4, exercised three ways
+
+X13 is a rule-1 *violation*, corrected on paper but not in the schema. Feature 007 is the first
+change actually governed by **rule 4** ("anything else is a versioned file-format migration, with a
+conversion path") — and it needed three different shapes of that rule in one schema edit to
+`network_map.xsd`, each with its own migration pattern. Recorded so the next rule-4 change has
+three worked examples instead of one abstract rule.
+
+### Renaming: `<node_type>` → `<node_role>`
+
+An element rename is invisible to `minOccurs`/defaulting — rules 1 and 2 have nothing to say about
+it, because the document either has the old name or the new one; there is no "optional old spelling"
+a schema can express. The migration pattern:
+
+1. **A version marker that lets a reader tell old from new** — the element's own presence. A
+   document with `<node_type>` is unambiguously pre-migration; one with `<node_role>` is
+   post-migration. No separate version field was needed because the two names cannot coexist under
+   `xs:sequence` validation (`Unexpected child with tag 'node_type'... Tag 'node_role' expected`).
+2. **A conversion that runs on read, or a documented tool that runs once** — the latter:
+   `cuems-migrate-network-map` (a stdlib textual rewrite, T013), run from `postinst` before anything
+   reads the file. Not "on read", because the conversion also has to touch the schema-declared
+   *value* (see "constraining" below) and a read-time conversion would leave the on-disk file
+   permanently stale.
+3. **A release note naming what has to be converted and when the old form stops being accepted** —
+   `migration-guide.md` §7's release gate: the old form is never accepted after `cuems-common` ships
+   (`ConfigBase.load_config_document` raises `SchemaError` naming the migration, contract C8), and
+   nothing releases before feature 008 migrates the readers.
+
+### Constraining: `<node_type>` free text → `<node_role>` a real enumeration
+
+Retyping an element from `cms:NonEmptyString` to a restricted `xs:enumeration` is a **narrowing**
+change by definition — every value a free-text field could hold that is not one of the enumerated
+options becomes invalid. This cannot be made backward-compatible by `minOccurs="0"` (the element is
+required either way) or by a model default (there is no default that makes an *invalid stored value*
+become valid). The migration pattern here is entirely in the conversion tool: `master`/`slave`/
+`firstrun` (and their `NodeType.`-prefixed enum-repr spellings) map to `controller`/`node`/
+`firstrun`; anything else is **refused whole** rather than silently dropped or defaulted (FR-011h) —
+because inventing a default for an unrecognised value would be guessing at operator intent, which a
+migration tool must not do.
+
+### Deleting: `PutType` (schema item X9)
+
+The only one of the three with **no** conversion path, because none was needed: `PutType` was
+declared in `network_map.xsd` and referenced by no element in it (confirmed via the registry's own
+totality check, which would have raised `RegistryIncompleteError` had anything still pointed at it).
+Deleting an unreferenced type invalidates nothing, because no valid document could have depended on
+it. Recorded as its own case because "deleting a schema item is safe" is not generally true — it is
+true here specifically *because* the type was unreferenced, and that had to be verified, not assumed.
+
+---
+
 ## How this is enforced
 
 It is not, mechanically, and saying so is better than implying otherwise.

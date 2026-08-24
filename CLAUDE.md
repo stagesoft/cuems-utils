@@ -9,7 +9,7 @@ Shared Python library (`cuemsutils` on PyPI) used by the engine, editor, and oth
 ## Submodules
 
 - **`cues/`** — Cue object model: `Cue`, `CueList`, `CuemsScript`, `AudioCue`, `VideoCue`, `DmxCue`, `ActionCue` + output classes. Dictionary-backed objects with `@property` descriptors.
-- **`xml/`** — XML serialization (`XmlReaderWriter`, `XmlBuilder`, `Parsers`), XSD schema validation, settings/config file classes. Namespace `xmlns:cms="https://stagelab.coop/cuems/"`. Also ships the node-identity schema `src/cuemsutils/xml/schemas/network_map.xsd` (mirrored to `/etc/cuems/network_map.xsd` by cuems-common) — the `NodeType.master|slave` enum and identity fields live here; renaming them is an XSD migration that bumps every `cuemsutils.xml` consumer. See the cuems-common CLAUDE.md for the node-identity field contract.
+- **`xml/`** — XML serialization (`XmlReaderWriter`, `XmlBuilder`, `Parsers`), XSD schema validation, settings/config file classes. Namespace `xmlns:cms="https://stagelab.coop/cuems/"`. Also ships the node-identity schema `src/cuemsutils/xml/schemas/network_map.xsd` (mirrored to `/etc/cuems/network_map.xsd` by cuems-common) — the node's role lives in `<node_role>`, typed `cms:NodeRoleType` (`controller`/`node`/`firstrun`; renamed from the free-text `<node_type>` carrying `NodeType.master`/`NodeType.slave` in `007-node-model-migration`), plus the identity fields. The typed Python enum is `cuemsutils.tools.NodeList.NodeRole`; renaming the schema element again is an XSD migration that bumps every `cuemsutils.xml`/`cuemsutils.tools.NodeList` consumer. See the cuems-common CLAUDE.md for the node-identity field contract — **not yet updated for the rename** as of `007-node-model-migration`'s landing (that repository's phase was descoped from this pass; see `specs/007-node-model-migration/migration-guide.md`).
 - **`tools/`** — `ConfigManager` (system config), `HubServices` (NNG bus / req-rep messaging), `SignalEngine` (systemd lifecycle), `CTimecode` (SMPTE timecode; `milliseconds_exact` is wrap-accumulated / 24h-safe).
 
 ## Build
@@ -75,6 +75,40 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   measurement context and the per-operation numbers.
 
 ## Recent Changes
+
+- `007-node-model-migration` (**landed in `cuems-utils` only**, 2026-08-24 — see below): the node
+  object model moves in from `cuems-nodeconf`, and `network_map.xsd`'s `<node_type>` (free text,
+  `NodeType.master`/`NodeType.slave`) is renamed `<node_role>`, typed `cms:NodeRoleType`
+  (`controller`/`node`/`firstrun`). `<uuid>` is typed `cms:UuidType`. `PutType` (unreferenced,
+  schema item X9) is deleted from the schema, model and registry.
+  - **Scope, stated because it changed mid-feature**: the plan covered three repositories
+    (`cuems-utils`, `cuems-nodeconf`, `cuems-common`); only `cuems-utils`'s phases (schema, typed
+    model, write path, coercion guard, non-mutating adoption selection) landed this pass.
+    `cuems-nodeconf`'s source deletion and `cuems-common`'s conversion/mirror/tooling are **not
+    started** — `specs/007-node-model-migration/migration-guide.md` states this per section rather
+    than only here, including the release gate's actual (undelivered) enforcement status.
+  - **The single-schema typing exception**: `network_map` is now the one config schema whose decode
+    runs the adapter table (`SchemaRegistry.runs_adapter_table`, research R1) — `node_role` decodes
+    to a `NodeRole` enum, `adopted`/`online` to `bool`, `uuid` to `Uuid`. `settings`,
+    `project_mappings` and `project_settings` are untouched and still decode every scalar as text,
+    proven by golden comparison (SC-010a) rather than assumed.
+  - **D3 relaxed exactly once, by recorded decision**: "wire-compatible with every XML on disk; no
+    `.xsd` edits" continues to bind five schemas; `network_map.xsd` is the lifted exception, settled
+    by this feature's clarification session (plan.md's "Standing decisions" section).
+  - `cuemsutils.tools.NodeList` is new and public — `NodeRole`, `NodeIndex`, and a re-export of
+    `node` — the only public path to the node model (`cuemsutils.config` exports nothing, joining
+    `cuemsutils.xml` on the internal side).
+  - `CuemsNetworkMapType.save()` / `ConfigManager.save_network_map()` are `network_map`'s first
+    first-party write path — it had none before. Building it surfaced a real bug in
+    `documents.build_document`, never triggered because `script.xsd` was the only schema anything
+    had written through: a document root bound to the object's own class (network_map's shape) must
+    be filled directly, not wrapped in a synthetic child element the way a `GENERIC`-bound root
+    (script's shape) needs to be.
+  - Feature 004's declared break (FR-026d — `cuems-nodeconf`'s namespace-injected node handlers
+    silently stop being consulted) is closed in this repository: the write path now exists for an
+    injection to be provably ignored *by*, where before nothing wrote nodes either way.
+  - Suite: 2393 passed / 94 skipped / 2 xfailed, 24.79 ms/test — under the ≤110%-of-006 budget.
+    `network_map` load: 10.08 ms, under the ≤110% budget. See `baseline.md`.
 
 - `006-public-object-api` (**landed** 2026-08-20): one public surface. `CuemsScript` gains
   `load`/`save`/`validate`/`from_json`/`to_json`/`to_wire`; `ConfigManager`/`ConfigBase`
