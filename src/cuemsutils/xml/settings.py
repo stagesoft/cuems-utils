@@ -109,6 +109,18 @@ class Settings(XmlReaderWriter):
     # second, shape-guessing builder beside it is precisely the duplication
     # 004 and 006 exist to remove.
 
+def _as_bool(val: Any) -> bool:
+    """``val`` as itself if already ``bool``, else through ``strtobool`` (R7).
+
+    ``get_nodes_by_adoption`` predates ``network_map`` running the adapter
+    table and was written against the ``"True"``/``"False"`` strings
+    ``cms:BoolType`` decodes to. It stays callable with either shape rather
+    than only the new one, because Assumption 8 keeps this method available
+    until feature 008 migrates its caller.
+    """
+    return val if isinstance(val, bool) else strtobool(val)
+
+
 class NetworkMap(Settings):
     """
     NetworkMap class that extends Settings to handle network map operations.
@@ -148,9 +160,13 @@ class NetworkMap(Settings):
             raise ValueError('No node list found in network map dictionary')
         for node_item in node_list:
             if 'node' in node_item:
-                # Convert boolean strings directly in the node_item structure
-                node_item['node']['online'] = strtobool(node_item['node'].get('online', 'False'))
-                node_item['node']['adopted'] = strtobool(node_item['node'].get('adopted', 'False'))
+                # ``network_map``'s adapter table (this feature, R1) now
+                # decodes ``adopted``/``online`` as ``bool`` — so a caller may
+                # hand this method either the pre-typing strings or the typed
+                # values directly. ``strtobool`` only accepts ``str`` (research
+                # R7); a ``bool`` is already the answer.
+                node_item['node']['online'] = _as_bool(node_item['node'].get('online', 'False'))
+                node_item['node']['adopted'] = _as_bool(node_item['node'].get('adopted', 'False'))
 
                 # Append the node_item directly (it already has the wrapper structure)
                 if node_item['node']['adopted']:
