@@ -55,4 +55,12 @@ docstring for the symmetry with ``decode``.
 
 from .base import ConfigDict
 
-__all__ = ["ConfigDict"]
+#: Empty, joining ``cuemsutils.xml`` on the internal side of Q14->(i) — this
+#: package is internal machinery, not a second public model surface
+#: (feature 007, research R10a, contract C10). ``ConfigDict`` and every
+#: schema-bound container stay reachable by dotted import (this module's own
+#: tests use ``from cuemsutils.config import ConfigDict``), exactly as the
+#: retired ``cuemsutils.xml`` entry points do; nothing here is a supported
+#: public path. The one class a consumer is meant to name — ``node`` — is
+#: re-exported from ``cuemsutils.tools.NodeList`` instead.
+__all__: list[str] = []

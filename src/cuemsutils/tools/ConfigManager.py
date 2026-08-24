@@ -142,11 +142,15 @@ class ConfigManager(ConfigBase):
         """**This** node's entry in the network map, resolved by uuid.
 
         Returns:
-            cuemsutils.config.network_map.node: identity fields for this node.
-            ``adopted`` and ``online`` are the **strings** ``"True"``/``"False"``
-            — ``cms:BoolType`` is an ``xs:string`` enum, ``get_nodes_by_adoption``
-            calls ``strtobool`` on them, and retyping them would be a silent
-            cross-repository change (see ``config/base.py``).
+            cuemsutils.config.network_map.node: identity fields for this node
+            (also reachable as ``cuemsutils.tools.NodeList.node``, its public
+            path). ``network_map`` is the one config schema that runs the
+            adapter table (feature 007, research R1): ``node_role`` is a
+            ``NodeRole``, ``adopted``/``online`` are ``bool``, and ``uuid`` is
+            a ``Uuid`` (or raw text if unparseable). The other three config
+            schemas' ``cms:BoolType`` fields still decode as the strings
+            ``"True"``/``"False"`` — that exception is per schema, declared on
+            the registry, not a package-wide rule (see ``config/base.py``).
 
         Raises:
             AttributeError: before :meth:`load_network_map` has run.
