@@ -91,21 +91,6 @@ class node_list(ConfigDict):  # noqa: N801 - the element's name
     DECLARED_DEFAULTS = {"node": Unset}
 
 
-class PutType(ConfigDict):
-    """Declared in ``network_map.xsd`` and referenced by no element.
-
-    Distinct from ``project_mappings.xsd``'s ``PutType`` — different field set
-    (no ``id``), different schema, therefore a different class. Registries are
-    per schema (research R4) and a class bound in two of them makes its
-    coercion table ambiguous by construction.
-    """
-
-    DECLARED_DEFAULTS = {
-        "name": Unset,
-        "mappings": Unset,
-    }
-
-
 class CuemsNetworkMapType(ConfigDict):
     """The document root — what ``ConfigManager.network_map`` holds.
 

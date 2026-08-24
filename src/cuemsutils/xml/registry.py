@@ -315,7 +315,6 @@ def _config_models(schema_name: str) -> tuple[dict[str, type], dict[str, type]]:
             {
                 "NodeDictType": nm.node_list,
                 "NodeType": nm.node,
-                "PutType": nm.PutType,
             },
             {"CuemsNetworkMap": nm.CuemsNetworkMapType},
         )
