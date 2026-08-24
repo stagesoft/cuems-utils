@@ -526,6 +526,7 @@ WHAT MUST BE TRUE WHEN DONE:
   longer injects handler classes into cuemsutils module globals, because the node handlers
   now live in cuemsutils and are bound in the registry like every other type. Feature 004's
   migration-map.md entry for FR-026d specifies what was broken; this feature closes it.
+- cuems-nodeconf modifications land in a new branch starting at feat/nodeconf-reenable (commit 0a3ce37ab8dd33501c4817fa57fd8e390732967d)
 
 DO NOT CHANGE the node_type wire format. It is currently the string "NodeType.<name>",
 which originated as a str()/__repr__ mixup but is now a cross-repo contract with
@@ -551,8 +552,7 @@ Technical context:
   Do not read them from main; main predates that fix.
 - NodeType is currently defined twice inside cuems-nodeconf (CuemsNode.py and
   AvahiTool.py). Consolidate to one definition here.
-- network_map.xsd types node_type as NonEmptyString, so the enum vocabulary is not in the
-  schema. Record that as a deferred schema item; do not change the XSD now.
+- network_map.xsd types node_type as NonEmptyString, change the XSD so it aligns with node_role as NodeRoleType.
 - Provide a non-mutating replacement for get_nodes_by_adoption, which cuems-engine
   currently works around because it mutates its input.
 
@@ -576,7 +576,7 @@ format proven unchanged by round-trip test.
 ```
 
 **Exit criteria:** node model in `cuemsutils`; `network_map` round-trips through the
-derived engine; `node_type` wire format proven unchanged; coercion regression test ported;
+derived engine; `node_type` wire format proven changed; coercion regression test ported;
 **feature 004's FR-026d breaking change closed** — no module-globals injection remains and
 node serialization works again; and `feat/nodeconf-reenable` merged to `cuems-nodeconf`'s
 `main` **as part of this feature**, since by then nothing in it depends on the removed
