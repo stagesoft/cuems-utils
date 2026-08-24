@@ -30,8 +30,13 @@ exactly once.
 
 ```bash
 pyenv exec python -m tests.support.capture_goldens          # never with --force at this point
-hatch test --show 2>&1 | tail -5                            # the pre-feature suite figure
+hatch test 2>&1 | tail -5                                   # the pre-feature suite figure
 ```
+
+**`capture_goldens` reports conflicts even here, on an unmodified tree** — a pre-existing,
+non-deterministic anomaly in the deprecated package-root read path it uses, unrelated to this
+feature. See `baseline.md`'s "a pre-existing, unrelated anomaly" section before assuming a
+conflict means something broke; the actual gate is `hatch test`, which is clean.
 
 Record in `baseline.md`: pass/skip/xfail counts, wall time, per-test milliseconds, and the
 network-map load timing.
@@ -59,6 +64,12 @@ print('injected:', hasattr(B, 'nodeXmlBuilder'))
 print('consulted: ', 'no — the registry resolves the type')
 "
 ```
+
+**Measured, and more severe than the above anticipates**: this actually raises `ImportError:
+cannot import name 'GenericParser' from 'cuemsutils.xml.Parsers'` — `NodeXmlBuilders.py` cannot
+even be imported against current `cuemsutils`, because feature 006 removed the frozen legacy
+parser tree the four `setattr` injections target. The break is real either way; see `baseline.md`'s
+"FR-026d break, demonstrated" section for the full transcript.
 
 ---
 
@@ -104,33 +115,49 @@ cm.project_mappings
 
 ## 4. Write a map, and diff it
 
+**T015 converts the corpus** (`tests/data/network_map.xml` included) as part of Phase 2, so by the
+time this feature is landed `tests/data/network_map.xml` is *already* in `<node_role>` form — a
+`diff` against it is empty (that's the round trip being byte-identical, which C4 also asserts, just
+not the interesting half). The FR-010 diff — "only the rename plus the value mapping" — is measured
+against the **pre-state** copy taken before conversion (T004, re-taken post-normalisation at T006e):
+
 ```python
 netmap = cm.network_map
 netmap.save("/tmp/out.xml")
 ```
 
 ```bash
-diff tests/data/network_map.xml /tmp/out.xml
+diff specs/007-node-model-migration/pre-state/network_map.xml /tmp/out.xml
 ```
 
 **Expected**: only `<node_type>NodeType.master</node_type>` → `<node_role>controller</node_role>`
-lines. Any other differing line is a defect (C4).
+and `<node_type>NodeType.slave</node_type>` → `<node_role>node</node_role>` lines. Any other
+differing line is a defect (C4) — `tests/contract/test_network_map_roundtrip.py` asserts exactly
+this, for all three convertible corpus documents, as a test rather than a manual diff.
 
 ---
 
 ## 5. The conversion, from a legacy file
 
+**Scope note**: `../cuems-common/usr/bin/cuems-migrate-network-map` does not exist — that
+repository's phase (US3) was descoped from this pass. The reference implementation the corpus was
+actually converted with lives at `specs/007-node-model-migration/cuems_migrate_network_map.py`
+(see that module's docstring); it is relocated verbatim to the path above when `cuems-common`'s
+phase is picked up.
+
 ```bash
-cp tests/data/corpus/cuems-engine/network_map.xml /tmp/legacy.xml
-../cuems-common/usr/bin/cuems-migrate-network-map /tmp/legacy.xml
-../cuems-common/usr/bin/cuems-migrate-network-map /tmp/legacy.xml   # idempotent
+# The live corpus is already converted (§4) — pre-state/ is the pre-conversion snapshot,
+# which is exactly what a legacy file looks like.
+cp specs/007-node-model-migration/pre-state/corpus/cuems-engine/network_map.xml /tmp/legacy.xml
+pyenv exec python specs/007-node-model-migration/cuems_migrate_network_map.py /tmp/legacy.xml
+pyenv exec python specs/007-node-model-migration/cuems_migrate_network_map.py /tmp/legacy.xml   # idempotent
 xmllint --schema src/cuemsutils/xml/schemas/network_map.xsd /tmp/legacy.xml --noout
 ```
 
 Second run must change nothing:
 
 ```bash
-cp /tmp/legacy.xml /tmp/once.xml && ../cuems-common/usr/bin/cuems-migrate-network-map /tmp/legacy.xml
+cp /tmp/legacy.xml /tmp/once.xml && pyenv exec python specs/007-node-model-migration/cuems_migrate_network_map.py /tmp/legacy.xml
 diff /tmp/once.xml /tmp/legacy.xml && echo "idempotent"
 ```
 
@@ -139,21 +166,28 @@ diff /tmp/once.xml /tmp/legacy.xml && echo "idempotent"
 ## 6. The suite
 
 ```bash
-hatch test --show
+hatch test          # NOT `hatch test --show` — that flag only prints the environment
+                     # matrix and runs nothing; a gotcha found while writing this feature.
 ```
 
 Specifically:
 
 ```bash
-hatch test --show -- tests/unit/test_coherence.py                       # C9
-hatch test --show -- tests/contract/test_declared_break_nodeconf.py     # C7
-hatch test --show -- tests/contract/test_golden_immutability.py         # M6
-hatch test --show -- tests/contract/test_registry_totality.py
+pyenv exec python -m pytest tests/unit/test_coherence.py                    # C9
+pyenv exec python -m pytest tests/contract/test_declared_break_nodeconf.py  # C7
+pyenv exec python -m pytest tests/contract/test_golden_immutability.py      # M6
+pyenv exec python -m pytest tests/contract/test_registry_totality.py
 ```
 
 ---
 
 ## 7. `cuems-nodeconf`, after migration
+
+**Not reproducible against this landing**: `cuems-nodeconf`'s phase (US5) was descoped from this
+pass — `specs/007-node-model-migration/migration-guide.md` §4 records it as not started. The
+commands below are what verifying it will look like once that phase lands; running them today shows
+`CuemsNode.py`/`NodeXmlBuilders.py` still present and the FR-026d break still open, which is the
+correct (if disappointing) current state, not a doc bug.
 
 ```bash
 cd ../cuems-nodeconf
@@ -168,7 +202,7 @@ pyenv exec python -m pytest -q                                    # SC-008
 ## 8. Budgets
 
 ```bash
-hatch test --show 2>&1 | tail -3
+hatch test 2>&1 | tail -3
 ```
 
 Compare against `baseline.md`:

@@ -260,5 +260,49 @@ template by name, which is why it is not done incidentally here.
 
 ---
 
-*Sections 4–8, 10–11 are filled in by their respective Phase 5/7/9 tasks (T054b, T078a, T078b,
-T084, T084a, T085–T088, T079) as the corresponding work lands.*
+## 10. SC-004a re-verified for `cuems-utils` (T092)
+
+Re-running T006's inventory (`baseline.md`'s "Symbol inventory" table recorded 192 occurrences
+across three repositories at the pre-feature commit) against `cuems-utils` alone, at this feature's
+landing:
+
+```bash
+grep -rln "node_type\|NodeType\." src/cuemsutils/ --include="*.py" --include="*.xsd"
+grep -rln "node_type\|NodeType\." tests/data/ tests/support/ --include="*.py"
+```
+
+**Zero occurrences in live code paths.** What the grep *does* still find, and why each is not a
+violation:
+
+- `src/cuemsutils/errors.py`, `src/cuemsutils/tools/ConfigBase.py` — the migration-naming
+  diagnostics (`network_map_node_type_message`, T044) necessarily reference the retired spelling
+  *to detect it in a document and name it in the error*. This is the machinery that makes the old
+  vocabulary's presence loud (C8), not a live consumer of it.
+- `src/cuemsutils/config/network_map.py`, `src/cuemsutils/xml/schemas/network_map.xsd` — prose
+  and a comment stating what the rename replaced, for a future reader.
+- `tests/` — either the same diagnostic-testing pattern (`test_node_errors.py`,
+  `test_network_map_conversion.py` deliberately construct legacy-spelling documents to prove they
+  are rejected or converted), or `test_schema_scope.py`'s hash-pinning comment, or
+  `test_coherence.py:118`'s `test_the_two_node_types_are_different_classes` — a **false-positive
+  match**: this is `network_map.xsd`'s complex type `NodeType` (research R3 — "the type of a
+  `<node>` element", unrenamed by this feature) versus `project_mappings.xsd`'s unrelated `NodeType`
+  binding, nothing to do with the retired role vocabulary.
+- `tests/data/corpus/**/network_map.xml`, `tests/data/network_map.xml` — **zero** occurrences; the
+  live corpus is fully converted (T015).
+
+**Excluded from this count, deliberately**: `specs/007-node-model-migration/pre-state/` (a
+snapshot of the pre-conversion documents, kept specifically to measure the FR-010 diff against —
+finding the old spelling there is the point, not a defect) and this feature's own spec/planning
+prose (`baseline.md`, `golden-changes.md`, this file), which discusses the migration by name
+throughout.
+
+**Not measured here**: `cuems-nodeconf` and `cuems-common`. Both still carry the pre-feature counts
+from `baseline.md` (146 and 27 respectively) because neither repository was edited this pass — SC-
+004a's full claim (zero across all three) is **not yet true**, and is not claimed to be; it becomes
+checkable again once Phases 5 and 7 land.
+
+---
+
+*Sections 4–8, 10 are filled in by their respective Phase 5/7/9 tasks (T054b, T078a, T078b, T084,
+T084a, T085–T088, T079, T092) as the corresponding work lands. §10 above completes the cuems-utils
+portion; the cuems-nodeconf/cuems-common portions remain open.*

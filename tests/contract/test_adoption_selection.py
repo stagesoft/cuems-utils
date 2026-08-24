@@ -32,7 +32,7 @@ def _network_map_dict(*, adopted, online):
                     "uuid": "0367f391-ebf4-48b2-9f26-000000000001",
                     "mac": "2cf05d21cca3",
                     "name": "controller",
-                    "node_type": "NodeType.master",
+                    "node_role": "controller",
                     "ip": "192.168.1.10",
                     "adopted": adopted,
                     "online": online,
