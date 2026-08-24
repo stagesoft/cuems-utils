@@ -49,9 +49,11 @@ Derived-side changes. Everything not listed is byte-identical to the current sch
 it would reorder every written document and enlarge the FR-010 diff beyond the two permitted
 differences.
 
+**Deleted**: `PutType` — declared in this schema, referenced by no element in it. Schema item X9,
+**resolved** rather than re-deferred (FR-029). Its model class and registry binding go with it.
+`project_mappings.xsd`'s separate `PutType` is untouched.
+
 **Not changed**: `NodeDictType`, the `CuemsNetworkMap` root, `BoolType`, `NonEmptyString`.
-`PutType` is addressed under FR-029 as schema item X9 — resolved or re-deferred with a stated
-reason, not silently carried.
 
 ---
 
@@ -79,10 +81,31 @@ now *runs* the table (R1). The show path has run it since feature 004.
 
 ## 3. Python model
 
-All in `cuemsutils/config/network_map.py` — the module feature 006 created and reserved for this
-work. Names below are the hand-written half.
+Split across two modules, and the split is a **decision** (FR-002b, FR-007), not an accident of
+where things fitted:
 
-### 3.1 `NodeRole` — the vocabulary (new)
+| Module | Holds | Visibility |
+|---|---|---|
+| `cuemsutils/config/network_map.py` | the schema-bound containers — `node`, `node_list`, `CuemsNetworkMapType` | **internal** |
+| `cuemsutils/tools/NodeList.py` *(new)* | the classes ported from `cuems-nodeconf` — `NodeRole`, `NodeIndex` — and the public re-export of `node` | **public** |
+
+Two constraints force this shape rather than merely suggesting it:
+
+- **`config/` cannot import `tools/`.** `xml/registry.py` imports `config/network_map.py`, and
+  `tools/ConfigManager.py` imports `xml/`. A `config → tools` edge closes that loop. So the
+  schema-bound classes stay where the registry can reach them, and `tools/NodeList.py` imports
+  downward.
+- **The registry and the coherence check need the containers in `config/`.** They are resolved by
+  `_config_models` and compared field-by-field against the schema; moving them would mean moving
+  that machinery too, for no gain.
+
+`NodeRole` lives in `tools/` because consumers compare against it — `cuems-engine`'s controller
+check, `cuems-nodeconf`'s role logic. `config/network_map.py` deliberately does **not** import it:
+the enum arrives in the model through the adapter, so no upward edge is needed.
+
+Names below are the hand-written half.
+
+### 3.1 `NodeRole` — the vocabulary (new, in `tools/NodeList.py`)
 
 ```
 NodeRole.controller  value "controller"
@@ -99,7 +122,7 @@ enum's values and the schema's `xs:enumeration` facets are the same set.
 **Migration of meaning** (not of storage — nothing stores the old names after conversion):
 `master` → `controller`, `slave` → `node`, `firstrun` → `firstrun`.
 
-### 3.2 `node` — one machine (exists; gains typing and behaviour)
+### 3.2 `node` — one machine (exists in `config/network_map.py`; gains typing)
 
 | Field | Type in memory | Required | Source |
 |---|---|---|---|
@@ -126,14 +149,14 @@ would reject documents that load today.
 **Constructible directly** (FR-004): `node(uuid=..., node_role=NodeRole.firstrun, ...)`. The Avahi
 listener builds nodes that never reach a file, and that path must not require a document.
 
-### 3.3 `node_list` — the schema container (exists, unchanged)
+### 3.3 `node_list` — the schema container (`config/network_map.py`, unchanged)
 
 `NodeDictType`: the ordered `<node>` children. **Decode never instantiates it** — the converter
 yields `[{"node": {...}}, ...]` as soon as cardinality is not single, which `NodeDictType`'s never
 is. It exists for registry totality and the coherence check, exactly as feature 006 documented.
 This feature does not change that, and does not rename it.
 
-### 3.4 `NodeIndex` — the working set (migrates in, renamed)
+### 3.4 `NodeIndex` — the working set (migrates in, renamed, in `tools/NodeList.py`)
 
 `cuems-nodeconf`'s `node_list`/`CuemsNodeDict`, which is a *different shape* from §3.3 despite
 sharing its old name (spec FR-002).
@@ -152,7 +175,7 @@ merges on the Avahi-derived MAC produced duplicate controller entries, because t
 advertises as `controller` rather than as its MAC. The identity contract makes `uuid` the primary
 key. Moving the collection must not silently re-key it, so the choice stays with the caller.
 
-### 3.5 `CuemsNetworkMapType` — the document (exists; gains persistence)
+### 3.5 `CuemsNetworkMapType` — the document (`config/network_map.py`; gains persistence)
 
 Holds `node_list`. Gains `save(path)` — validate, then write atomically (research R6). Its
 `node_list` value stays a list of `{"node": <node>}` wrappers, because `cuems-engine` iterates it
@@ -200,7 +223,9 @@ Three assertions are **new**, because the schema now carries meaning the model m
 | `nodeXmlBuilder`, `node_listXmlBuilder`, `nodeParser`, `node_listParser`, `STRING_TYPED_NODE_FIELDS`, the four globals injections | `cuems-nodeconf/cuemsnodeconf/NodeXmlBuilders.py` | file deleted |
 | `AvahiTool.NodeType` | `cuems-nodeconf/cuemsnodeconf/AvahiTool.py` | replaced by the import |
 | `CuemsNodeDictXmlBuilder` | `cuemsutils/xml/XmlBuilder.py:73` | deleted (FR-018) |
+| `test_xml_roundtrip.py` | `cuems-nodeconf/` | deleted — its subject is the injection mechanism (FR-018) |
 | `<node_type>` element, `NonEmptyString` typing of the role | `network_map.xsd` | replaced |
+| `PutType` | `network_map.xsd`, `cuemsutils/config/network_map.py`, the registry | deleted — X9 resolved (FR-029) |
 
 `CuemsNodeDictParser` was already removed by feature 006; its absence stays asserted by
 `tests/contract/test_no_internal_deprecation.py`.

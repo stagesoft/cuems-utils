@@ -566,7 +566,7 @@ Constitution check:
 ```
 /speckit.checklist Migration completeness: every symbol moved, every caller in
 cuems-nodeconf accounted for in the migration guide, no orphaned stubs, node_type wire
-format proven unchanged by round-trip test.
+format proven changed.
 ```
 ```
 /speckit.analyze

@@ -202,7 +202,16 @@ shared-venv rule in `CLAUDE.md`.
 | `NodeType.master`, `master` | `controller` |
 | `NodeType.slave`, `slave` | `node` |
 | `NodeType.firstrun`, `firstrun` | `firstrun` |
-| anything else | left alone; the file then fails validation loudly, which is FR-011c's intent |
+| anything else | **the whole file is refused**: nothing is written, a diagnostic names the node and the value, the upgrade still succeeds (FR-011h) |
+
+**The last row changed during analysis remediation.** It previously said "left alone", which —
+paired with FR-014's "an unknown role is a schema error" — described a file the conversion accepts
+and the schema then rejects, with nothing specifying what happens to it. Refusing the file whole
+also rules out the half-converted map: converting the recognised nodes and skipping one leaves a
+document mixing both vocabularies, which no requirement describes and no test could pin.
+
+**A backup precedes any write** (FR-011i): the file being rewritten is the only record of node
+aliases and adoption state on a cluster.
 
 **Measured packaging constraint**: `etc/cuems/network_map.xml` is installed through
 `debian/install`, which makes it a **dpkg conffile** — and `cuems-nodeconf` rewrites that file on
@@ -213,11 +222,38 @@ the source tree is updated to the new format so a fresh install never needs conv
 
 ---
 
+## R8a — The corpus must be normalised before a round-trip diff means anything
+
+**Decision** (taken during cross-artifact analysis remediation): the corpus network maps are
+normalised to the writer's output form — no indentation, `xsi:schemaLocation` carrying the bare
+filename — as a **separate, reviewable step before** the rename lands.
+
+**Measured, and it invalidated the original requirement**: the corpus network maps are 4-space
+indented and carry `xsi:schemaLocation="… /etc/cuems/network_map.xsd"`, with one document using
+`https://stagelab.coop/cuems/network_map.xsd`. `build_document` emits **no** indentation and
+writes the **bare filename** (feature 006's F24 fix). A `save()` round trip therefore produces
+four classes of difference, not the two FR-010 permitted — and the failure would have surfaced
+only at the round-trip test, after the schema, the model and the write path were all built.
+
+**Why normalisation rather than widening the permitted diff**: the show corpus is already stored
+in the writer's output form — `tests/golden/xml/cuems-utils__fade_showcase.xml` and its corpus
+source are byte-identical, unindented, bare-filename. That is what makes the script byte-identity
+contract checkable at all. The network maps were never given that treatment because config had no
+write path until this feature. Normalising them makes the two corpora behave the same way, and
+leaves FR-010's diff assertion meaning what it says.
+
+**Kept separate from the rename** so the two transformations are never conflated in one diff: a
+reviewer sees "whitespace and schemaLocation" in one change and "node_type → node_role" in
+another.
+
+---
+
 ## R9 — Goldens
 
 **Decision**: the three `network_map` goldens (`*.reader.json`, `*.config.json`, the XML goldens)
 are regenerated with `--force`, and `tests/golden/MANIFEST.sha256` is updated in the **same
-commit**, with the justification in the commit message.
+commit**, with the justification in the commit message. `tests/golden/api/public_api.json` is a
+separate, third permitted modification with its own justification (R10a, FR-007a).
 
 **Rationale**: `test_golden_immutability` pins every recorded hash, and its docstring establishes
 the convention — feature 006 modified exactly two goldens and each carried a recorded
@@ -227,7 +263,33 @@ every changed line is the rename or the value mapping, and SC-010a asserts nothi
 
 ---
 
-## R10 — Where the code lands
+## R10a — Why `config/` stays internal and `tools/NodeList.py` is the public face
+
+**Decision** (taken during cross-artifact analysis remediation): `cuemsutils.config` exports
+nothing publicly. The ported classes — `NodeRole` and `NodeIndex` — land in a new
+`cuemsutils/tools/NodeList.py`, beside `ConfigBase` and `ConfigManager`. The schema-bound
+containers stay in `config/network_map.py`.
+
+**Rationale**: the spec originally required "a stable public import path" for the node models,
+which contradicted D15 (the public objects are `CuemsScript` and `ConfigManager`/`ConfigBase`) and
+Q14→(i). Feature 006 emptied `cuemsutils.xml.__all__` to enforce exactly that boundary; adding a
+second public model package would undo it a release later.
+
+**And one direction is forced, not chosen**: `xml/registry.py` imports `config/network_map.py`
+(to resolve `_config_models`), and `tools/ConfigManager.py` imports `xml/`. A `config → tools`
+import closes that cycle. So the schema-bound classes must stay on the `config/` side and
+`tools/NodeList.py` must import downward. `NodeRole` is therefore defined in `tools/` and
+`config/network_map.py` does **not** import it — the enum reaches the model through the adapter,
+which is registered lazily inside `_register_enums` exactly as `FadeCurveType` already is.
+
+**Consequence for the public API snapshot**: `tests/golden/api/public_api.json` pins
+`ConfigManager`'s method signatures and the public symbol set. `save_network_map` and
+`tools/NodeList.py` both change it, so the golden needs a third permitted modification with a
+recorded justification (FR-007a) — the ceremony feature 006 established, not an exemption from it.
+
+---
+
+## R10 — Where the schema-bound code lands
 
 **Decision**: `cuemsutils/config/network_map.py` — the module feature 006 created for exactly
 this, whose docstring reserves the behaviour for feature 007 by name. No new module.

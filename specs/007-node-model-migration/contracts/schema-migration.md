@@ -16,6 +16,7 @@ the release ordering that keeps a deployed node from meeting a document it canno
 | Retyped | `<uuid>`: `cms:NonEmptyString` → `cms:UuidType` |
 | Added | `NodeRoleType` — `xs:string` restricted to `controller`, `node`, `firstrun` |
 | Added | `UuidType` — `xs:string` restricted to the canonical 8-4-4-4-12 hex pattern |
+| Deleted | `PutType` — unreferenced by any element in this schema; X9 **resolved** (FR-029) |
 
 **Asserted**: no other schema file is modified (FR-010a). Diffing the five others against their
 pre-feature content yields nothing.
@@ -47,9 +48,18 @@ A stdlib-only script, shipped by `cuems-common`, invoked from `debian/postinst`.
 | `<node_type>master</node_type>` | `<node_role>controller</node_role>` |
 | `<node_type>NodeType.slave</node_type>` / `slave` | `<node_role>node</node_role>` |
 | `<node_type>NodeType.firstrun</node_type>` / `firstrun` | `<node_role>firstrun</node_role>` |
-| any other value | left untouched; the file then fails validation, loudly |
+| any other value | **the whole file is refused** — nothing written, bytes unchanged, a diagnostic names the document, the node and the value alongside the accepted ones; exit 0 so the upgrade survives (FR-011h) |
 | no `<node_type>` present | file untouched, exit 0 |
 | file absent | exit 0 |
+
+**Asserted — no half-conversion**: a map mixing a recognised and an unrecognised value is refused
+whole. Converting the recognised nodes and skipping one would leave a document carrying both
+vocabularies, which no requirement describes and no test can pin.
+
+**Asserted — a backup precedes any write** (FR-011i): a timestamped copy is written beside the
+original before it is modified, restoring it reproduces the pre-conversion bytes exactly (SC-011),
+and backups do not accumulate without bound. The file holds node aliases and adoption state that
+exist nowhere else on the cluster.
 
 **Asserted — idempotence**: converting twice produces bytes identical to converting once
 (SC-004b).
@@ -114,6 +124,12 @@ unconverted map meets a migrated schema, and both fail.
 
 **Asserted**: the guide states the ordering, the reason, and the failure mode of getting it wrong.
 
+**Asserted — and enforced, not only documented** (FR-030d, SC-012): versioned dependencies between
+the `.deb` packages make the out-of-order upgrade impossible on a single node. `dpkg` is otherwise
+free to upgrade `cuems-utils` before `cuems-common`, producing a migrated schema beside an
+unconverted map — the exact state the release gate forbids. Demonstrated by attempting the
+out-of-order upgrade and observing it refused.
+
 ---
 
 ## M6 — Goldens change once, deliberately
@@ -122,6 +138,11 @@ unconverted map meets a migrated schema, and both fail.
 updated in the same commit, with the justification recorded — the ceremony feature 006 established
 for the only two goldens it modified.
 
-**Asserted**: every changed line in that diff is the rename or the value mapping.
+**Asserted**: every changed line in that diff is the rename or the value mapping. The
+normalisation diff (C4a) is a separate change and is reviewed separately.
+
+**Asserted**: `tests/golden/api/public_api.json` is modified once more, with its own recorded
+justification and enumerated diff (FR-007a) — three permitted golden modifications in this
+feature, each named.
 
 **Asserted**: no other golden under `tests/golden/` changes (SC-010a).

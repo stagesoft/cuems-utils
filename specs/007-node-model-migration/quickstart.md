@@ -36,6 +36,18 @@ hatch test --show 2>&1 | tail -5                            # the pre-feature su
 Record in `baseline.md`: pass/skip/xfail counts, wall time, per-test milliseconds, and the
 network-map load timing.
 
+**Then normalise the corpus** — its own commit, before any schema change:
+
+```bash
+# after T006b: no indentation, bare-filename schemaLocation
+grep -c "    <node>" tests/data/corpus/*/network_map.xml   # must be 0
+grep -o 'schemaLocation="[^"]*"' tests/data/corpus/*/network_map.xml | sort -u
+# must show only:  https://stagelab.coop/cuems/ network_map.xsd
+```
+
+The FR-010 diff is measured against these normalised documents, not against what was in git before
+this step.
+
 **Verify the FR-026d break exists before repairing it** (research R11) — this is a named
 deliverable, not a formality:
 
@@ -69,7 +81,7 @@ grep -c "node_type" src/cuemsutils/xml/schemas/network_map.xsd     # must be 0
 
 ```python
 from cuemsutils.tools.ConfigManager import ConfigManager
-from cuemsutils.config import NodeRole
+from cuemsutils.tools.NodeList import NodeRole   # cuemsutils.config is INTERNAL
 
 cm = ConfigManager("tests/data")
 node = cm.network_map["node_list"][0]["node"]

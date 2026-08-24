@@ -77,7 +77,34 @@ and the model migration is how the repair is made durable.
 
 ## Clarifications
 
-### Session 2026-08-24
+### Session 2026-08-24 (b) — cross-artifact analysis remediation
+
+`/speckit.analyze` raised 16 findings, 1 critical. All are remediated; the six that changed what
+gets built are recorded here because each was a decision, not a correction of wording.
+
+- Q: The round trip cannot differ from the corpus "in exactly two ways" — the writer emits no
+  indentation and rewrites `xsi:schemaLocation` to the bare filename, while the corpus maps are
+  indented and carry two different absolute forms. → A: **Normalise the corpus** to the writer's
+  output form first, as a separate reviewable step, and measure the FR-010 diff against the
+  normalised documents (FR-010b). This is the treatment the show corpus already received.
+- Q: Is `cuemsutils.config` public, given FR-007 demanded a public import path while D15 names
+  only `CuemsScript` and `ConfigManager`/`ConfigBase`? → A: **`config/` stays internal.** The
+  ported classes land in a new `cuemsutils/tools/NodeList.py`, beside the public configuration
+  façade (FR-002b, FR-007). The schema-bound containers stay in `config/` because the registry
+  and the coherence check need them there, and because `config/` importing `tools/` would be an
+  import cycle rather than a preference.
+- Q: What does the conversion do with a role value it does not recognise — FR-014 rejects it at
+  validation while the conversion was specified to leave it alone? → A: **Refuse the file as a
+  whole**, write nothing, and name the node and value in a diagnostic (FR-011h). A
+  half-converted map is a document no requirement describes.
+- Q: Nothing required a backup before rewriting operator data in place. → A: **A timestamped
+  backup is required**, with a documented restore procedure (FR-011i, SC-011).
+- Q: The release gate is documentation only, and `dpkg` may upgrade `cuems-utils` first. → A:
+  **Enforce it with versioned package dependencies** (FR-030d, SC-012).
+- Q: Is schema item X9 resolved or re-deferred? → A: **Resolved** — `PutType` is deleted from
+  `network_map.xsd` with its model class and registry binding (FR-029).
+
+### Session 2026-08-24 (a)
 
 - Q: What does `node_list` denote in `cuemsutils`, given feature 006 landed a class of that
   name bound to the schema's `NodeDictType` while `cuems-nodeconf`'s `node_list` is a MAC-keyed
@@ -316,11 +343,21 @@ are unchanged by the call while the returned selection is correct.
 - **An empty `<node_list/>`.** A first-run controller writes a map with no nodes yet.
 - **Duplicate MAC or duplicate UUID across nodes.** The schema forbids neither. Node identity is
   keyed on UUID in the adoption model and on MAC in the discovery collection.
-- **The `schemaLocation` attribute at the document root.** It is present in every corpus network
-  map and is currently retained as an undeclared key by the config decode path.
-- **`PutType` in `network_map.xsd`.** Declared, referenced by no element, and already bound to a
-  model class by feature 006. Schema item X9 — now reachable, since this schema is being edited
-  (FR-029).
+- **The `schemaLocation` attribute at the document root.** Present in every corpus network map, in
+  **two different forms** (`/etc/cuems/network_map.xsd` and `https://stagelab.coop/cuems/network_map.xsd`),
+  retained as an undeclared key by the config decode path — and rewritten to the bare filename by
+  the writer (feature 006's F24 fix). It is one of the two reasons the corpus needs normalising
+  before a round-trip diff means anything (FR-010b).
+- **Corpus documents stored in a form the writer does not produce.** The network maps are
+  4-space indented; the writer emits no indentation. The show corpus was normalised to the
+  writer's output form when its byte-identity contract was established; the network maps never
+  were, because no config write path existed until this feature.
+- **`PutType` in `network_map.xsd`.** Declared, referenced by no element, bound to a model class
+  by feature 006. Schema item X9 — **resolved** in this feature, since this schema is being
+  edited (FR-029).
+- **A conversion that meets a role value it does not recognise.** Neither convertible nor safely
+  left alone: converting it would invent data, leaving it produces a file the schema rejects
+  (FR-011h).
 - **A `cuems-nodeconf` node discovered but never persisted.** The Avahi listener constructs node
   objects for hosts that may never reach a file; the migrated model must be constructible
   directly, not only by decoding a document.
@@ -339,11 +376,17 @@ are unchanged by the call while the returned selection is correct.
   `NodeDictType`, the document's ordered list of `<node>` children — and the MAC-keyed working
   set that `cuems-nodeconf` calls `node_list` today lands under its own name, carrying the role
   selections. Neither name may be applied to both shapes.
-- **FR-002a**: The whole of `cuems-nodeconf`'s `CuemsNode.py` MUST move into `cuemsutils` and
-  be exposed as a configuration-domain object for `cuems-nodeconf` to consume. `cuems-nodeconf`'s
-  own consumers of `node` and the node collection are reformatted to the migrated shapes rather
-  than being preserved by compatibility aliases; the `CuemsNode`/`CuemsNodeDict` backwards
-  -compatibility aliases MUST NOT be carried across.
+- **FR-002a**: The whole of `cuems-nodeconf`'s `CuemsNode.py` MUST move into `cuemsutils` and be
+  exposed for `cuems-nodeconf` to consume. `cuems-nodeconf`'s own consumers of `node` and the node
+  collection are reformatted to the migrated shapes rather than being preserved by compatibility
+  aliases; the `CuemsNode`/`CuemsNodeDict` backwards-compatibility aliases MUST NOT be carried
+  across.
+- **FR-002b**: The ported classes MUST land in a **new module `cuemsutils/tools/NodeList.py`**,
+  beside `ConfigBase` and `ConfigManager` — the public configuration façade under D15. The
+  schema-bound containers stay in `cuemsutils/config/`, which the registry and the coherence
+  check require and which stays **internal** (FR-007). `tools/NodeList.py` imports from `config/`
+  and never the reverse: `xml/registry.py` imports `config/` and `tools/ConfigManager.py` imports
+  `xml/`, so the opposite direction is an import cycle, not a preference.
 - **FR-003**: The `node` model MUST declare the three identity fields `role_id`, `alias` and
   `hostname` that `network_map.xsd` declares and the current `cuems-nodeconf` model omits.
 - **FR-004**: A node model object MUST be constructible directly from field values, not only by
@@ -353,8 +396,16 @@ are unchanged by the call while the returned selection is correct.
   wire dictionary — so that no consumer has to treat a node as a special case.
 - **FR-006**: A coherence check MUST assert set equality between the node model's declared field
   set and `network_map.xsd`'s content model, so this class of drift cannot recur unnoticed.
-- **FR-007**: The node models MUST be reachable from a stable public import path in
-  `cuemsutils`, and that path MUST be recorded in the migration guide for feature 008.
+- **FR-007**: `cuemsutils.config` MUST stay **internal** — it exports nothing publicly and joins
+  `cuemsutils.xml` on the internal side of Q14→(i). The one public node import path is
+  `cuemsutils.tools.NodeList`, which MUST be stable and MUST be named in the migration guide's
+  consumer section (FR-027a). A consumer that reaches into `cuemsutils.config` is using an
+  internal module, and the guide MUST say so.
+- **FR-007a**: The public API snapshot golden MUST be updated to record the surface this feature
+  adds — `tools/NodeList.py`'s exports and `ConfigManager.save_network_map` — with a recorded
+  justification and an enumerated diff, following the ceremony feature 006 established for the
+  only two goldens it modified. Adding public surface without updating that snapshot is a suite
+  failure, not an oversight.
 
 ### Serialization
 
@@ -364,10 +415,19 @@ are unchanged by the call while the returned selection is correct.
   the same schema-derived engine. Today no working configuration write path exists here, and
   `cuems-nodeconf` cannot write a valid map without one.
 - **FR-010**: Byte-identity is **relaxed for network-map documents only**, and replaced by a
-  *declared transformation*: loading a corpus `network_map.xml` and writing it back unmodified
-  MUST produce output that differs from the input in exactly two ways — the `<node_type>`
-  element is spelled `<node_role>`, and its value is mapped to the new enumeration. Every other
-  byte MUST be unchanged, and the diff MUST be asserted as that exact set rather than waived.
+  *declared transformation* measured against the **normalised** corpus (FR-010b): loading a
+  normalised corpus `network_map.xml` and writing it back unmodified MUST produce output that
+  differs from the input in exactly two ways — the `<node_type>` element is spelled
+  `<node_role>`, and its value is mapped to the new enumeration. Every other byte MUST be
+  unchanged, and the diff MUST be asserted as that exact set rather than waived.
+- **FR-010b**: The corpus network maps MUST first be **normalised to the writer's output form** —
+  no indentation, and `xsi:schemaLocation` carrying the bare schema filename — because they are
+  stored in a form the writer does not produce and never were normalised, no config write path
+  having existed before this feature. The show corpus received exactly this treatment when its
+  byte-identity contract was established. Normalisation MUST be a separate, reviewable step whose
+  diff is recorded before the rename lands, so the two transformations are never conflated:
+  without it "differs in exactly two ways" is unachievable, and the failure would surface only
+  after the schema, model and write path were all built.
 - **FR-010a**: D3's byte-identity requirement continues to bind the other five schemas
   unchanged. No `.xsd` other than `network_map.xsd` is edited, and no show or settings document
   changes by a single byte.
@@ -400,6 +460,19 @@ are unchanged by the call while the returned selection is correct.
   no-op; running it on an already-converted or absent file MUST NOT fail the upgrade.
 - **FR-011e**: The conversion MUST be exercised against every corpus network map and against an
   already-converted document, with the resulting file validated against the updated schema.
+- **FR-011h**: A role value the conversion does not recognise MUST cause it to **refuse the file
+  as a whole**: nothing is written, the file is left byte-identical, and a diagnostic names the
+  document, the node and the unrecognised value alongside the accepted ones. It MUST NOT convert
+  the recognised nodes and leave the rest — a half-converted map is a document no requirement
+  describes. The upgrade still succeeds (FR-011d), and the node then meets FR-011c's
+  migration-naming failure at read, which is the loud outcome intended. This resolves the
+  otherwise-undefined state where the conversion accepts a file the schema rejects.
+- **FR-011i**: The conversion MUST write a **timestamped backup** of `/etc/cuems/network_map.xml`
+  beside the original before modifying it, and the restore procedure MUST be documented where an
+  operator will look. That file is the only record of node aliases and adoption state on a
+  cluster; rewriting it in place with no recoverable prior version is a data-loss risk that no
+  other requirement covers. Backups MUST NOT accumulate without bound — the requirement is a
+  recoverable prior version, not a history.
 - **FR-011f**: The three `cuems-common` tools that XPath on `node[node_type='NodeType.master']`
   — `cuems-write-chrony-source`, `cuems-log-collector-url` and `cuems-logs` — MUST be updated
   to the new element and vocabulary in the same coordinated release. They select the controller
@@ -431,9 +504,13 @@ are unchanged by the call while the returned selection is correct.
 - **FR-017**: `cuemsutils` MUST NOT gain a public registration API for external builder or
   parser classes. After this feature no external registrant exists, and the registration
   mechanism 004 removed is not reinstated in any form.
-- **FR-018**: The dead `CuemsNodeDictXmlBuilder` stub MUST be gone — either superseded by the
-  migrated handling or deleted outright. (`CuemsNodeDictParser` was already removed by feature
-  006; its absence must stay asserted.)
+- **FR-018**: Every **orphaned node artefact** MUST be gone. An orphaned node artefact is defined
+  as: a symbol, module or test whose subject is the node model or its serialization, which after
+  this feature has no caller inside its own repository and no consumer outside it. The two known
+  instances are `CuemsNodeDictXmlBuilder` and `cuems-nodeconf`'s `test_xml_roundtrip.py`;
+  `CuemsNodeDictParser` was already removed by feature 006 and its absence must stay asserted.
+  The definition is stated so the requirement can be *searched against* rather than satisfied by
+  the two names it happens to list — a search MUST be run and its result recorded.
 - **FR-019**: The contract test that pins the 004 break MUST be updated to assert the repaired
   state rather than deleted, so the record of what was broken and when it was fixed survives.
 - **FR-020**: A search of `cuemsutils` and `cuems-nodeconf` for assignments into another
@@ -447,11 +524,11 @@ are unchanged by the call while the returned selection is correct.
 - **FR-022**: A non-mutating selection of adopted versus unadopted nodes MUST be available.
   `cuems-engine` works around the existing mutating function today; the replacement is what
   feature 008 migrates it to.
-- **FR-023**: Every value read out of `ConfigManager.network_map` whose name or type changes
-  MUST be enumerated in the migration guide against its consumer call site — the renamed role
-  field, the three retyped fields, and any change to the `{"node": {...}}` wrapper feature 006
-  recorded as load-bearing. Nothing changes incidentally: a change absent from that table is a
-  defect, not an improvement.
+- **FR-023**: Every value read out of `ConfigManager.network_map` whose name or type changes MUST
+  be enumerated against its consumer call site — the renamed role field, the three retyped
+  fields, and any change to the `{"node": {...}}` wrapper feature 006 recorded as load-bearing.
+  Nothing changes incidentally: a change absent from that table is a defect, not an improvement.
+  The table lives in the migration guide, whose contents FR-027a enumerates.
 
 ### Testing and evidence
 
@@ -470,15 +547,26 @@ are unchanged by the call while the returned selection is correct.
   of this feature, with the regeneration shown as a reviewable diff whose every line is either
   the rename or the value mapping.
 - **FR-027**: Every node symbol moved MUST be accounted for: a table of source symbol → new home
-  → status (moved, replaced, deleted), with nothing unaccounted for.
-- **FR-028**: The migration guide MUST record what `cuems-engine` and `cuems-editor` must change
-  in feature 008 as a consequence of nodes becoming objects.
-- **FR-029**: Schema item X9 (`PutType` unreferenced in `network_map.xsd`) MUST be resolved or
-  re-deferred with a stated rationale, since `network_map.xsd` is being edited. The schema
-  evolution convention MUST be updated: it currently records the "added element is optional and
-  carries a model-layer default" rule, and this feature performs a *renaming, constraining*
-  change that the convention does not yet cover — the precedent must be written down with the
-  migration pattern it used.
+  → status (moved, replaced, deleted), with nothing unaccounted for. The source set is the symbol
+  inventory taken before any edit, so "complete" is measurable against a denominator rather than
+  asserted.
+- **FR-027a**: The migration guide's required contents MUST be enumerated in **one** place, and
+  the requirements that feed it MUST reference that enumeration rather than each restating an
+  obligation. The guide MUST contain: the moved-symbol table (FR-027); the public import path
+  and the internal-module warning (FR-007); the changed names and types against their consumer
+  call sites (FR-023); what `cuems-engine` and `cuems-editor` must change in feature 008
+  (FR-028, FR-011g); the release-ordering gate (FR-030c); the restore procedure (FR-011i); and
+  the deliberate non-migrations, each with its reason.
+- **FR-028**: The guide MUST record what `cuems-engine` and `cuems-editor` must change in feature
+  008 as a consequence of nodes becoming objects and the role field being renamed, verified
+  against the live call sites rather than transcribed from the planning documents.
+- **FR-029**: Schema item X9 is **resolved, not re-deferred**: `PutType` is unreferenced by any
+  element in `network_map.xsd` and MUST be deleted from the schema, together with its model class
+  and its registry binding. It is distinct from `project_mappings.xsd`'s `PutType`, which is
+  untouched. The schema evolution convention MUST also be updated: it records only the "added
+  element is optional and carries a model-layer default" rule, and this feature performs
+  *renaming*, *constraining* and *deleting* changes it does not cover — each precedent written
+  down with the migration pattern it used.
 
 ### Cross-repository delivery
 
@@ -497,12 +585,25 @@ are unchanged by the call while the returned selection is correct.
 - **FR-030c**: No release of any of the three repositories may ship before feature 008 lands
   the reader migration. The hard cutover has no partially-deployed state that works, and the
   release ordering MUST be stated in the migration guide as a gate, not as advice.
+- **FR-030d**: The ordering MUST additionally be **enforced by versioned package dependencies**
+  between the `.deb` packages, not by documentation alone. On a single node `dpkg` is free to
+  upgrade `cuems-utils` before `cuems-common`, which produces exactly the partially-deployed
+  state FR-030c forbids: a migrated schema and an unconverted file. A gate that only a human can
+  observe is not a gate.
 - **FR-031**: `cuems-nodeconf`'s remaining use of deprecated read/write entry points MUST be
   migrated to the current public surface as part of its branch work, since the file is being
   edited anyway and the deprecated names are removed in the next release.
 - **FR-032**: Avahi discovery, adoption logic and systemd orchestration MUST remain in
   `cuems-nodeconf`. This feature moves what a node *is* and how it is *stored*, nothing about how
-  nodes are *found* or *adopted*.
+  nodes are *found* or *adopted*. The boundary MUST be **checked, not asserted**: the migrated
+  surface is searched for discovery, adoption and orchestration symbols and the result recorded,
+  so "nothing came across that should not have" is a measurement.
+- **FR-033**: The editor↔UI `project_load` payload MUST be shown to be untouched by this feature.
+  It is the hard constraint carried from planning Part 2d — the payload is transmitted verbatim
+  to the Angular UI — and it is stated here as a numbered requirement because this feature
+  *verifies* it, and a verification with no requirement behind it has nothing to trace to. Show
+  documents are outside this feature's scope, so the expected evidence is that their goldens are
+  byte-identical.
 - **FR-UX-001**: Error messages raised on the node path MUST name the document, the node and the
   field at fault, matching the message conventions already used by the configuration accessors —
   a schema failure while loading a network map must be as legible as one while loading settings.
@@ -567,7 +668,17 @@ are unchanged by the call while the returned selection is correct.
   type without appearing in the migration guide — measured by comparing the recorded
   configuration goldens before and after, not by review.
 - **SC-010a**: The four configuration schemas other than `network_map` show zero golden changes,
-  and the show-document goldens are byte-identical — the schema edit does not leak.
+  and the show-document goldens are byte-identical — the schema edit does not leak, and the
+  `project_load` payload is therefore untouched (FR-033).
+- **SC-011**: A converted `/etc/cuems/network_map.xml` has a recoverable prior version, and
+  restoring it reproduces the pre-conversion bytes exactly.
+- **SC-012**: Installing the three packages in any order on one node cannot produce a migrated
+  schema beside an unconverted map — enforced by package metadata, demonstrated by attempting the
+  out-of-order upgrade.
+- **SC-013**: Zero discovery, adoption or orchestration symbols appear in the migrated surface,
+  counted against the pre-migration inventory (FR-032).
+- **SC-014**: The public API snapshot records exactly the surface this feature adds and nothing
+  more, with the diff enumerated (FR-007a).
 - **SC-QUALITY-001**: No new lint or type warnings; every public symbol added carries the
   rationale documentation the surrounding modules already carry.
 - **SC-TEST-001**: Every requirement with observable behaviour has a test that fails before its

@@ -165,18 +165,20 @@ specs/007-node-model-migration/
 ```text
 # ---- cuems-utils (this repository) -------------------------------------
 src/cuemsutils/
-├── config/
-│   ├── __init__.py              # exports NodeRole, node, node_list, NodeIndex
-│   └── network_map.py           # THE landing site — behaviour added to 006's containers
+├── config/                      # INTERNAL — exports nothing publicly (FR-007)
+│   ├── __init__.py
+│   └── network_map.py           # schema-bound containers; PutType deleted (X9)
 ├── xml/
-│   ├── schemas/network_map.xsd  # node_role + NodeRoleType + UuidType
+│   ├── schemas/network_map.xsd  # node_role + NodeRoleType + UuidType; PutType deleted
 │   ├── adapters.py              # +2 bindings; _register_enums gains NodeRole
 │   ├── registry.py              # per-schema "runs adapters" declaration
 │   ├── mapper.py                # decode_config honours it; docstring rewritten
 │   ├── settings.py              # NetworkMap: node objects, non-mutating partition
 │   ├── documents.py             # unchanged — already schema-generic
 │   └── XmlBuilder.py            # CuemsNodeDictXmlBuilder deleted
-└── tools/ConfigManager.py       # save_network_map()
+└── tools/
+    ├── NodeList.py              # NEW, PUBLIC — NodeRole, NodeIndex, the ported classes
+    └── ConfigManager.py         # save_network_map()
 
 tests/
 ├── contract/                    # C1..C9; test_declared_break_nodeconf.py rewritten
@@ -203,10 +205,23 @@ scripts/cuems-write-chrony-source, scripts/cuems-log-collector-url, usr/bin/cuem
 docs/node-identity-contract.md, CLAUDE.md, README.md
 ```
 
-**Structure Decision**: single-library layout, unchanged. The node model lands in the existing
-`cuemsutils/config/` domain package — created by feature 006 for precisely this, per the target
-design §10 — and no new top-level package is introduced. The two sibling repositories are edited
-on their own branches (FR-030a, FR-030b) and are not vendored here.
+**Structure Decision**: single-library layout, unchanged, and the node code is **split across two
+existing packages** rather than given a new one.
+
+The schema-bound containers stay in `cuemsutils/config/`, created by feature 006 for precisely
+this per target design §10, which remains **internal** — `cuemsutils.xml` exports nothing after
+006 and `config/` joins it on that side of Q14→(i). The classes ported from `cuems-nodeconf`
+(`NodeRole`, `NodeIndex`) land in a new `cuemsutils/tools/NodeList.py`, beside `ConfigBase` and
+`ConfigManager`, which D15 already names as the public configuration façade.
+
+One direction of that split is **forced**: `xml/registry.py` imports `config/network_map.py` and
+`tools/ConfigManager.py` imports `xml/`, so a `config → tools` import closes a cycle. The
+schema-bound classes must therefore stay where the registry reaches them, and `tools/NodeList.py`
+imports downward. `NodeRole` is defined in `tools/` and `config/` does not import it — the enum
+reaches the model through the adapter, registered lazily exactly as `FadeCurveType` already is.
+
+The two sibling repositories are edited on their own branches (FR-030a, FR-030b) and are not
+vendored here.
 
 ---
 
@@ -218,13 +233,14 @@ judges.
 | # | Step | Gate |
 |---|---|---|
 | 1 | Capture pre-state: goldens, suite figures, network-map load timing; **verify the FR-026d break exists** | `baseline.md` written; break demonstrated |
+| 1b | **Normalise the corpus network maps** to the writer's output form, as its own reviewable change | C4a; no element name or value altered |
 | 2 | `strtobool(bool)` regression test + fix, before typing lands | fails, then passes (C6) |
-| 3 | Schema edit: `node_role`, `NodeRoleType`, `UuidType` | only `network_map.xsd` differs |
+| 3 | Schema edit: `node_role`, `NodeRoleType`, `UuidType`, `PutType` deleted — **together with** the conversion script, the corpus conversion and the golden regeneration, as one block | only `network_map.xsd` differs; corpus valid again |
 | 4 | `NodeRole` + adapter bindings + per-schema adapter opt-in; rewrite the two superseded docstrings | coherence green; other four schemas' goldens unchanged (C2) |
 | 5 | Model behaviour: `NodeIndex`, direct construction, `NetworkMap` returns node objects, non-mutating partition | C1, C2, C3, C6 |
 | 6 | Write path: `CuemsNetworkMapType.save`, `ConfigManager.save_network_map` | C4, C5 |
 | 7 | Port the 106-case suite; add the D14 chain test; rewrite `test_declared_break_nodeconf.py`; delete `CuemsNodeDictXmlBuilder` | C3, C7 |
-| 8 | Regenerate `network_map` goldens + `MANIFEST.sha256`, one commit, justified | M6, SC-010a |
+| 8 | *(folded into step 3 — see the note at the end of `tasks.md`)* | M6, SC-010a |
 | 9 | `cuems-nodeconf` branch: delete both files, reformat call sites, retire deprecated entry points | its suite green (SC-008) |
 | 10 | `cuems-common` branch: mirror, default map, conversion + postinst, three tools, documentation | M2, M3, M4 |
 | 11 | `migration-guide.md`: moved-symbol table, consumer changes for 008, **the release gate** | FR-027, FR-028, M5 |
@@ -233,8 +249,13 @@ judges.
 Step 2 before step 3 is deliberate: the `strtobool(bool)` interaction is the one place where two
 requirements of this feature collide, and it is proven rather than assumed.
 
-Step 8 after step 7 is deliberate: goldens are regenerated by code the tests already agree with,
-never to make a test pass.
+**Step 8 was originally scheduled after step 7 and has been folded into step 3.** Task mapping
+showed the original ordering could not hold: every corpus `network_map.xml` carries `<node_type>`,
+so the schema edit invalidates them and the suite stays red until they are converted. The
+principle it protected — goldens are never regenerated to make a test pass — is kept by having the
+**conversion script** do the converting: it is a deliverable with its own tests, not the code under
+test, and the FR-010 diff is measured against a pre-state copy taken in step 1. Full reasoning in
+the note at the end of `tasks.md`.
 
 ---
 
@@ -260,5 +281,8 @@ diff.
 | The round-trip diff quietly grows beyond two differences | C4 asserts the diff **set**, not merely that it round-trips |
 | `Uuid` rejects a real node's UUID | `_UuidAdapter` keeps unparseable values as raw text; the XSD pattern constrains shape, not uuid4 semantics (research R2) |
 | Goldens regenerated to make a test pass | `MANIFEST.sha256` + the recorded-justification ceremony (M6) |
-| Someone releases `cuems-utils` between 007 and 008 | FR-030c states the gate in the migration guide as a gate, with its failure mode |
+| Someone releases `cuems-utils` between 007 and 008 | FR-030c states the gate; FR-030d enforces it with versioned package dependencies, since a documented gate is not one |
+| A node's map is rewritten with no recoverable prior version | FR-011i requires a timestamped backup and a documented restore before any write |
+| The round-trip diff is unachievable because the corpus is stored in a form the writer never emits | Caught at analysis, not at test time: step 1b normalises the corpus first (FR-010b, C4a) |
+| Public surface grows without the API snapshot noticing | FR-007a makes the golden update a named, justified modification rather than an oversight |
 | `cuems-nodeconf`'s re-keying of `NodeIndex` changes silently | The key function is caller-supplied, not hard-coded (research R5) |

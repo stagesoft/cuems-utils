@@ -3,8 +3,9 @@
 **Feature**: `007-node-model-migration` | **Date**: 2026-08-24
 
 Public surface added or changed by this feature. Under D15 the public configuration objects are
-`ConfigManager` / `ConfigBase`; the node types are *configuration-domain objects* reached through
-them and importable for direct construction, which discovery requires (FR-004).
+`ConfigManager` / `ConfigBase`. The node types are reached through them and are importable for
+direct construction, which discovery requires (FR-004) — from **`cuemsutils.tools.NodeList`**,
+the one public node path. `cuemsutils.config` is **internal** (FR-007) and exports nothing.
 
 Each contract below is stated so that a test can fail on it. `Cn` numbering continues the series
 used by features 004 and 006.
@@ -14,7 +15,7 @@ used by features 004 and 006.
 ## C1 — `NodeRole` is the single vocabulary, and it agrees with the schema
 
 ```python
-from cuemsutils.config import NodeRole
+from cuemsutils.tools.NodeList import NodeRole
 
 NodeRole.controller.value == "controller"
 NodeRole.node.value       == "node"
@@ -68,7 +69,7 @@ property of the schema rather than as 84 passing cases.
 
 ## C4 — Round trip is a declared transformation, not byte identity
 
-For every corpus `network_map.xml`:
+For every **normalised** corpus `network_map.xml` (C4a):
 
 ```
 load(doc) -> save(tmp)
@@ -82,6 +83,23 @@ whitespace, attribute order, namespace prefix and `xsi:schemaLocation` all uncha
 
 **Asserted**: the other five schemas' documents remain byte-identical under their existing
 byte-identity contracts (FR-010a).
+
+---
+
+## C4a — The corpus is normalised first, as its own change
+
+**Asserted**: before the rename lands, each corpus `network_map.xml` is rewritten to the writer's
+output form — no indentation, `xsi:schemaLocation` carrying the bare filename — and that diff is
+recorded separately from the rename diff (FR-010b).
+
+**Why this contract exists**: measured during analysis, the corpus maps are 4-space indented and
+carry two different absolute `schemaLocation` forms, while `build_document` emits neither. Without
+normalisation C4 asserts a property the writer cannot produce, and the show corpus is already
+stored in exactly this normalised form — which is what makes *its* byte-identity contract
+checkable.
+
+**Asserted**: normalisation changes no element name and no element value. The two transformations
+are never present in the same diff.
 
 ---
 
@@ -155,4 +173,42 @@ slave — exists nowhere after this feature.
 until the model follows the schema, which is the point.
 
 **Asserted**: every complex type in `network_map.xsd` is bound to a model class, none to
-`GENERIC`.
+`GENERIC` — and `PutType` is absent from schema, model and registry alike (FR-029).
+
+---
+
+## C10 — `config/` is internal; `tools/NodeList.py` is the public path
+
+**Asserted**: `cuemsutils.config` exports nothing publicly, joining `cuemsutils.xml` on the
+internal side of Q14→(i) (FR-007).
+
+**Asserted**: `NodeRole` and `NodeIndex` are importable from `cuemsutils.tools.NodeList`, and that
+path is what the migration guide names for consumers (FR-002b, FR-027a).
+
+**Asserted**: the public API snapshot golden records exactly this added surface —
+`tools/NodeList.py`'s exports and `ConfigManager.save_network_map` — and nothing more, with the
+diff enumerated in an `api-surface-diff.md` (FR-007a, SC-014).
+
+---
+
+## C11 — Every model object is the same kind of thing
+
+**Asserted**: `node`, `node_list` and `CuemsNetworkMapType` each answer `declared_fields()`,
+`items()`, `to_wire()`, `to_json()`, equality and copy through the **same** inherited
+implementations as every other model in the package — no override that would make a node a
+special case to a consumer that is not looking at its contents (FR-005).
+
+**Why it is asserted rather than assumed**: it is true today by inheritance from `ConfigDict`, and
+that is exactly the kind of property that stops being true the first time someone adds a
+convenience override.
+
+---
+
+## C12 — The boundary holds in both directions
+
+**Asserted**: the migrated surface contains no discovery, adoption or orchestration symbol,
+searched against the pre-migration inventory rather than reviewed (FR-032, SC-013).
+
+**Asserted**: no orphaned node artefact remains, under FR-018's definition — a symbol, module or
+test whose subject is the node model or its serialization and which has no caller in its own
+repository and no consumer outside it. The search is run and its result recorded.
