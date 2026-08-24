@@ -198,27 +198,27 @@ run it again and assert the bytes are unchanged.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T047 [P] [US3] Test that the packaged conversion handles a `.dpkg-new` / `.dpkg-dist` sibling left by a conffile prompt, in `tests/contract/test_network_map_conversion.py`
-- [ ] T048 [P] [US3] Test that an absent, already-converted or unparseable file exits 0 with a diagnostic and never fails the upgrade, in `tests/contract/test_network_map_conversion.py`
-- [ ] T049 [P] [US3] Test M2 — `../cuems-common/etc/cuems/network_map.xsd` is byte-identical to `src/cuemsutils/xml/schemas/network_map.xsd` — in `tests/contract/test_schema_mirror.py`
-- [ ] T050 [P] [US3] Test that each of the three `cuems-common` tools resolves the controller's IP from a converted map, in `../cuems-common/tests/`
+- [X] T047 [P] [US3] Test that the packaged conversion handles a `.dpkg-new` / `.dpkg-dist` sibling left by a conffile prompt, in `tests/contract/test_network_map_conversion.py`
+- [X] T048 [P] [US3] Test that an absent, already-converted or unparseable file exits 0 with a diagnostic and never fails the upgrade, in `tests/contract/test_network_map_conversion.py`
+- [X] T049 [P] [US3] Test M2 — `../cuems-common/etc/cuems/network_map.xsd` is byte-identical to `src/cuemsutils/xml/schemas/network_map.xsd` — in `tests/contract/test_schema_mirror.py`
+- [X] T050 [P] [US3] Test that each of the three `cuems-common` tools resolves the controller's IP from a converted map, in `../cuems-common/tests/`
 
 ### Implementation for User Story 3
 
-- [ ] T051 [US3] Create the `cuems-common` branch from `rc_1` at `0be3506f22de6ea2dd6d20fbd211febe7b26c710` (FR-030b) and mirror the updated schema to `../cuems-common/etc/cuems/network_map.xsd`
-- [ ] T052 [P] [US3] Convert the shipped default map at `../cuems-common/etc/cuems/network_map.xml` so a fresh install never needs converting
-- [ ] T053 [US3] Wire the conversion into `../cuems-common/debian/postinst`, after dpkg resolves the conffile, never failing the upgrade — and record its ordering against `dh_installsystemd`'s service restart as **deferred to feature 008** rather than settling it here (FR-011d-ii)
-- [ ] T054 [US3] Install the conversion script through `../cuems-common/debian/install`
-- [ ] T054a [US3] Add versioned dependencies between the `cuems-common`, `cuems-utils` and `cuems-nodeconf` packages so an out-of-order upgrade is refused rather than merely discouraged, in `../cuems-common/debian/control` and the sibling control files (FR-030d)
-- [ ] T054b [US3] Demonstrate the enforcement: attempt the out-of-order upgrade on a test install and record that it is refused, in `specs/007-node-model-migration/migration-guide.md` (SC-012)
-- [ ] T054c [US3] Document the restore procedure for a converted map where an operator will look — `../cuems-common/docs/node-identity-contract.md` — and cross-reference it from the migration guide (FR-011i)
-- [ ] T055 [P] [US3] Update the controller XPath in `../cuems-common/scripts/cuems-write-chrony-source`
-- [ ] T056 [P] [US3] Update the controller XPath in `../cuems-common/scripts/cuems-log-collector-url`
-- [ ] T057 [P] [US3] Update the role read and prefix-stripping in `../cuems-common/usr/bin/cuems-logs`
-- [ ] T058 [P] [US3] Update the field contract in `../cuems-common/docs/node-identity-contract.md`
-- [ ] T059 [P] [US3] Update the `node_type` references in `../cuems-common/CLAUDE.md` and `../cuems-common/README.md`, including the line that lists this migration as pending
-- [ ] T060 [US3] Inventory the Avahi service templates' `node_type` TXT record — `etc/avahi/services/cuems.service` and `usr/share/cuems/cuems.service.{master,slave,firstrun}` — and record all four in `specs/007-node-model-migration/migration-guide.md` as **feature 008's work, deliberately unedited here** (Assumption 10, FR-011g), including that `.master`/`.slave` carry the retired vocabulary in their **filenames** and that renaming them reaches `debian/install` and anything resolving a template by name
-- [ ] T060a [US3] Record that same four-file list in `specs/007-node-model-migration/migration-guide.md` as SC-004a's **named exclusion**, so the count T092 runs and the files it skips are stated in one place rather than inferred
+- [X] T051 [US3] Create the `cuems-common` branch from `rc_1` at `0be3506f22de6ea2dd6d20fbd211febe7b26c710` (FR-030b) and mirror the updated schema to `../cuems-common/etc/cuems/network_map.xsd`
+- [X] T052 [P] [US3] Convert the shipped default map at `../cuems-common/etc/cuems/network_map.xml` so a fresh install never needs converting
+- [X] T053 [US3] Wire the conversion into `../cuems-common/debian/postinst`, after dpkg resolves the conffile, never failing the upgrade — and record its ordering against `dh_installsystemd`'s service restart as **deferred to feature 008** rather than settling it here (FR-011d-ii)
+- [X] T054 [US3] Install the conversion script through `../cuems-common/debian/install`
+- [X] T054a [US3] Add versioned dependencies between the `cuems-common`, `cuems-utils` and `cuems-nodeconf` packages so an out-of-order upgrade is refused rather than merely discouraged, in `../cuems-common/debian/control` and the sibling control files (FR-030d)
+- [ ] T054b [US3] Demonstrate the enforcement: attempt the out-of-order upgrade on a test install and record that it is refused, in `specs/007-node-model-migration/migration-guide.md` (SC-012) — **not completed**, no packaging/build sandbox available; see migration-guide.md §13
+- [X] T054c [US3] Document the restore procedure for a converted map where an operator will look — `../cuems-common/docs/node-identity-contract.md` — and cross-reference it from the migration guide (FR-011i)
+- [X] T055 [P] [US3] Update the controller XPath in `../cuems-common/scripts/cuems-write-chrony-source`
+- [X] T056 [P] [US3] Update the controller XPath in `../cuems-common/scripts/cuems-log-collector-url`
+- [X] T057 [P] [US3] Update the role read and prefix-stripping in `../cuems-common/usr/bin/cuems-logs`
+- [X] T058 [P] [US3] Update the field contract in `../cuems-common/docs/node-identity-contract.md`
+- [X] T059 [P] [US3] Update the `node_type` references in `../cuems-common/CLAUDE.md` and `../cuems-common/README.md`, including the line that lists this migration as pending
+- [X] T060 [US3] Inventory the Avahi service templates' `node_type` TXT record — `etc/avahi/services/cuems.service` and `usr/share/cuems/cuems.service.{master,slave,firstrun}` — and record all four in `specs/007-node-model-migration/migration-guide.md` as **feature 008's work, deliberately unedited here** (Assumption 10, FR-011g), including that `.master`/`.slave` carry the retired vocabulary in their **filenames** and that renaming them reaches `debian/install` and anything resolving a template by name
+- [X] T060a [US3] Record that same four-file list in `specs/007-node-model-migration/migration-guide.md` as SC-004a's **named exclusion**, so the count T092 runs and the files it skips are stated in one place rather than inferred
 
 **Checkpoint**: an upgraded node reads its own map; zero `node_type` occurrences remain in
 `cuems-common`.
@@ -243,7 +243,7 @@ no import from `cuems-nodeconf`.
 ### Implementation for User Story 4
 
 - [X] T065 [US4] Confirm the guarantee needs no implementation — `NonEmptyString` and `xs:string` are unbound in `ADAPTERS`, so `adapter_for` returns `PASSTHROUGH` — and record that finding in `specs/007-node-model-migration/migration-guide.md`, since "the fix is that there is no code" is the outcome a reader will not expect
-- [ ] T066 [US4] Delete `../cuems-nodeconf/tests/test_node_field_coercion.py`, whose replacement now lives upstream
+- [X] T066 [US4] Delete `../cuems-nodeconf/tests/test_node_field_coercion.py`, whose replacement now lives upstream
 
 **Checkpoint**: F7 is structurally unrepresentable rather than denylisted.
 
@@ -261,24 +261,24 @@ namespace exists, and the repository's own suite is green against the migrated `
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T067 [P] [US5] Test that no node-role enum is defined locally and all usages resolve to the `cuemsutils` definition, in `../cuems-nodeconf/tests/test_node_type.py`
-- [ ] T068 [P] [US5] Test that adoption writes a schema-valid map end to end, in `../cuems-nodeconf/tests/test_node_adoption.py` (SC-008)
-- [ ] T069 [P] [US5] Test that no assignment into a `cuemsutils` module namespace exists in the sources, in `../cuems-nodeconf/tests/test_no_injection.py`
+- [X] T067 [P] [US5] Test that no node-role enum is defined locally and all usages resolve to the `cuemsutils` definition, in `../cuems-nodeconf/tests/test_node_type.py`
+- [X] T068 [P] [US5] Test that adoption writes a schema-valid map end to end, in `../cuems-nodeconf/tests/test_node_adoption.py` (SC-008)
+- [X] T069 [P] [US5] Test that no assignment into a `cuemsutils` module namespace exists in the sources, in `../cuems-nodeconf/tests/test_no_injection.py`
 
 ### Implementation for User Story 5
 
-- [ ] T070 [US5] Create the branch from `feat/nodeconf-reenable` at `0a3ce37` and confirm the FR-026d break reproduces there before changing anything
-- [ ] T071 [US5] Delete `../cuems-nodeconf/cuemsnodeconf/CuemsNode.py`
-- [ ] T072 [US5] Delete `../cuems-nodeconf/cuemsnodeconf/NodeXmlBuilders.py`, and with it the four globals injections and `STRING_TYPED_NODE_FIELDS`
-- [ ] T073 [US5] Remove the duplicate enum from `../cuems-nodeconf/cuemsnodeconf/AvahiTool.py` and import `NodeRole` instead
-- [ ] T074 [US5] Reformat `../cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py` onto the upstream model: `NodeIndex` with its MAC key function, `NodeRole` comparisons, and no `CuemsNode`/`CuemsNodeDict` aliases (FR-002a)
-- [ ] T075 [US5] Delete the `node_type` normalisation in `read_network_map` — both spellings are gone after conversion — in `../cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py`
-- [ ] T076 [US5] Delete the hand-rolled atomic write and the separate serialization copy in `write_network_map`, replacing both with the upstream `save()` — the workaround for in-place mutation is unnecessary once FR-015 holds — in `../cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py`
-- [ ] T077 [US5] Retire `XmlReader`/`XmlWriter` in `../cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py` and `CuemsHwDiscovery.py` for the current public surface (FR-031)
-- [ ] T078 [US5] Delete `../cuems-nodeconf/test_xml_roundtrip.py`, whose subject is the injection mechanism that no longer exists
-- [ ] T078a [US5] Run the FR-018 orphan search — symbols, modules and tests whose subject is the node model or its serialization with no caller in their own repository and no consumer outside it — across both repositories, and record the result in `specs/007-node-model-migration/migration-guide.md`, stating for each duplicate-named legacy module in `src/cuemsutils/xml/` (`Settings.py`/`settings.py`, `XmlReaderWriter.py`/`xml_reader_writer.py`, `CMLCuemsConverter.py`/`converter.py`, `Parsers.py`, `XmlBuilder.py`) whether it holds node content or none, so "we looked" is distinguishable from "we did not think to look" (FR-018)
-- [ ] T078b [US5] Run the FR-032 boundary check: search the migrated surface for discovery, adoption and orchestration symbols against T006a's inventory, and record the count in `specs/007-node-model-migration/migration-guide.md` (SC-013)
-- [ ] T079 [US5] Run `../cuems-nodeconf`'s suite green against the migrated `cuemsutils` and record the result in `specs/007-node-model-migration/migration-guide.md`
+- [X] T070 [US5] Create the branch from `feat/nodeconf-reenable` at `0a3ce37` and confirm the FR-026d break reproduces there before changing anything
+- [X] T071 [US5] Delete `../cuems-nodeconf/cuemsnodeconf/CuemsNode.py`
+- [X] T072 [US5] Delete `../cuems-nodeconf/cuemsnodeconf/NodeXmlBuilders.py`, and with it the four globals injections and `STRING_TYPED_NODE_FIELDS`
+- [X] T073 [US5] Remove the duplicate enum from `../cuems-nodeconf/cuemsnodeconf/AvahiTool.py` and import `NodeRole` instead
+- [X] T074 [US5] Reformat `../cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py` onto the upstream model: `NodeIndex` with its MAC key function, `NodeRole` comparisons, and no `CuemsNode`/`CuemsNodeDict` aliases (FR-002a)
+- [X] T075 [US5] Delete the `node_type` normalisation in `read_network_map` — both spellings are gone after conversion — in `../cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py`
+- [X] T076 [US5] Delete the hand-rolled atomic write and the separate serialization copy in `write_network_map`, replacing both with the upstream `save()` — the workaround for in-place mutation is unnecessary once FR-015 holds — in `../cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py`
+- [X] T077 [US5] Retire `XmlReader`/`XmlWriter` in `../cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py` and `CuemsHwDiscovery.py` for the current public surface (FR-031) — `CuemsHwDiscovery.py` does not exist in this repository; nothing to retire there
+- [X] T078 [US5] Delete `../cuems-nodeconf/test_xml_roundtrip.py`, whose subject is the injection mechanism that no longer exists
+- [X] T078a [US5] Run the FR-018 orphan search — symbols, modules and tests whose subject is the node model or its serialization with no caller in their own repository and no consumer outside it — across both repositories, and record the result in `specs/007-node-model-migration/migration-guide.md`, stating for each duplicate-named legacy module in `src/cuemsutils/xml/` (`Settings.py`/`settings.py`, `XmlReaderWriter.py`/`xml_reader_writer.py`, `CMLCuemsConverter.py`/`converter.py`, `Parsers.py`, `XmlBuilder.py`) whether it holds node content or none, so "we looked" is distinguishable from "we did not think to look" (FR-018)
+- [X] T078b [US5] Run the FR-032 boundary check: search the migrated surface for discovery, adoption and orchestration symbols against T006a's inventory, and record the count in `specs/007-node-model-migration/migration-guide.md` (SC-013)
+- [X] T079 [US5] Run `../cuems-nodeconf`'s suite green against the migrated `cuemsutils` and record the result in `specs/007-node-model-migration/migration-guide.md`
 
 **Checkpoint**: `cuems-nodeconf` is a plain consumer, like `cuems-engine` and `cuems-editor`.
 

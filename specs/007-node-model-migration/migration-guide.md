@@ -114,15 +114,12 @@ of scope here. Recorded as a finding so "we looked and it's out of scope" is dis
 
 ## 4. The moved-symbol table (T084)
 
-**Scope note, stated once rather than per row**: this pass of feature 007 implements Phases 1–4, 6
-and 8 (`cuems-utils` only) — Phase 5 (US3, `cuems-common`) and Phase 7 (US5, `cuems-nodeconf`) were
-descoped by an explicit decision partway through implementation, recorded here rather than left to
-be inferred from an empty section. The table below therefore states the **intended** destination
-and **authorising requirement** for every symbol T006a's inventory named, with status `landed`
-where the `cuems-utils` half is done and `not started` where the move depends on editing
-`cuems-nodeconf`, which this pass does not do. Nothing in this table is a broken promise: the
-`cuems-utils` destinations exist, work, and are tested; only the *deletion* of the `cuems-nodeconf`
-source, which depends on a repository this pass never opens, remains.
+**Scope note, updated**: `cuems-utils` (Phases 1–4, 6, 8) landed in an earlier pass. Phase 5 (US3,
+`cuems-common`) and Phase 7 (US5, `cuems-nodeconf`), descoped from that earlier pass, have now
+landed too — each on its own `007-node-model-migration` branch, in its own repository, as **local
+commits only**. Nothing in either sibling repository has been pushed or merged; §7 (the release
+gate) states what that does and does not authorise. The table below now reflects the actual state
+of every symbol T006a's inventory named, not an intended one.
 
 | Source | New home | Status | Authorising requirement |
 |---|---|---|---|
@@ -133,9 +130,9 @@ source, which depends on a repository this pass never opens, remains.
 | `cuemsnodeconf.NodeXmlBuilders.{node,node_list}XmlBuilder` | `cuemsutils.xml.documents.build_tree` (registry-driven, via `CuemsNetworkMapType.save`) | **landed** — the write path exists and is tested (C4, C5) | FR-009, research R6 |
 | `cuemsnodeconf.NodeXmlBuilders.{node,node_list}Parser` | `cuemsutils.xml.mapper.Mapper.decode_config` (registry-driven) | **landed** — was already true from feature 006's bindings | FR-011a, research R1 |
 | `cuemsnodeconf.NodeXmlBuilders.STRING_TYPED_NODE_FIELDS` | *(deleted, not recreated — structural guarantee instead)* | **landed** — `tests/contract/test_node_field_coercion.py` asserts its absence (T064) and the structural replacement (T065) | FR-012, research R4 |
-| `cuemsnodeconf.CuemsNodeConf`'s MAC-keyed working set | `cuemsutils.tools.NodeList.NodeIndex` | **landed** in `cuems-utils`; **not started** in `cuemsnodeconf` — the call site still builds its own dict | research R5 |
-| `cuemsnodeconf.CuemsNode.py`, `NodeXmlBuilders.py` (the files) | *(deletion target)* | **not started** — depends on editing `cuems-nodeconf` (Phase 7 / US5), out of scope this pass | FR-018 |
-| `cuemsnodeconf.CuemsNodeConf.py`'s `node_type` normalisation, hand-rolled atomic write, `XmlReader`/`XmlWriter` use | *(removal target — the upstream model and `save()` make each unnecessary)* | **not started** — same reason | FR-015, FR-031, research R6 |
+| `cuemsnodeconf.CuemsNodeConf`'s MAC-keyed working set | `cuemsutils.tools.NodeList.NodeIndex` | **landed** — `CuemsNodeConf.__init__`, `read_network_map`, `write_network_map` and every call site now build/consume a `NodeIndex` (T074) | research R5 |
+| `cuemsnodeconf.CuemsNode.py`, `NodeXmlBuilders.py` (the files) | *(deletion target)* | **landed** — both files deleted (T071, T072), local branch | FR-018 |
+| `cuemsnodeconf.CuemsNodeConf.py`'s `node_type` normalisation, hand-rolled atomic write, `XmlReader`/`XmlWriter` use | *(removal target — the upstream model and `save()` make each unnecessary)* | **landed** — `read_network_map` has no normalisation left (T075), `write_network_map` calls `CuemsNetworkMapType.save()` (T076), no `XmlReader`/`XmlWriter` import remains in `CuemsNodeConf.py` (T077; `CuemsHwDiscovery.py` named in the task does not exist in this repository — confirmed by directory listing, so there was nothing to retire there) | FR-015, FR-031, research R6 |
 | discovery/adoption/orchestration symbols (`CuemsAvahiListener`, `CuemsConfServer`, `AliasPublisher`, `AvahiTool` minus its enum) | *(stay in `cuems-nodeconf`)* | **not applicable** — FR-032 says these do not move | FR-032 |
 
 ## 4a. The consumer's public import path (T084a)
@@ -183,30 +180,34 @@ resolves toward changing the payload shape; that decision is feature 008's, not 
 
 **Stated as a gate, per M5** (`contracts/schema-migration.md`):
 
-1. `cuems-utils` — schema, model, engine, write path. **Landed, this pass.**
-2. `cuems-nodeconf` — model and serializers deleted; the sole writer follows the schema. **Not
-   started this pass** (Phase 7 / US5, descoped).
-3. `cuems-common` — mirror, conversion, tools, documentation. **Not started this pass** (Phase 5 /
-   US3, descoped).
-4. **Feature 008** — `cuems-engine` and `cuems-editor` readers (§5, §6 above).
+1. `cuems-utils` — schema, model, engine, write path. **Landed.**
+2. `cuems-nodeconf` — model and serializers deleted; the sole writer follows the schema. **Landed
+   on a local `007-node-model-migration` branch** (Phase 7 / US5) — not pushed, not merged, not
+   released.
+3. `cuems-common` — mirror, conversion, tools, documentation. **Landed on a local
+   `007-node-model-migration` branch** (Phase 5 / US3) — not pushed, not merged, not released.
+4. **Feature 008** — `cuems-engine` and `cuems-editor` readers (§5, §6 above). **Not started.**
 
 **No release of any of the three repositories ships before step 4.** The hard cutover has no
 working partially-deployed state: a converted map meets an unmigrated reader (§3's table — silent,
 not loud), or an unconverted map meets the migrated schema (`SchemaError`, C8) — either way a node
-stops functioning, not gracefully.
+stops functioning, not gracefully. Landing steps 2 and 3 as local commits does not change this —
+"landed" here means the branch exists and its own suite is green (§14), not that either repository
+is releasable in isolation.
 
 **The cluster, not just one machine** (T087a): a staged rollout — some nodes converted, some not,
 or a controller upgraded ahead of its nodes — is **not supported**. `network_map.xml` is the
 controller's view of every node; a controller running the migrated schema and reading an
-unconverted map fails closed (C8) rather than partially. The cluster upgrades as a unit, at step 3
-above, once `cuems-common` ships the conversion in `postinst`.
+unconverted map fails closed (C8) rather than partially. The cluster upgrades as a unit, once
+`cuems-common`'s branch (step 3) ships the conversion in `postinst` via an actual release.
 
 **Enforcement status, honestly**: FR-030d's versioned package dependencies (T054a, "an out-of-order
-upgrade is refused rather than merely discouraged") are `cuems-common` `debian/control` changes —
-**not implemented in this pass**, because `cuems-common` is out of scope. Until that phase lands,
-this gate is **documented, not enforced** — `dpkg` will not by itself refuse installing a migrated
-`cuems-utils` ahead of a converted `cuems-common`. Recorded here so "the gate exists" is not
-conflated with "the gate is mechanically guaranteed" before it actually is.
+upgrade is refused rather than merely discouraged") are now present in `cuems-common`'s
+`debian/control` on its local branch (`Breaks: cuems-nodeconf (<< 0.1.0-8)`, alongside
+`cuems-utils (>= 0.1.0rc15)`). **Still not mechanically demonstrated** (T054b, §13): no packaging/
+build sandbox was available in either pass to actually install an out-of-order combination and watch
+`dpkg` refuse it. The constraint is written; its enforcement is read, not run. Recorded here so "the
+gate exists" is not conflated with "the gate is mechanically guaranteed" before it actually is.
 
 **Downgrade is unsupported** (T087b): no reverse conversion (`node_role` → `node_type`) is
 provided, or planned — `NodeRoleType`'s enumeration is a narrower vocabulary than free text was,
@@ -296,13 +297,114 @@ finding the old spelling there is the point, not a defect) and this feature's ow
 prose (`baseline.md`, `golden-changes.md`, this file), which discusses the migration by name
 throughout.
 
-**Not measured here**: `cuems-nodeconf` and `cuems-common`. Both still carry the pre-feature counts
-from `baseline.md` (146 and 27 respectively) because neither repository was edited this pass — SC-
-004a's full claim (zero across all three) is **not yet true**, and is not claimed to be; it becomes
-checkable again once Phases 5 and 7 land.
+**Re-measured now that Phases 5 and 7 have landed** (local branches, not pushed — §7): neither
+repository is at zero, and neither is expected to be — SC-004a's own class of exclusion (§9, the
+four Avahi files) and the diagnostic-testing pattern (§10 above) both recur here, this time in a
+second and third repository:
+
+- `cuems-common` — non-diagnostic hits are exactly the four Avahi service-template files §9 already
+  excludes (`cuems.service.master`, `cuems.service.slave`, `cuems.service.firstrun`, plus the
+  base `cuems.service`, deliberately untouched — verified against §9's table by name). Every other
+  hit is either the mirrored schema's explanatory comment (`etc/cuems/network_map.xsd:50`, prose,
+  same pattern as `cuems-utils`'s own copy) or a test deliberately constructing a legacy-spelling
+  document to prove it converts or is refused (`tests/test_network_map_conversion.py`,
+  `tests/test_controller_resolution.py`).
+- `cuems-nodeconf` — non-diagnostic hits are the Avahi wire-format boundary itself
+  (`CuemsAvahiListener.py`, `AvahiTool.py`, `CuemsSettings.py`): the TXT record key/value stays
+  `node_type=master`/`slave`/`firstrun` until feature 008 (spec Assumption 10), so these sites
+  necessarily still name it, each behind the explicit `_AVAHI_NODE_TYPE_TO_ROLE` translation dict
+  documented at every one of the three call sites. Everything else is either a code comment
+  explaining the migration (`CuemsNodeConf.py:430,563`) or the same deliberate-construction test
+  pattern (`tests/test_node_type.py`, `tests/test_avahi_listener.py`). The one exception:
+  `test_run_nodeconfig.py` (repository root) — an orphan (§11) with the retired vocabulary as a
+  live literal, left as found because it is dead code no path reaches, not because it was missed.
+
+SC-004a's full claim (zero across all three, outside the named exclusions) now holds for the parts
+of each repository this feature's scope actually touches — the two Avahi wire-format boundaries
+(here and in `cuems-common`'s templates) are the same explicitly-deferred exception §9 already
+named, not a new one.
 
 ---
 
-*Sections 4–8, 10 are filled in by their respective Phase 5/7/9 tasks (T054b, T078a, T078b, T084,
-T084a, T085–T088, T079, T092) as the corresponding work lands. §10 above completes the cuems-utils
-portion; the cuems-nodeconf/cuems-common portions remain open.*
+## 11. The FR-018 orphan search (T078a)
+
+Symbols, modules and tests whose subject is the node model or its serialization, with no caller in
+their own repository and no consumer outside it — searched across both repositories now that Phase
+5 and Phase 7 have landed.
+
+**The duplicate-named legacy modules in `src/cuemsutils/xml/`**, named explicitly by this task so
+"we looked" is distinguishable from "we did not think to look":
+
+| Module | Holds node content? |
+|---|---|
+| `Settings.py` | No — a deprecation shim (`deprecated_alias` re-exports of `settings.py`'s classes); carries no logic of its own. |
+| `settings.py` | **Yes** — `NetworkMap.get_node`, `get_nodes_by_adoption` (deprecated) and `partition_by_adoption` all read `node_list`/`node` shape. This is the module `cuemsnodeconf.CuemsNodeConf.read_network_map` now imports as `_NetworkMapReader` (T075). |
+| `XmlReaderWriter.py` | No — a deprecation shim. |
+| `xml_reader_writer.py` | No — generic reader/writer machinery (`CuemsXml`), schema-agnostic. |
+| `CMLCuemsConverter.py` | No — a deprecation shim. |
+| `converter.py` | No — the D5 thin converter, schema-agnostic. |
+| `Parsers.py` | No — generic cue-oriented parser machinery; no `node`/`network_map` reference. |
+| `XmlBuilder.py` | No — generic builder machinery; no `node`/`network_map` reference. |
+
+**Orphans found in `cuems-nodeconf`** (repository root, outside the migrated `cuemsnodeconf/` and
+`tests/` trees):
+
+| Path | Finding |
+|---|---|
+| `test_xml_roundtrip.py` | Deleted (T078) — its subject, the `NodeXmlBuilders.py` globals-injection mechanism, no longer exists. |
+| `test_run_nodeconfig.py` | **Orphan, left in place.** A manual smoke script (`from CuemsAvahiListener import ...` — a bare top-level import that does not resolve from the package layout `cuemsnodeconf.CuemsAvahiListener` uses everywhere else, so it has not been runnable as `python test_run_nodeconfig.py` for some time). References `CuemsConfServer` and the pre-migration `listener.nodes.master`/`.slaves` API (singular `.master`, which never existed even before this feature — the real attribute was always plural `.masters`). No file in `cuemsnodeconf/` or `tests/` imports it; `run_nodeconf.py` (the actual systemd entry point) imports only `CuemsNodeConf`. Not deleted, because deletion was not in scope for this task (T078 named only `test_xml_roundtrip.py`) — recorded here so its orphan status is documented rather than silently discovered later. |
+| `test_run_classes.py` | **Orphan, left in place.** Same repository-root pattern: `from CuemsNodeConf import CuemsNodeConf` (bare top-level import, same non-resolving layout). No caller anywhere. Not deleted, same reasoning as above. |
+| `cuemsnodeconf/CuemsConfServer.py` | **Orphan within the package.** Its only consumer is `test_run_nodeconfig.py` above — itself an orphan. `run_nodeconf.py` does not construct a `CuemsConfServer`. Not touched (T078a is a search-and-record task, not a deletion task, and it is not one of the two files T071/T072 name). |
+| `cuemsnodeconf/CuemsSettings.py` | **Orphan within the package**, transitively: its only consumer is `CuemsConfServer.py` above. Not touched, same reasoning. |
+| `cuemsnodeconf/AvahiTool.py` | Confirmed orphan (already noted at T073's implementation, restated here for the record): a standalone manual debug CLI (`if __name__ == "__main__"`), self-referencing only. Its `NodeType` enum duplicate was removed and replaced with `NodeRole` (T073) precisely because the file itself was kept — an orphan is not evidence a file should be deleted without instruction, only that it has no production caller. |
+
+**No further orphans found in `cuems-common`**: Phase 5's four-commit scope (schema mirror, script,
+three tools, docs) touched only files with existing production callers (`postinst`,
+`debian/install`, the systemd units invoking the three scripts); nothing new was left dangling.
+
+## 12. The FR-032 boundary check (T078b)
+
+Searching the migrated surface (`cuemsutils.tools.NodeList`, `cuemsutils.config.network_map`, and
+every call site touched in `cuems-nodeconf`'s Phase 7) for discovery, adoption and orchestration
+symbols against §2's inventory (`cuems-nodeconf discovery / adoption / orchestration symbols (stay
+— FR-032)`):
+
+**Count: 0.** None of the six symbols/modules that table names as staying —
+`CuemsNodeConf` (orchestration + adoption), `CuemsAvahiListener` (discovery), `CuemsConfServer`
+(req/rep server), `AliasPublisher` (Avahi alias publication), `AvahiTool` minus its now-removed
+enum (discovery utility), `CuemsSettings` (local config) — were moved, renamed, or reimplemented in
+`cuemsutils` by this feature. `CuemsNodeConf.py` and `AvahiTool.py` were edited **in place** to
+*consume* the upstream model (T073–T077), which is what FR-032 anticipates as a call-site change,
+not a boundary crossing. SC-013 (the count named in this task) is satisfied at zero.
+
+## 13. The out-of-order-upgrade enforcement demonstration (T054b)
+
+**Not completed, in either pass, honestly recorded rather than silently dropped.** T054a's versioned
+package constraint (`cuems-common`'s `debian/control`: `Depends: cuems-utils (>= 0.1.0rc15)`,
+`Breaks: cuems-nodeconf (<< 0.1.0-8)`) is written and reviewed by inspection. T054b asks for more: an
+actual `dpkg -i` of an out-of-order combination, showing the refusal happen. That requires a
+Debian packaging/build sandbox (a `.deb` built from each of the three repositories, installed in
+sequence) that was not available in this session, same as it was not available in the pass that
+first implemented Phase 5. Recorded here, at the location §1 names for it, rather than left
+implicit in a commit message a future reader would have to go find.
+
+## 14. `cuems-nodeconf`'s suite result (T079)
+
+Run against the migrated `cuemsutils` (editable install, this repository's working tree, pyenv
+3.11.9 — the same interpreter `cuems-utils`'s own CLAUDE.md names as canonical for this project):
+
+```
+78 passed in 26.87s
+```
+
+Zero failures, zero skips. Composition: the 67 tests already present under `tests/` (12 rewritten
+off the deleted `CuemsNode`/`CuemsNodeDict` API onto `NodeIndex`/`NodeRole`/`node` — dict-key access
+throughout, since none of these classes define `__getattr__`; a fixture UUID in
+`test_phase1_changes.py` was also corrected from a non-canonical string to a schema-valid one, since
+`network_map.xsd`'s `UuidType` pattern now rejects it where the old free-text `node_type` model
+never checked), plus T067 (`test_node_type.py`), T068 (appended to `test_node_adoption.py`) and T069
+(`test_no_injection.py`) added by this task, plus `dbus.UInt32` added to `tests/conftest.py`'s
+existing `dbus` stub (needed once `test_phase1_changes.py`'s `AliasPublisher` test could actually
+run, having previously been blocked at collection by the `CuemsNode` import error). `tests/`
+composition: `NodeIndex`/`NodeRole`/`node` from `cuemsutils.tools.NodeList` throughout, no
+`CuemsNode`/`CuemsNodeDict` reference remaining anywhere under `tests/`.
