@@ -72,7 +72,7 @@ class _String(_Passthrough):
         return raw
 
 
-class _Bool:
+class _Bool(_Passthrough):
     """``cms:BoolType`` — an ``xs:string`` enum of ``"True"`` / ``"False"``.
 
     Python ``bool`` in the object model, the capitalised *strings* on the wire
@@ -87,14 +87,11 @@ class _Bool:
             return raw == "True"
         return bool(raw)
 
-    def to_lexical(self, obj):
-        return None if obj is None else str(obj)
-
     def to_wire(self, obj):
-        return None if obj is None else str(obj)
+        return self.to_lexical(obj)
 
 
-class _Int:
+class _Int(_Passthrough):
     """``PercentType``, ``LoopType``, ``ChannelNumberType``, ``ChannelValueType``."""
 
     def decode(self, raw):
@@ -102,14 +99,8 @@ class _Int:
             return raw
         return int(raw)
 
-    def to_lexical(self, obj):
-        return None if obj is None else str(obj)
 
-    def to_wire(self, obj):
-        return obj
-
-
-class _Float:
+class _Float(_Passthrough):
     """``UnitFloat``, ``PositiveUnitFloat``."""
 
     def decode(self, raw):
@@ -117,14 +108,8 @@ class _Float:
             return raw
         return float(raw)
 
-    def to_lexical(self, obj):
-        return None if obj is None else str(obj)
 
-    def to_wire(self, obj):
-        return obj
-
-
-class _UuidAdapter:
+class _UuidAdapter(_Passthrough):
     """``UuidType`` and ``TargetType``.
 
     ``TargetType`` additionally permits the empty string, which decodes to
@@ -156,14 +141,11 @@ class _UuidAdapter:
             # to every scalar in the document.
             return raw
 
-    def to_lexical(self, obj):
-        return None if obj is None else str(obj)
-
     def to_wire(self, obj):
-        return None if obj is None else str(obj)
+        return self.to_lexical(obj)
 
 
-class _CTimecodeAdapter:
+class _CTimecodeAdapter(_Passthrough):
     """``CTimecodeType`` — a **complex** type, not a scalar (research R5).
 
     It wraps a single ``<CTimecode>`` child, so the decoded shape is
@@ -179,9 +161,6 @@ class _CTimecodeAdapter:
             inner = raw.get("CTimecode")
             return None if inner is None else CTimecode(inner)
         return CTimecode(raw)
-
-    def to_lexical(self, obj):
-        return None if obj is None else str(obj)
 
     def to_wire(self, obj):
         return None if obj is None else {"CTimecode": str(obj)}
