@@ -56,6 +56,16 @@ step did.
 
 ---
 
+## 1a. The editor↔UI `project_load` payload is untouched (T093, FR-033)
+
+`git diff --stat` of `tests/golden/` across the whole feature, excluding the enumerated `network_map`
+goldens (section 1 and section 3) and the two other permitted modifications (`MANIFEST.sha256`,
+`api/public_api.json` — section 3, T046b), shows **zero** other files changed. No `script` golden —
+`xml/*.xml`, `dict/*.reader.json`, `generated/*` — moved. `tests/contract/test_ui_payload_contract.py`,
+`test_byte_identity_dict.py` and `test_byte_identity_xml.py` (166 tests, all schemas) pass unchanged.
+The payload `cuems-editor` transmits verbatim on `project_load` is a `script` document; this feature
+edits `network_map` only.
+
 ## 2. The rename diff (`node_type` → `node_role`)
 
 Recorded once the schema edit and corpus conversion (T009–T017) land — see this file's next

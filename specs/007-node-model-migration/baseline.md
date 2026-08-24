@@ -3,6 +3,30 @@
 **Captured**: 2026-08-24, on `007-node-model-migration` before any source change (T001–T006f).
 Environment: `PYENV_VERSION=3.11.9`, `hatch` 1.16.1.
 
+**Post-feature re-measurement (T091)**, cuems-utils scope, after Phases 1–8:
+
+```
+hatch test
+========== 2393 passed, 94 skipped, 2 xfailed, 334 warnings in 59.33s ==========
+```
+
+Per-test: 59.33 s / 2393 = **24.79 ms/test** — under budget (≤ 29.47 ms/test), and faster per-test
+than the pre-feature baseline despite 171 new tests, because wall time grew less than
+proportionally. Recorded whether or not it passed, per the feature 006 convention; here it passes.
+
+`network_map` load timing, same method as T003 (median of 5 warm runs):
+
+```
+runs (ms): [10.042, 10.174, 10.185, 10.08, 9.576]
+median (ms): 10.08
+```
+
+10.08 ms against the 10.351 ms pre-feature figure and the 11.39 ms budget (≤ 110%) — within
+budget, and the small decrease is within measurement noise rather than a claimed improvement:
+`network_map` now runs the adapter table on every scalar field (research R1), which is strictly
+more work per node than before; the budget exists to catch that being wrong by an order of
+magnitude, not to forbid it (plan.md's Constitution Check §IV), and it is not wrong here.
+
 ---
 
 ## Suite figures (T002)
@@ -54,6 +78,20 @@ capture path, and the suite this feature is actually gated on (`hatch test`, abo
 fixed here. If feature 008 or a `v0.1.1` cleanup revisits the removal of these shims, this note is
 the pointer to why `tests.support.capture_goldens` cannot be trusted as a clean-tree check until
 then.
+
+## Fail-before-pass evidence (T092b)
+
+Observed directly during implementation, not merely claimed:
+
+| Test | Failed how, before | Fixed by |
+|---|---|---|
+| `test_adoption_selection.py::test_get_nodes_by_adoption_accepts_already_typed_booleans` (T007) | `AttributeError: 'bool' object has no attribute 'lower'` — run against unmodified `get_nodes_by_adoption`, before T008's `_as_bool` | T008 |
+| `tests/unit/test_coherence.py` (`network_map:NodeType->node`) | field-set mismatch (`node_type` in the model, `node_role` in the schema) — from the moment the schema renamed the element (T009) until the model followed (T024) | T024 |
+| `tests/test_configmanager.py::test_network_map` | `KeyError: 'node_type'` — from T009 until T024 | T024 |
+| 12–20 `network_map` golden-comparison tests (`test_byte_identity_dict`, `test_config_parity`, `test_reader_configs`, `test_config_wire`) | byte/value mismatches against the pre-feature goldens — from each of T006b (normalisation), T015 (conversion) and T018–T024 (typing) until the corresponding golden regeneration | T006d, T016, and the targeted re-regeneration in the T015–T024 commit |
+| `tests/contract/test_config_wire.py::test_config_to_wire_matches_its_recorded_golden[*network_map*]` | `to_wire()`'s `bool -> "True"/"False"` string conversion stopped being an identity on the decoded value once `network_map` started decoding real `bool` — surfaced immediately after T018–T024, before `_expected()`'s `_wire_form` normalisation was added | the `test_config_wire.py` fix in the T040–T046b commit |
+| Manual `build_tree(cm.network_map, "network_map")` (no formal test — caught by hand while implementing `save()`, T042) | produced a spurious `<CuemsNetworkMapType>` wrapper and `<node_role>NodeRole.controller</node_role>` (raw `str(enum)` instead of the adapter's lexical form) — `network_map.xsd`'s root has no named body element the way `script.xsd`'s does, and the write machinery had never been exercised on a schema shaped that way | the root-binding check added to `mapper.build_document` |
+| `test_network_map_conversion.py` (all 20 cases) | could not fail-before-pass in the usual sense — the module they import did not exist before T013 | T013 |
 
 ## FR-026d break, demonstrated on `cuems-nodeconf` (T005)
 

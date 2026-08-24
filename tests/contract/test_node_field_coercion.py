@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import pytest
 
-from cuemsutils.config.network_map import CuemsNetworkMapType, node, node_list
+from cuemsutils.config.network_map import CuemsNetworkMapType, node
 from cuemsutils.tools.NodeList import NodeRole
 from cuemsutils.tools.Uuid import Uuid
 from cuemsutils.xml.documents import iter_schema_errors
@@ -187,7 +187,7 @@ def test_no_node_specific_denylist_exists_anywhere_in_the_package():
     offenders = []
     for path in root.rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Name) and node.id == "STRING_TYPED_NODE_FIELDS":
-                offenders.append((str(path), node.id))
+        for ast_node in ast.walk(tree):
+            if isinstance(ast_node, ast.Name) and ast_node.id == "STRING_TYPED_NODE_FIELDS":
+                offenders.append((str(path), ast_node.id))
     assert offenders == []

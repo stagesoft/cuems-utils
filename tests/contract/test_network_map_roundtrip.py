@@ -50,13 +50,16 @@ def test_round_trip_diff_is_exactly_the_rename_and_value_mapping(
             pre_state_text.splitlines(), produced_text.splitlines(), lineterm=""
         )
     )
-    body_lines = [l for l in diff if l.startswith(("+", "-")) and not l.startswith(("+++", "---"))]
+    body_lines = [
+        line for line in diff
+        if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))
+    ]
     # Exactly one removed line and one added line: the whole document is one
     # line after normalisation (Phase 1), so the rename+mapping collapses the
     # diff to a single before/after pair.
     assert len(body_lines) == 2, body_lines
-    removed_text = next(l[1:] for l in body_lines if l.startswith("-"))
-    added_text = next(l[1:] for l in body_lines if l.startswith("+"))
+    removed_text = next(line[1:] for line in body_lines if line.startswith("-"))
+    added_text = next(line[1:] for line in body_lines if line.startswith("+"))
 
     # node_type is gone, node_role has taken its place with the mapped value,
     # and every other byte is identical.

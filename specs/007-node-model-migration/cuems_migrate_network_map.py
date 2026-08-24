@@ -49,7 +49,6 @@ import argparse
 import glob
 import os
 import re
-import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 

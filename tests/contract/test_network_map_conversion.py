@@ -95,7 +95,7 @@ def test_absent_node_type_element(netmap_file):
 
 def test_idempotent(netmap_file):
     path = netmap_file()
-    first = migrate.convert(str(path))
+    migrate.convert(str(path))
     once = path.read_text()
     second = migrate.convert(str(path))
     assert second.status == "already_converted"

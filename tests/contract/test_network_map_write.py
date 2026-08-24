@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import threading
-import time
 import warnings
 
 import pytest
 
-from cuemsutils.config.network_map import CuemsNetworkMapType, node
+from cuemsutils.config.network_map import node
 from cuemsutils.errors import SchemaError
 from cuemsutils.tools.NodeList import NodeRole
 from cuemsutils.xml.mapper import Mapper, read_config_document
