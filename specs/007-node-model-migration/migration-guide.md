@@ -88,6 +88,29 @@ feature's own US3, not deferred.
 
 ---
 
+## 3a. US4's finding: the coercion guarantee needs no implementation (T065)
+
+The outcome a reader will not expect, stated so it is not mistaken for an oversight: **there is no
+code to write**. `NonEmptyString` and `xs:string` are unbound in `ADAPTERS` (`xml/adapters.py`) —
+confirmed directly: `'NonEmptyString' in ADAPTERS` and `'string' in ADAPTERS` are both `False`. So
+`adapter_for` returns `PASSTHROUGH` for every free-text node field
+(`mac`/`name`/`ip`/`role_id`/`alias`/`hostname`) by construction, not because any code path checks
+their names. The 106-case regression suite (ported to `tests/contract/test_node_field_coercion.py`,
+T061–T064) is therefore a **guarantee test over the derived table** — it fails only if a future
+adapter binding accidentally claims one of these type qnames, which is exactly the property worth
+pinning.
+
+**A second, distinct finding surfaced while asserting T064's "no denylist anywhere in the
+package"**: `xml/Parsers.py` still declares `STRING_TYPED_KEYS`, a **different, pre-existing**
+denylist for an unrelated domain — the frozen, deprecated `CuemsParser`'s cue/script field
+type-guessing (feature 004, ClickUp 869cqbpxa: `name`/`description`/`file_name` and four defensive
+entries). It is not `STRING_TYPED_NODE_FIELDS` (which does not migrate, per FR-012/C3), predates
+this feature, and this feature does not touch `CuemsParser` or script parsing — removing it is out
+of scope here. Recorded as a finding so "we looked and it's out of scope" is distinguishable from
+"we did not think to look" (FR-018's standard, applied to a place FR-018 itself doesn't reach).
+
+---
+
 ## 9. Avahi discovery files excluded from SC-004a (T060, T060a)
 
 See §4 of `contracts/schema-migration.md` (M4) for the full table. Named here as the explicit
