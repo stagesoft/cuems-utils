@@ -18,19 +18,33 @@ that lives in the other repository, and 007 owns bringing it across. Building
 the containers here and the behaviour there is what lets both features be
 independently green.
 
-## Two things that do not change
+## What feature 007 changes here, now that both are true
 
-``node_type`` carries the string ``"NodeType.master"`` / ``"NodeType.slave"``.
-That spelling is a **cross-repo wire contract** with ``cuems-engine``, which
-compares against it directly, and it is not a Python enum here — the schema
-types the element as ``NonEmptyString``. Turning it into an enum would be a
-file-format change disguised as a cleanup.
+006's "two things that do not change" no longer describes this file — 007's
+whole premise is that both of them do, deliberately, for ``network_map`` only:
 
-``adopted`` and ``online`` stay **strings**. They are ``cms:BoolType`` in the
-schema, which the show adapter table would decode to Python ``bool`` — and
-``NetworkMap.get_nodes_by_adoption`` calls ``strtobool`` on them, the recorded
-goldens carry ``"True"``, and ``cuems-engine`` branches on the string form. See
-``config/base.py``'s ``from_decoded`` for why the adapters do not run here.
+``node_type`` is renamed to ``node_role`` and is no longer free text.
+``network_map.xsd`` retypes the element ``cms:NodeRoleType`` (an
+``xs:string`` restricted to ``controller``/``node``/``firstrun``, replacing
+``master``/``slave``/``firstrun``), and the registry's per-schema
+``runs_adapter_table`` opt-in (research R1) makes ``Mapper.decode_config``
+bind it to a real ``NodeRole`` enum rather than to the string
+``"NodeType.master"`` ``cuems-engine`` used to compare against directly.
+``mac``/``name``/``ip``/``role_id``/``alias``/``hostname`` are still free
+text — no codec is bound to their XSD types, which is the structural form of
+the coercion guarantee (research R4), not a name-matched exemption. ``uuid``
+is typed too (``cms:UuidType``, canonical-hex shape) but keeps decoding to
+raw text when a value doesn't parse as one — see ``adapters.py``'s
+``_UuidAdapter``.
+
+``adopted`` and ``online`` **do** decode to Python ``bool`` here now — the
+same opt-in applies to every scalar field on this schema, not to ``node_role``
+alone. ``NetworkMap.get_nodes_by_adoption`` accepts either the typed or the
+pre-typing string shape (research R7, ``_as_bool``); ``settings``,
+``project_mappings`` and ``project_settings`` did not opt in and keep
+decoding ``cms:BoolType`` as the strings their recorded goldens carry. See
+``config/base.py``'s ``from_decoded`` and ``mapper.py``'s ``decode_config``
+for where that per-schema line is actually drawn.
 """
 
 from __future__ import annotations
@@ -62,7 +76,7 @@ class node(ConfigDict):  # noqa: N801 - the domain's name, not a class-name styl
         "uuid": Unset,
         "mac": Unset,
         "name": Unset,
-        "node_type": Unset,
+        "node_role": Unset,
         "ip": Unset,
         "adopted": Unset,
         "online": Unset,

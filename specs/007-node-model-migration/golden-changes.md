@@ -60,3 +60,63 @@ step did.
 
 Recorded once the schema edit and corpus conversion (T009–T017) land — see this file's next
 section, added by T017.
+
+---
+
+## 3. The rename diff (T015–T017)
+
+**Conversion**: the four (post-normalisation) corpus network maps converted with
+`specs/007-node-model-migration/cuems_migrate_network_map.py` (the reference implementation of the
+`cuems-common` conversion script — see that module's docstring for why it is developed here rather
+than in `../cuems-common/usr/bin/`, which is out of scope for this pass). Every node's `NodeType.master`
+became `<node_role>controller</node_role>` and every `NodeType.slave` became `<node_role>node</node_role>`,
+with a deprecation notice recorded for each (the enum-repr spelling, not the bare one). Verified
+against the updated schema (`documents.iter_schema_errors`, zero errors on all three validatable
+documents — `cuems-common`'s carries its pre-existing, unrelated `<CuemsNodeDict>` invalidity,
+recorded in section 1, and stays invalid the same way after conversion).
+
+**Every changed line is the rename or the value mapping** (T017 / SC-010a), confirmed against the
+regenerated goldens:
+
+```diff
+-  "node_type": "NodeType.master",
++  "node_role": "controller",
+```
+```diff
+-  "node_type": "NodeType.slave",
++  "node_role": "node",
+```
+
+No other key, value, or structural change appears in the `dict/{cuems-utils,cuems-engine}__network_map.{reader,config}.json`
+diff from section 1's post-normalisation state — checked by inspecting each `git diff` hunk
+individually, not merely by re-running the suite.
+
+**A second, distinct change rides in the same golden regeneration, and is recorded separately so it
+is not mistaken for part of the rename**: `network_map`'s `adopted`/`online` fields now decode to
+Python `bool` in the `.config.json` golden (JSON `true`/`false`, where they were the string
+`"True"`/`"False"`), because `Mapper.decode_config` now runs the adapter table for this schema
+(T018–T024, research R1) and `cms:BoolType` was always bound to a `bool`-producing adapter — it
+simply never ran for config schemas before. This is FR-011a, not FR-010b; the `.reader.json` golden
+(Configuration A, which never runs adapters) is unaffected and still carries the strings, which is
+how `test_reader_configs.py`'s "the two configurations differ" contract keeps meaning something.
+
+**Goldens touched**: the same four as section 1
+(`dict/{cuems-utils,cuems-engine}__network_map.{reader,config}.json`), regenerated again from this
+converted, typed state — `MANIFEST.sha256` updated in the same commit.
+
+**Test-support change riding along**: `tests/support/roundtrip.py`'s `json_dumps` gained an
+`Enum`-aware `default=` — the first golden to carry a real enum value (`node_role`, `NodeRole`) is
+this one, since neither existing decode path (Configuration A's raw `schema.to_dict()`, or the show
+path's `.reader.json`, which no config schema used) ever produced one before.
+
+**Suite**: 2248 passed / 94 skipped / 2 xfailed. Six existing tests needed adjustment for the
+now-typed `network_map` values — none of them assert anything this feature didn't deliberately
+change; each comment names FR-011a / research R1 at the point of the fix:
+`tests/contract/test_config_wire.py` (`to_wire()`'s `bool` → `"True"`/`"False"` string is no longer
+an identity on the decoded value, for this schema only), `tests/contract/test_reader_configs.py`
+(Configuration A vs B "differ only by namespace handling" gains a typed-value exception, scoped to
+`network_map`), `tests/contract/test_config_parity.py` (two golden-vs-live comparisons decode the
+golden's `node_role` string through `NodeRole` before comparing), `tests/unit/test_coherence.py`
+(the bound-model count drops 40 → 39 with `PutType` deleted), `tests/test_configmanager.py` and
+`tests/test_xml.py` (literal `'node_type'`/string-`'True'` assertions updated to `'node_role'`/
+`NodeRole.controller`/`True`).

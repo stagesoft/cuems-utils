@@ -262,18 +262,24 @@ class Mapper:
         differences, both of which are the config domain stating a fact about
         itself rather than the engine acquiring a mode:
 
-        **No adapters run.** ``decode`` coerces every scalar through the
-        schema-derived adapter table, because a cue has two construction paths
-        — built and decoded — and feature 005 exists to make them produce the
-        same object. A config object has one path, so there is nothing to
-        reconcile and coercion would not unify anything; it would *change*
-        values. The measured case is ``network_map.xsd``'s ``adopted`` and
-        ``online``, typed ``cms:BoolType``: the adapter decodes those to Python
-        ``bool``, while the recorded goldens carry ``"True"``,
-        ``NetworkMap.get_nodes_by_adoption`` calls ``strtobool`` on them, and
-        ``cuems-engine`` branches on the string. FR-018 freezes accessor
-        meaning, and retyping two fields across a repository boundary is not a
-        naming change. See ``config/base.py``.
+        **No adapters run — except where a schema has opted in.** A config
+        object has one construction path (decode), unlike a cue's two (built
+        and decoded, which feature 005 makes agree) — so there is normally
+        nothing for coercion to reconcile, and running it anyway would
+        *change* values rather than unify anything. That was true of every
+        config schema without qualification until feature 007: ``network_map``
+        now runs the table (``registry.runs_adapter_table``, research R1),
+        because its ``node_role``, ``adopted``, ``online`` and ``uuid`` are
+        typed values on the public node object (FR-011a) — while ``settings``,
+        ``project_mappings`` and ``project_settings`` still decode every
+        scalar untouched. The measured case that makes this collide rather
+        than compose freely: ``adopted``/``online`` are ``cms:BoolType`` in
+        *every* config schema, but only ``network_map``'s decode to Python
+        ``bool`` now — ``NetworkMap.get_nodes_by_adoption`` accepts either
+        shape (research R7), and ``cuems-engine`` still reads the string form
+        from the schemas that do not opt in. FR-018 freezes accessor meaning
+        *per schema*; the opt-in is what keeps that freeze from being "all
+        four, forever". See ``config/base.py``.
 
         **Repeated wrappers are preserved.** ``decode`` collapses
         ``[{"AudioCue": {...}}, ...]`` into a list of cue objects, because the
@@ -309,7 +315,17 @@ class Mapper:
             if child is None:
                 child = self._anonymous_child(spec, field, key)
             if child is None:
-                # A scalar, or content the schema does not name. Unchanged.
+                # A scalar, or content the schema does not name. Unchanged —
+                # unless this schema opted into the adapter table (research
+                # R1, registry.runs_adapter_table). ``network_map`` is the
+                # only schema that does; every other config schema takes the
+                # branch above unconditionally, so FR-011a-i's "untouched"
+                # holds by construction rather than by convention.
+                if self.registry.runs_adapter_table:
+                    adapter = adapter_for(field.xsd_type)
+                    if adapter is not PASSTHROUGH:
+                        decoded[key] = adapter.decode(raw)
+                        continue
                 decoded[key] = raw
                 continue
             decoded[key] = self._decode_config_child(raw, derive(child))

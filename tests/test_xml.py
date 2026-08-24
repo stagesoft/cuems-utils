@@ -449,7 +449,7 @@ def test_networkmap():
     assert isinstance(network_dict, dict)
     assert 'node_list' in network_dict
     assert isinstance(network_dict['node_list'], list)
-    assert network_dict['node_list'][0]['node']['online'] == 'True'
+    assert network_dict['node_list'][0]['node']['online'] is True
 
 def test_projectmappings():
     from cuemsutils.xml import ProjectMappings

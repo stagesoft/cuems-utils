@@ -35,22 +35,27 @@ class ConfigDict(CuemsDict):
 
     @classmethod
     def from_decoded(cls, mapping: dict):
-        """Build from a decoded document, **without coercing** (FR-018).
+        """Build from a decoded document — **this method itself never coerces**.
 
         The show model's ``from_decoded`` runs each field's adapter, because a
         cue has two construction paths — built and decoded — and feature 005
-        exists to make them agree. Config has one path, so there is nothing to
-        reconcile, and running the adapters would not unify anything: it would
-        *change* values that consumers across two other repositories already
-        read.
+        exists to make them agree. Config has one path, so there is nothing
+        for *this method* to reconcile: it stores ``mapping``'s values
+        verbatim, whatever they already are by the time they arrive here.
 
-        The measured case is ``network_map.xsd``'s ``adopted``/``online``,
-        typed ``cms:BoolType``. The show adapter decodes that to Python
-        ``bool``; the recorded ``*.config.json`` goldens carry ``"True"``,
-        ``NetworkMap.get_nodes_by_adoption`` calls ``strtobool`` on it, and
-        ``cuems-engine`` branches on the string. Retyping it here would be a
-        behaviour change nothing in this feature enumerates, arriving through a
-        base class rather than through a decision.
+        **Whether they arrived coerced is decided earlier, per schema.**
+        ``Mapper._decode_config_value`` (research R1) runs the adapter table
+        on a scalar field only when its schema's registry has
+        ``runs_adapter_table`` set — ``network_map`` only, as of feature 007.
+        So ``node``'s ``mapping`` already carries a ``NodeRole`` for
+        ``node_role`` and a ``bool`` for ``adopted``/``online`` by the time it
+        reaches this method; ``Settings``'/``ProjectMappings``'/
+        ``ProjectSettings``' mappings still carry the raw strings
+        ``read_config_document`` produced, unchanged, because their schemas
+        did not opt in. Retyping *those* here would be a behaviour change
+        nothing in this feature enumerates, arriving through a base class
+        rather than through a decision — which is exactly why the opt-in
+        lives on the registry (one flag to audit) and not in this method.
 
         Undeclared keys are kept rather than dropped — the leaked
         ``schemaLocation`` at a config root is the only one — matching what the

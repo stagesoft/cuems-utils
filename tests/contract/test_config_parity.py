@@ -42,6 +42,27 @@ def _load(doc):
         return CONFIG_CLASSES[doc.config_class](str(doc.path))
 
 
+def _golden_as_decoded(value):
+    """A ``*.config.json`` golden's value, typed as the live decode now types it.
+
+    Identity for every schema except ``network_map`` (feature 007, research
+    R1): its ``node_role`` field decodes to a ``NodeRole`` where the JSON
+    golden necessarily records the enum's ``.value`` string. ``bool`` fields
+    need no conversion — ``json.loads`` already gives ``True``/``False`` for
+    the JSON literal, matching the live decode directly.
+    """
+    from cuemsutils.tools.NodeList import NodeRole
+
+    if isinstance(value, dict):
+        out = {k: _golden_as_decoded(v) for k, v in value.items()}
+        if "node_role" in out and isinstance(out["node_role"], str):
+            out["node_role"] = NodeRole(out["node_role"])
+        return out
+    if isinstance(value, list):
+        return [_golden_as_decoded(v) for v in value]
+    return value
+
+
 # --- feature 006 addition (T042, FR-016) ----------------------------------
 #
 # The compensations are gone. This is the assertion that they were
@@ -76,7 +97,13 @@ def test_every_accessor_value_survives_the_deleted_compensations():
     network_golden = json.loads(
         rt.golden_json("dict/cuems-utils__network_map.config.json")
     )
-    assert rt.as_plain(manager.network_map)["node_list"] == network_golden["node_list"]
+    # network_map is the one schema that opts into the adapter table (feature
+    # 007, research R1). That divergence from the golden's raw JSON shape is
+    # FR-011a working as designed, not a value the T050-T052 compensations
+    # could have changed — see _golden_as_decoded.
+    assert rt.as_plain(manager.network_map)["node_list"] == _golden_as_decoded(
+        network_golden
+    )["node_list"]
 
 
 def test_node_hw_outputs_is_unchanged_by_the_deleted_five_level_walk():
@@ -139,7 +166,7 @@ def test_get_dict_is_stable(doc):
     obj = _load(doc)
     result = obj.get_dict()
     assert isinstance(result, dict)
-    golden = json.loads(rt.golden_json(f"dict/{doc.slug}.config.json"))
+    golden = _golden_as_decoded(json.loads(rt.golden_json(f"dict/{doc.slug}.config.json")))
 
     # ``rt.as_plain`` from feature 006: the accessor now returns a
     # ``ConfigDict`` (FR-014), and declared-field equality on a model object is

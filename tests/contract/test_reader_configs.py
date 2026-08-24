@@ -89,6 +89,29 @@ def test_only_configuration_a_carries_the_namespaced_schema_location(doc):
     assert "schemaLocation" in _config(doc)
 
 
+def _as_configuration_a_shape(value):
+    """Configuration B's value, as Configuration A would have decoded it.
+
+    Identity everywhere except ``network_map`` (feature 007, research R1):
+    Configuration A never runs the adapter table, so its ``bool``-typed
+    fields stay the capitalised strings ``cms:BoolType`` spells and its
+    ``NodeRoleType``/``UuidType`` fields stay bare text. Configuration B now
+    decodes those for ``network_map`` alone. Without this normalisation, "the
+    difference is confined to namespace handling" would be false for exactly
+    the schema this feature types — not because the two configurations
+    disagree on *content*, but because one of them is typed and the golden
+    JSON representation makes that visible as a value, not just a Python
+    type.
+    """
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _as_configuration_a_shape(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_as_configuration_a_shape(v) for v in value]
+    return value
+
+
 @pytest.mark.parametrize("doc", BOTH_CONFIGS, ids=IDS)
 def test_content_agrees_where_namespaces_are_not_involved(doc):
     """The difference is confined to namespace handling, and nothing else.
@@ -98,7 +121,7 @@ def test_content_agrees_where_namespaces_are_not_involved(doc):
     """
     reader = {k: v for k, v in _reader(doc).items() if not k.startswith("{")}
     config = {k: v for k, v in _config(doc).items() if k != "schemaLocation"}
-    assert reader == config
+    assert reader == _as_configuration_a_shape(config)
 
 
 @pytest.mark.parametrize("doc", BOTH_CONFIGS, ids=IDS)

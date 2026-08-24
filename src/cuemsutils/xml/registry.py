@@ -53,12 +53,18 @@ class Binding:
 class SchemaRegistry:
     """Bindings for one schema."""
 
-    def __init__(self, schema_name: str):
+    def __init__(self, schema_name: str, *, runs_adapter_table: bool = False):
         self.schema_name = schema_name
         self.root = SCHEMA_ROOTS[schema_name]
         self._by_type: dict[str, Binding] = {}
         self._by_path: dict[str, Binding] = {}
         self._model_specs: dict[type, TypeSpec] | None = None
+        #: research R1 — the per-schema opt-in for ``Mapper.decode_config`` to
+        #: run the adapter table on scalar fields. ``False`` for every
+        #: configuration schema except ``network_map``, so FR-011a-i's "the
+        #: other four schemas are untouched" is a property of *this* table,
+        #: not of code the day it happens to be called from.
+        self.runs_adapter_table = runs_adapter_table
 
     def bind(self, type_name: str, model) -> SchemaRegistry:
         key = TypeKey(self.schema_name, type_name)
@@ -340,7 +346,7 @@ def _build_config_registry(schema_name: str) -> SchemaRegistry:
       wrapper is one — which stay generic and decode to plain dicts, exactly
       as the corresponding ``script.xsd`` wrappers do.
     """
-    registry = SchemaRegistry(schema_name)
+    registry = SchemaRegistry(schema_name, runs_adapter_table=schema_name == "network_map")
     by_type, by_path = _config_models(schema_name)
 
     registry.bind_path(SCHEMA_ROOTS[schema_name], by_path.get(SCHEMA_ROOTS[schema_name], GENERIC))

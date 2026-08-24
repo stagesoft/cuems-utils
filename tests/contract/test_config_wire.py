@@ -54,11 +54,32 @@ IDS = [d.relpath for d in CONFIG_DOCS]
 SCHEMA_LOCATION = "schemaLocation"
 
 
+def _wire_form(value):
+    """The golden's decoded value, converted to its ``to_wire()`` form.
+
+    Identity for every field except ``network_map``'s ``bool`` ones (feature
+    007, research R1): decoding now produces a real ``bool`` where the
+    golden used to record — and the wire form still is — the capitalised
+    string ``_Bool.to_lexical``/``to_wire`` emit. That was an *identity*
+    before this feature (the decoded value already was the string), which is
+    exactly the property FR-011a gives up for ``network_map`` alone; every
+    other config schema's golden carries no JSON ``bool`` at all, so this is
+    a no-op for them.
+    """
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _wire_form(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_wire_form(v) for v in value]
+    return value
+
+
 def _expected(doc) -> dict:
     golden = json.loads(
         (GOLDEN_ROOT / "dict" / f"{doc.slug}.config.json").read_text(encoding="utf-8")
     )
-    return {k: v for k, v in golden.items() if k != SCHEMA_LOCATION}
+    return {k: _wire_form(v) for k, v in golden.items() if k != SCHEMA_LOCATION}
 
 
 def test_the_corpus_actually_covers_all_four_config_schemas():

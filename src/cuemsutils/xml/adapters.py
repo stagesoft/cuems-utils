@@ -258,8 +258,10 @@ def _register_enums() -> None:
     this package back; doing it at module scope is a cycle.
     """
     from ..cues.FadeCue import FadeCurveType
+    from ..tools.NodeList import NodeRole
 
     ADAPTERS["FadeCurveType"] = _EnumAdapter(FadeCurveType)
+    ADAPTERS["NodeRoleType"] = _EnumAdapter(NodeRole)
     # The remaining five enum types (``PostGoType``, ``ActionType``,
     # ``FadeTypeType``, ``FadeModeType``, ``FadeFunctionIdType``) have **no**
     # Python enum class today — they are plain strings in the object model, and

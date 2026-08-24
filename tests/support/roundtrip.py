@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+from enum import Enum
 from pathlib import Path
 
 from tests.support.capture_goldens import (
@@ -125,8 +126,21 @@ def as_plain(value):
 
 
 def json_dumps(value) -> str:
-    """The comparison C2 specifies — order-sensitive, and deliberately so."""
-    return json.dumps(as_plain(value))
+    """The comparison C2 specifies — order-sensitive, and deliberately so.
+
+    ``default=`` renders an ``Enum`` as its ``.value`` — first needed by
+    feature 007's ``network_map``, whose config B decode (``read_config_dict``)
+    now produces a real ``NodeRole`` for ``node_role`` (research R1). No
+    existing golden hit this path before: config B never ran adapters, and
+    config A (raw ``schema.to_dict()``) never has, either. ``bool`` needs no
+    handling — it's already JSON-native, which is *why* the golden's
+    ``adopted``/``online`` change from the JSON string ``"True"`` to the JSON
+    literal ``true`` for this one schema (FR-011a).
+    """
+    return json.dumps(
+        as_plain(value),
+        default=lambda o: o.value if isinstance(o, Enum) else str(o),
+    )
 
 
 def golden_bytes(relpath: str) -> bytes:

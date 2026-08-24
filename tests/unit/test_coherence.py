@@ -169,15 +169,17 @@ def test_coverage_reaches_every_bound_model():
 
     ``18`` until feature 006 — the script schema's bindings, all of them. T048
     binds the four configuration schemas' twenty-two complex types plus their
-    four anonymous document roots, so the number is now **40**: 18 show
-    classes and 22 config ones.
+    four anonymous document roots, so the number was **40**: 18 show classes
+    and 22 config ones. Feature 007 deletes ``network_map.xsd``'s unreferenced
+    ``PutType`` — schema item X9, resolved (FR-029) — taking one config class
+    out with it, so the number is now **39**.
 
     Kept as an exact count rather than a lower bound, and rewritten rather than
     relaxed. A count that only ever grows would let a binding disappear in
     silence, which is the whole reason this assertion is stated positively
     alongside the ``UNCOVERED`` one.
     """
-    assert len(COVERED) == 40
+    assert len(COVERED) == 39
     assert not UNCOVERED
 
 
