@@ -72,3 +72,74 @@ class IngestError(CuemsError):
     UTF-8. The message names **what was expected** rather than surfacing a
     structural error from inside the machinery.
     """
+
+
+# ---------------------------------------------------------------------------
+# network_map migration diagnostics (feature 007, FR-011c, FR-011h-i, C8)
+#
+# ``tools/ConfigBase.py``'s ``load_config_document`` wraps every non-OSError
+# read failure in ``SchemaError`` with a generic message. For network_map's
+# two known failure modes — a document still carrying the retired
+# ``<node_type>`` element, and a ``<node_role>`` value outside the enumeration
+# — that generic wrap is upgraded to name the node, the offending value, the
+# accepted values, and the remedy, rather than leaving a reader to parse an
+# ``xmlschema`` stack trace to find out "run the conversion" is the answer.
+# ---------------------------------------------------------------------------
+
+#: Mirrors ``specs/007-node-model-migration/cuems_migrate_network_map.py``'s
+#: mapping. Duplicated rather than imported — that script is stdlib-only,
+#: lives outside ``src/`` for this pass, and must not import ``cuemsutils``
+#: either way (the shared-venv rule).
+_NETWORK_MAP_LEGACY_ROLE_VALUES = {
+    "NodeType.master": "controller",
+    "master": "controller",
+    "NodeType.slave": "node",
+    "slave": "node",
+    "NodeType.firstrun": "firstrun",
+    "firstrun": "firstrun",
+}
+
+#: ``network_map.xsd``'s ``NodeRoleType`` enumeration, spelled out here so the
+#: message can name the accepted values without importing the schema loader
+#: into this module.
+NETWORK_MAP_ACCEPTED_ROLES = ("controller", "node", "firstrun")
+
+
+def network_map_node_type_message(xmlfile: str, exc: Exception) -> str | None:
+    """A migration-naming message for a document still carrying ``<node_type>``.
+
+    Returns ``None`` when ``exc`` is not recognisably this failure, so the
+    caller falls through to the generic wrap for every other schema error.
+    """
+    if getattr(exc, "invalid_tag", None) != "node_type":
+        return None
+    elem = getattr(exc, "elem", None)
+    uuid_el = elem.find("uuid") if elem is not None else None
+    node_type_el = elem.find("node_type") if elem is not None else None
+    uuid = uuid_el.text if uuid_el is not None else "<uuid unknown>"
+    value = node_type_el.text if node_type_el is not None else "<value unknown>"
+
+    message = (
+        f"{xmlfile}: node {uuid} still carries the retired <node_type> "
+        f"element (value {value!r}) — network_map.xsd now requires "
+        f"<node_role>, one of {list(NETWORK_MAP_ACCEPTED_ROLES)}. Run the "
+        "network_map conversion (cuems-migrate-network-map) and retry."
+    )
+    replacement = _NETWORK_MAP_LEGACY_ROLE_VALUES.get(value)
+    if replacement is not None:
+        message += f" note: {value!r} is the retired spelling for {replacement!r}."
+    return message
+
+
+def network_map_role_enum_message(xmlfile: str, exc: Exception) -> str | None:
+    """A message naming the field and accepted values for an out-of-vocabulary
+    ``<node_role>``. Returns ``None`` when ``exc`` is not this failure."""
+    elem = getattr(exc, "elem", None)
+    if elem is None or getattr(elem, "tag", None) != "node_role":
+        return None
+    value = getattr(exc, "obj", None)
+    return (
+        f"{xmlfile}: <node_role>{value}</node_role> is not one of the "
+        f"accepted values {list(NETWORK_MAP_ACCEPTED_ROLES)}. Edit the "
+        "document to one of the accepted values and retry."
+    )

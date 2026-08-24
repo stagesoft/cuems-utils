@@ -70,15 +70,6 @@ class CuemsScriptXmlBuilder(XmlBuilder):
                 sub_object_element = builder_class(value, xml_tree = cue_subelement).build()
         return self.xml_tree
     
-class CuemsNodeDictXmlBuilder(CuemsScriptXmlBuilder):
-    def build(self):
-        cue_element = SubElement(self.xml_tree, self.class_name)
-        for value in self._object.values():
-
-                builder_class = self.get_builder_class(value)
-                sub_object_element = builder_class(value, xml_tree = cue_element).build()
-        return self.xml_tree
-
 class CueListXmlBuilder(CuemsScriptXmlBuilder):
     def build(self):
         cuelist_element = SubElement(self.xml_tree, self.class_name)
@@ -376,7 +367,6 @@ _MIGRATION = "the schema-derived engine (see specs/004-xml-serialization-core/mi
 _FROZEN_BUILDERS = (
     XmlBuilder,
     CuemsScriptXmlBuilder,
-    CuemsNodeDictXmlBuilder,
     CueListXmlBuilder,
     GenericCueXmlBuilder,
     GenericSimpleSubObjectXmlBuilder,

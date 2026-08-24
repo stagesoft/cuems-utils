@@ -1,6 +1,10 @@
 from os import environ, path
 
-from ..errors import SchemaError
+from ..errors import (
+    SchemaError,
+    network_map_node_type_message,
+    network_map_role_enum_message,
+)
 from ..log import Logger, logged
 # The concrete module, not the package root: ``cuemsutils.xml.Settings``
 # is a deprecation shim as of T061, and contract C8 forbids the library
@@ -25,6 +29,13 @@ def load_config_document(cls, xmlfile: str, schema_name: str):
     The internal reader (``xml/settings.py``) deliberately does **not** wrap:
     its raw verdicts are what ``tests/golden/outcomes.json`` pins document by
     document, and the accessor is where contract C2 places the posture.
+
+    **``network_map``'s two known failure modes name the migration** (feature
+    007, FR-011c, contract C8): a document still carrying the retired
+    ``<node_type>`` element, and a ``<node_role>`` value outside the
+    enumeration, each get a message naming the node, the offending value, the
+    accepted values and the remedy — rather than the generic wrap below,
+    which is what every other schema failure still gets.
     """
     try:
         return cls(xmlfile)
@@ -33,6 +44,12 @@ def load_config_document(cls, xmlfile: str, schema_name: str):
     except SchemaError:
         raise
     except Exception as exc:
+        if schema_name == 'network_map':
+            for diagnose in (network_map_node_type_message, network_map_role_enum_message):
+                specific_message = diagnose(xmlfile, exc)
+                if specific_message is not None:
+                    Logger.error(specific_message)
+                    raise SchemaError(specific_message) from exc
         message = f'{xmlfile} is not a valid {schema_name} document: {exc}'
         Logger.error(message)
         raise SchemaError(message) from exc
