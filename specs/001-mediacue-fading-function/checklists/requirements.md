@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning  
 **Created**: 2026-03-20  
-**Feature**: [spec.md](/disk/Projects/StageLab/cuems-utils/specs/001-mediacue-fading-function/spec.md)
+**Feature**: [spec.md](../spec.md)
 
 ## Content Quality
 
