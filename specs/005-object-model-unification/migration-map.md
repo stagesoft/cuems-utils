@@ -1,7 +1,7 @@
 # Migration map — 005 object model unification
 
 **Feature**: `005-object-model-unification` | **Tasks**: T003 (skeleton), T044 (completion)
-**Requirement**: FR-UX-001, FR-019 | **Input to**: feature 008 (consumer migration)
+**Requirement**: FR-UX-001, FR-019 | **Input to**: feature 009 (consumer migration)
 **Baseline**: `79632c3` — see [baseline.md](./baseline.md)
 
 Unlike [004's migration map](../004-xml-serialization-core/migration-map.md), which enumerated
@@ -9,7 +9,7 @@ deprecated *symbols* and their consumer call sites, this feature renames nothing
 nothing. Every entry below is a **behaviour** delta: the same call, on the same symbol, now
 returns something different. That is why the form differs — before/after values rather than
 old-path/new-path — and why no cross-checkout call-site sweep is repeated here. Consumers are
-not edited by this feature (FR-027); feature 008 owns that, informed by this document.
+not edited by this feature (FR-027); feature 009 owns that, informed by this document.
 
 **No file outside this repository is edited by feature 005.**
 

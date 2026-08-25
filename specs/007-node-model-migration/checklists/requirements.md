@@ -48,7 +48,7 @@ signature. This matches the convention established by features 004–006.
 | 2 | `NodeRoleType` vocabulary | `controller` / `node` / `firstrun` — completes the standardization `cuems-common` already declared |
 | 3 | Documents already on disk | Hard cutover; one-shot idempotent conversion owned by `cuems-common`'s package upgrade |
 | 4 | In-memory types | Fully typed for `network_map` only — a declared single-schema exception to feature 006's no-adapters rule |
-| 5 | Repositories edited | `cuems-utils` + `cuems-nodeconf` + `cuems-common`; engine and editor migrate in 008; no release between the two |
+| 5 | Repositories edited | `cuems-utils` + `cuems-nodeconf` + `cuems-common`; engine and editor migrate in 009; no release between the two |
 
 **Two settled constraints were superseded by explicit decision**, and the spec says so where it
 would otherwise read as a contradiction of the planning documents:

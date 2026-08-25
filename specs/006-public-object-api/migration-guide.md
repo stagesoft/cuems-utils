@@ -1,7 +1,7 @@
 # Migration guide — the six retired entry points (T084, FR-UX-001)
 
 **Feature**: 006-public-object-api · **Date**: 2026-08-20
-**Executed by**: feature **008**. Consumer repositories are **not** edited here.
+**Executed by**: feature **009**. Consumer repositories are **not** edited here.
 
 Every entry point below still resolves in `v0.1.0` and warns on each use. All
 six are removed in **`v0.1.1`**. This document is the work list.
@@ -63,7 +63,7 @@ retired and stays on the class. The import moves from
 `cuemsutils.xml.Settings` to `cuemsutils.tools.ConfigManager`'s accessors, or —
 if the static helper is genuinely all it needs — to
 `cuemsutils.xml.settings` and stays internal-but-reachable for one more release.
-That choice belongs to 008; it is flagged here because it is the one site the
+That choice belongs to 009; it is flagged here because it is the one site the
 map above does not answer cleanly.
 
 ### `cuems-editor` (9 sites)
@@ -95,7 +95,7 @@ name.
 
 **`src/cuemseditor/CuemsWsServer.py:23`** — `from cuemsutils.xml import
 NetworkMap`, used for `get_nodes_by_adoption`. Same question as
-`ControllerEngine`'s, same answer: 008 decides.
+`ControllerEngine`'s, same answer: 009 decides.
 
 ### `cuems-nodeconf` (0 sites)
 
@@ -128,4 +128,4 @@ per-call emission (FR-027b) is for. Zero warnings means zero sites.
 - **Config value shapes.** `ConfigManager`'s accessors return objects instead of
   raw dicts, but those objects *are* dicts — `isinstance`, `[]`, `.get()` and
   iteration all behave as before. Nothing in the consumers needs touching for
-  that, which is why it landed in this feature rather than in 008.
+  that, which is why it landed in this feature rather than in 009.

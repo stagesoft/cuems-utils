@@ -17,7 +17,7 @@ This is feature 1 of 5 in the XML rebuild. It covers phases 1–3 of the target 
 (§13) and is a **pure refactor**: zero behaviour changes, success paths and failure paths
 alike, and zero breakage for any existing consumer. Every known defect the rebuild closes
 that would require a behaviour change is deferred to feature 005 or later. Features
-005–008 follow and are out of scope here.
+005–009 follow and are out of scope here.
 
 ---
 
@@ -71,14 +71,14 @@ that would require a behaviour change is deferred to feature 005 or later. Featu
 - Q: What happens if a consumer call site cannot be kept working? → A: It becomes a **declared** breaking change — named, flagged in the release notes, recorded in the migration map, and shipped together with the corresponding sibling-repository modifications. Never silent (FR-030a, FR-030b). Compatibility is verified in two layers so SC-013 and FR-022b no longer conflict (FR-030c). **Refined by the analyze-follow-up session above**: "shipped together" became "prepared **or explicitly scheduled**", so that a fix which a later feature would invalidate can name its carrier instead of being written twice. The declaration, the flag and the test still ship in the release that causes the break — only the sibling edit may move.
 - Q: Would `load(save(x)) == x` (object comparison) resolve the SC-003 conflict, given that file bytes could be altered by a minifier or a future SQL-based whole-XML store? → A: **Added as SC-003a, not as a replacement.** Measured: the object property holds today, and it is the guarantee that survives reformatting and storage layers. But it is **blind to element reordering within order-free content models** — an `xs:all` root emitted in a different order loads to an equal object, so object equality alone would not have caught the R2 defect that rewrites every script root. Byte-identity stays as the refactor's evidence (SC-003 restated as stability); object equality is added as the durability guarantee.
 - Q: Is the absolute `schemaLocation` path tunable, or forced by the schema toolchain? → A: **Entirely our own code** — one line in the builder; `xmlschema` neither writes nor reads it. Measured: documents validate and read with the path absolute, relative, namespace-only, or the attribute removed. **Decided: feature 006 emits a relative path**, coordinated with dropping the leaked key so the wire change happens once.
-- Q: Must the rebuild keep loading previously written XML files? → A: Yes across all of 004–008, but **scoped to the current XSD configuration** (FR-035, FR-035a–d). Any document valid under today's schemas must load, and reading may never become stricter. Documents that no longer validate because the schema evolved — measured: settings files predating the required `gradient_osc_port`, **X13** — are out of scope by policy, not defects to fix. Historical documents that *do* still validate stay in the corpus as evidence.
+- Q: Must the rebuild keep loading previously written XML files? → A: Yes across all of 004–009, but **scoped to the current XSD configuration** (FR-035, FR-035a–d). Any document valid under today's schemas must load, and reading may never become stricter. Documents that no longer validate because the schema evolved — measured: settings files predating the required `gradient_osc_port`, **X13** — are out of scope by policy, not defects to fix. Historical documents that *do* still validate stay in the corpus as evidence.
 - Q: At what altitude does INFO logging sit? → A: INFO is declared at the **XML file access** level; internally built elements and objects log at DEBUG or lower (FR-033, SC-014).
 
 ### Session 2026-08-11
 
 - Q: Does 004 remove the catch-all exception handler in the DMX scene builder (F4), or preserve its swallow-and-continue behaviour? → A: **Preserve it.** (This supersedes an earlier answer in the same session that would have removed it. 004 is a pure refactor with **zero** behaviour changes, failure paths included; F4 moves to feature 005 with the other enumerated bug fixes.)
-- Q: What happens to the old serialization modules in 004 — deleted, delegating, or shimmed? → A: Deprecated re-export shims that warn on use, removed in 006. Applied uniformly to every affected import path, including the D9 rename (which therefore does **not** break consumers). **Partly superseded by the analyze-follow-up session above**: `CuemsParser` is delegating rather than shimmed, and the F8 globals injection is a declared break rather than a preserved behaviour. The shims and their warning messages are the worked examples for the consumer migration in 008.
-- Q: What does the regression corpus contain? → A: A frozen copy of all cross-repo XML sources vendored into this repo, plus generated documents for every cue type. XML validation and object conversion belong solely to this repo; feature 008 migrates consumer tests off their own duplicate fixtures where possible.
+- Q: What happens to the old serialization modules in 004 — deleted, delegating, or shimmed? → A: Deprecated re-export shims that warn on use, removed in 006. Applied uniformly to every affected import path, including the D9 rename (which therefore does **not** break consumers). **Partly superseded by the analyze-follow-up session above**: `CuemsParser` is delegating rather than shimmed, and the F8 globals injection is a declared break rather than a preserved behaviour. The shims and their warning messages are the worked examples for the consumer migration in 009.
+- Q: What does the regression corpus contain? → A: A frozen copy of all cross-repo XML sources vendored into this repo, plus generated documents for every cue type. XML validation and object conversion belong solely to this repo; feature 009 migrates consumer tests off their own duplicate fixtures where possible.
 - Q: Is log output part of the behaviour-preservation guarantee? → A: No — it is the single explicit exclusion. The engine logs one INFO record per document and at most DEBUG per cue, carrying identifiers only, never field values or object reprs. F11 closes here; serialization exactness is guarded by the engine and its tests, not by log archaeology.
 
 ---
@@ -477,7 +477,7 @@ targeted failure naming that class and field; remove it and the suite is green a
   line rather than at the shim. Note that Python's default warning filter may still
   collapse repeats at a given call site; the requirement is on what the library **emits**,
   which is the part the library controls.
-- **FR-028**: The shims are the **migration documentation** for feature 008. Each warning
+- **FR-028**: The shims are the **migration documentation** for feature 009. Each warning
   message MUST be specific enough to act on without reading the source, and the plan MUST
   produce a table mapping every shimmed symbol to its replacement and to the consumer call
   sites that use it.
@@ -551,7 +551,7 @@ targeted failure naming that class and field; remove it and the suite is green a
 **Backward compatibility of reading (cross-cutting, binds the whole rebuild)**
 
 - **FR-035**: Any document that is **valid under the schemas as they stand today** MUST
-  continue to load, across every feature in the rebuild (004–008). Four facets, FR-035a to
+  continue to load, across every feature in the rebuild (004–009). Four facets, FR-035a to
   FR-035d, state the boundary of that obligation and how it is evidenced.
 
   *(Numbered 035 rather than 023a–d: the letter-suffix convention used throughout this spec
@@ -723,7 +723,7 @@ targeted failure naming that class and field; remove it and the suite is green a
    the plan must confirm coverage of all six schemas before implementation starts.
 1a. **Ownership follows the corpus.** XML validation and object conversion belong solely
    to this repository. Absorbing the corpus is the first half of that consolidation;
-   feature 008 is the second, migrating consumer tests off their own duplicate fixtures
+   feature 009 is the second, migrating consumer tests off their own duplicate fixtures
    wherever a consumer no longer needs to own one. Consumers keep only fixtures that
    exercise something genuinely theirs.
 2. **Byte-identity is a deliberate tightening.** The audit's acceptance list (§4.12) asks
@@ -733,7 +733,7 @@ targeted failure naming that class and field; remove it and the suite is green a
 3. **Compatibility — decided, and uniform, with one named exception.** Every old import
    path survives behind a deprecation shim (FR-026 to FR-030), the rename included. **No
    `cuems-editor` or `cuems-engine` consumer breaks at this release**, and no edit is
-   required in either until feature 008.
+   required in either until feature 009.
 
    **The exception is `cuems-nodeconf`'s handler injection (FR-026d).** It is accepted
    rather than shimmed, on measured grounds: `cuems-nodeconf` is an already out-of-date
@@ -785,7 +785,7 @@ targeted failure naming that class and field; remove it and the suite is green a
 
 - The pre-refactor baseline must be green before work starts: 557 passing, plus the
   write-performance benchmark.
-- No dependency on the other four rebuild features; 005–008 depend on this one.
+- No dependency on the other five rebuild features; 005–009 depend on this one.
 - No new runtime dependency is expected; the schema model is already exposed by the
   library in use.
 - Read access to `cuems-engine`, `cuems-editor` and `cuems-common` is needed **once**, to
@@ -794,7 +794,7 @@ targeted failure naming that class and field; remove it and the suite is green a
   feature 007, so this feature is confined to this repository end to end — which is what
   keeps FR-022b, SC-015 and "the suite passes on a checkout of this repository alone"
   true without qualification.
-- Feature 008 inherits two follow-ups from the decisions taken here: retiring the
+- Feature 009 inherits two follow-ups from the decisions taken here: retiring the
   deprecation shims' consumer call sites, and migrating consumer tests off duplicate
   fixtures now owned by this repo.
 

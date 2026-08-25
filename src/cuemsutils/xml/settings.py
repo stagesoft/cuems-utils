@@ -117,7 +117,7 @@ def _as_bool(val: Any) -> bool:
     table and was written against the ``"True"``/``"False"`` strings
     ``cms:BoolType`` decodes to. It stays callable with either shape rather
     than only the new one, because Assumption 8 keeps this method available
-    until feature 008 migrates its caller.
+    until feature 009 migrates its caller.
     """
     return val if isinstance(val, bool) else strtobool(val)
 
@@ -159,7 +159,7 @@ class NetworkMap(Settings):
     )
     def get_nodes_by_adoption(network_map_dict: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """Deprecated (T083) — mutates its argument in place (FR-015's
-        opposite), kept working until feature 008 migrates its
+        opposite), kept working until feature 009 migrates its
         ``cuems-engine`` caller (Assumption 8). See
         :meth:`partition_by_adoption` for the non-mutating replacement."""
         nodes = []
@@ -193,7 +193,7 @@ class NetworkMap(Settings):
         """Split a network map's nodes into ``(adopted, unadopted)`` (research R7, contract C6).
 
         The non-mutating replacement for :meth:`get_nodes_by_adoption`
-        (Assumption 8 keeps that one available until feature 008 migrates its
+        (Assumption 8 keeps that one available until feature 009 migrates its
         caller). Every node value in ``network_map`` is unchanged, field by
         field, before and after this call — it only reads ``adopted``,
         through the same tolerant :func:`_as_bool` conversion (a caller may

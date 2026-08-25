@@ -174,7 +174,7 @@ Once R1 makes `adopted` a `bool`, `strtobool(True)` raises `AttributeError`, not
 so FR-011a *breaks* `NetworkMap.get_nodes_by_adoption` and, through it, `cuems-engine`'s
 `ControllerEngine` call at line 249. That is a silent interaction between two requirements, and
 it is not optional to handle: Assumption 8 says the mutating function stays available until
-feature 008 migrates its caller.
+feature 009 migrates its caller.
 
 The fix is one line at each read (accept `bool` as itself, `str` through `strtobool`), and it is
 **tested before the typing lands**, so the interaction is proven rather than assumed.
@@ -338,7 +338,7 @@ it would erase the record that the break was declared, dated and closed.
 
 **Rationale**: (1) must be first because (2) and (3) consume its schema. (2) before (3) because
 `cuems-nodeconf` is the writer whose output the conversion has to match. Nothing releases until
-feature 008 lands the readers (FR-030c) — the gate is stated in the migration guide, not merely
+feature 009 lands the readers (FR-030c) — the gate is stated in the migration guide, not merely
 observed here.
 
 **Verified branch point**: `cuems-nodeconf` is currently checked out on `feat/nodeconf-reenable`

@@ -22,7 +22,7 @@ This is feature 3 of 5 in the XML rebuild. It covers phases 5 and 7 of the targe
 (§13) and is **the API-defining feature**: it carries the UI hard constraint and both of the
 rebuild's deferred decision stops. Feature 004 built one schema-derived engine with
 byte-identical output; feature 005 unified the object model onto one construction path.
-Features 007 (node model migration) and 008 (consumer migration) follow and are out of scope
+Features 007 (node model migration) and 009 (consumer migration) follow and are out of scope
 here.
 
 **Settled decisions** (from the planning phase — not reopened by this spec): D1, D2, D3, D5,
@@ -62,7 +62,7 @@ because each was a decision, not a typo:
   show side. Recorded in the checklist as the instrument's own failure mode.
 - **FR-007 was unenforceable as literally written** ("no supported alternative path may
   remain") while FR-019a deliberately keeps dotted access working for the shims. It is now
-  stated as satisfied by the *recorded surface*, with unreachability deferred to 008.
+  stated as satisfied by the *recorded surface*, with unreachability deferred to 009.
 - Smaller corrections: the enumerated behaviour changes are **five** everywhere (SC-TEST-001,
   the plan's test gate and tasks.md all said four, from staleness — change 5, cue equality, was
   found by CHK007 after the list was written); one projection body, placed on the shared base
@@ -82,7 +82,7 @@ because each was a decision, not a typo:
 
 - Q: Decision stop 1 — is the runtime/persisted split declared or conventional? → A: **Declared** (option C). Runtime attributes become a class-level `RUNTIME_FIELDS` mapping of name → default *factory*, accumulated across the MRO exactly as `REQ_ITEMS` already is for declared fields; the five hand-written `_init_runtime()` overrides collapse into five data declarations plus one inherited implementation that applies them. This is not a new mechanism: feature 005 already built `_init_runtime()` as a chained hook called from both construction paths (`helpers.py:160` on decode, `Cue.py:48` on `__init__`), so the marginal cost over merely testing the convention is converting imperative bodies into data. Factories rather than values are required because `_start_mtc`/`_end_mtc` are fresh `CTimecode()` instances per object. Attribute names and how consumers access them do not change. **Named exception**: `_initialized` is deliberately *not* set by the hook — it gates value-rejecting rules in `ActionCue`, `FadeCue` and `VideoCueOutput` and must stay false during population (`helpers.py:236-247`), so it is declared as "not initialized by the hook" rather than omitted silently.
 
-- Q: Decision stop 1 — does `load()` return something runnable or something the engine promotes, what does `save()` mean mid-show, and how do copy and equality treat playback state? → A: **Runnable on load; mid-show save is document-only; equality over declared fields** (option A). `load()` returns an object with runtime state already initialized — which is what the code does today, since `_init_runtime()` runs on *both* construction paths — so no promotion step is added and no engine call site gains an obligation feature 008 has not budgeted. `save()` persists declared fields and is **documented as ignoring playback state**; it does not refuse, because "a show is running" is engine state the library never observes, and refusing would mean inventing a lock it does not own. Equality and the round-trip identity test compare **declared fields only**, without which `load(save(x)) == load(x)` cannot hold — a live thread handle never compares equal to a fresh one. Copying a cue produces **fresh** runtime state rather than sharing handles.
+- Q: Decision stop 1 — does `load()` return something runnable or something the engine promotes, what does `save()` mean mid-show, and how do copy and equality treat playback state? → A: **Runnable on load; mid-show save is document-only; equality over declared fields** (option A). `load()` returns an object with runtime state already initialized — which is what the code does today, since `_init_runtime()` runs on *both* construction paths — so no promotion step is added and no engine call site gains an obligation feature 009 has not budgeted. `save()` persists declared fields and is **documented as ignoring playback state**; it does not refuse, because "a show is running" is engine state the library never observes, and refusing would mean inventing a lock it does not own. Equality and the round-trip identity test compare **declared fields only**, without which `load(save(x)) == load(x)` cannot hold — a live thread handle never compares equal to a fresh one. Copying a cue produces **fresh** runtime state rather than sharing handles.
 
 ---
 
@@ -168,7 +168,7 @@ markers.
 - **Q: Does the deprecated surface get removed in this feature?** → **No — deprecated for
   one release, removed in the next.** The existing shim mechanism already declares
   `REMOVAL_RELEASE = "v0.1.1"` (`src/cuemsutils/xml/_deprecation.py`); this feature adds to
-  it rather than starting a second scheme. Removal is feature 008's exit condition, after
+  it rather than starting a second scheme. Removal is feature 009's exit condition, after
   consumers migrate.
 - **Q: Do the existing `ConfigBase` accessor *names* change when they start returning
   objects?** → **No.** The existing accessors are the model for the façade
@@ -474,7 +474,7 @@ its measured precedent.
   and the `xml` package exports nothing. It is deliberately **not** satisfied by making the
   alternatives unreachable: FR-019a keeps dotted access functional for one release because the
   deprecation shims resolve through it. "Supported" means *named on the recorded surface*, not
-  *impossible to reach*; genuine unreachability is feature 008's (see Out of Scope).
+  *impossible to reach*; genuine unreachability is feature 009's (see Out of Scope).
 - **FR-008**: The full chain `xml → object → json → object → xml` MUST round-trip to
   byte-identical XML for every corpus script document, exercised through the public API only.
 
@@ -529,7 +529,7 @@ its measured precedent.
 - **FR-019a**: "Exports nothing" means **exactly** `__all__ == []`. Dotted access
   (`from cuemsutils.xml.mapper import Mapper`) keeps working and is documented as
   **unsupported but functional** for this release. Genuine lockdown — module renaming or a
-  package-level `__getattr__` — is **deferred to feature 008** and MUST NOT be attempted here,
+  package-level `__getattr__` — is **deferred to feature 009** and MUST NOT be attempted here,
   because it directly conflicts with FR-020: the deprecation shims must keep resolving through
   those same paths for one release. The two goals cannot both be met this cycle, and shipping
   the shims is the one consumers depend on.
@@ -751,7 +751,7 @@ its measured precedent.
     pre-feature goldens this feature asserts against**, so 006's SC-001 measures *"the
     projection did not move"*, not *"the projection is type-perfect"*. They are neither
     inherited as resolved nor fixed here.
-  - **Carried to feature 008**, with 005's `migration-map.md` as the record. Fixing them means
+  - **Carried to feature 009**, with 005's `migration-map.md` as the record. Fixing them means
     changing the goldens, which means changing the payload the UI receives — a wire-format
     change that must be scheduled against consumers rather than folded into a feature whose
     hard constraint is that the payload does not move.
@@ -854,7 +854,7 @@ specified in FR-001…FR-022 above.
   captured before features 004/005 landed their changes and are never regenerated to make a
   test pass (standing rule 3).
 - "One release" for the deprecation window means the release this feature ships in; removal
-  lands in the next one, after consumers migrate (feature 008).
+  lands in the next one, after consumers migrate (feature 009).
 - The corpus vendored under `tests/data/corpus/` is representative of documents in the field.
   Where it is not — the corpus sweep for stop 2 may reveal gaps — the gap is recorded rather
   than assumed away.
@@ -878,15 +878,15 @@ specified in FR-001…FR-022 above.
 
 - **Feature 005's 14 residual type differences** (CHK025). Present in the goldens this feature
   asserts against; fixing them is a wire-format change that must be scheduled against
-  consumers. Carried to **feature 008**; see SC-001's note and 005's `migration-map.md`.
+  consumers. Carried to **feature 009**; see SC-001's note and 005's `migration-map.md`.
 - **Genuine lockdown of the `xml` package** (CHK030). This feature ships `__all__ == []`;
   making dotted access actually fail conflicts with keeping the deprecation shims resolving for
-  one release (FR-019a). Deferred to **feature 008**, after consumers migrate.
+  one release (FR-019a). Deferred to **feature 009**, after consumers migrate.
 - **Concurrency guarantees for projecting a live script** (CHK043). Explicitly undefined and
   documented as the caller's responsibility: the library never observes playback (FR-028a), so
   a lock here would contradict a requirement rather than satisfy one.
 - **Node model migration** — feature 007.
-- **Consumer repository edits** — feature 008. This feature defines the API and the migration
+- **Consumer repository edits** — feature 009. This feature defines the API and the migration
   guidance; the edits happen in each consumer repo as its own change.
 - **Any `.xsd` edit.** The schema evolution convention is adopted and documented here and
   governs future schema work; the measured violation already in the schemas is recorded as
@@ -915,7 +915,7 @@ listed only `checklists/requirements.md` while this document cited
 | [api-surface-diff.md](api-surface-diff.md) | T057a, T065 | "public name" defined once, and the enumerated diff T065 is compared against |
 | [legacy-coverage.md](legacy-coverage.md) | T060 | zero-hit coverage proof, before **and** after deleting the legacy parser tree |
 | [golden-changes.md](golden-changes.md) | T080 | the deliberate golden edit and its justification |
-| [migration-guide.md](migration-guide.md) | T084 | every retired entry point, its replacement, and the ten consumer call sites feature 008 executes against |
+| [migration-guide.md](migration-guide.md) | T084 | every retired entry point, its replacement, and the ten consumer call sites feature 009 executes against |
 | [frontend-note.md](frontend-note.md) | T085 | both payloads agree; no frontend change required; the dual-check removal is theirs to schedule |
 | `specs/planning/schema-evolution-convention.md` | T081, T082 | the four rules, and X13 recorded as scheduled work |
 

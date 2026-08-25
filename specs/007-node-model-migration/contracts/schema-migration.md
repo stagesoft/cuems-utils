@@ -90,7 +90,7 @@ not importable.
 
 - Runs in `postinst`, after dpkg has resolved the conffile. **Its ordering against
   `dh_installsystemd`'s service restart — which runs in the same `postinst` — is deferred to
-  feature 008** (FR-011d-ii): the services that read the map are the ones 008 migrates.
+  feature 009** (FR-011d-ii): the services that read the map are the ones 009 migrates.
 - Handles a `.dpkg-new` / `.dpkg-dist` sibling left by a conffile prompt — `/etc/cuems/network_map.xml`
   is a conffile that `cuems-nodeconf` rewrites on every adoption, so on a live node it is always
   locally modified.
@@ -120,7 +120,7 @@ exempts by name.
 `node_type` and the `NodeType.master` spelling as *the contract*. They are the ecosystem's
 reference for this field and are updated in the same branch.
 
-**Deferred to feature 008, not exempt**: the Avahi service templates' `node_type` TXT record. That
+**Deferred to feature 009, not exempt**: the Avahi service templates' `node_type` TXT record. That
 is a discovery surface, not the XML document (spec Assumption 10), so this feature inventories it
 and does not edit it — but it carries the retired vocabulary and must follow it.
 
@@ -131,7 +131,7 @@ and does not edit it — but it carries the retired vocabulary and must follow i
 | `usr/share/cuems/cuems.service.slave` | TXT record **and** the retired word in its filename |
 | `usr/share/cuems/cuems.service.firstrun` | TXT record |
 
-**Asserted**: these four are named in the migration guide as feature 008's work, with the
+**Asserted**: these four are named in the migration guide as feature 009's work, with the
 `debian/install` and template-resolution consequences of the filename change (FR-011g), and they
 are the exact set SC-004a's count excludes. Naming them is what keeps "deferred" distinguishable
 from "missed".
@@ -145,7 +145,7 @@ from "missed".
 1. `cuems-utils` — schema, model, engine, write path.
 2. `cuems-nodeconf` — model and serializers deleted; the sole writer follows the schema.
 3. `cuems-common` — mirror, conversion, tools, documentation.
-4. **Feature 008** — `cuems-engine` and `cuems-editor` readers.
+4. **Feature 009** — `cuems-engine` and `cuems-editor` readers.
 
 **No release of any of the three repositories ships before step 4** (FR-030c). The hard cutover
 has no working partially-deployed state: a converted map meets an unmigrated reader, or an

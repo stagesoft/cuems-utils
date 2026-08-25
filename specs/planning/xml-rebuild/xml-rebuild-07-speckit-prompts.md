@@ -28,15 +28,21 @@ independently green**, which is also what makes the constitution's test gate mea
 | `005-object-model-unification` | 4 | Yes (bug fixes) | 004 |
 | `006-public-object-api` | 5, 7 | Yes (API + `initial_template`) | 005 |
 | `007-node-model-migration` | 6 | **Yes** — `node_type` → `node_role`, a hard cutover across three repos | 006 + `feat/nodeconf-reenable` landing |
-| `008-consumer-migration` | 8 | Cross-repo | 006, 007 |
+| `009-consumer-migration` | 9 | Cross-repo | 006, 007 |
 
 Run them in order. Do not start the next until the previous is merged and green.
 
-**007 and 008 are the one pair that does not ship independently.** The row above said "No
+**007 and 009 are the one pair that does not ship independently.** The row above said "No
 (intake)" until 2026-08-24; clarification enlarged 007 to edit `network_map.xsd` and three
-repositories, and the rename is a hard cutover with no dual-spelling release. So 007 and 008 are
+repositories, and the rename is a hard cutover with no dual-spelling release. So 007 and 009 are
 independently *green* but not independently *shippable*: nothing in the ecosystem releases between
 them (007 FR-030c), enforced by versioned `.deb` dependencies (007 FR-030d).
+
+> **2026-08-25 renumbering note**: consumer migration was originally slotted as feature `008`
+> and is now `009` — the team decided to extend the rebuild in scope before consumer migration
+> starts, inserting a new multi-repo feature `008` ahead of it. That new feature's row, and
+> whether it changes 009's "Gated on"/pairing-with-007 claims above, is added once its own spec
+> exists rather than guessed here.
 
 ---
 
@@ -549,7 +555,7 @@ stay in cuems-nodeconf. Also out of scope: network_map.xsd edits, node_type form
 > a real `NodeRoleType` enumeration over `controller`/`node`/`firstrun`. The reasoning is in
 > `specs/007-node-model-migration/spec.md` §Clarifications — the schema is the single source of
 > truth, this lands as a strong rebuild, and the rename is the migration `cuems-common/CLAUDE.md`
-> already had scheduled. That decision is what makes 008 a hard successor rather than a follow-up,
+> already had scheduled. That decision is what makes 009 a hard successor rather than a follow-up,
 > pulls `cuems-common` into 007's scope, and hands this feature the four items §7 lists.
 
 ```
@@ -599,7 +605,7 @@ injection.
 
 ---
 
-## 7. Feature 008 — consumer migration
+## 7. Feature 009 — consumer migration
 
 Cross-repo. This spec lives in `cuems-utils` and defines the **contract and guide**; the
 edits happen in each consumer repo as its own PR.
@@ -607,7 +613,7 @@ edits happen in each consumer repo as its own PR.
 **Updated 2026-08-24** from feature 007's migration checklist, which handed four items to this
 feature and changed its standing from follow-up to release gate.
 
-**008 is a hard successor to 007, not a follow-up.** 007 renames `<node_type>` to `<node_role>` as
+**009 is a hard successor to 007, not a follow-up.** 007 renames `<node_type>` to `<node_role>` as
 a **hard cutover** — no release accepts both spellings — so there is no working partially-deployed
 state between them. **Nothing in the ecosystem ships until this feature lands** (007 FR-030c),
 enforced by versioned `.deb` dependencies, not by instruction (007 FR-030d). Read

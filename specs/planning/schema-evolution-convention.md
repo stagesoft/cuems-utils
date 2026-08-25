@@ -166,7 +166,7 @@ a schema can express. The migration pattern:
 3. **A release note naming what has to be converted and when the old form stops being accepted** —
    `migration-guide.md` §7's release gate: the old form is never accepted after `cuems-common` ships
    (`ConfigBase.load_config_document` raises `SchemaError` naming the migration, contract C8), and
-   nothing releases before feature 008 migrates the readers.
+   nothing releases before feature 009 migrates the readers.
 
 ### Constraining: `<node_type>` free text → `<node_role>` a real enumeration
 

@@ -59,7 +59,7 @@ clarification session and recorded in the spec.
   unmodified throughout; they are the evidence the refactor did not leak.
 - **III UX Consistency**: no user-facing surface changes. Consumers receive richer types on
   loaded objects — recorded in `migration-map.md` with a before/after for each of the seven
-  changes, feeding feature 008. Error messages introduced by C8 and C11 name the class, field
+  changes, feeding feature 009. Error messages introduced by C8 and C11 name the class, field
   or scene, per the constitution's actionable-errors standard.
 - **IV Performance**: budgets fixed *before* implementation (C13, SC-PERF-001/002/003), with
   the pre-005 decode number captured before the first behaviour change lands — otherwise the

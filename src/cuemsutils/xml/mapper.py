@@ -286,7 +286,7 @@ class Mapper:
         show model's ``CueList.contents`` is a list of cues. Config keeps
         ``[{"node": {...}}, ...]``, because ``cuems-engine`` and
         ``cuems-editor`` iterate it in that shape and this feature does not
-        edit consumer repositories (FR-UX-001). Feature 008 executes the
+        edit consumer repositories (FR-UX-001). Feature 009 executes the
         migration guide; until then the shape is a contract, and the
         five-level walk T051 deletes is deleted because the *types* are named,
         not because the nesting went away.

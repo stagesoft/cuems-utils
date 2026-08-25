@@ -15,7 +15,7 @@ classes it exported. Now:
   release** and warn on use (FR-019a). That is deliberately *not* asserted
   away: the deprecation shims resolve through those same paths, so emptying
   ``__all__`` and making the names unreachable are different changes. Genuine
-  lockdown is feature 008's.
+  lockdown is feature 009's.
 
 The golden update is T065, one of exactly two permitted in this feature
 (standing rule 1). Its justification and the enumerated diff are in

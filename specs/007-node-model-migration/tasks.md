@@ -51,7 +51,7 @@ checkable at all.
 - [X] T005 Demonstrate the FR-026d break on the pre-feature state: import `cuemsnodeconf.NodeXmlBuilders` against the current `cuemsutils` and show the injected handlers are not consulted; record the transcript in `specs/007-node-model-migration/baseline.md`
 - [X] T006 [P] Inventory every occurrence of `node_type` and the `NodeType.` prefix across `src/`, `tests/`, `../cuems-nodeconf/`, `../cuems-common/`, `../cuems-engine/src/`, `../cuems-editor/src/` into `specs/007-node-model-migration/migration-guide.md` as the starting symbol table (SC-004a's denominator)
 - [X] T006a [P] Inventory every node symbol and every discovery/adoption/orchestration symbol in `../cuems-nodeconf/cuemsnodeconf/` into `specs/007-node-model-migration/migration-guide.md`, as the denominators FR-027 and FR-032 are measured against. Record that the repository root and `tests/` are **excluded by decision** (FR-030a-i) — that code is partially implemented and far from the other repositories' integration maturity, and the migrated node standard and its full testing live in `cuems-utils` exclusively
-- [X] T006f [P] Inventory the FR-030a-ii class separately — callers that keep resolving but become **semantically wrong** — across `../cuems-nodeconf/` and the two feature-008 repositories, into `specs/007-node-model-migration/migration-guide.md`. Nothing fails when a member of this class is missed, so it is searched for, not waited for
+- [X] T006f [P] Inventory the FR-030a-ii class separately — callers that keep resolving but become **semantically wrong** — across `../cuems-nodeconf/` and the two feature-009 repositories, into `specs/007-node-model-migration/migration-guide.md`. Nothing fails when a member of this class is missed, so it is searched for, not waited for
 
 ### Normalising the corpus, before anything else touches it
 
@@ -207,17 +207,17 @@ run it again and assert the bytes are unchanged.
 
 - [X] T051 [US3] Create the `cuems-common` branch from `rc_1` at `0be3506f22de6ea2dd6d20fbd211febe7b26c710` (FR-030b) and mirror the updated schema to `../cuems-common/etc/cuems/network_map.xsd`
 - [X] T052 [P] [US3] Convert the shipped default map at `../cuems-common/etc/cuems/network_map.xml` so a fresh install never needs converting
-- [X] T053 [US3] Wire the conversion into `../cuems-common/debian/postinst`, after dpkg resolves the conffile, never failing the upgrade — and record its ordering against `dh_installsystemd`'s service restart as **deferred to feature 008** rather than settling it here (FR-011d-ii)
+- [X] T053 [US3] Wire the conversion into `../cuems-common/debian/postinst`, after dpkg resolves the conffile, never failing the upgrade — and record its ordering against `dh_installsystemd`'s service restart as **deferred to feature 009** rather than settling it here (FR-011d-ii)
 - [X] T054 [US3] Install the conversion script through `../cuems-common/debian/install`
 - [X] T054a [US3] Add versioned dependencies between the `cuems-common`, `cuems-utils` and `cuems-nodeconf` packages so an out-of-order upgrade is refused rather than merely discouraged, in `../cuems-common/debian/control` and the sibling control files (FR-030d)
-- [X] T054b [US3] Demonstrate the enforcement: attempt the out-of-order upgrade on a test install and record that it is refused, in `specs/007-node-model-migration/migration-guide.md` (SC-012) — **moved to feature 008**: no packaging/build sandbox was available in either of this feature's two passes, and feature 008 is the first point a real cross-repository release (and therefore a real `.deb` to install out of order) exists at all; see migration-guide.md §13
+- [X] T054b [US3] Demonstrate the enforcement: attempt the out-of-order upgrade on a test install and record that it is refused, in `specs/007-node-model-migration/migration-guide.md` (SC-012) — **moved to feature 009**: no packaging/build sandbox was available in either of this feature's two passes, and feature 009 is the first point a real cross-repository release (and therefore a real `.deb` to install out of order) exists at all; see migration-guide.md §13
 - [X] T054c [US3] Document the restore procedure for a converted map where an operator will look — `../cuems-common/docs/node-identity-contract.md` — and cross-reference it from the migration guide (FR-011i)
 - [X] T055 [P] [US3] Update the controller XPath in `../cuems-common/scripts/cuems-write-chrony-source`
 - [X] T056 [P] [US3] Update the controller XPath in `../cuems-common/scripts/cuems-log-collector-url`
 - [X] T057 [P] [US3] Update the role read and prefix-stripping in `../cuems-common/usr/bin/cuems-logs`
 - [X] T058 [P] [US3] Update the field contract in `../cuems-common/docs/node-identity-contract.md`
 - [X] T059 [P] [US3] Update the `node_type` references in `../cuems-common/CLAUDE.md` and `../cuems-common/README.md`, including the line that lists this migration as pending
-- [X] T060 [US3] Inventory the Avahi service templates' `node_type` TXT record — `etc/avahi/services/cuems.service` and `usr/share/cuems/cuems.service.{master,slave,firstrun}` — and record all four in `specs/007-node-model-migration/migration-guide.md` as **feature 008's work, deliberately unedited here** (Assumption 10, FR-011g), including that `.master`/`.slave` carry the retired vocabulary in their **filenames** and that renaming them reaches `debian/install` and anything resolving a template by name
+- [X] T060 [US3] Inventory the Avahi service templates' `node_type` TXT record — `etc/avahi/services/cuems.service` and `usr/share/cuems/cuems.service.{master,slave,firstrun}` — and record all four in `specs/007-node-model-migration/migration-guide.md` as **feature 009's work, deliberately unedited here** (Assumption 10, FR-011g), including that `.master`/`.slave` carry the retired vocabulary in their **filenames** and that renaming them reaches `debian/install` and anything resolving a template by name
 - [X] T060a [US3] Record that same four-file list in `specs/007-node-model-migration/migration-guide.md` as SC-004a's **named exclusion**, so the count T092 runs and the files it skips are stated in one place rather than inferred
 
 **Checkpoint**: an upgraded node reads its own map; zero `node_type` occurrences remain in
@@ -287,7 +287,7 @@ namespace exists, and the repository's own suite is green against the migrated `
 ## Phase 8: User Story 6 — Adopted-node selection stops mutating its input (Priority: P3)
 
 **Goal**: give `cuems-engine` a non-mutating answer to reach for, so its inline workaround can go
-in feature 008.
+in feature 009.
 
 **Independent Test**: call the replacement on a loaded map and assert the map's values are
 identical before and after, while the returned partition is correct.
@@ -300,7 +300,7 @@ identical before and after, while the returned partition is correct.
 ### Implementation for User Story 6
 
 - [X] T082 [US6] Add `NetworkMap.partition_by_adoption(map)` returning `(adopted, unadopted)` as tuples of node objects, mutating nothing, in `src/cuemsutils/xml/settings.py`
-- [X] T083 [US6] Deprecate `get_nodes_by_adoption` with a message pointing at the replacement, keeping it working until feature 008 migrates its caller (Assumption 8), in `src/cuemsutils/xml/settings.py`
+- [X] T083 [US6] Deprecate `get_nodes_by_adoption` with a message pointing at the replacement, keeping it working until feature 009 migrates its caller (Assumption 8), in `src/cuemsutils/xml/settings.py`
 
 **Checkpoint**: all six stories are independently functional.
 
@@ -311,9 +311,9 @@ identical before and after, while the returned partition is correct.
 - [X] T083a Enumerate the migration guide's required contents in **one** section of `specs/007-node-model-migration/migration-guide.md`, and make the requirements that feed it cross-reference that enumeration rather than each restating an obligation (FR-027a)
 - [X] T084 Complete the moved-symbol table in `specs/007-node-model-migration/migration-guide.md` — source → new home → status → **authorising requirement** — measured against T006a's inventory so completeness has a denominator (FR-027, SC-007). A row whose movement no requirement authorises is recorded as a finding, not given a blank cell
 - [X] T084a Record the public import path `cuemsutils.tools.NodeList` in the guide's consumer section, with the warning that `cuemsutils.config` is internal (FR-007)
-- [X] T085 Add to the migration guide what `cuems-engine` must change in feature 008 — `CONTROLLER_NETWORK_FLAG` and its two comparison sites, the `network_map` reads, the `get_nodes_by_adoption` workaround — verified against each live call site rather than transcribed (FR-011g, FR-028)
+- [X] T085 Add to the migration guide what `cuems-engine` must change in feature 009 — `CONTROLLER_NETWORK_FLAG` and its two comparison sites, the `network_map` reads, the `get_nodes_by_adoption` workaround — verified against each live call site rather than transcribed (FR-011g, FR-028)
 - [X] T086 Add to the migration guide what `cuems-editor` must change — the node field list at `CuemsWsServer.py:425` and the `reload_network_map_nodes` reads — verified against the live call sites (FR-011g, FR-028)
-- [X] T087 State the release gate in `specs/007-node-model-migration/migration-guide.md` as a gate: the four-step ordering, why nothing ships before feature 008, the failure mode of getting it wrong, and the package dependencies that enforce it (FR-030c, FR-030d, M5)
+- [X] T087 State the release gate in `specs/007-node-model-migration/migration-guide.md` as a gate: the four-step ordering, why nothing ships before feature 009, the failure mode of getting it wrong, and the package dependencies that enforce it (FR-030c, FR-030d, M5)
 - [X] T087a Extend that gate to the **cluster**: state whether a staged rollout is supported and, if not, that the cluster upgrades as a unit — FR-030d enforces ordering within one machine, and a controller upgraded ahead of its nodes is a disagreement no package dependency can see (FR-030c)
 - [X] T087b Record in the guide that **downgrade is unsupported** and that restoring the FR-011i backup is the only path back — no reverse conversion is provided (FR-011i)
 - [X] T088 [P] Record schema item X9 as **resolved** — `PutType` deleted from schema, model and registry — with its rationale, in `specs/007-node-model-migration/migration-guide.md` (FR-029)
@@ -396,7 +396,7 @@ nothing writes yet.
 7. **US6** → the non-mutating selection.
 8. Polish → migration guide, budgets, the release gate.
 
-**Nothing is released at any of these points.** The gate is feature 008 (FR-030c); "deploy/demo"
+**Nothing is released at any of these points.** The gate is feature 009 (FR-030c); "deploy/demo"
 does not apply to this feature and the checkpoints are validation points only.
 
 ### Parallel team strategy

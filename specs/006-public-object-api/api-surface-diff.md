@@ -33,7 +33,7 @@ unreachability.
 
 `FR-019a` deliberately keeps dotted access working for one release, because the
 deprecation shims resolve through those same paths. `from cuemsutils.xml import
-XmlReaderWriter` still works and warns. Genuine lockdown is **feature 008's**.
+XmlReaderWriter` still works and warns. Genuine lockdown is **feature 009's**.
 Stating this here stops a later reader concluding the requirement was missed.
 
 ---

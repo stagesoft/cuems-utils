@@ -121,7 +121,7 @@ T066b/SC-019; the FR-026d break itself → T049a/SC-017.
   (Assumption 6) — the one technical premise the whole design rests on.
 - Record the exact pre-refactor performance baseline before any code moves (FR-PERF-001).
 - Produce the shim → replacement → consumer call-site table (FR-028); it is both a 004
-  deliverable and the input to feature 008.
+  deliverable and the input to feature 009.
 - Enumerate which schema types reach a generic class by silent fallback today, so they can
   be bound to that same generic without changing output (FR-007).
 - Confirm corpus coverage of all six schemas before implementation starts (Assumption 1).

@@ -66,7 +66,7 @@ def test_get_nodes_by_adoption_accepts_already_typed_booleans():
 
 def test_get_nodes_by_adoption_still_accepts_strings():
     """The pre-typing call shape must keep working — this method is retained
-    (Assumption 8) until feature 008 migrates its caller."""
+    (Assumption 8) until feature 009 migrates its caller."""
     network_map_dict = _network_map_dict(adopted="True", online="False")
     nodes, new_nodes = _get_nodes_by_adoption(network_map_dict)
     assert len(nodes) == 1

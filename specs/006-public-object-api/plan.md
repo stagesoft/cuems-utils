@@ -103,7 +103,7 @@ specified part of the design — is settled concretely in [data-model.md](data-m
 - Existing accessor **names** on `ConfigBase`/`ConfigManager` do not change (FR-018). Only
   return types change, and only where the value is a structure.
 - Deprecation messages use the single existing template — one format, not a second scheme.
-- A migration guide maps every changed entry point to its replacement, for feature 008.
+- A migration guide maps every changed entry point to its replacement, for feature 009.
 
 ### IV. Performance Budgets Are Requirements
 
@@ -153,7 +153,7 @@ schemalocation-evidence.md  # T038 — the FR-011 negative result, to a stated s
 api-surface-diff.md         # T057a, T065 — "public name" defined + the enumerated diff
 legacy-coverage.md          # T060 — zero-hit proof before the legacy tree is deleted
 golden-changes.md           # T080 — the deliberate golden edit, justified
-migration-guide.md          # T084 — the D2 map, feature 008's input
+migration-guide.md          # T084 — the D2 map, feature 009's input
 frontend-note.md            # T085 — both payloads agree; no frontend change required
 ../planning/schema-evolution-convention.md   # T081, T082 — cross-feature, so specs/planning/
 ```

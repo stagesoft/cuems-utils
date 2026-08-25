@@ -32,7 +32,7 @@ the implementation is wrong.
 - [x] CHK010 Is it specified that the `cuems-engine` and `cuems-editor` guide entries must be verified against the live call sites rather than written from the planning documents? [Measurability, Spec §FR-011g, §FR-028] — FR-028 states it in those words; T085/T086 repeat it.
 - [x] CHK011 Are `cuems-common`'s consumers accounted for with the same requirement strength as `cuems-nodeconf`'s, given the repository joined the feature after the original scope was written? [Consistency, Spec §FR-011f, §FR-030b] — FR-011f names all three tools with the consequence of staleness; FR-030b enumerates the branch scope; M4 tabulates; T050/T055–T059.
 - [x] CHK012 Is there a requirement covering consumers that read `network_map.xml` **without** using `cuemsutils` — the three stdlib tools — as a distinct class from library consumers? [Coverage, Spec §FR-011f] — FR-011f is exactly that class; FR-011d states why (the shared-venv rule).
-- [x] CHK013 Are the requirements clear about which consumer changes belong to this feature and which to feature 008, at the granularity of individual call sites rather than whole repositories? [Clarity, Spec §FR-030] — FR-011g names `CONTROLLER_NETWORK_FLAG` and its two comparison sites; T086 names `CuemsWsServer.py:425` and `reload_network_map_nodes`.
+- [x] CHK013 Are the requirements clear about which consumer changes belong to this feature and which to feature 009, at the granularity of individual call sites rather than whole repositories? [Clarity, Spec §FR-030] — FR-011g names `CONTROLLER_NETWORK_FLAG` and its two comparison sites; T086 names `CuemsWsServer.py:425` and `reload_network_map_nodes`.
 - [x] CHK014 Is the `get_nodes_by_adoption` caller in `cuems-engine` explicitly accounted for, given a requirement here keeps the function alive for it? [Traceability, Spec §FR-022, Assumption 8] — Assumption 8 keeps it alive; research R7 names `ControllerEngine:249`; T083 deprecates; T085 carries it into the guide.
 
 ## Orphaned Artefact Definition & Coverage
@@ -66,21 +66,21 @@ the implementation is wrong.
 ## Cross-Repository Ordering & Dependency
 
 - [x] CHK034 Is the release gate expressed as an enforceable **package dependency or version constraint**, or only as a documented instruction? A node can upgrade `cuems-utils` before `cuems-common`. [Gap, Spec §FR-030c, Contracts §M5] — **Closed.** FR-030d requires versioned `.deb` dependencies; SC-012 demonstrates the refusal; M5; T054a/T054b.
-- [x] CHK035 Are requirements defined for the ordering of `postinst` execution relative to services that read the map at startup? [Coverage, Gap, Spec §FR-011d] — **Closed by assignment to feature 008.** FR-011d-ii defers it explicitly and says why: both the conversion and `dh_installsystemd`'s restart run in `postinst`, but the services doing the reading are `cuems-engine`'s and `cuems-editor`'s, which this feature does not edit. Settling it here would fix an ordering against unmigrated consumers. T053 records it as deferred; M3 carries the note.
+- [x] CHK035 Are requirements defined for the ordering of `postinst` execution relative to services that read the map at startup? [Coverage, Gap, Spec §FR-011d] — **Closed by assignment to feature 009.** FR-011d-ii defers it explicitly and says why: both the conversion and `dh_installsystemd`'s restart run in `postinst`, but the services doing the reading are `cuems-engine`'s and `cuems-editor`'s, which this feature does not edit. Settling it here would fix an ordering against unmigrated consumers. T053 records it as deferred; M3 carries the note.
 - [x] CHK036 Is the obligation on the schema mirror stated as a continuous invariant rather than a one-time copy, given the two files have drifted before? [Clarity, Contracts §M2] — M2 requires a test that fails when they diverge, and says they have drifted before; T049.
 - [x] CHK037 Are the branch points and branch names for all three repositories specified precisely enough to be checked at review time? [Measurability, Spec §FR-030a, §FR-030b] — **Closed.** FR-030b now pins `cuems-common` to a new branch from `rc_1` at `0be3506f22de6ea2dd6d20fbd211febe7b26c710`, matching FR-030a's precision for `cuems-nodeconf`. T051.
 
 ## Traceability & Evidence Retention
 
 - [x] CHK038 Does every moved or deleted symbol trace to the requirement authorising its movement, rather than to the plan alone? [Traceability, Spec §FR-027] — **Closed.** FR-027 now specifies a fourth column, the authorising requirement, and states that a symbol no requirement authorises is a finding rather than a blank cell; T084.
-- [x] CHK039 Is it specified where the migration evidence lives after the branches merge, so feature 008 and any later reader can find it? [Gap, Spec §FR-028] — `specs/007-node-model-migration/migration-guide.md`, a committed file named in plan.md's documentation tree; the convention CLAUDE.md records for feature 006's guide, which 008 consumes.
+- [x] CHK039 Is it specified where the migration evidence lives after the branches merge, so feature 009 and any later reader can find it? [Gap, Spec §FR-028] — `specs/007-node-model-migration/migration-guide.md`, a committed file named in plan.md's documentation tree; the convention CLAUDE.md records for feature 006's guide, which 009 consumes.
 - [x] CHK040 Is the migration guide's required content enumerated, or does "documented for the migration guide" appear in several requirements meaning different things? [Consistency, Spec §FR-023, §FR-027, §FR-028, §FR-030c] — **Closed.** FR-027a enumerates all seven required contents in one place and requires the feeding requirements to reference it; T083a.
 - [x] CHK041 Are the four "must be true when done" claims from the original feature framing each traceable to a numbered requirement? [Traceability] — the framing (`xml-rebuild-07` §6) lists **nine**, not four; all nine trace: → FR-002/002a/002b/005, FR-003, FR-008/009, FR-021, FR-018, FR-017, FR-012/024, FR-016/019, FR-030a.
 - [x] CHK042 Do FR-014 ("an unknown role is rejected at validation") and M3 ("an unknown value is left alone by the conversion") together leave a state no requirement resolves — a file the conversion accepts and the schema rejects? [Conflict, Spec §FR-014, Contracts §M3] — **Closed.** FR-011h refuses the file whole and says in terms that it resolves this state; M3 and research R8 both record the change.
 - [x] CHK043 Is the guarded free-text field set stated identically everywhere it appears, given one document lists six fields and the pre-migration source listed seven? [Consistency, Spec §FR-012, §FR-024] — the same six (`name`, `ip`, `mac`, `role_id`, `alias`, `hostname`) in FR-012, FR-024, C3, research R4 and data-model §2, each stating why the seventh left.
 - [x] CHK044 Is the assumption that `NodeIndex`'s key stays caller-supplied validated against what `cuems-nodeconf` actually needs, rather than asserted? [Assumption, Research §R5] — research R5 is measured against the source and its comment about duplicate controller entries; data-model §3.4 repeats the reason; T074 keeps the MAC key function.
 - [x] CHK045 Is "no registration API exists" specified as an ongoing prohibition with a check, or as a statement of the current state? [Clarity, Spec §FR-017] — FR-017 "MUST NOT gain… not reinstated in any form"; C7; T046a makes it a test, distinct from T040's claim.
-- [x] CHK046 Is the scope boundary for the Avahi `node_type` TXT record unambiguous — inventoried but unchanged — given it shares a name with the field being renamed? [Ambiguity, Spec Assumption 10, Contracts §M4] — **Closed, and the boundary moved.** The conflict was real: SC-004a demanded zero `node_type` in shipped files while Assumption 10 left four shipped files carrying it, so T092 could not pass. Resolved in two parts — SC-004a now excludes those four files **by name**, and the surface is no longer permanently exempt: Assumption 10, FR-011g, M4 and the Out of Scope entry all now record it as **feature 008's work**, including that `cuems.service.master`/`.slave` carry the retired vocabulary in their **filenames** and that renaming them reaches `debian/install`. T060/T060a inventory and record it; T092 applies the exclusion as an explicit file list.
+- [x] CHK046 Is the scope boundary for the Avahi `node_type` TXT record unambiguous — inventoried but unchanged — given it shares a name with the field being renamed? [Ambiguity, Spec Assumption 10, Contracts §M4] — **Closed, and the boundary moved.** The conflict was real: SC-004a demanded zero `node_type` in shipped files while Assumption 10 left four shipped files carrying it, so T092 could not pass. Resolved in two parts — SC-004a now excludes those four files **by name**, and the surface is no longer permanently exempt: Assumption 10, FR-011g, M4 and the Out of Scope entry all now record it as **feature 009's work**, including that `cuems.service.master`/`.slave` carry the retired vocabulary in their **filenames** and that renaming them reaches `debian/install`. T060/T060a inventory and record it; T092 applies the exclusion as an explicit file list.
 
 ---
 
@@ -116,12 +116,12 @@ the only finding that made a planned task unachievable as written: SC-004a deman
 `node_type` occurrences in shipped files while Assumption 10 deliberately left four shipped
 `cuems-common` files carrying it, so T092 could not pass. The resolution went further than the
 exemption — the Avahi discovery surface is no longer permanently out of scope, it is **feature
-008's work**, named file by file, including the two templates whose *filenames* carry the retired
+009's work**, named file by file, including the two templates whose *filenames* carry the retired
 vocabulary.
 
 | Item | Was | Now |
 |---|---|---|
-| CHK046 | SC-004a contradicted Assumption 10; T092 unachievable | SC-004a excludes four named files; Assumption 10, FR-011g, M4 and Out of Scope assign them to feature 008; T060/T060a/T092 |
+| CHK046 | SC-004a contradicted Assumption 10; T092 unachievable | SC-004a excludes four named files; Assumption 10, FR-011g, M4 and Out of Scope assign them to feature 009; T060/T060a/T092 |
 | CHK029 | Downgrade unspecified | FR-011i: unsupported, restore-the-backup is the only path, no reverse conversion; T087b |
 | CHK031 | Cluster-scope rollout unaddressed | FR-030c extends the gate past the node; T087a |
 | CHK038 | Moved-symbol table had no authorising-requirement column | FR-027 adds it, and makes an unauthorised symbol a finding; T084 |
@@ -138,7 +138,7 @@ had been made but not stated, and one by moving the question to the feature that
 | CHK009 | Semantically-wrong callers covered per-instance by tasks, not as a class | FR-030a-ii names the class and its known members, and requires it to be searched for — nothing fails when a member is missed; T006f |
 | CHK030 | The failure state was defined; the operator's next action was not | FR-011h-i: raise the **corresponding named error** with the remedy, plus a **deprecation notice** for a recognisable legacy value; T041a/T044a |
 | CHK033 | No positive evidence of a successful conversion | FR-011d-i: node count and backup path on success, four mutually distinguishable outcomes; T013c/T014c |
-| CHK035 | `postinst` ordering against the service restart unnamed | FR-011d-ii **defers it to feature 008**, which owns the readers — settling it here would fix an ordering against unmigrated consumers; T053 |
+| CHK035 | `postinst` ordering against the service restart unnamed | FR-011d-ii **defers it to feature 009**, which owns the readers — settling it here would fix an ordering against unmigrated consumers; T053 |
 | CHK037 | `cuems-common`'s branch unnamed, no branch point | FR-030b: a new branch from `rc_1` at `0be3506f22de6ea2dd6d20fbd211febe7b26c710`, matching FR-030a's precision; T051 |
 
 ### What the two rounds added to the feature
@@ -147,6 +147,6 @@ Eleven requirements (FR-011d-i, FR-011d-ii, FR-011h-i, FR-030a-i, FR-030a-ii, pl
 SC-004a, FR-011g, FR-011i, FR-018, FR-027, FR-027a, FR-030b, FR-030c) and nine tasks (T006f, T013c,
 T014c, T041a, T044a, T060a, T087a, T087b, plus amendments to T006a, T051, T053, T060, T078a, T084,
 T092). Two consequences reach beyond this feature: the Avahi discovery surface and the `postinst`
-service-restart ordering both become **feature 008** work, recorded in
+service-restart ordering both become **feature 009** work, recorded in
 `specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §12 and
 `specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md` §7.

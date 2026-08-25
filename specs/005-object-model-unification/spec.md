@@ -16,7 +16,7 @@
 This is feature 2 of 5 in the XML rebuild. It covers phase 4 of the target design (§13) and
 is the **first feature with intentional behaviour change**. Feature 004 established one
 schema-derived engine with byte-identical output and deliberately parked every fix that
-would change behaviour; this feature lands that parked set. Features 006–008 follow and are
+would change behaviour; this feature lands that parked set. Features 006–009 follow and are
 out of scope here.
 
 **Settled decisions** (from the planning phase — not reopened by this spec): D1, D2, D3, D5,
@@ -405,7 +405,7 @@ behaviour unless the spec states otherwise; these are the stated exceptions)*
 - **FR-027**: No public API signature changes, no `.xsd` edits, no `xml/` visibility changes,
   and no edits to consumer repositories in this feature.
 - **FR-UX-001**: Consumer-visible consequences of all seven changes MUST be written into the
-  migration notes carried by the rebuild, in the same form 004 established, so feature 008
+  migration notes carried by the rebuild, in the same form 004 established, so feature 009
   inherits a complete record. No user-facing wording or defaults change beyond the enumerated
   items.
 - **FR-PERF-001**: Construction is on the hot path for large scripts, so this feature MUST
@@ -489,7 +489,7 @@ behaviour unless the spec states otherwise; these are the stated exceptions)*
 5. `REQ_ITEMS` remains the hand-written declared-defaults source and developer index; this
    feature does not replace it with generated code.
 6. No consumer repository is edited. Consumers observe richer types on loaded objects; that
-   migration is feature 008, informed by the notes FR-UX-001 requires here.
+   migration is feature 009, informed by the notes FR-UX-001 requires here.
 7. The initial-template identifier change is acceptable to the Angular UI because three of the
    five cue identifiers in that template already arrive empty today — the change makes the
    remaining two consistent with the intent already expressed in the code.
@@ -509,7 +509,7 @@ behaviour unless the spec states otherwise; these are the stated exceptions)*
 Public API changes and the new `load`/`save`/`validate`/`from_json`/`to_wire` surface
 (feature 006); making `xml/` internal (006); the `initial_template`↔`project_load` encoding
 alignment and the `schemaLocation` changes (006); the node model migration (007); all
-consumer repository edits (008); `.xsd` edits (deferred under D3); the deferred schema items
+consumer repository edits (009); `.xsd` edits (deferred under D3); the deferred schema items
 X1–X13.
 
 **Explicitly not fixed here**: the setters' value-rejecting rules neither gain nor lose reach

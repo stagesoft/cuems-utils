@@ -32,7 +32,7 @@ The technical approach, in one line each:
   matched element.
 
 Three repositories are edited: `cuems-utils`, `cuems-nodeconf`, `cuems-common`. Nothing releases
-until feature 008 migrates the readers.
+until feature 009 migrates the readers.
 
 ---
 
@@ -156,7 +156,7 @@ specs/007-node-model-migration/
 ├── checklists/
 │   └── requirements.md          # spec quality checklist (all items pass)
 ├── baseline.md                  # written by the first task, before any code change
-├── migration-guide.md           # written by this feature, consumed by 008
+├── migration-guide.md           # written by this feature, consumed by 009
 └── tasks.md                     # /speckit.tasks output — NOT created by /speckit.plan
 ```
 
@@ -243,7 +243,7 @@ judges.
 | 8 | *(folded into step 3 — see the note at the end of `tasks.md`)* | M6, SC-010a |
 | 9 | `cuems-nodeconf` branch: delete both files, reformat call sites, retire deprecated entry points | its suite green (SC-008) |
 | 10 | `cuems-common` branch: mirror, default map, conversion + postinst, three tools, documentation | M2, M3, M4 |
-| 11 | `migration-guide.md`: moved-symbol table, consumer changes for 008, **the release gate** | FR-027, FR-028, M5 |
+| 11 | `migration-guide.md`: moved-symbol table, consumer changes for 009, **the release gate** | FR-027, FR-028, M5 |
 | 12 | Re-measure budgets; record both figures | FR-PERF-001 |
 
 Step 2 before step 3 is deliberate: the `strtobool(bool)` interaction is the one place where two
@@ -264,7 +264,7 @@ the note at the end of `tasks.md`.
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|--------------------------------------|
 | A per-schema exception to feature 006's "config decoding runs no adapters" rule | FR-011a requires typed node values; FR-011a-i requires the other four schemas untouched. The exception is declared as data on the registry, next to the type bindings | Typing **all** config schemas would change `settings`, `project_mappings` and `project_settings` goldens and their consumers — scope this feature does not claim, arriving through a base class rather than through a decision. Leaving `network_map` untyped would leave the role as a bare string, which is the accident being removed |
-| Editing three repositories in one feature | The hard cutover has no working partially-deployed state: schema, writer and shipped mirror must move together, or a node's `/etc/cuems/network_map.xml` becomes unreadable | Splitting `cuems-common` into feature 008 would leave the conversion — the thing that saves a deployed node's cluster topology — behind the release that invalidates its file |
+| Editing three repositories in one feature | The hard cutover has no working partially-deployed state: schema, writer and shipped mirror must move together, or a node's `/etc/cuems/network_map.xml` becomes unreadable | Splitting `cuems-common` into feature 009 would leave the conversion — the thing that saves a deployed node's cluster topology — behind the release that invalidates its file |
 
 Neither deviates from a constitutional principle; both are recorded because they widen the blast
 radius beyond a single-repository refactor and a reviewer should meet them here rather than in a
@@ -281,7 +281,7 @@ diff.
 | The round-trip diff quietly grows beyond two differences | C4 asserts the diff **set**, not merely that it round-trips |
 | `Uuid` rejects a real node's UUID | `_UuidAdapter` keeps unparseable values as raw text; the XSD pattern constrains shape, not uuid4 semantics (research R2) |
 | Goldens regenerated to make a test pass | `MANIFEST.sha256` + the recorded-justification ceremony (M6) |
-| Someone releases `cuems-utils` between 007 and 008 | FR-030c states the gate; FR-030d enforces it with versioned package dependencies, since a documented gate is not one |
+| Someone releases `cuems-utils` between 007 and 009 | FR-030c states the gate; FR-030d enforces it with versioned package dependencies, since a documented gate is not one |
 | A node's map is rewritten with no recoverable prior version | FR-011i requires a timestamped backup and a documented restore before any write |
 | The round-trip diff is unachievable because the corpus is stored in a form the writer never emits | Caught at analysis, not at test time: step 1b normalises the corpus first (FR-010b, C4a) |
 | Public surface grows without the API snapshot noticing | FR-007a makes the golden update a named, justified modification rather than an oversight |

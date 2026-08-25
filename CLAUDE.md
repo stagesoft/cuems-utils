@@ -135,7 +135,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   - **Open, carried to the PR**: the suite wall-time budget (≤10% over 44.57 s) is exceeded
     at 59.17 s — because the suite grew by 737 tests. Per test it is 11% *faster*. Recorded
     as exceeded rather than restated as passing; see `baseline.md`.
-  - Migration is **feature 008's**: ten call sites across `cuems-engine` and `cuems-editor`,
+  - Migration is **feature 009's**: ten call sites across `cuems-engine` and `cuems-editor`,
     listed in `migration-guide.md`. All six retired entry points still resolve and warn in
     `v0.1.0`; they are gone in `v0.1.1`. No frontend change is required — see
     `frontend-note.md`.

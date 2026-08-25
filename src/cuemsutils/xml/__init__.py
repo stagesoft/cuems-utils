@@ -13,7 +13,7 @@ it is machinery behind two public entry points:
 ``from cuemsutils.xml import XmlReaderWriter`` resolves and warns; it is gone in
 ``v0.1.1``. Keeping it functional is not an oversight — the deprecation shims
 below *resolve through it*, so emptying ``__all__`` and making the names
-unreachable are different changes. Genuine lockdown is feature 008's, together
+unreachable are different changes. Genuine lockdown is feature 009's, together
 with the consumer migration the shims exist to buy time for.
 
 This docstring used to open *"The public surface is the five names in

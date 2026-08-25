@@ -1,6 +1,6 @@
 # Migration guide — feature 007: node model migration
 
-Consumed by feature 008 (the reader migration in `cuems-engine`/`cuems-editor`) and by whoever
+Consumed by feature 009 (the reader migration in `cuems-engine`/`cuems-editor`) and by whoever
 performs the release. Built incrementally as the feature lands; the enumeration required by
 FR-027a lives in [§1](#1-required-contents-fr-027a) and every other requirement that names an
 obligation for this file cross-references that list rather than restating it.
@@ -18,8 +18,8 @@ This file must contain, each in its own section below:
    [§3](#3-fr-030a-ii-semantically-wrong-not-broken-t006f).
 3. The moved-symbol table: source → new home → status → authorising requirement (T084).
 4. The public import path for consumers (T084a).
-5. What `cuems-engine` must change in feature 008 (T085).
-6. What `cuems-editor` must change in feature 008 (T086).
+5. What `cuems-engine` must change in feature 009 (T085).
+6. What `cuems-editor` must change in feature 009 (T086).
 7. The release gate, stated as a gate (T087, T087a, T087b).
 8. Schema item X9 resolution record (T088).
 9. The FR-018 orphan search result (T078a) and the FR-032 boundary check (T078b).
@@ -79,9 +79,9 @@ fails to surface it.
 
 | Repository | Site | What goes silently wrong |
 |---|---|---|
-| `cuems-engine` | `BaseEngine.py:33` — `CONTROLLER_NETWORK_FLAG = "NodeType.master"` | after conversion, no node's `node_role` (or its pre-008 raw-string reading of the renamed element) is ever `"NodeType.master"` again — the controller is never found by this comparison. Feature 008's work (FR-028). |
+| `cuems-engine` | `BaseEngine.py:33` — `CONTROLLER_NETWORK_FLAG = "NodeType.master"` | after conversion, no node's `node_role` (or its pre-009 raw-string reading of the renamed element) is ever `"NodeType.master"` again — the controller is never found by this comparison. Feature 009's work (FR-028). |
 | `cuems-engine` | `BaseEngine.py:410,440` | the two sites comparing `node.get("node_type") == CONTROLLER_NETWORK_FLAG` — same failure, structural: they read a key (`node_type`) the document no longer has at all after conversion, so `.get` returns `None` and the comparison is `False` for every node, not just silently wrong for the value. |
-| `cuems-engine` | `BaseEngine.py:443` — `node.get("online") == "True"` | **found during T085's verification, not in the original inventory.** Independent of the `node_type` rename: once `network_map` runs the adapter table (this feature, research R1), `online` decodes to a Python `bool`. `True == "True"` is `False`, so this filter silently excludes every node — the `hosts` list this feeds is `check_missing_adopted_nodes`'s input, per its call site at line ~430. Feature 008's work; not a `node_type`/`node_role` issue, an `adopted`/`online` typing one, and worth stating as its own class rather than folded into the rename finding. |
+| `cuems-engine` | `BaseEngine.py:443` — `node.get("online") == "True"` | **found during T085's verification, not in the original inventory.** Independent of the `node_type` rename: once `network_map` runs the adapter table (this feature, research R1), `online` decodes to a Python `bool`. `True == "True"` is `False`, so this filter silently excludes every node — the `hosts` list this feeds is `check_missing_adopted_nodes`'s input, per its call site at line ~430. Feature 009's work; not a `node_type`/`node_role` issue, an `adopted`/`online` typing one, and worth stating as its own class rather than folded into the rename finding. |
 | `cuems-editor` | `CuemsWsServer.py:425` | the `basic_fields` list names `'node_type'`; after conversion the document has no such key, so this field is silently absent from every node payload sent to the UI rather than raising. |
 
 No `cuems-common` site falls in this class: the three tools T055–T057 name are fixed in this
@@ -148,7 +148,7 @@ has carried since feature 006. `cuemsutils.tools.NodeList` is the one path this 
 
 ---
 
-## 5. What `cuems-engine` must change in feature 008 (T085)
+## 5. What `cuems-engine` must change in feature 009 (T085)
 
 Verified against the live call sites in `cuems-engine/src/cuemsengine/core/BaseEngine.py` at this
 commit (`afff04a`), not transcribed from the spec:
@@ -161,18 +161,18 @@ commit (`afff04a`), not transcribed from the spec:
 | `BaseEngine.py:443` — `node.get("online") == "True"` | string comparison | `node.get("online") is True` — **found during this task's verification**, not in the original T006f inventory; independent of the `node_type` rename (§3's table, added row) |
 | `BaseEngine.py:433` — `self.cm.network_map.get_nodes_by_adoption(network_dict)` | calls the now-deprecated, mutating method | migrate to `NetworkMap.partition_by_adoption(self.cm.network_map)` (US6, T082) — returns bare node objects, not `{"node": ...}` wrappers, so the unpacking at the call site changes shape too |
 
-## 6. What `cuems-editor` must change in feature 008 (T086)
+## 6. What `cuems-editor` must change in feature 009 (T086)
 
 Verified against `cuems-editor/src/cuemseditor/CuemsWsServer.py` at this commit (`ef74136`):
 
 | Site | Today | Must become |
 |---|---|---|
-| `CuemsWsServer.py:425` — `basic_fields = ['online', 'adopted', 'ip', 'name', 'node_type', 'mac', 'role_id', 'alias', 'hostname']` (`merge_nodes` or equivalent, ~line 384–431) | names `'node_type'`; the merge silently drops that field once the document no longer has it | rename to `'node_role'` in the list. Also: `online`/`adopted` become `bool` after this feature — if this merged dict is what reaches the UI payload verbatim, feature 008 must decide whether the frontend needs the wire string form (`to_wire()`) or can consume `bool` directly; this feature does not answer that, it only surfaces the question (FR-UX-001 is a `cuems-utils`-side contract, not a frontend one) |
+| `CuemsWsServer.py:425` — `basic_fields = ['online', 'adopted', 'ip', 'name', 'node_type', 'mac', 'role_id', 'alias', 'hostname']` (`merge_nodes` or equivalent, ~line 384–431) | names `'node_type'`; the merge silently drops that field once the document no longer has it | rename to `'node_role'` in the list. Also: `online`/`adopted` become `bool` after this feature — if this merged dict is what reaches the UI payload verbatim, feature 009 must decide whether the frontend needs the wire string form (`to_wire()`) or can consume `bool` directly; this feature does not answer that, it only surfaces the question (FR-UX-001 is a `cuems-utils`-side contract, not a frontend one) |
 | `CuemsWsServer.py:470` — `NetworkMap.get_nodes_by_adoption(network_map_dict)` (`reload_network_map_nodes`) | same deprecated, mutating call as `cuems-engine`'s | same migration to `partition_by_adoption` |
 
 **No frontend (Angular) change is required by this repository's own note pattern** (mirroring
-feature 006's `frontend-note.md`) unless feature 008 decides the wire-string question above
-resolves toward changing the payload shape; that decision is feature 008's, not restated here.
+feature 006's `frontend-note.md`) unless feature 009 decides the wire-string question above
+resolves toward changing the payload shape; that decision is feature 009's, not restated here.
 
 ---
 
@@ -186,7 +186,7 @@ resolves toward changing the payload shape; that decision is feature 008's, not 
    released.
 3. `cuems-common` — mirror, conversion, tools, documentation. **Landed on a local
    `007-node-model-migration` branch** (Phase 5 / US3) — not pushed, not merged, not released.
-4. **Feature 008** — `cuems-engine` and `cuems-editor` readers (§5, §6 above). **Not started.**
+4. **Feature 009** — `cuems-engine` and `cuems-editor` readers (§5, §6 above). **Not started.**
 
 **No release of any of the three repositories ships before step 4.** The hard cutover has no
 working partially-deployed state: a converted map meets an unmigrated reader (§3's table — silent,
@@ -204,11 +204,11 @@ unconverted map fails closed (C8) rather than partially. The cluster upgrades as
 **Enforcement status, honestly**: FR-030d's versioned package dependencies (T054a, "an out-of-order
 upgrade is refused rather than merely discouraged") are now present in `cuems-common`'s
 `debian/control` on its local branch (`Breaks: cuems-nodeconf (<< 0.1.0-8)`, alongside
-`cuems-utils (>= 0.1.0rc15)`). **Mechanical demonstration is moved to feature 008** (T054b, §13):
+`cuems-utils (>= 0.1.0rc15)`). **Mechanical demonstration is moved to feature 009** (T054b, §13):
 no packaging/build sandbox was available in either pass of this feature to actually install an
 out-of-order combination and watch `dpkg` refuse it — and no releasable `.deb` of any of the three
-repositories exists until feature 008's release anyway. The constraint is written and reviewed here;
-running it against a real install is feature 008's, alongside the release it gates. Recorded here so
+repositories exists until feature 009's release anyway. The constraint is written and reviewed here;
+running it against a real install is feature 009's, alongside the release it gates. Recorded here so
 "the gate exists" is not conflated with "the gate is mechanically guaranteed" before it actually is.
 
 **Downgrade is unsupported** (T087b): no reverse conversion (`node_role` → `node_type`) is
@@ -257,7 +257,7 @@ files:
 | `usr/share/cuems/cuems.service.slave` | TXT record **and** the retired word in its filename |
 | `usr/share/cuems/cuems.service.firstrun` | TXT record |
 
-Deferred to feature 008 (a discovery surface, not the XML document — spec Assumption 10). Renaming
+Deferred to feature 009 (a discovery surface, not the XML document — spec Assumption 10). Renaming
 `cuems.service.master`/`cuems.service.slave` reaches `debian/install` and anything resolving a
 template by name, which is why it is not done incidentally here.
 
@@ -313,7 +313,7 @@ second and third repository:
   `tests/test_controller_resolution.py`).
 - `cuems-nodeconf` — non-diagnostic hits are the Avahi wire-format boundary itself
   (`CuemsAvahiListener.py`, `AvahiTool.py`, `CuemsSettings.py`): the TXT record key/value stays
-  `node_type=master`/`slave`/`firstrun` until feature 008 (spec Assumption 10), so these sites
+  `node_type=master`/`slave`/`firstrun` until feature 009 (spec Assumption 10), so these sites
   necessarily still name it, each behind the explicit `_AVAHI_NODE_TYPE_TO_ROLE` translation dict
   documented at every one of the three call sites. Everything else is either a code comment
   explaining the migration (`CuemsNodeConf.py:430,563`) or the same deliberate-construction test
@@ -381,17 +381,17 @@ not a boundary crossing. SC-013 (the count named in this task) is satisfied at z
 
 ## 13. The out-of-order-upgrade enforcement demonstration (T054b)
 
-**Moved to feature 008, not completed here — recorded as a deliberate move, not silently dropped.**
+**Moved to feature 009, not completed here — recorded as a deliberate move, not silently dropped.**
 T054a's versioned package constraint (`cuems-common`'s `debian/control`: `Depends: cuems-utils (>=
 0.1.0rc15)`, `Breaks: cuems-nodeconf (<< 0.1.0-8)`) is written and reviewed by inspection. T054b
 asks for more: an actual `dpkg -i` of an out-of-order combination, showing the refusal happen. That
 requires a Debian packaging/build sandbox (a `.deb` built from each of the three repositories,
 installed in sequence) that was not available in either pass of this feature — and, more to the
-point, all three repositories only exist as unreleased local branches until feature 008 lands (§7):
-there is no built `.deb` of any of them yet to install in the wrong order. Feature 008 is the first
+point, all three repositories only exist as unreleased local branches until feature 009 lands (§7):
+there is no built `.deb` of any of them yet to install in the wrong order. Feature 009 is the first
 point a real cross-repository release exists, which makes it the first point this demonstration is
 actually possible rather than merely theoretical. SC-012 is therefore satisfied by this feature's
-scope (the constraint exists and is reviewed) but its *demonstration* is feature 008's to run,
+scope (the constraint exists and is reviewed) but its *demonstration* is feature 009's to run,
 alongside the release it is gating.
 
 ## 14. `cuems-nodeconf`'s suite result (T079)

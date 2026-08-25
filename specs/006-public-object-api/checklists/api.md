@@ -116,7 +116,7 @@ contract is underspecified and an implementer would have to guess.
         callers move first → new task **T061a**.
       - **Still open, minor**: D2 says `CuemsParser` has "3 sites" in `cuems-editor`;
         `Parsers.py` says "five call sites" in two places. One is stale — needs a count against
-        the editor repo, deferred to the feature 008 migration guide (T084).
+        the editor repo, deferred to the feature 009 migration guide (T084).
 - [x] CHK018 Is the warning **category** specified (`DeprecationWarning` vs
       `FutureWarning`)? Consumers filter by category, and the quickstart assumes
       `DeprecationWarning` without the contract saying so. [Gap, Contracts §D1]
@@ -262,7 +262,7 @@ contract is underspecified and an implementer would have to guess.
   answer existing somewhere citable, not by the box being ticked. CHK036 and CHK040 were
   narrowed and widened respectively for related reasons; see their inline notes
 - **3 closed as out of scope by decision, not omission** — CHK025 (005's 14 residual type
-  differences → feature 008), CHK030 (genuine `xml/` lockdown → feature 008), CHK043
+  differences → feature 009), CHK030 (genuine `xml/` lockdown → feature 009), CHK043
   (concurrency → undefined, caller's responsibility). Each is now an explicit **Out of Scope**
   entry in spec.md rather than a silence
 
@@ -274,7 +274,7 @@ contract is underspecified and an implementer would have to guess.
 | CHK012, 013, 014, 015, 016 | C5 covers the types; `save()`'s filesystem modes stated against the tmp+rename design; `from_json`'s message criterion is *names the expected root and what arrived*; drop-key logging at `DEBUG`; CHK015 answered by FR-005a |
 | CHK018, 019, 021 | D1 gains a table: category is `DeprecationWarning`; `__version__` is `0.1.0rc14` so shims ship **v0.1.0** and go **v0.1.1**; D3's deletion criterion **is** T060's coverage proof |
 | CHK022, 023, 024, 026, 027, 029 | New **W1a** — one equality predicate for every byte-comparison in the feature (T003a), with key order defined **against the golden** to sidestep the arrival-vs-declared ambiguity; corpus count recorded (T003); evidence standard stated (T038) |
-| CHK030, 031, 032, 033, 034, 036, 037 | FR-019a/b/c: `__all__ == []` only, dotted access unsupported-but-functional, lockdown → 008; the return-value-vs-import rule stated generally; "public name" defined and the expected diff written as one list (T057a); the shim imports promoted from comment to requirement |
+| CHK030, 031, 032, 033, 034, 036, 037 | FR-019a/b/c: `__all__ == []` only, dotted access unsupported-but-functional, lockdown → 009; the return-value-vs-import rule stated generally; "public name" defined and the expected diff written as one list (T057a); the shim imports promoted from comment to requirement |
 | CHK035, 038, 039, 040, 041, 042 | Accessor inventory recorded pre-change (T040a); "no raw dict" defined as `type(v) is not dict`; 006/007 boundary lifted into the spec; artifact audit (T089a); perf context stated (T083); positive-evidence contingency stated (T038) |
 
 ### Added after the checklist: UTF-8 (FR-036…FR-036e, contract C6)

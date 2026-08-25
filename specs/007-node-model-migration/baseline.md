@@ -75,7 +75,7 @@ aliases — removed in v0.1.1, see `CLAUDE.md`'s 006 entry): the recorded golden
 
 Treated as out of scope: no task in `tasks.md` touches the deprecated `.xml_dict` property or this
 capture path, and the suite this feature is actually gated on (`hatch test`, above) is green. Not
-fixed here. If feature 008 or a `v0.1.1` cleanup revisits the removal of these shims, this note is
+fixed here. If feature 009 or a `v0.1.1` cleanup revisits the removal of these shims, this note is
 the pointer to why `tests.support.capture_goldens` cannot be trusted as a clean-tree check until
 then.
 
@@ -136,6 +136,6 @@ Raw per-file grep dumps saved for T092's final re-verification at
 `migration-guide.md`:
 
 - `cuems-engine/src/cuemsengine/core/BaseEngine.py:33,354,402,410,440` — `CONTROLLER_NETWORK_FLAG =
-  "NodeType.master"` and two comparison sites (feature 008's work, FR-028).
+  "NodeType.master"` and two comparison sites (feature 009's work, FR-028).
 - `cuems-editor/src/cuemseditor/CuemsWsServer.py:384,425` — the node field list including
-  `node_type` (feature 008's work, FR-028).
+  `node_type` (feature 009's work, FR-028).

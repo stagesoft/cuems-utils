@@ -47,7 +47,7 @@ the same single-key wrapper shape the show path produces for ``contents``. The
 show model *collapses* that wrapper (``CueList.contents`` is a list of cues);
 the config layer **keeps** it, because `cuems-engine` and `cuems-editor` read
 it and this feature does not edit consumer repositories (FR-UX-001). Feature
-008 executes the migration guide; until then the shape is a contract.
+009 executes the migration guide; until then the shape is a contract.
 
 So `Mapper.decode_config` substitutes classes and changes nothing else. See its
 docstring for the symmetry with ``decode``.

@@ -215,7 +215,7 @@ def validate_template(project_template):
     pass, which is the point of it.
 
     This is the one first-party consumer that migrates **in** this feature.
-    Everything else is listed in the migration guide for feature 008.
+    Everything else is listed in the migration guide for feature 009.
     """
     report = project_template.validate()
     Logger.debug(f'initial template validation result: {report!r}')

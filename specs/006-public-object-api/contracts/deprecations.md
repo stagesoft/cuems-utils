@@ -3,7 +3,7 @@
 **Feature**: 006-public-object-api · **Date**: 2026-08-18
 
 Old entry points are **deprecated in this release, removed in the next** — after consumers
-migrate (feature 008). Shipping the replacement before removing the old path is what keeps
+migrate (feature 009). Shipping the replacement before removing the old path is what keeps
 the UI contract intact while `cuems-editor` is still on the old call.
 
 ---
@@ -57,7 +57,7 @@ Setting `__all__ = []` must **not** remove these imports. Doing so resurrects a
 | `XmlReader` / `XmlWriter` | already deprecated since 0.0.7 | `cuems-nodeconf` |
 
 **Consumer repositories are not edited by this feature.** The map is the deliverable; the
-edits are feature 008. The one exception is `create_script.py`, which is first-party code in
+edits are feature 009. The one exception is `create_script.py`, which is first-party code in
 this repository and migrates here.
 
 ## D2a — The one shim whose return shape changes (CHK020)
