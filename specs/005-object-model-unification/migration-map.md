@@ -203,7 +203,7 @@ gates **three** classes: `ActionCue.set_action_target` (`ActionCue.py:58`),
 `tests/unit/test_runtime_state.py`.
 
 Resolving the asymmetry is feature 006's recorded decision stop
-(`specs/planning/xml-rebuild-06-target-design.md` §9.2).
+(`specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §9.2).
 
 ---
 

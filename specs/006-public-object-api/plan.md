@@ -3,8 +3,8 @@
 **Branch**: `006-public-object-api` | **Date**: 2026-08-18 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/006-public-object-api/spec.md`
 
-**Design authority**: `specs/planning/xml-rebuild-06-target-design.md` §§8, 9, 10, with
-`specs/planning/xml-rebuild-05-ui-wire-contract.md` for the wire evidence. This plan follows
+**Design authority**: `specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §§8, 9, 10, with
+`specs/planning/xml-rebuild/xml-rebuild-05-ui-wire-contract.md` for the wire evidence. This plan follows
 that design; it does not redesign it. Settled decisions D1, D2, D3, D5, D9, D11, D12, D13,
 D14, D15, Q11→(c), Q14→(i) are inputs, not open questions.
 

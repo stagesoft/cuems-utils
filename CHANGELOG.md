@@ -113,7 +113,7 @@ They have one commit each and have never been edited.
   goldens showed that two of four captured `CuemsScript` roots are not sorted, so a sorted
   rule would have rewritten the root element of every hand-authored script. See FR-001b.
 - Five schema defects and two code defects are recorded and deferred, not fixed — see
-  `specs/planning/xml-rebuild-01-audit.md` §6, X13–X17. The two worth knowing about:
+  `specs/planning/xml-rebuild/xml-rebuild-01-audit.md` §6, X13–X17. The two worth knowing about:
   `outputs.xsd` declares an `OutputsType` that collides with `script.xsd`'s, **and** the
   only `outputs.xml` in existence has a namespace missing its trailing slash. Between them,
   nothing has ever validated against `outputs.xsd`.

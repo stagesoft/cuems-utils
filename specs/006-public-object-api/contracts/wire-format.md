@@ -1,7 +1,7 @@
 # Contract: the wire format
 
 **Feature**: 006-public-object-api · **Date**: 2026-08-18
-**Evidence**: `specs/planning/xml-rebuild-05-ui-wire-contract.md`
+**Evidence**: `specs/planning/xml-rebuild/xml-rebuild-05-ui-wire-contract.md`
 
 `cuems-editor` transmits this dict **verbatim** to the Angular UI on `project_load`. It is the
 heaviest, most-used path in the system, and it crosses a repository this feature does not

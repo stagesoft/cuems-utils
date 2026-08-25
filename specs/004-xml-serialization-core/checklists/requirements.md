@@ -100,7 +100,7 @@ T066b/SC-019; the FR-026d break itself → T049a/SC-017.
   necessarily names the artifacts being replaced (element ordering, type guessing,
   duplicated mapping rules) in behavioural terms. It deliberately avoids naming the
   library, the module layout and the class shapes; those live in
-  `specs/planning/xml-rebuild-06-target-design.md` and belong in `plan.md`. **Pass**, with
+  `specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` and belong in `plan.md`. **Pass**, with
   the note that "the schema" and "the wire dict" are domain vocabulary here, not
   implementation leakage.
 - *"Written for non-technical stakeholders"* — the audience for this feature is the

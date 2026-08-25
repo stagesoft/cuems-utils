@@ -6,12 +6,12 @@
 **Input**: Replace the XML serialization machinery in `src/cuemsutils/xml/` with a single schema-derived engine, with zero change to observable serialization behaviour. Derive an ordered, typed field specification from the XSD at load time and drive one encode/decode engine from it, covering all six schemas.
 
 **Planning context** (authoritative, read before planning):
-`specs/planning/xml-rebuild-01-audit.md` (findings F1–F23, schema audit X1–X12),
-`specs/planning/xml-rebuild-03-design-inputs.md`,
-`specs/planning/xml-rebuild-04-object-model.md`,
-`specs/planning/xml-rebuild-05-ui-wire-contract.md`,
-`specs/planning/xml-rebuild-06-target-design.md` (**the target design**),
-`specs/planning/xml-rebuild-07-speckit-prompts.md` §3 (this feature's place in the sequence).
+`specs/planning/xml-rebuild/xml-rebuild-01-audit.md` (findings F1–F23, schema audit X1–X12),
+`specs/planning/xml-rebuild/xml-rebuild-03-design-inputs.md`,
+`specs/planning/xml-rebuild/xml-rebuild-04-object-model.md`,
+`specs/planning/xml-rebuild/xml-rebuild-05-ui-wire-contract.md`,
+`specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` (**the target design**),
+`specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md` §3 (this feature's place in the sequence).
 
 This is feature 1 of 5 in the XML rebuild. It covers phases 1–3 of the target design
 (§13) and is a **pure refactor**: zero behaviour changes, success paths and failure paths
@@ -515,7 +515,7 @@ targeted failure naming that class and field; remove it and the suite is green a
   intermediate shape would be rewritten twice. **The fix is therefore carried by feature
   007**, applied once against the final API and engine structure, and it lands on
   `cuems-nodeconf`'s `feat/nodeconf-reenable` branch, which feature 007 already works from
-  rather than being gated on (`specs/planning/xml-rebuild-07-speckit-prompts.md` §6).
+  rather than being gated on (`specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md` §6).
   Feature 004 itself touches no repository but this one.
 - **FR-030c**: Consumer compatibility is verified in two layers, so that SC-013 and
   FR-022b do not conflict: **(i)** in-repo tests import and exercise every shimmed path,

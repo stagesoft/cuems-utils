@@ -12,13 +12,13 @@ other repository, which is why that repository injects classes into this package
 globals to make serialization work, and why a type-coercion bug fixed here stayed open there.
 
 **Planning context** (authoritative, read before planning):
-`specs/planning/xml-rebuild-01-audit.md` (findings F1–F24, schema audit X1–X17),
-`specs/planning/xml-rebuild-02-node-model-ownership.md` (**this feature's charter** — §§4, 7, 9),
-`specs/planning/xml-rebuild-03-design-inputs.md` (Q11/Q14 rationale),
-`specs/planning/xml-rebuild-04-object-model.md` (construction paths, measured divergence),
-`specs/planning/xml-rebuild-05-ui-wire-contract.md` (editor↔UI payload contract),
-`specs/planning/xml-rebuild-06-target-design.md` §§3.4, 5, 10, 12 (the target design),
-`specs/planning/xml-rebuild-07-speckit-prompts.md` §6 (this feature's place in the sequence),
+`specs/planning/xml-rebuild/xml-rebuild-01-audit.md` (findings F1–F24, schema audit X1–X17),
+`specs/planning/xml-rebuild/xml-rebuild-02-node-model-ownership.md` (**this feature's charter** — §§4, 7, 9),
+`specs/planning/xml-rebuild/xml-rebuild-03-design-inputs.md` (Q11/Q14 rationale),
+`specs/planning/xml-rebuild/xml-rebuild-04-object-model.md` (construction paths, measured divergence),
+`specs/planning/xml-rebuild/xml-rebuild-05-ui-wire-contract.md` (editor↔UI payload contract),
+`specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §§3.4, 5, 10, 12 (the target design),
+`specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md` §6 (this feature's place in the sequence),
 `specs/004-xml-serialization-core/migration-map.md` §3 (**the FR-026d break this feature repairs**).
 
 This is feature 4 of 5 in the XML rebuild. It covers phase 6 of the target design (§13) and is

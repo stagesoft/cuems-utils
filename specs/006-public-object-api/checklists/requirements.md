@@ -54,7 +54,7 @@ this endangers nothing today; FR-024b carries the obligation to add a fade-cue d
 before any of them is relied on as proven.
 
 **Historical note — why the markers were left open at `/speckit.specify`.** The target design
-(`specs/planning/xml-rebuild-06-target-design.md` §8.1 and §9.2) and the prompt set (§5.2)
+(`specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §8.1 and §9.2) and the prompt set (§5.2)
 both name these as **required decision stops that `/speckit.clarify` must resolve**, and
 feature 005 deferred them here on purpose:
 

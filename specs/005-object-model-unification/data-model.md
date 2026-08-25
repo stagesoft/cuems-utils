@@ -183,7 +183,7 @@ they are initialized on **every** construction mode, via `_init_runtime()`.
 > resulting failure depends on arrival key order (`custom` `output_name` before
 > `canvas_region` raises; the reverse does not), so the corpus catches it only by luck. Deciding whether
 the runtime/persisted split should be *declared* rather than conventional is feature 006's
-first decision stop (`specs/planning/xml-rebuild-06-target-design.md` §8.1).
+first decision stop (`specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §8.1).
 
 ---
 

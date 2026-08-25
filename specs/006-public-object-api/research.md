@@ -2,8 +2,8 @@
 
 **Feature**: 006-public-object-api · **Date**: 2026-08-18
 **Inputs**: [spec.md](spec.md), [corpus-sweep.md](corpus-sweep.md),
-`specs/planning/xml-rebuild-06-target-design.md` §§8–10,
-`specs/planning/xml-rebuild-05-ui-wire-contract.md`
+`specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §§8–10,
+`specs/planning/xml-rebuild/xml-rebuild-05-ui-wire-contract.md`
 
 Every decision below is measured against the code as it stands after features 004 and 005,
 not against the audit's description of it. Two of the five overturned the reading I started

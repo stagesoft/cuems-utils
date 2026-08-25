@@ -10,13 +10,13 @@ Adds `load`/`save`/`validate`/`from_json`/`to_json`/`to_wire`, typed config acce
 named semantic validation tier, and the schema evolution convention.
 
 **Planning context** (authoritative, read before planning):
-`specs/planning/xml-rebuild-01-audit.md` (findings F1–F24, schema audit X1–X17),
-`specs/planning/xml-rebuild-02-node-model-ownership.md`,
-`specs/planning/xml-rebuild-03-design-inputs.md` (Q11/Q14 rationale, F14/F15 evidence),
-`specs/planning/xml-rebuild-04-object-model.md` (construction paths, measured divergence),
-`specs/planning/xml-rebuild-05-ui-wire-contract.md` (**the editor↔UI payload evidence**),
-`specs/planning/xml-rebuild-06-target-design.md` §§8, 9, 10 (**the target design**),
-`specs/planning/xml-rebuild-07-speckit-prompts.md` §5 (this feature's place in the sequence).
+`specs/planning/xml-rebuild/xml-rebuild-01-audit.md` (findings F1–F24, schema audit X1–X17),
+`specs/planning/xml-rebuild/xml-rebuild-02-node-model-ownership.md`,
+`specs/planning/xml-rebuild/xml-rebuild-03-design-inputs.md` (Q11/Q14 rationale, F14/F15 evidence),
+`specs/planning/xml-rebuild/xml-rebuild-04-object-model.md` (construction paths, measured divergence),
+`specs/planning/xml-rebuild/xml-rebuild-05-ui-wire-contract.md` (**the editor↔UI payload evidence**),
+`specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §§8, 9, 10 (**the target design**),
+`specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md` §5 (this feature's place in the sequence).
 
 This is feature 3 of 5 in the XML rebuild. It covers phases 5 and 7 of the target design
 (§13) and is **the API-defining feature**: it carries the UI hard constraint and both of the

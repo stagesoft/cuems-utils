@@ -71,12 +71,12 @@ below.** It stops each fresh invocation from re-litigating settled decisions.
 
 ```
 CONTEXT — read these before writing anything:
-  specs/planning/xml-rebuild-01-audit.md              findings F1-F23, schema audit X1-X12
-  specs/planning/xml-rebuild-02-node-model-ownership.md
-  specs/planning/xml-rebuild-03-design-inputs.md      design constraints, Q11/Q14 rationale
-  specs/planning/xml-rebuild-04-object-model.md       construction paths, measured divergence
-  specs/planning/xml-rebuild-05-ui-wire-contract.md   editor<->UI payload contract
-  specs/planning/xml-rebuild-06-target-design.md      THE TARGET DESIGN — authoritative
+  specs/planning/xml-rebuild/xml-rebuild-01-audit.md              findings F1-F23, schema audit X1-X12
+  specs/planning/xml-rebuild/xml-rebuild-02-node-model-ownership.md
+  specs/planning/xml-rebuild/xml-rebuild-03-design-inputs.md      design constraints, Q11/Q14 rationale
+  specs/planning/xml-rebuild/xml-rebuild-04-object-model.md       construction paths, measured divergence
+  specs/planning/xml-rebuild/xml-rebuild-05-ui-wire-contract.md   editor<->UI payload contract
+  specs/planning/xml-rebuild/xml-rebuild-06-target-design.md      THE TARGET DESIGN — authoritative
 
 SETTLED — do not reopen, do not propose alternatives:
   D1  free hand on API; coordinated bump across consumers
@@ -162,7 +162,7 @@ Answer from the planning docs. Likely questions and their settled answers:
 ```
 /speckit.plan <PASTE SHARED CONTEXT BLOCK>
 
-Follow the target design in specs/planning/xml-rebuild-06-target-design.md sections 3-6
+Follow the target design in specs/planning/xml-rebuild/xml-rebuild-06-target-design.md sections 3-6
 and 10. Do not redesign it.
 
 Technical context:
@@ -274,8 +274,8 @@ EXPLICITLY OUT OF SCOPE: public API changes, xml/ visibility, node model, consum
 ```
 /speckit.plan <PASTE SHARED CONTEXT BLOCK>
 
-Follow specs/planning/xml-rebuild-06-target-design.md section 7, and
-specs/planning/xml-rebuild-04-object-model.md for the measured evidence and the
+Follow specs/planning/xml-rebuild/xml-rebuild-06-target-design.md section 7, and
+specs/planning/xml-rebuild/xml-rebuild-04-object-model.md for the measured evidence and the
 CuemsScript-as-CuemsDict analysis.
 
 Technical context:
@@ -354,7 +354,7 @@ enforces, and no point is defined at which a loaded document becomes a runnable 
 whether the split is declared or conventional, what save() means mid-show, whether load()
 returns something runnable or something the engine promotes, how to_wire() is kept clean by
 construction, and how copy/equality treat playback state. The five questions are written out
-in specs/planning/xml-rebuild-06-target-design.md §8.1. "Convention, documented and tested"
+in specs/planning/xml-rebuild/xml-rebuild-06-target-design.md §8.1. "Convention, documented and tested"
 is an acceptable answer; leaving it undecided while defining the persistence API is not.
 
 REQUIRED DECISION STOP (2 of 2) — do not pass /speckit.clarify without resolving this. Feature 005
@@ -365,7 +365,7 @@ standing (its FR-006/FR-006a) because closing it would make reading stricter, wh
 rebuild forbids. 006 is where it is decided. The inventory and the five questions the
 decision must answer — read/write symmetry, a per-rule corpus sweep proving nothing
 currently accepted becomes rejected, the setters' fate, the failure mode, and the unit of
-registration — are in specs/planning/xml-rebuild-06-target-design.md §9.1 and §9.2. Record
+registration — are in specs/planning/xml-rebuild/xml-rebuild-06-target-design.md §9.1 and §9.2. Record
 the outcome as a clarification entry with the corpus sweep attached as evidence.
 - The xml package exports nothing public. XmlReaderWriter and CuemsParser are removed
   from the public API, with a deprecation path for one release.
@@ -428,8 +428,8 @@ of what else it contains.
 ```
 /speckit.plan <PASTE SHARED CONTEXT BLOCK>
 
-Follow specs/planning/xml-rebuild-06-target-design.md sections 8, 9 and 10, and
-specs/planning/xml-rebuild-05-ui-wire-contract.md for the wire contract evidence.
+Follow specs/planning/xml-rebuild/xml-rebuild-06-target-design.md sections 8, 9 and 10, and
+specs/planning/xml-rebuild/xml-rebuild-05-ui-wire-contract.md for the wire contract evidence.
 
 Technical context:
 - Q11(c): derive config structure from the XSD; hand-write the ConfigBase/ConfigManager
@@ -558,7 +558,7 @@ stay in cuems-nodeconf. Also out of scope: network_map.xsd edits, node_type form
 ```
 /speckit.plan <PASTE SHARED CONTEXT BLOCK>
 
-Follow specs/planning/xml-rebuild-02-node-model-ownership.md sections 4 and 7.
+Follow specs/planning/xml-rebuild/xml-rebuild-02-node-model-ownership.md sections 4 and 7.
 
 Technical context:
 - Source files: cuems-nodeconf cuemsnodeconf/CuemsNode.py (~110 LOC) and
@@ -684,7 +684,7 @@ and renders in the UI unchanged, plus a cluster upgrade — controller and at le
 ```
 /speckit.plan <PASTE SHARED CONTEXT BLOCK>
 
-Follow specs/planning/xml-rebuild-06-target-design.md section 12.
+Follow specs/planning/xml-rebuild/xml-rebuild-06-target-design.md section 12.
 
 Per-repo scope:
 - cuems-engine: core/BaseEngine.py:509; ControllerEngine network-map access; adopt

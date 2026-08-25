@@ -148,5 +148,5 @@ SC-004a, FR-011g, FR-011i, FR-018, FR-027, FR-027a, FR-030b, FR-030c) and nine t
 T014c, T041a, T044a, T060a, T087a, T087b, plus amendments to T006a, T051, T053, T060, T078a, T084,
 T092). Two consequences reach beyond this feature: the Avahi discovery surface and the `postinst`
 service-restart ordering both become **feature 008** work, recorded in
-`specs/planning/xml-rebuild-06-target-design.md` §12 and
-`specs/planning/xml-rebuild-07-speckit-prompts.md` §7.
+`specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §12 and
+`specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md` §7.
