@@ -204,10 +204,12 @@ unconverted map fails closed (C8) rather than partially. The cluster upgrades as
 **Enforcement status, honestly**: FR-030d's versioned package dependencies (T054a, "an out-of-order
 upgrade is refused rather than merely discouraged") are now present in `cuems-common`'s
 `debian/control` on its local branch (`Breaks: cuems-nodeconf (<< 0.1.0-8)`, alongside
-`cuems-utils (>= 0.1.0rc15)`). **Still not mechanically demonstrated** (T054b, §13): no packaging/
-build sandbox was available in either pass to actually install an out-of-order combination and watch
-`dpkg` refuse it. The constraint is written; its enforcement is read, not run. Recorded here so "the
-gate exists" is not conflated with "the gate is mechanically guaranteed" before it actually is.
+`cuems-utils (>= 0.1.0rc15)`). **Mechanical demonstration is moved to feature 008** (T054b, §13):
+no packaging/build sandbox was available in either pass of this feature to actually install an
+out-of-order combination and watch `dpkg` refuse it — and no releasable `.deb` of any of the three
+repositories exists until feature 008's release anyway. The constraint is written and reviewed here;
+running it against a real install is feature 008's, alongside the release it gates. Recorded here so
+"the gate exists" is not conflated with "the gate is mechanically guaranteed" before it actually is.
 
 **Downgrade is unsupported** (T087b): no reverse conversion (`node_role` → `node_type`) is
 provided, or planned — `NodeRoleType`'s enumeration is a narrower vocabulary than free text was,
@@ -379,14 +381,18 @@ not a boundary crossing. SC-013 (the count named in this task) is satisfied at z
 
 ## 13. The out-of-order-upgrade enforcement demonstration (T054b)
 
-**Not completed, in either pass, honestly recorded rather than silently dropped.** T054a's versioned
-package constraint (`cuems-common`'s `debian/control`: `Depends: cuems-utils (>= 0.1.0rc15)`,
-`Breaks: cuems-nodeconf (<< 0.1.0-8)`) is written and reviewed by inspection. T054b asks for more: an
-actual `dpkg -i` of an out-of-order combination, showing the refusal happen. That requires a
-Debian packaging/build sandbox (a `.deb` built from each of the three repositories, installed in
-sequence) that was not available in this session, same as it was not available in the pass that
-first implemented Phase 5. Recorded here, at the location §1 names for it, rather than left
-implicit in a commit message a future reader would have to go find.
+**Moved to feature 008, not completed here — recorded as a deliberate move, not silently dropped.**
+T054a's versioned package constraint (`cuems-common`'s `debian/control`: `Depends: cuems-utils (>=
+0.1.0rc15)`, `Breaks: cuems-nodeconf (<< 0.1.0-8)`) is written and reviewed by inspection. T054b
+asks for more: an actual `dpkg -i` of an out-of-order combination, showing the refusal happen. That
+requires a Debian packaging/build sandbox (a `.deb` built from each of the three repositories,
+installed in sequence) that was not available in either pass of this feature — and, more to the
+point, all three repositories only exist as unreleased local branches until feature 008 lands (§7):
+there is no built `.deb` of any of them yet to install in the wrong order. Feature 008 is the first
+point a real cross-repository release exists, which makes it the first point this demonstration is
+actually possible rather than merely theoretical. SC-012 is therefore satisfied by this feature's
+scope (the constraint exists and is reviewed) but its *demonstration* is feature 008's to run,
+alongside the release it is gating.
 
 ## 14. `cuems-nodeconf`'s suite result (T079)
 
