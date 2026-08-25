@@ -15,12 +15,14 @@ Plugin skills also available: `speckit.check-integration`, `speckit.optimize`,
 
 ---
 
-## 0. Why five features, not one
+## 0. Why five features, not one (now six)
 
 Part 3 §13 has eight phases spanning two repos and a UI contract. A single
 `/speckit.specify` would produce a spec nobody can review and a `tasks.md` nobody can
 finish. The decomposition below keeps each feature **independently shippable and
 independently green**, which is also what makes the constitution's test gate meaningful.
+Five features covered Part 3's eight phases; `008-rebuild-extension` is a sixth, added later
+and outside Part 3's original scope (§7) — the same review-ability rule still applies to it.
 
 | Feature | Covers Part 3 phases | Behaviour change? | Gated on |
 |---|---|---|---|
@@ -28,21 +30,42 @@ independently green**, which is also what makes the constitution's test gate mea
 | `005-object-model-unification` | 4 | Yes (bug fixes) | 004 |
 | `006-public-object-api` | 5, 7 | Yes (API + `initial_template`) | 005 |
 | `007-node-model-migration` | 6 | **Yes** — `node_type` → `node_role`, a hard cutover across three repos | 006 + `feat/nodeconf-reenable` landing |
-| `009-consumer-migration` | 9 | Cross-repo | 006, 007 |
+| `008-rebuild-extension` | — (new; not one of Part 3's original eight) | **Yes** — see §7. Lands in **two gated phases** (D30) | 007 |
+| `009-consumer-migration` | 9 | Cross-repo | 006, 007, 008 |
 
 Run them in order. Do not start the next until the previous is merged and green.
 
-**007 and 009 are the one pair that does not ship independently.** The row above said "No
-(intake)" until 2026-08-24; clarification enlarged 007 to edit `network_map.xsd` and three
-repositories, and the rename is a hard cutover with no dual-spelling release. So 007 and 009 are
-independently *green* but not independently *shippable*: nothing in the ecosystem releases between
-them (007 FR-030c), enforced by versioned `.deb` dependencies (007 FR-030d).
+**008 applies that same rule once inside itself.** Its five items are a dependency chain
+(D28) with a seam between the four that change existing machinery and the one that adds a new
+subsystem, so `tasks.md` carries a hard gate: Phase 1 (ITEMs A–D) merged and green before any
+Phase 2 (ITEM E) task starts. One spec, one plan, one feature number — a sequencing gate, not
+a scope split, and not a release boundary. It is applied at a **deliberate stop between
+`/speckit.plan` and `/speckit.tasks`** (D31, §7.2) — the only such stop in the rebuild.
 
-> **2026-08-25 renumbering note**: consumer migration was originally slotted as feature `008`
-> and is now `009` — the team decided to extend the rebuild in scope before consumer migration
-> starts, inserting a new multi-repo feature `008` ahead of it. That new feature's row, and
-> whether it changes 009's "Gated on"/pairing-with-007 claims above, is added once its own spec
-> exists rather than guessed here.
+**007, 008 and 009 are a triple that does not ship independently.** The row above said "No
+(intake)" until 2026-08-24; clarification enlarged 007 to edit `network_map.xsd` and three
+repositories, and the rename is a hard cutover with no dual-spelling release. 008 then widened the
+scope further (2026-08-25): none of its five items *require* editing a consumer repository
+directly — closer in shape to 004–006 than to 007 — but several change behaviour in ways existing
+consumers assume differently today (`Media.duration`'s type **and wire shape**, `load()`'s
+strictness), so the same no-independent-release logic that bound 007↔009 is extended to cover 008
+too: **nothing in the ecosystem releases until 009 lands** (007 FR-030c/FR-030d's gate, extended
+rather than re-derived — confirmed by the repo owner on 2026-08-25, D27).
+
+008 also raises the stakes of that gate. 007's hard cutover converted **one config file per
+node**; 008's `Media.duration` promotion converts **every project document in every library**
+(D18b). The gate is the same rule, but the cost of getting the ordering wrong is no longer
+bounded by a node's config directory.
+
+> **2026-08-25 renumbering note (resolved)**: consumer migration was originally slotted as
+> feature `008` and moved to `009` when the team decided to extend the rebuild's scope before
+> consumer migration starts. `008-rebuild-extension`'s row above and §7 below are that new
+> feature's content, gathered in conversation with the repo owner on 2026-08-25. Evidence backing
+> §7 lives in
+> [Part 5 — feature 008 extension audit](xml-rebuild-08-extension-audit.md), **revised the same
+> day** after a review pass against the live code in all four repositories corrected five of its
+> findings. §7 and §8 are written against the revised version; Part 5's revision table lists what
+> changed and why it mattered.
 
 ---
 
@@ -55,7 +78,7 @@ Read `.specify/memory/constitution.md` before starting. Two clauses bind this wo
   each spec MUST enumerate every change explicitly. The prompts below do that; do not drop
   those sections.
 - **Principle IV — Performance Budgets Are Requirements:** every plan MUST carry measurable
-  targets **before** implementation. Baseline: `hatch test` = **2222 passed, 94 skipped, 2 xfailed in ~59 s** (measured 2026-08-20, after feature 006; the "557 passed in ~7.4 s" this line carried until then predated features 004/005 and was stale by nearly 4x). Compare **per test** — ~27 ms — not wall time: the suite has grown with the features. Plus
+  targets **before** implementation. Baseline: `hatch test` = **2393 passed, 94 skipped, 2 xfailed in 59.33 s** (measured 2026-08-24, after feature 007 — `specs/007-node-model-migration/baseline.md`). Compare **per test** — **24.79 ms** — not wall time: the suite has grown with every feature, so a wall-time budget reads growth as regression. (This line carried 006's 2222 / ~27 ms until 2026-08-25, and "557 passed in ~7.4 s" before that; re-measure it after each feature rather than inheriting it.) Plus
   `tests/integration/test_mediacue_fade_performance.py`.
 
 **No amendment is needed.** If you disagree after reading, run:
@@ -83,6 +106,8 @@ CONTEXT — read these before writing anything:
   specs/planning/xml-rebuild/xml-rebuild-04-object-model.md       construction paths, measured divergence
   specs/planning/xml-rebuild/xml-rebuild-05-ui-wire-contract.md   editor<->UI payload contract
   specs/planning/xml-rebuild/xml-rebuild-06-target-design.md      THE TARGET DESIGN — authoritative
+  specs/planning/xml-rebuild/xml-rebuild-08-extension-audit.md    feature 008 evidence (E1-E26) — read for 008/009 prompts only
+                                                                  (REVISED 2026-08-25; read its revision table first)
 
 SETTLED — do not reopen, do not propose alternatives:
   D1  free hand on API; coordinated bump across consumers
@@ -95,6 +120,93 @@ SETTLED — do not reopen, do not propose alternatives:
   D13 outputs and regions are closed out, not worked around
   D14 xml -> object -> json -> object -> xml is tested end to end
   D15 public objects are CuemsScript (show) and ConfigManager/ConfigBase (config)
+  D16 consumer-repo modifications ARE allowed from feature 008 onward, when a requirement
+      needs them; each one MUST be described and incorporated into 009's content (feature
+      008 introduced this — see xml-rebuild-08-extension-audit.md's intro)
+  D17 EVERY element that carries a time value is typed cms:CTimecodeType and stores a
+      CTimecode object, with no exception. This PROMOTES Media.duration in script.xsd from
+      cms:TimecodeType (a restricted string) -- the other six CTimecodeType elements already
+      store CTimecode objects today. The same machinery (format_timecode on write,
+      _CTimecodeAdapter on the wire) applies to all seven; dead code left behind by the
+      change is removed, not left resolving. Closes T073's documented exception. See E1-E4.
+  D18 canonical timecode form is HH:MM:SS.mmm everywhere; settings.xsd's dead, wrongly
+      patterned CTimecodeType/TimecodeType (and the Python model class that exists only to
+      bind it) are DELETED, not fixed in place. script.xsd's TimecodeType SURVIVES -- it is
+      the lexical type of the <CTimecode> child and is already the canonical pattern.
+  D18b D17's promotion is a script.xsd edit and the THIRD recorded exception to D3, after
+      network_map.xsd (007) and settings.xsd (D18). It is the only one of the three that
+      changes documents already on disk: <duration>TC</duration> becomes
+      <duration><CTimecode>TC</CTimecode></duration>, in XML and in the JSON wire alike.
+  D19 load() runs full validate() (T1 AND T2) across all six schemas -- a deliberate reversal
+      of "reading never becomes stricter" (FR-026, standing rule 8), recorded rather than
+      silently changed. Failure has THREE outcomes, not two (D21).
+  D20 document compatibility is governed by a new EXPLICIT, systemic version marker
+      (not 007's implicit/structural per-change tell) -- the mechanism rule 4 of the
+      schema-evolution convention called for but was never built. Its first real client is
+      D17's Media.duration conversion, not a synthetic fixture (E24).
+  D21 three outcomes on load, by document state:
+        OLD (version marker precedes current) -> transparent auto-conversion in memory,
+            timestamped backup written first; same logic also exposed as a standalone tool
+        CURRENT BUT SEMANTICALLY INVALID -> REPAIR-AND-NOTIFY: recover a default state for
+            the offending field, carry it in a structured report, continue loading
+        UNREPAIRABLE -> raise
+      Defaults come from D25's descriptor (no hand-written per-field fallbacks). The report
+      is public (cuemsutils.errors) because cuemsutils has no UI channel and must not gain
+      one: 008 produces the report, 009 forwards it to the UI.
+  D22 network-map config-object logic (merge/adopt/unadopt/refresh/signature/write
+      orchestration) lives in cuems-utils, on NodeIndex/CuemsNetworkMapType, mirroring
+      ConfigManager/ConfigBase -- not reimplemented ad hoc on cuems-nodeconf's daemon.
+      Equivalence with today's behaviour is MEASURED in 008 via characterization tests
+      ported from CuemsNodeConf, not asserted at 009 time (E23).
+  D23 CuemsNodeConf's full atomization (the other nine responsibilities besides the
+      network-map config object) is NOT executed in 008 -- 008 records the target-design
+      basis only; execution is a later, dedicated cuems-nodeconf feature, tracked via 009.
+      That basis MUST account for E20/E25: row 5 has a live UI on the far end of its
+      dispatch chain, and the split cannot be designed as if it were headless.
+  D24 config object save() ships for settings/project_settings/project_mappings in 008.
+      Decoupled from the descriptor work (D25) but a PRECONDITION of the load work (D21):
+      backup-before-convert and repair-to-default both need a config write path first.
+  D25 template/config generation moves off hand-maintained example objects onto a
+      schema-derived descriptor covering all six schemas, emitting per type: field name,
+      XSD type, cardinality, restricted xs:enumeration values, AND model-layer defaults.
+      Defaults are not optional -- D21's repair path and two of the frontend's template
+      call sites both consume values, not shape (E19). create_script() is SUPERSEDED, not
+      preserved (its output need not stay byte-identical); templates/settings.xml, the
+      second hand-maintained template, is superseded on the same grounds (E26).
+  D26 009 completes the cutover: initial_template-as-a-concrete-instance is retired.
+      Script domain is a migration of the ~7-call-site frontend surface. Config domain is
+      ALSO a migration, NOT greenfield -- a network_map editing UI exists and is in daily
+      use (settings.component.ts, nodelist_modify adopt/unadopt), and project_mappings has
+      read consumers. Existing machinery is ported onto dynamic-form UI entities with its
+      LOGIC PRESERVED; the network_map/project_mappings wire entanglement (E25) is
+      untangled as part of that port.
+  D27 008 does NOT ship independently: 007's no-independent-release gate (FR-030c/FR-030d)
+      extends through 008, so nothing in the ecosystem releases until 009 lands -- 008 is
+      cuems-utils-only in scope (D16) but not independently shippable in consequence
+  D28 item order is a dependency chain, and structural soundness outranks parallelization:
+      timecode (defines the new wire) -> config write paths -> network-map object ->
+      descriptor (supplies defaults) -> load/versioning/repair (consumes all four).
+      The versioning machinery cannot precede the change it delivers (E24).
+  D29 the pre-change golden corpus is KEPT as the conversion path's test fixtures and new
+      goldens are cut alongside it. A deliberate, reviewed re-cut of a deliberately changed
+      wire is not the regenerate-to-go-green that standing rule 3 forbids -- but deleting
+      the originals would destroy the only first-party corpus of real old-shape documents.
+  D30 008 is ONE feature -- one spec.md, one plan.md, one tasks.md -- that LANDS IN TWO
+      GATED PHASES, split at the A-D / E seam:
+        Phase 1 = ITEMs A, B, C, D  (timecode, config save(), network-map object, descriptor)
+        Phase 2 = ITEM E            (validate-on-load, versioning, repair-and-notify)
+      Phase 1 must be MERGED AND GREEN before any Phase 2 task starts -- the same rule §0
+      applies between features, applied once inside this one. The seam is where the feature
+      stops being four bounded changes to existing machinery and becomes one new subsystem
+      whose central mechanism is still undesigned (E10): ITEM E is the only item that cannot
+      be reviewed against something that already exists. Splitting there also means Phase 2
+      is written against ITEM D's descriptor and ITEM B's save() as LANDED CODE rather than
+      as planned interfaces, which is the whole point of the dependency order (D28).
+      This is NOT a release boundary: D27 still holds and nothing ships until 009 lands.
+  D31 the split is applied at a DELIBERATE STOP after /speckit.plan and before
+      /speckit.tasks -- see §7.2. The plan covers all five items as one dependency chain;
+      the stop is where that plan is cut into two phases and the gate between them is
+      written down. Do not let /speckit.tasks emit one undifferentiated task list.
   Q11 -> (c) derive structure from schema; hand-write facade and behaviour
   Q14 -> (i) xml/ is internal machinery
 
@@ -605,19 +717,416 @@ injection.
 
 ---
 
-## 7. Feature 009 — consumer migration
+## 7. Feature 008 — rebuild extension
+
+**Gathered in conversation with the repo owner on 2026-08-25**, not derived from Part 3's
+original eight phases — the team decided the rebuild's scope should grow before consumer
+migration starts, since several more structural changes are cheaper as one coordinated pass now
+than as independent releases later. Evidence for every claim below is
+[Part 5's](xml-rebuild-08-extension-audit.md) `E1`–`E26`; read it before writing this feature's
+actual `spec.md` — this section is the prompt, not the audit. **Part 5 was revised after a
+review pass against the live code in all four repositories**; five of its original findings were
+wrong or incomplete, and this section is written against the corrected versions. Its revision
+table is the fastest way to see what changed.
+
+**Five items, none of which strictly requires editing a consumer repository** (D16 makes it
+*allowed*, not *required*) — closer in shape to 004–006 than to 007. Two of them (D17's
+`Media.duration` type-and-wire change, D19's load-strictness reversal) change behaviour
+consumers assume differently today, which is why §0's release-gate note extends 007's
+no-independent-release logic through 009 rather than stopping at 008.
+
+**The items are ordered as a dependency chain (D28), not by size or by what can run in
+parallel.** Each is the next one's precondition: A defines the new wire, B and C complete the
+config surface that the load path writes through, D supplies the defaults the repair path
+recovers to, and E consumes all four. That ordering differs from the first draft's, where
+validate-on-load sat second and the descriptor last.
+
+**One feature, two gated phases (D30).** The chain has a natural seam between D and E: A–D are
+four bounded changes to machinery that already exists and can be reviewed against it; E is one
+new subsystem whose central mechanism is still undesigned (E10). So 008 keeps a single
+`spec.md` and `plan.md` — the items are one dependency chain and one release unit, and
+splitting the *spec* would mean reviewing that chain twice from two half-views — but
+`tasks.md` carries a **hard phase gate**: Phase 1 (A–D) merged and green before any Phase 2
+(E) task starts. That gate is applied at a deliberate stop after `/speckit.plan` (D31, §7.2).
+
+Two things the gate buys, beyond a smaller diff to review at a time: Phase 2 is written
+against ITEM D's descriptor and ITEM B's `save()` as **landed code** rather than as planned
+interfaces — which is the point of ordering them first — and if ITEM E's design turns out to
+be larger than the plan assumed, that discovery happens with four items already merged
+instead of with the whole feature in flight. The gate is **not** a release boundary: D27
+still holds and nothing in the ecosystem ships until 009 lands.
+
+```
+/speckit.specify <PASTE SHARED CONTEXT BLOCK>
+
+Ship five structural changes as one coordinated feature, IN THIS ORDER because each is the
+next one's precondition (D28): timecode typing, config write paths, the network-map config
+object, the schema-derived descriptor, and validate-on-load with document versioning and
+repair. Structural soundness outranks parallelization here -- do not re-sequence for
+throughput. They are one feature rather than five because the dependency chain would
+otherwise serialise the same work behind five review cycles, and because D27 already
+establishes that none of them ships independently anyway.
+
+One feature, but it LANDS IN TWO GATED PHASES (D30): Phase 1 is ITEMs A-D, Phase 2 is ITEM E,
+and Phase 1 must be merged and green before any Phase 2 task starts. Write the spec for all
+five items as one coherent whole -- the phase boundary is an implementation gate, not two
+scopes -- but make each item's acceptance criteria standalone enough that Phase 1 can be
+judged complete on its own. The gate is not a release boundary; D27 is unchanged.
+
+ITEM A — timecode typing and canonical form (D17, D18, D18b, D29; E1-E6, E24):
+- EVERY element carrying a time value is typed cms:CTimecodeType and stores a CTimecode
+  object. Six already are and already do (offset, prewait, postwait on Cue; in_time,
+  out_time on Region; duration on FadeCue -- all routing through format_timecode). The
+  work is the SEVENTH: Media.duration, script.xsd:182, today typed cms:TimecodeType (a
+  restricted string) and stringified by MediaCue.set_duration. Promote it to
+  cms:CTimecodeType and put it on the same machinery as the other six. Remove the dead
+  code the change leaves behind -- set_duration's three-branch type dispatch, the str
+  branch of the media_duration T2 rule, and (verify first, it may still resolve via the
+  inner <CTimecode> child) the "TimecodeType": _String() adapter binding.
+- This is a script.xsd edit: the THIRD recorded exception to D3, and the only one that
+  changes documents already on disk. The wire changes deliberately, in XML and JSON alike:
+    <duration>00:00:30.000</duration>  ->  <duration><CTimecode>00:00:30.000</CTimecode></duration>
+    "duration": "00:03:01.000"         ->  "duration": {"CTimecode": "00:03:01.000"}
+  Do NOT write a "the wire is unaffected" golden check. An earlier draft of this prompt
+  did, on the mistaken belief that Media.duration was bound to _CTimecodeAdapter. It is
+  bound to _String(), whose to_wire returns the object unchanged -- there was never a
+  version of this change that left the wire alone (E4).
+- Instead: re-cut the goldens ONCE, deliberately and reviewably, and KEEP the pre-change
+  corpus as the conversion path's fixtures (D29). Those files are the only first-party
+  collection of real old-shape documents in existence; ITEM E converts them.
+- settings.xsd's dead CTimecodeType/TimecodeType pair -- unreachable from any element,
+  wrongly patterned HH:MM:SS:FF -- is DELETED, along with the Python model class that
+  exists only to bind it for the coherence test. script.xsd's TimecodeType SURVIVES: it is
+  the lexical type of the <CTimecode> child and is already the canonical HH:MM:SS.mmm.
+
+ITEM B — config object write paths (D24; E15):
+- Implement save() for settings, project_settings and project_mappings' config objects,
+  symmetric to CuemsNetworkMapType.save() (network_map's, from 007 -- the only config
+  write path that exists today).
+- This is second, not fourth, because ITEM E needs it: backup-before-convert and
+  repair-to-default both write, and three of the six domains currently cannot.
+
+ITEM C — network-map config object (D22, D23; E11-E14, E23):
+- NodeIndex/CuemsNetworkMapType in cuems-utils gain merge_discovered_nodes-equivalent,
+  adopt/unadopt, refresh, set_master_always_adopted-equivalent,
+  check_missing_adopted_nodes-equivalent, and a change-signature method -- the same shape
+  ConfigManager/ConfigBase already have for the other five schemas. This logic is
+  currently reimplemented ad hoc on cuems-nodeconf's CuemsNodeConf daemon class (756
+  lines, ten bundled responsibilities, cataloged in E11's corrected table) and does not
+  exist in cuems-utils at all today.
+- Prove equivalence by MEASUREMENT, not assertion (E23). 008 ships this API with no
+  first-party caller -- 009 does the swap -- so port CuemsNodeConf's current behaviours
+  into cuems-utils as characterization tests. merge_discovered_nodes, _map_signature,
+  adopt_node/unadopt_node and set_master_always_adopted are pure enough over a NodeIndex
+  to be pinned this way.
+- Design the API against its real caller AND its real user: cuems-nodeconf's
+  engine_callback (E14) is the dispatch path, and cuems-frontend's settings.component.ts
+  (E20) is the UI that originates every adopt/unadopt on the far end of it. That chain
+  works today; whatever this feature builds has to keep it working once 009 migrates it.
+- Do NOT execute cuems-nodeconf's full atomization (the other nine responsibilities in
+  E11's table) here. Record the target-design basis for it -- which responsibilities are
+  single-class candidates and why -- as this feature's deliverable, so it can become its
+  own dedicated cuems-nodeconf feature later. That basis MUST account for E20/E25: row 5
+  has a live UI at the end of its dispatch chain and cannot be designed as if headless.
+- Fix or delete the dead code found while reading CuemsNodeConf: cleanup() (line 579)
+  reads self.cm.show_lock_file at line 581; self.cm is never assigned anywhere (E13).
+
+ITEM D — schema-derived descriptor (D25; E16-E17, E19, E26):
+- Build a standalone schema descriptor -- new machinery, independent of the runtime object
+  model, walking the parsed XSD directly (may share underlying xmlschema schema objects
+  with the existing registry) -- covering ALL SIX schemas. Per type, emit: field name, XSD
+  type, cardinality (required/repeated), the legal value list read from xs:enumeration
+  where the type is a restricted enumeration, AND THE MODEL-LAYER DEFAULT.
+- Defaults are NOT optional, and this is where the first draft was thinnest. Two
+  independent consumers need values rather than shape: ITEM E's repair-to-default path has
+  no other source of truth (hand-written per-field fallbacks would recreate exactly the
+  drift this descriptor exists to end), and at least two of the frontend's template call
+  sites read concrete values out of initial_template today -- sequence.component.ts:688
+  takes the example AudioCue's master_vol, :727 maps the example DmxCue's dmx_channels
+  (E19). A shape-only descriptor gives 009 nothing to migrate those onto.
+- FieldSpec (004) carries name/xsd_type/required/repeated/order/kind/child and neither
+  enum facets nor defaults (E17). Decide whether to extend it or to build alongside it;
+  either is fine, but say which and why.
+- create_script() is SUPERSEDED, not preserved. Its output need not stay byte-identical
+  and its faulty logic need not be carried forward -- note in particular that it validates
+  and THEN blanks ids, so the object actually served would fail its own check, and its
+  dangling action_target is what cuems-editor's _clean_dangling_targets exists to sweep up
+  (E16, E18: one causal chain currently documented in three disconnected places).
+- templates/settings.xml is the second hand-maintained template (E26): 5.1 KB of
+  hand-written reference instance, referenced by no code and no test, unpackaged, while
+  settings.xsd's own header declares it a binding contract ("any change to this schema MUST
+  be reflected in the template"). The descriptor should be able to generate it, and that
+  header should stop asserting a hand-maintenance obligation once it can.
+- Do NOT attempt the frontend/editor cutover here -- that is 009's (D26). Record the
+  handoff in the migration guide at per-call-site granularity, as 007 did.
+
+ITEM E — validate() on load(), versioning, and repair (D19-D21; E7-E10, E21, E22, E24):
+- CuemsScript.load() and every ConfigManager/ConfigBase accessor run full validate()
+  (T1 AND T2). This REVERSES "reading never becomes stricter" (FR-026, standing rule 8) --
+  record the reversal explicitly in this feature's spec; do not let it read as an oversight.
+- THREE outcomes, not two (D21). This is the part the first draft got wrong by omission:
+    OLD document (version marker precedes current) -> convert transparently in memory,
+      timestamped backup written first; the same logic also ships as a standalone tool for
+      batch/offline/postinst use.
+    CURRENT BUT SEMANTICALLY INVALID -> repair-and-notify: recover a default state for the
+      offending field (from ITEM D's descriptor), carry the repair in a structured report,
+      continue loading.
+    UNREPAIRABLE -> raise.
+  A document that is corrupt AND current-version is the common case and the versioning
+  machinery does not help it. Without the middle row it simply becomes unloadable -- and
+  every tool that would repair it is itself a load() consumer (E18, E21).
+- The repair report is PUBLIC, under cuemsutils.errors, on 006's precedent that an
+  exception the caller cannot name is one it cannot catch: a repair the caller cannot
+  inspect is one it cannot surface. cuemsutils has no UI channel and must not gain one --
+  008 produces the report, 009 forwards it to the UI as a WS message.
+- A new EXPLICIT, systemic document-version marker is designed and built -- not another
+  bespoke per-change tell like 007's node_type/node_role presence check. Where it lives
+  (root attribute vs dedicated element, per-schema vs document-wide) and how it composes
+  with T1 validation is this feature's design work, not decided here (E10). Its FIRST REAL
+  CLIENT is ITEM A's Media.duration conversion (E24) -- every script.xml in every library
+  becomes an old-version document the moment ITEM A lands, so the mechanism is validated
+  against a real migration in the same feature that introduces it.
+- Be honest about T2 coverage (E22): every registered semantic rule targets a script.xsd
+  type except one project_mappings rule. settings, project_settings, network_map and
+  outputs have ZERO T2 rules today, so "T2 across all six schemas" is mostly plumbing
+  there. Say so in the spec, or the measured cost gets attributed to enforcement that is
+  not happening.
+- Measure the performance cost against the constitution's Principle IV budget. CURRENT
+  baseline is feature 007's, not 006's: 2393 passed / 94 skipped / 2 xfailed in 59.33 s =
+  24.79 ms/test (specs/007-node-model-migration/baseline.md, measured 2026-08-24). The
+  strictness is intentional despite the cost, but the cost must be a number.
+
+WHAT MUST BE TRUE WHEN DONE:
+- All SEVEN timecode-carrying elements are cms:CTimecodeType and store CTimecode objects;
+  zero string-stored exceptions; the dead code the change exposed is gone, not orphaned.
+- The Media.duration wire change is proven by a reviewed golden re-cut, and the pre-change
+  corpus survives as the conversion path's fixtures.
+- settings.xsd's dead CTimecodeType/TimecodeType and its Python binding no longer exist;
+  script.xsd's TimecodeType still does.
+- settings, project_settings and project_mappings config objects have a working save().
+- cuems-utils exposes a network-map config object with adopt/unadopt/merge/refresh/
+  signature/save, independent of cuems-nodeconf, with characterization tests pinning it to
+  CuemsNodeConf's current behaviour.
+- A schema-derived descriptor exists for all six schemas emitting types, cardinality,
+  xs:enumeration values AND defaults; create_script() is gone, replaced by it.
+- load() and every config accessor run T1+T2 across all six schemas, with all three
+  outcomes exercised by tests: an old document converts (with a backup), a corrupt-but-
+  current document repairs to default and reports, an unrepairable one raises.
+- A document-version marker exists, is read by that check, and carries ITEM A's conversion.
+- A migration guide entry exists for every item with consumer impact, at the call-site
+  granularity E14/E18/E19/E21 establish, ready for 009 to execute against.
+
+EXPLICITLY OUT OF SCOPE: cuems-nodeconf's full daemon atomization (basis only, per ITEM C);
+any consumer repository edit not strictly required to prove an item works (D16 permits, does
+not mandate); the frontend/editor template and config-form cutover (009's, per D26);
+repair_durations.py's own migration (009's, per E21 -- 008 owns only the library side that
+makes it viable). NOTE: this feature does NOT ship independently despite touching no consumer
+repository directly (D27) -- nothing in the ecosystem releases until 009 lands, same gate 007
+established.
+```
+
+### 7.1 Clarify and plan
+
+This subsection runs as far as `/speckit.plan` and **stops there**. §7.2 is the stop; §7.2's
+tail carries tasks through both implement passes.
+
+```
+/speckit.clarify
+```
+
+Not skippable, for the same reason it was not skippable for 006: this feature carries a
+principle reversal (D19, "reading never becomes stricter") and a new systemic mechanism
+(D20's version marker) that need their design questions answered before `/speckit.plan` runs.
+At minimum:
+
+- **Where the version marker lives**, and how it composes with T1 (E10) — the one genuinely
+  undesigned mechanism in the feature.
+- **What "a default state" means per field** for repair-and-notify (D21's middle row): the
+  descriptor's declared default, or something narrower for fields where a default is
+  semantically wrong (a dangling `action_target` repaired to `None` is a real change of
+  meaning, not a restoration).
+- **The repair report's shape** — what a caller must be able to answer from it in order to
+  render a useful notification (which document, which field, what was there, what replaced
+  it, is the file now different from what is on disk).
+- **Whether ITEM A's conversion is also `repair_durations.py`'s Pass B** (E21). Both rewrite
+  `<duration>` across every project XML; building the rewriter twice is the failure mode.
+
+Two questions that are **not** open. D27 settles the release gate: 008 does not ship
+independently regardless of touching no consumer repository directly. And `create_script()`'s
+fate is settled by D25 — it is superseded, and its output does not have to stay
+byte-identical; the first draft left this open and it no longer is.
+
+```
+/speckit.plan <PASTE SHARED CONTEXT BLOCK>
+
+Follow specs/planning/xml-rebuild/xml-rebuild-08-extension-audit.md for the evidence behind
+every item above -- the REVISED version; its revision table lists five findings the first
+draft got wrong. This feature has no single target-design section to follow the way 005-007
+followed xml-rebuild-06-target-design.md -- write ITEM C's config-object shape and ITEM D's
+descriptor shape as this feature's own data-model.md, informed by the existing
+ConfigManager/ConfigBase and TypeSpec/FieldSpec patterns respectively.
+
+Technical context, in item order:
+- ITEM A touches script.xsd (Media.duration's type -- a D3 exception), settings.xsd (one
+  deletion), cues/MediaCue.py (setter + DECLARED_DEFAULTS comment), xml/adapters.py (the
+  TimecodeType binding, verify before removing), xml/validators.py (media_duration's dead
+  str branch), config/settings.py (the CTimecodeType model class), and the golden corpus
+  under tests/data/corpus + tests/golden (re-cut, originals retained per D29).
+- ITEM B touches config/settings.py, config/mappings.py (project_settings and
+  project_mappings live there) plus their ConfigManager accessors.
+- ITEM C touches tools/NodeList.py (NodeIndex, currently 3 methods, ends at line 88) and
+  config/network_map.py (CuemsNetworkMapType, currently only save()) -- cuems-nodeconf is
+  read for its behaviour but not edited by this feature.
+- ITEM D is new: likely a new module under xml/ or a new top-level templates.py, reusing
+  the registry's already-loaded xmlschema schema objects rather than reparsing. It deletes
+  create_script.py and should be able to generate templates/settings.xml.
+- ITEM E touches cues/CuemsScript.py (load), tools/ConfigManager.py + tools/ConfigBase.py
+  (every accessor), errors.py (the public report type), and adds the version-marker and
+  conversion machinery plus its standalone tool entry point.
+
+Note the two cross-item couplings that make the order non-negotiable (D28): ITEM E's
+backup-and-convert writes through ITEM B's save(), and ITEM E's repair-to-default reads
+ITEM D's defaults. Neither is optional plumbing.
+
+PLAN FOR ALL FIVE ITEMS AS ONE CHAIN, but write the plan knowing it will be cut in two at the
+A-D / E seam (D30) before tasks are generated. Concretely, that means two things: state each
+item's acceptance criteria so ITEMs A-D can be judged complete WITHOUT ITEM E existing, and
+make ITEM E's dependencies on ITEM B's save() and ITEM D's descriptor explicit as INTERFACES
+-- named, with their shapes fixed in data-model.md -- because Phase 2 will be implemented
+against them as landed code, not as a plan section.
+
+Constitution check:
+- II: each of the five items needs a fail-then-pass test, same discipline as 005's six
+  behaviour changes. ITEM E especially: the version-marker mechanism, the auto-convert path
+  and each of D21's three outcomes need round-trip tests, not unit tests of their pieces.
+  ITEM C's characterization tests (E23) are the II discipline applied to code this
+  repository does not own yet -- write them against CuemsNodeConf's current behaviour
+  BEFORE porting, so the port is measured rather than reviewed by eye.
+- IV: ITEM E's load()-strictness cost must be measured against the CURRENT baseline
+  (007's: 24.79 ms/test over 2393 tests), not 006's, and not assumed acceptable because
+  the requirement says so.
+- III: every item with consumer impact gets a migration-guide entry at 009 handoff.
+- Standing rule 3: ITEM A re-cuts goldens deliberately. That is not the regenerate-to-pass
+  the rule forbids, but it MUST be a reviewed diff with the originals retained (D29), and
+  the spec must say so plainly rather than letting a large golden diff appear unexplained.
+```
+
+### 7.2 STOP — cut the plan at the A–D / E seam
+
+**Do not run `/speckit.tasks` yet.** This is a deliberate stop, and the only one in the whole
+rebuild (D31). Every other feature runs `/speckit.plan` straight into `/speckit.tasks`; this
+one does not, because a single undifferentiated task list would let ITEM E's work interleave
+with ITEM A–D's and quietly dissolve the gate D30 exists to enforce.
+
+At this stop, do four things and write them into `plan.md` before generating tasks:
+
+1. **Declare the phase boundary.** Phase 1 = ITEMs A, B, C, D. Phase 2 = ITEM E. Phase 1 must
+   be **merged and green** before any Phase 2 task starts — the rule §0 applies between
+   features, applied once inside this one.
+2. **Fix the two hand-off interfaces in `data-model.md`**, by name and shape: the config
+   objects' `save()` signature (ITEM B) and the descriptor's emitted structure including
+   defaults (ITEM D). Phase 2 is implemented against these as landed code. If they are still
+   negotiable when Phase 1 merges, the gate has bought nothing.
+3. **Check Phase 1 stands alone.** Read ITEMs A–D's acceptance criteria and confirm each can
+   be judged complete with no part of ITEM E in the tree. If any criterion needs
+   validate-on-load, versioning or repair to be true, it belongs in Phase 2 — move it.
+4. **Restate what the gate is not.** It is not a release boundary (D27 is unchanged, nothing
+   ships until 009), and it is not a scope split (one `spec.md`, one `plan.md`, one feature
+   number, one migration guide).
+
+Then generate tasks with the boundary already in them:
+
+```
+/speckit.tasks
+
+tasks.md MUST carry the D30 phase gate as structure, not as a comment. Group every task under
+Phase 1 (ITEMs A-D) or Phase 2 (ITEM E), and put an explicit gate task between them: Phase 1
+merged, suite green, the two hand-off interfaces (config save(), descriptor-with-defaults)
+landed and stable. No Phase 2 task may be marked parallel-safe with a Phase 1 task.
+```
+```
+/speckit.optimize
+```
+
+Run `/speckit.optimize` here rather than in §9's generic loop, and read its output against
+D28: it looks for parallelisation, and this feature has deliberately given some up. Accept
+its findings **within** a phase; reject any that reorder across the seam or move work earlier
+than the item it depends on. The dependency chain is the design, not an artefact to optimise
+away.
+
+```
+/speckit.checklist Reversal-and-addition review: the load()-strictness reversal (D19) has an
+explicit decision record and is not silently mixed in with the other four items; D21's THREE
+outcomes are each separately specified and separately tested, and the corrupt-but-current
+case is not collapsed into the old-document case; the version-marker mechanism has a design,
+not just a working example, and ITEM A's conversion exercises it; the descriptor emits
+defaults and not only shape, checked against every enumeration and every default the six
+schemas actually declare; the Media.duration wire change is a named, reviewed golden re-cut
+with the pre-change corpus retained; the settings.xsd deletion is proven safe by the same
+coherence-test discipline T041 established, and script.xsd's TimecodeType is proven still
+live; every consumer-impacting change has a migration-guide entry naming the call site, not
+the repository -- including repair_durations.py, which the first audit pass missed. Plus the
+phase gate: every task is assigned to Phase 1 or Phase 2, no Phase 2 task is reachable before
+the gate, and ITEMs A-D's acceptance criteria are judgeable without ITEM E in the tree.
+```
+```
+/speckit.analyze
+```
+
+`/speckit.implement` runs **twice**, once per phase, with a merge between them:
+
+```
+/speckit.implement   # Phase 1 only — ITEMs A, B, C, D
+```
+
+**Phase 1 exit:** ITEMs A–D's "what must be true when done" bullets pass; suite green within
+the measured budget; the `script.xsd` promotion (D18b), the `settings.xsd` deletion and the
+golden re-cut (D29) are each a named, reviewable decision rather than a silent diff; and the
+two hand-off interfaces — config `save()` and the descriptor-with-defaults — are landed and
+stable. **Merge before continuing.**
+
+```
+/speckit.implement   # Phase 2 only — ITEM E, against Phase 1 as landed code
+```
+
+**Phase 2 exit:** ITEM E's bullets pass; all three of D21's outcomes are exercised by tests
+(convert with backup, repair-to-default with report, raise); the load-strictness reversal
+(D19) is a named decision in the spec; the version marker carries ITEM A's conversion; and
+the strictness cost is a measured number against 007's baseline.
+
+**Feature exit:** both phases green; the migration guide complete at call-site granularity for
+009, covering every item with consumer impact including `repair_durations.py`. Nothing ships —
+D27 holds until 009 lands.
+
+---
+
+## 8. Feature 009 — consumer migration
 
 Cross-repo. This spec lives in `cuems-utils` and defines the **contract and guide**; the
 edits happen in each consumer repo as its own PR.
 
 **Updated 2026-08-24** from feature 007's migration checklist, which handed four items to this
-feature and changed its standing from follow-up to release gate.
+feature and changed its standing from follow-up to release gate. **Updated again 2026-08-25**
+from feature 008 (§7), which widens this feature's scope substantially: `cuems-nodeconf` and
+`cuems-frontend` go from "no change required" (as this section originally read) to real migration
+targets. See §7's ITEMs C, D and E for what 008 hands here, and
+`xml-rebuild-08-extension-audit.md`'s E14/E18–E21/E25 for the call-site evidence — **the revised
+version**, whose corrections all land in this feature's scope rather than 008's.
 
-**009 is a hard successor to 007, not a follow-up.** 007 renames `<node_type>` to `<node_role>` as
-a **hard cutover** — no release accepts both spellings — so there is no working partially-deployed
-state between them. **Nothing in the ecosystem ships until this feature lands** (007 FR-030c),
-enforced by versioned `.deb` dependencies, not by instruction (007 FR-030d). Read
-`specs/007-node-model-migration/migration-guide.md` first; it is this feature's input, not context.
+**009 is a hard successor to 007, not a follow-up, and 008 extends the same gate.** 007 renames
+`<node_type>` to `<node_role>` as a **hard cutover** — no release accepts both spellings — so
+there is no working partially-deployed state between them. 008 then changes behaviour
+(`Media.duration`'s type **and wire shape**, `load()`'s strictness) that existing consumers assume
+differently today, without itself editing any consumer repository (§0). **Nothing in the ecosystem
+ships until this feature lands** (007 FR-030c/FR-030d, extended through 008 — see §0's
+release-gate note). Read `specs/007-node-model-migration/migration-guide.md` **and**
+`xml-rebuild-08-extension-audit.md` first; both are this feature's input, not context.
+
+**One thing 008 hands here that has no 007 analogue: a wire change to every project file on
+disk.** `<duration>TC</duration>` becomes `<duration><CTimecode>TC</CTimecode></duration>`
+(D17/D18b). Unlike the `node_role` rename, this touches *show* documents — the library's
+contents, not one config file per node — so the conversion runs against user data at scale and
+the backup path is load-bearing rather than precautionary.
 
 Two of 007's findings shape the work before any prompt runs:
 
@@ -629,6 +1138,77 @@ Two of 007's findings shape the work before any prompt runs:
 - **The node model and its full testing live in `cuems-utils` exclusively** (007 FR-030a-i). No
   consumer re-implements or re-tests it. A node-model test appearing in a consumer repo during this
   migration is a regression, not coverage.
+
+Six of 008's items shape additional work, on top of 007's:
+
+- **`cuems-nodeconf` now has real work here.** 008 built a network-map config object
+  (adopt/unadopt/merge/refresh/signature/save) in `cuems-utils`; `CuemsNodeConf`'s ad hoc
+  equivalents (E11's row 5, **including `refresh_network_map`**, which the first audit pass left
+  unplaced) are replaced with calls into it. 008 deliberately did **not** touch `cuems-nodeconf`'s
+  other nine bundled responsibilities (E11's full table) — this feature consumes the
+  config-object swap only. The full daemon atomization stays a **future, separate**
+  `cuems-nodeconf` feature; 008 recorded the target-design basis for it, and this feature's job
+  is to leave that basis intact for whoever picks it up next, not to execute it. 008's
+  characterization tests (E23) are the yardstick: the swap is done when they still pass against
+  the new API, not when the code looks equivalent.
+- **`cuems-editor`'s `CuemsDBProject` migration is bigger than previously recorded here.** The
+  plan below originally said "the three `CuemsParser` call sites" — corrected to **four**
+  (`update`:356, `new`:489, `duplicate`:571, `update_projects_existed_media`:808; E18) by 008's
+  audit pass. Each also does business logic as **raw dict mutation on the JSON payload before
+  parsing** — `_clean_dangling_targets`/`_nullify_dangling_refs` (387–437), `_fix_media_durations`
+  (367), id/date stamping — which 008's load-strictness reversal (D19) makes mandatory to fix
+  regardless of the template decision below: once `from_json()` validates, these fixups must run
+  as sanctioned pre-validation repair steps or become real object-level operations, not ad hoc
+  dict pokes on data about to hit a stricter parser. **Check them against 008's repair-and-notify
+  path before rewriting them** — some of what they do (dangling-target nullification, duration
+  repair) is now the library's job, and duplicating it in the editor is how the two drift apart.
+- **A fifth `CuemsParser` call site, missed by the first audit pass: `repair_durations.py`**
+  (line 230, plus a deprecated `XmlReaderWriter` import at line 40; E21). It is not in
+  `CuemsDBProject.py`, which is why the four-site count missed it, and it needs the most care of
+  any site here because it sits at the intersection of everything 008 changed:
+  it exists to *load deliberately-corrupt documents* (its whole purpose is repairing durations
+  stored short by a historical `get_duration` bug); it hard-codes the old wire shape
+  (`TIMECODE_SHAPE = ^\d\d:\d\d:\d\d\.\d\d\d$` matched against `<duration>` text content); and
+  its **Pass B — rewriting `<duration>` in every project `script.xml` — is the same job as 008's
+  standalone conversion tool.** Migrate it off `CuemsParser`/`XmlReaderWriter`, drop the private
+  regex for the library's canonical form, and **fold Pass B into the conversion tool rather than
+  maintaining a second XML rewriter.** Its ffprobe/DB half (Pass A) stays editor-local — that
+  part is genuinely the editor's domain.
+- **`cuems-frontend` and `cuems-editor` gain the template/config cutover** (008 §7 ITEM D,
+  D25/D26). Script domain: retire `initial_template`-as-a-concrete-instance; migrate the ~7 call
+  sites in `project-create.handler.ts` and `project-edit/sequence/sequence.component.ts` (E19)
+  onto the new schema descriptor. **Two of those sites read concrete values, not shape** — line
+  688 takes the example `AudioCue`'s `master_vol`, line 727 maps the example `DmxCue`'s
+  `dmx_channels` — so they migrate onto the descriptor's *defaults*, which is why 008 was
+  required to emit them.
+- **Config domain is a MIGRATION, not a greenfield build** — the first draft of this section had
+  this backwards (E20). A `network_map` **editing** UI exists and is in daily use:
+  `src/app/components/settings/settings.component.ts` emits
+  `{action:'nodelist_modify', modify_action:'ADD'|'REMOVE'}` and reads node state from
+  `initialMappings()`; `audio-mixer.component.ts:80` and `video-mixer.component.ts:94` consume
+  `initial_mappings` too. **Port the existing machinery onto the new dynamic-form entities with
+  its logic preserved** — this is not a rewrite from nothing, and adopt/unadopt must keep working
+  through the port. Two structural traps to plan around (E25):
+  1. **The domains are entangled on the wire.** `CuemsWsServer.reload_network_map_nodes` (439)
+     merges `network_map.xml` node status *into* `mappings_dict`, served as `initial_mappings`
+     (509–511). A `network_map` edit reaches the UI inside a `project_mappings` payload.
+     Untangling it is a simultaneous behaviour change for three components.
+  2. **The WS pattern already exists.** Model the new per-domain message types on
+     `initial_mappings` (serve) + `nodelist_modify` (accept a mutation) — a config domain that
+     already has both halves — rather than on `initial_template`, which is serve-only.
+     Incidentally: `settings.component.ts` is named for the `settings` domain and edits
+     `network_map` nodes. Do not let the new per-domain views inherit that naming.
+  Consider serving **partial** elements on demand (a script sub-object, a DB-backed duration
+  query) rather than full payloads client-side, if it simplifies the new UI entities — a design
+  option for this feature's `/speckit.plan`, not a requirement fixed by 008.
+- **008's repair report needs a UI path.** `load()` now returns structured repair information
+  when it recovers a corrupt document to a default state (D21). `cuemsutils` deliberately does
+  not notify anyone — it has no UI channel and must not gain one. This feature builds the rest:
+  `cuems-editor` surfaces the report as a WS message, the frontend renders it. A silent repair is
+  the failure mode the whole three-outcome design exists to avoid.
+- **Config `save()` existing in `cuems-utils` (008 ITEM B) is a precondition**, not something
+  this feature builds — confirm it lands before writing the config-domain UI's save path against
+  it.
 
 ```
 /speckit.specify <PASTE SHARED CONTEXT BLOCK>
@@ -663,16 +1243,52 @@ WHAT MUST BE TRUE WHEN DONE:
   decides whether a service reads the converted map or the old one. Feature 007 deferred
   this here (its FR-011d-ii) because the services doing the reading are the ones this
   feature migrates.
-- cuems-nodeconf needs no work here — feature 007 deleted its node model and serializers,
-  removed the four globals injections and retired XmlReader/XmlWriter. Confirm, do not
-  redo.
-- cuems-frontend requires no change. Optionally, its `=== true || === 'True'` dual-check
-  can be simplified once both payloads agree — as a follow-up, not a blocker.
+- cuems-nodeconf's node model and serializers are done, from feature 007 — confirm, do not
+  redo. Its **network-map config-object logic** (adopt/unadopt/merge/refresh/signature/write)
+  is new work for this feature: swap `CuemsNodeConf`'s ad hoc methods (E11 row 5, including
+  refresh_network_map) for calls into 008's `NodeIndex`/`CuemsNetworkMapType` API. 008's
+  characterization tests are the yardstick — the swap is done when they pass against the new
+  API. `engine_callback`'s `nodelist_modify` dispatch (E14) is the caller to migrate against,
+  and cuems-frontend's settings.component.ts is the UI at the far end of it that must keep
+  working. `cleanup()`'s dead `self.cm` reference (E13) is fixed or deleted while the file is
+  open for this anyway.
+- cuems-frontend's `=== true || === 'True'` dual-check simplification is still optional, a
+  follow-up not a blocker. Its **template-cloning surface is not optional**: the ~7 call
+  sites in `project-create.handler.ts` and `project-edit/sequence/sequence.component.ts`
+  move off cloning `initial_template` onto the schema descriptor (008 ITEM D) — including the
+  two that read concrete values (master_vol at :688, dmx_channels at :727), which migrate onto
+  the descriptor's defaults. **Config-domain UI is a PORT, not a new build**: a network_map
+  editing UI already exists (settings.component.ts, nodelist_modify adopt/unadopt) and
+  project_mappings already has read consumers (audio-mixer, video-mixer). Move them onto a
+  generic schema-form-renderer with their logic preserved, untangle the
+  network_map-inside-initial_mappings payload (E25), and generalise the existing
+  initial_mappings/nodelist_modify WS pair rather than inventing an unrelated one.
+- cuems-editor's `CuemsDBProject` moves off `CuemsParser` at all **four** call sites (`update`,
+  `new`, `duplicate`, `update_projects_existed_media` — corrected from three; E18), and its
+  raw-dict pre-parse fixups (dangling-target nulling, duration repair, id/date stamping)
+  become sanctioned pre-validation steps or object-level operations, not dict pokes ahead of
+  a now-strict parse — checked against 008's repair-and-notify path first, so the editor does
+  not duplicate repairs the library now performs.
+- **`repair_durations.py` is the fifth CuemsParser call site** (line 230; E21) and needs
+  handling on its own terms: off `CuemsParser`/`XmlReaderWriter`, off its private
+  `TIMECODE_SHAPE` regex, with **Pass B folded into 008's standalone conversion tool** rather
+  than kept as a second `<duration>` rewriter. Pass A (ffprobe + DB) stays editor-local. It
+  must still be able to read the corrupt documents it exists to repair — which is what 008's
+  repair-and-notify contract guarantees; verify that, do not assume it.
+- **008's repair report reaches the user**: cuems-editor forwards it as a WS message and the
+  frontend renders it. A repair that happens silently is the outcome D21's design exists to
+  prevent, and cuemsutils cannot do this half itself.
 - Deprecated entry points are removed from cuemsutils only after all consumers are on the
   new API.
 - Zero occurrences of node_type or the NodeType. prefix remain anywhere in the ecosystem,
   counted rather than reviewed — including the four files 007 excluded from its own count
   and handed here.
+- All 008 items with consumer impact are verified against each live call site 008's migration
+  guide named, the same discipline 007 required of this feature for the node-model rename:
+  `Media.duration`'s type AND wire change (cuems-engine's `CTimecode(cue.media.duration)`,
+  the editor's duration read/write paths, the frontend's media-duration display — which now
+  unwraps `{"CTimecode": ...}` the way it already does for fades); `load()`/config accessors
+  validating; and the document-version marker's presence.
 
 CALLERS THAT KEEP RESOLVING BUT BECOME WRONG are a distinct class from callers that stop
 resolving (007 FR-030a-ii), and the second kind is the dangerous one: nothing fails, the
@@ -695,28 +1311,55 @@ Follow specs/planning/xml-rebuild/xml-rebuild-06-target-design.md section 12.
 Per-repo scope:
 - cuems-engine: core/BaseEngine.py:509; ControllerEngine network-map access; adopt
   NetworkMap.partition_by_adoption; CONTROLLER_NETWORK_FLAG and its two comparison sites.
-- cuems-editor: CuemsDBProject.load_xml / save_xml / the three CuemsParser call sites;
-  DBProject.load must return script.to_wire(); the node field list at CuemsWsServer.py:425
-  and the reload_network_map_nodes reads.
+- cuems-editor: CuemsDBProject.load_xml / save_xml / all FOUR CuemsParser call sites in that
+  file (update:356, new:489, duplicate:571, update_projects_existed_media:808 — E18) PLUS the
+  fifth in repair_durations.py:230 (E21, missed by the first audit pass); DBProject.load must
+  return script.to_wire(); the node field list at CuemsWsServer.py:425 and the
+  reload_network_map_nodes reads; the raw-dict pre-parse fixups moved to sanctioned
+  pre-validation steps or object operations, checked against 008's repair path first; WS
+  message types generalising initial_mappings/nodelist_modify to serve the schema descriptor,
+  accept config-domain saves, and forward 008's repair report.
 - cuems-common: the Avahi node_type TXT record in etc/avahi/services/cuems.service and
   usr/share/cuems/cuems.service.{master,slave,firstrun}, INCLUDING the filenames of the
   master/slave templates and the debian/install entries that place them; and the postinst
-  ordering of the network-map conversion against dh_installsystemd's service restart.
-- cuems-nodeconf: nothing — done in 007. Verify rather than repeat.
-- cuems-frontend: no change required; record the optional cleanup as a follow-up issue.
+  ordering of the network-map conversion against dh_installsystemd's service restart. NOTE
+  that 008 adds a SECOND conversion to that ordering problem — the script-document duration
+  conversion — with different timing characteristics: it runs over the whole project library,
+  not one config file, so postinst may not be the right place for it at all.
+- cuems-nodeconf: node model/serializers — nothing, done in 007, verify rather than repeat.
+  Network-map config-object calls (adopt_node, unadopt_node, merge_discovered_nodes,
+  refresh_network_map, write_network_map, _map_signature) swapped for 008's cuems-utils API,
+  with 008's characterization tests as the equivalence yardstick; engine_callback updated to
+  match; the self.cm dead-code bug in cleanup() fixed or removed.
+- cuems-frontend: template-cloning call sites in project-create.handler.ts and
+  project-edit/sequence/sequence.component.ts moved onto the schema descriptor (the two
+  value-reading sites onto its defaults); the EXISTING config-domain UI — settings.component.ts
+  (network_map adopt/unadopt), audio-mixer and video-mixer (initial_mappings) — ported onto the
+  form-renderer with its logic preserved, not rebuilt; media-duration display updated for the
+  {"CTimecode": ...} wrapper; repair-report rendering; optional === true || === 'True'
+  dual-check cleanup as a follow-up, not a blocker.
 
-Sequencing: this is where the 007 release gate opens. Nothing ships between 007 and this
-feature (007 FR-030c/FR-030d), so "cuemsutils releases first with both APIs live" does NOT
-apply to the node surface — the node_role cutover is hard and has no dual-spelling state.
-It still applies to the show-API deprecations from 006. Keep the two apart in the plan.
+Sequencing: this is where the 007 release gate opens, extended through 008 (§0). Nothing
+ships between 007/008 and this feature (007 FR-030c/FR-030d, extended), so "cuemsutils
+releases first with both APIs live" does NOT apply to the node surface or to 008's
+load-strictness and duration type/wire changes — both are hard cutovers with no dual-spelling
+state. It still applies to the show-API deprecations from 006. Keep the three apart in the plan.
+
+Data migration is a first-class concern here in a way it was not for 007. 007 converted one
+config file per node; 008's duration change converts EVERY project document in EVERY library.
+Plan the rollout for that scale: when the conversion runs, what happens to a library mid-
+conversion, how the backups are retained and reclaimed, and what an operator sees while it
+works.
 
 Constitution check:
 - II: each consumer PR carries its own green suite. The end-to-end check is the gate. Note
   that a green suite does NOT evidence the FR-030a-ii class — those callers keep resolving.
   Each one needs a test that fails against the old value.
-- III: the migration guide is the UX deliverable. Feature 007's guide is its input.
-- IV: no regression in engine project-load time; network-map load stays within the budget
-  007 recorded in its baseline.md.
+- III: the migration guide is the UX deliverable. Features 007's AND 008's guides are its
+  input.
+- IV: no regression in engine project-load time — and note that 008 added T1+T2 validation to
+  that path, so measure against 008's post-landing figure, not 007's baseline, or the budget
+  charges this feature for 008's decision. Network-map load stays within 007's recorded budget.
 ```
 ```
 /speckit.tasks
@@ -735,17 +1378,33 @@ Plus, from feature 007's handover: every caller in the "keeps resolving but beco
 semantically wrong" class accounted for with a test that fails against the old value;
 zero node_type occurrences ecosystem-wide including the four files 007 excluded; the
 postinst-vs-service-restart ordering decided rather than inherited; and the cluster upgrade
-verified, not only the single-node one.
+verified, not only the single-node one. Plus, from feature 008's handover: cuems-nodeconf's
+network-map calls verified by 008's characterization tests rather than assumed equivalent;
+ALL FIVE CuemsParser call sites accounted for — the four in CuemsDBProject plus
+repair_durations.py, which the first audit pass missed and which is the site most exposed to
+008's changes; the raw-dict fixups' new sanctioned form proven to still catch what it used to
+(dangling targets, bad durations) under the validating load path, WITHOUT duplicating repairs
+the library now performs; repair_durations.py proven able to still read the corrupt documents
+it exists to repair; every project document converted to the new duration shape, counted not
+sampled, with backups accounted for; the ported config-domain UI proven to still adopt and
+unadopt nodes end to end; and the descriptor-driven forms checked against every enumeration
+AND every default the six schemas actually declare, not a hand-picked subset.
 ```
 
 **Exit criteria:** all consumers migrated and green; end-to-end save→load→render verified;
 a controller-plus-node cluster upgrade comes back with its topology intact; zero `node_type`
 occurrences ecosystem-wide, counted; the FR-030a-ii caller class closed with per-caller tests;
-deprecated surface removable.
+deprecated surface removable; `cuems-nodeconf` consumes the 008 network-map config object with
+008's characterization tests still green against it; `initial_template`-as-instance retired in
+favour of the schema descriptor for the script domain; the existing config-domain UI ported to
+descriptor-driven forms with adopt/unadopt still working end to end, and the remaining three
+config domains newly editable through the same renderer; every project document in a real
+library converted to the new duration shape with its backup retained; and a repaired document
+produces a notification the user actually sees.
 
 ---
 
-## 8. Per-feature quality loop
+## 9. Per-feature quality loop
 
 After `/speckit.tasks` and before `/speckit.implement`, on every feature:
 
@@ -768,23 +1427,49 @@ After `/speckit.implement`:
 ```
 Validates completion against the spec.
 
+**Feature 008 runs this loop per phase, not per feature** (D30). `check-integration` and
+`optimize` before Phase 1's implement, then again before Phase 2's — Phase 2's tasks are
+written against interfaces that only became real when Phase 1 merged, so re-running
+`check-integration` there is the point rather than a repetition. `verify` likewise runs
+twice, against each phase's exit criteria in §7.2. And 008 keeps `optimize`'s findings
+**within** a phase: it optimises for parallelism, which D28 deliberately traded away.
+
 ---
 
-## 9. Standing rules for every feature
+## 10. Standing rules for every feature
 
 1. **Never** run `/speckit.implement` on a red suite. Baseline is 557 passing.
 2. The **D14 chain test is written before the machinery it guards**, against current
    behaviour. This is the single most important sequencing rule in the whole rebuild.
 3. Golden files for XML output and the `read()`/`to_wire()` dict are generated **once**,
-   from pre-refactor code, and are never regenerated to make a test pass.
+   from pre-refactor code, and are never regenerated to make a test pass — **with one
+   recorded exception**. Feature 008 (D17/D29) changes the wire deliberately, so its goldens
+   are re-cut **once**, as a reviewed diff that is part of the decision rather than a
+   consequence of it, and **the pre-change files are retained** as the conversion path's
+   fixtures. They are the only first-party corpus of real old-shape documents that exists;
+   deleting them would remove the evidence the conversion is tested against. The rule's
+   purpose is intact: a golden still never moves to make a red test go green.
 4. Commits are GPG-signed. Retry on "gpg failed to sign"; never `--no-gpg-sign`.
 5. Planning artifacts stay in `specs/planning/`; feature artifacts in `specs/NNN-*/`.
-6. No `.xsd` edits — **with one recorded exception**. D3 defers schema work, tracked as
-   X1–X13 in the audit, and continues to bind five of the six schemas. It was relaxed
-   **once**, for `network_map.xsd` only, by explicit clarification in feature 007: the
-   `node_type` → `node_role` rename with a real `NodeRoleType` enumeration, a `UuidType`
-   pattern, and X9 (`PutType`) deleted. That relaxation is scoped to that one file and does
-   not generalise; proposing a second one reopens D3 and needs its own decision.
+6. No `.xsd` edits — **with three recorded exceptions**. D3 defers schema work, tracked as
+   X1–X13 in the audit.
+   - **First**, `network_map.xsd` only, by explicit clarification in feature 007: the
+     `node_type` → `node_role` rename with a real `NodeRoleType` enumeration, a `UuidType`
+     pattern, and X9 (`PutType`) deleted.
+   - **Second**, `settings.xsd` only, by feature 008 (D18): its `CTimecodeType`/`TimecodeType`
+     pair — unreachable from any element, wrongly patterned `HH:MM:SS:FF` instead of the
+     canonical `HH:MM:SS.mmm` — is deleted, mirroring the `PutType` precedent.
+   - **Third**, `script.xsd` only, by feature 008 (D17/D18b): `Media.duration` is promoted from
+     `cms:TimecodeType` to `cms:CTimecodeType` so that every element carrying a time value has
+     one type and one machinery. **This is the only one of the three that changes documents
+     already on disk**, and it is granted on the condition that the conversion path (D20/D21)
+     carries it — the exception and its migration are one decision, not two.
+   Each relaxation is scoped to the one file and change it names; a fourth reopens D3 and
+   needs its own decision record. Note that all six schemas share one `targetNamespace` with
+   no `include`/`import` between them, so a QName can be — and `CTimecodeType` was —
+   *incompatibly defined twice*. Nothing composes them today, so nothing breaks; treat it as a
+   hygiene invariant to preserve rather than an accident to rely on, particularly for any
+   machinery that walks the namespace across schemas.
 7. **Schema evolution convention** (adopted in feature 006, binds all later schema work):
    an element added to an **existing** complex type is `minOccurs="0"` with a model-layer
    default; required elements appear only in **new** types; anything else is a versioned
@@ -797,4 +1482,19 @@ Validates completion against the spec.
 8. **Compatibility is defined against the current XSD configuration**, not against file
    history. A document valid under today's schemas must load; one that no longer validates
    because the schema evolved is out of scope by policy. Reading must never become
-   stricter than the pre-refactor parser.
+   stricter than the pre-refactor parser — **with one recorded exception, and it is narrower
+   than "load() now raises"**. Feature 008 (D19/D21) reverses the last sentence for
+   **semantic** (T2) validation only, and replaces silent acceptance with **three** outcomes:
+   - a document that is **old** is converted (backup first), not rejected — D20/D21's
+     versioning machinery exists for exactly this;
+   - a document that is **current but semantically invalid** is **repaired to a default state
+     and reported**, not rejected — this is the common case, the one the versioning machinery
+     does *not* help, and the reason "raise on T2" was the wrong rule as first written;
+   - only a document that is **unrepairable** raises.
+
+   Structural (T1) compatibility is untouched by the reversal — this rule's first two
+   sentences still bind it. The intent is that reading becomes *more* recoverable, not less:
+   what changes is that a corrupt document can no longer enter the runtime **silently**, not
+   that it can no longer be read at all. Every first-party repair tool
+   (`repair_durations.py`, the editor's fixups) is a `load()` consumer, so a rule that made
+   corrupt documents unreadable would disable the tools that fix them.
