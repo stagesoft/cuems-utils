@@ -149,9 +149,12 @@ Design inputs preserved in `specs/planning/envelope-feature.md`, including the t
 expansion-placement decision, and an unrelated engine gap found on the way (nothing reconciles a cue's
 declared fade shape with a `FadeCue` targeting it).
 
-**D3 now stands relaxed five times in this feature** — two files, five changes, plus the version-marker
-attribute on all six roots. Three of the five are deletions of things nothing honours. Flagged for
-explicit sign-off rather than assumed.
+**D3 stands relaxed five times in this feature, and that is signed off** (repo owner, 2026-08-27:
+"D3 relaxations are proper part of the feature"). Two files across five changes, plus the
+version-marker attribute on all six roots. Four of the five delete or add things nothing honours;
+only `Media.duration` changes a live field's meaning. Recorded in the spec's D3 section with the
+per-change character table and with the limits the precedent does **not** extend to — X1–X13 stay
+deferred, and a seventh exception still needs its own record.
 
 **Confirmed non-imminent** (repo owner, 2026-08-27): Envelope is expected to land with the Crossover
 feature in the further future, so delete-then-re-add carries no churn risk. That closes the one

@@ -67,14 +67,31 @@ six roots — not six unrelated schema rewrites. Three of the five are deletions
 honours; one is the version marker, which breaks nothing; only `Media.duration` changes a live
 field's meaning.
 
-**A note on the erosion, stated because four relaxations in one feature is a lot.** D3 was adopted to
-stop schema work leaking into a serialization rebuild. Three of these four are hygiene — deleting
-what is dead (`settings.xsd`'s timecode pair, `ActionType`'s two values) or adding what breaks nothing
-(the version marker). Only one, `Media.duration`, changes a live field's meaning. What makes the set
-defensible is that this is the feature that **builds the conversion machinery**: D3's real purpose was
-never "never edit a schema", it was "do not edit a schema when there is no path for the documents that
-edit invalidates". After ITEM E there is one. The remaining deferred schema items (X1–X13) stay
-deferred regardless — they are not made in-scope by this precedent.
+**The relaxations are a proper part of this feature — decided, not conceded.** Recorded on the repo
+owner's explicit sign-off, 2026-08-27, after the count was put to them as five in one feature.
+
+D3 was adopted to stop schema work leaking into a serialization rebuild. What makes these five a
+coherent part of the work rather than an erosion of the rule is that **this is the feature that builds
+the conversion machinery**. D3's real purpose was never "never edit a schema"; it was "do not edit a
+schema while there is no path for the documents that edit invalidates." After ITEM E there is one, and
+three of the five changes are the first things that path exists to carry.
+
+Their characters differ and the difference is the argument:
+
+| Change | Character | Documents on disk |
+|---|---|---|
+| `settings.xsd` timecode pair | deletes what is unreachable | untouched |
+| `ActionType`'s two values | deletes what nothing honours | converted |
+| fade-profile surface | deletes what nothing outside this repo consumes | converted |
+| version marker | adds what breaks nothing | untouched |
+| `Media.duration` | **changes a live field's meaning** | converted |
+
+Only the last one alters something the system actually uses. The other four are the schema catching up
+with what was already true.
+
+**What this precedent does not do.** It does not reopen D3 for the deferred schema items (X1–X13),
+which stay deferred; it does not license a schema edit in a feature without a conversion path; and it
+does not extend past this feature. A seventh exception needs its own record on its own merits.
 
 ---
 
