@@ -46,7 +46,8 @@ CuemsScript.load_with_report(path) -> tuple[CuemsScript, LoadReport]
 
 **Behaviour change, and it is a deliberate reversal** (FR-037, FR-038). `load` runs full validation —
 T1 **and** T2 — where it previously ran T1 only on the principle that reading never becomes stricter.
-Three outcomes, by document state:
+**Five document states, three of which are FR-040's load-failure outcomes** (converted, repaired,
+raised); the other two are the clean load and the newer-than-library refusal:
 
 | State | Result |
 |---|---|
@@ -122,9 +123,13 @@ cuems-convert-documents <path>...
 
 ## 6. What does not change
 
-- **The `project_load` payload stays byte-identical** — Part 2d, the hard constraint. The version
-  marker is excluded from every wire projection precisely so this holds (research R1). Booleans stay
-  strings; the UI's `=== true || === 'True'` reading is unaffected.
+- **The `project_load` payload stays byte-identical — modulo FR-003's deliberate duration reshape**,
+  which is the payload's *only* sanctioned change in this feature (`"duration": "TC"` becomes
+  `"duration": {"CTimecode": "TC"}`, and it is a migration-guide entry). Part 2d constrains that nothing
+  **else** moves the payload; in particular the version marker is excluded from every wire projection
+  precisely so it never reaches it (research R1). Booleans stay strings; the UI's
+  `=== true || === 'True'` reading is unaffected. *Stated with the exception because an unqualified
+  "stays byte-identical" here would assert the opposite of FR-003.*
 - **`cuemsutils.xml.__all__` stays `[]`** (Q14).
 - **`cuemsutils.config` exports nothing** — the descriptor is internal machinery; 009 consumes it
   through the public façade, not by importing `config/`.

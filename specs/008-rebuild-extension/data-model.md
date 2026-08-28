@@ -26,7 +26,20 @@ wire projection, and no model class declares it (research R1).
 | Excluded from | `spec._derive_attributes`, every wire projection, every model class |
 
 **Version numbers after this feature.** `script` → **2**; the other five stay at **1**. Only
-`script.xsd` changes content this feature.
+`script.xsd` changes content this feature. Per FR-048b the sequences are independent: moving `script`
+must age nothing else, which is measured (SC-023b) rather than argued from the registry's shape.
+
+**What emitting the marker invalidates, and where that is discharged.** `doc_version` is written by
+`mapper.build_document`, which every writer in the library goes through — so the moment it lands, every
+golden cut in Phase 1 and every config round-trip fixture gains a root attribute it did not have:
+
+| Artifact | Effect | Discharged by |
+|---|---|---|
+| `tests/golden/**` (cut in ITEMs A and D) | every root element gains `doc_version` | FR-010's **third** recorded golden event |
+| Config round-trip fixtures (FR-015) | writer's output form now carries the attribute | FR-015's normalisation absorbing it |
+| `project_load` payload | **unaffected** — the marker is a document property, never a wire field | asserted by test (R1) |
+
+This is a Phase 2 change reaching back into Phase 1's artifacts. It is scheduled, not discovered.
 
 ### 1.1 Conversion registry
 
@@ -135,6 +148,33 @@ One rule, stated once (FR-031b), so no field is classified case by case:
 
 Rule 2 outranks rule 1: a rule may declare its violation repairable, but if the field has no default
 the repair cannot be performed.
+
+**Resolving a rule target to a descriptor field — the two name spaces do not coincide.** Rules target
+**model class names**:
+
+```python
+@register("output_name_shape", [("VideoCueOutput", "output_name")], repairable=...)
+```
+
+while `TypeDescriptor.key` is schema-derived and carries the **XSD type name** (`VideoCueOutputType`),
+qualified by schema. Rule 1 above therefore needs an explicit join, and it is the registry's existing
+binding table — the same `registry.bind("VideoCueOutputType", VideoCueOutput)` that ITEM D already
+reads for defaults (R5). The resolution is:
+
+```
+rule target (class_name, field_name)
+  -> registry: class_name -> the XSD type name(s) bound to that class
+  -> descriptor: (schema, xsd_type_name) -> TypeDescriptor -> field_name -> FieldDescriptor
+```
+
+Two obligations follow, both asserted by test rather than assumed:
+
+- **Every rule target MUST resolve to at least one `FieldDescriptor`.** A target that resolves to none
+  is a stale rule or a renamed field, and it must fail loudly — silently dropping it would leave the
+  field classified by rules 2/3 and quietly widen what is repairable.
+- **A class bound to more than one XSD type** propagates the rule's declaration to the same field in
+  each. That is the correct reading — the rule fires on the object, whichever type produced it — and it
+  is recorded here so the fan-out is deliberate rather than incidental.
 
 **Every registered rule must declare.** `register()` gains a required keyword-only `repairable: bool`
 with **no default**, so an undeclared rule is a `TypeError` at import (R8). The count of unclassified

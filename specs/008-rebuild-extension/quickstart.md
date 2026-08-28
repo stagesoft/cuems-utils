@@ -26,12 +26,32 @@ so an absolute wall-time budget compares different suites and reads growth as re
 Method, unchanged from 006 and 007 so the figures stay comparable: **median of five warm runs, fresh
 process per measurement.**
 
+**The fixture is `projects/complex_test/script.xml`, and the choice is load-bearing** (research R10).
+It is the corpus's largest show document at **24,183 bytes** — 9.1× `fade_showcase.xml`, which this
+file named until 2026-08-28 and which is *not* the largest. The absolute half of FR-PERF-002's
+show-document budget exists to "stop the ratio from excusing a path that scales badly on large
+scripts", so measuring a 9×-undersized document makes that cap unreachable and therefore
+non-protective. Indicative pre-feature medians (measured 2026-08-28 on Python 3.13, **not** the 3.11.9
+the real baseline must use):
+
+| Document | Size | Median load |
+|---|---|---|
+| `cuems-engine/projects/complex_test/script.xml` | 24,183 B | **11.76 ms** |
+| `cuems-editor/script_minimal.xml` | 3,738 B | 5.00 ms |
+| `cuems-utils/fade_showcase.xml` | 2,649 B | 3.48 ms |
+
+At 11.76 ms the 50 ms cap binds at ~4.3× and the ≤200% ratio (23.5 ms) is the tighter of the two — both
+budgets do real work. At 3.48 ms the cap sits 14× away and can never bind, which is the failure mode
+this fixture change fixes. The two 24,067-byte `legacy/` documents are **not** candidates: feature 005
+recorded them as deliberately rejected at `VideoCueOutput.__init__`. `complex_test/script.xml` was
+confirmed to load before being named here.
+
 ```bash
-# Show document — the corpus's largest
+# Show document — the corpus's largest, confirmed loadable
 pyenv exec python - <<'PY'
 import statistics, time
 from cuemsutils.cues.CuemsScript import CuemsScript
-PATH = "tests/data/corpus/cuems-utils/fade_showcase.xml"
+PATH = "tests/data/corpus/cuems-engine/projects/complex_test/script.xml"
 CuemsScript.load(PATH)                       # warm
 runs = []
 for _ in range(5):
@@ -104,20 +124,52 @@ print(f.name, f.enum_values, f.default, f.repairability)
 If either signature is still under discussion when Phase 1 merges, **stop** — the gate exists so
 Phase 2 is written against landed code, and a negotiable interface means it bought nothing.
 
----
-
-## Verifying ITEM A's golden re-cut
-
-The re-cut is deliberate (D29, standing rule 3's one recorded exception) and must be a **reviewed
-diff**, not a regenerate-to-pass.
+Finally, **record** the fifth gate condition (T084(e), FR-057/SC-014): every Phase 1 acceptance
+criterion is green on a tree containing no part of ITEM E. Conditions (a) and (b) establish it
+incidentally, but SC-014 asks for a check, and an unrecorded check is indistinguishable from an
+assumption:
 
 ```bash
-git diff --stat tests/golden/ tests/data/corpus/
-git diff tests/golden/ | grep -v "duration\|CTimecode\|action_type\|fade_profile" | head -40
+git log --oneline --all -- src/cuemsutils/xml/versioning.py   # must be empty at the gate
 ```
 
-The second command should print **nothing but diff headers**. Any other changed line is out of scope
-for this feature and must be explained before the re-cut is committed.
+---
+
+## Verifying the golden events
+
+FR-010 sanctions **three** golden events across this feature and no fourth. Each is deliberate (D29,
+standing rule 3's recorded exception), each is its own **reviewed diff**, and none is a
+regenerate-to-pass:
+
+| Event | Task | Every changed line must be… |
+|---|---|---|
+| 1. ITEM A's cut | T023 | FR-003's duration reshape or FR-007a's fade-profile deletion |
+| 2. ITEM D's replacement | T076 | the `create_script` → descriptor generator change (`generated/` only) |
+| 3. ITEM E's renormalisation | T102a | the added `doc_version` root attribute, nothing else |
+
+FR-029a's `ActionType` narrowing appears in **no** event: no corpus document carries `fade_in` or
+`fade_out` (SC-012a), so it produces no golden churn.
+
+```bash
+# Event 1 (T023)
+git diff --stat tests/golden/ tests/data/corpus/
+git diff tests/golden/ | grep -v "duration\|CTimecode\|fade_profile" | head -40
+
+# Event 3 (T102a) — the attribute and nothing else
+git diff tests/golden/ | grep '^[+-]' | grep -v '^[+-][+-]' | grep -v 'doc_version' | head -40
+```
+
+Each command should print **nothing but diff headers**. Any other changed line is out of scope for
+that event and must be explained before it is committed.
+
+**Event 3 also touches nothing else.** Confirm the config round-trip fixtures still pass unmodified —
+their normaliser absorbs `doc_version` by design (FR-015) — and that `tests/data/corpus/pre-008/` is
+byte-unchanged, since it is conversion *input* and never writer output:
+
+```bash
+hatch test --show tests/integration/test_config_save.py
+git status --porcelain tests/data/corpus/pre-008/    # must be empty
+```
 
 Confirm the pre-change corpus survives (FR-011) — it is the only first-party collection of real
 old-shape documents, and Phase 2 converts it:

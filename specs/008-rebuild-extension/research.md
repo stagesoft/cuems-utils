@@ -46,6 +46,14 @@ with a reason, not a special case buried in a conditional.
 **Versioned per schema** (FR-048b): each schema carries its own sequence. A `script.xsd` change must
 not age `network_map` documents.
 
+**The write side has a blast radius, and it is scheduled rather than discovered.** `build_document` is
+the single funnel every writer in this library goes through, so the moment the marker is emitted, every
+golden cut earlier in the feature and every config round-trip fixture gains a root attribute it did not
+have. That is not a reason to place the marker elsewhere — it follows from the marker being written at
+all — but it is a reason it cannot be treated as a self-contained Phase 2 change. The full account, with
+what each affected artifact is and where it is discharged, is **data-model §1**; the work is task T102a
+and FR-010's third recorded golden event.
+
 **Alternatives rejected.** *Dedicated child element* — enters the content model, where required is
 breaking and optional still shifts ordering, and would behave differently per schema because
 `CuemsScript`'s root is `xs:all` while the others are `xs:sequence`. *Processing instruction* — needs
@@ -221,6 +229,18 @@ the method 006 and 007 both used, so the figures are comparable. Pre-feature fig
 **What gets measured, against FR-PERF-002's three budgets:** show-document load (≤ 200% and ≤ 50 ms
 absolute for the corpus's largest show document), each configuration domain's load (≤ 110%), and the
 suite's per-test figure (≤ 110% of 24.79 ms).
+
+**The show fixture is named here, not left to the measurer**:
+`tests/data/corpus/cuems-engine/projects/complex_test/script.xml` — **24,183 bytes**, the corpus's
+largest show document, confirmed loadable (median 11.76 ms, indicative, Python 3.13, 2026-08-28).
+Pinning it is part of the method, because the fixture determines whether the absolute cap can bind at
+all: on `fade_showcase.xml` (2,649 B, 3.48 ms) the 50 ms cap sits 14× away and is unreachable, which
+would satisfy FR-PERF-002 on paper while measuring nothing. `quickstart.md` named `fade_showcase.xml`
+until 2026-08-28; it is not the largest and the substitution was not deliberate.
+
+**Excluded**: the two 24,067-byte `tests/data/corpus/legacy/` documents, which feature 005 recorded as
+deliberately rejected at `VideoCueOutput.__init__` → `_classify_output_name`. They are nearly the same
+size and would otherwise look like the obvious choice.
 
 **Rationale.** The strictness in FR-037 is intentional despite its cost, but the cost must be a
 number, and a number is only meaningful against a baseline measured the same way on the same tree.

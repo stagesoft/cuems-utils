@@ -30,7 +30,7 @@ migration) follows and is out of scope here — but is a **hard successor**, not
 D12, D13, D14, D15, D16, D17, D18, D18b, D19, D20, D21, D22, D23, D24, D25, D26, D27, D28, D29,
 D30, D31, Q11→(c), Q14→(i).
 
-**D3 is deliberately relaxed, four times more.** "Wire-compatible with every XML on disk; no
+**D3 is deliberately relaxed, five times more.** "Wire-compatible with every XML on disk; no
 `.xsd` edits" no longer binds any schema absolutely, and the relaxations granted here are of two
 distinct characters that must not be conflated:
 
@@ -364,8 +364,9 @@ migration cost is zero and the constraint on refactoring is internal only.
   instead of forcing a second migration on documents that would by then hold data.
 
 **Why this is in 008 rather than deferred.** `script.xsd` is already open under a granted exception,
-the goldens are already being re-cut once (D29), and the conversion pass already exists. Doing it later
-means opening the schema a third time and re-cutting goldens a second time. The one condition that
+the goldens are already being re-cut under FR-010's recorded events (D29), and the conversion pass
+already exists. Doing it later means opening the schema again and paying for a further golden event
+beyond the three this feature sanctions. The one condition that
 would reverse this: if the replacement feature is imminent, delete-then-re-add churns the schema twice
 — the design work is captured in `specs/planning/envelope-feature.md` precisely so that it is not.
 
@@ -435,9 +436,12 @@ shape.
 7. **Given** the script schema, **When** its `TimecodeType` is searched for, **Then** it is still
    present — it is the lexical type of the inner `<CTimecode>` element and already carries the
    canonical `HH:MM:SS.mmm` pattern.
-8. **Given** the golden corpus, **When** it is re-cut, **Then** the re-cut is a single reviewed diff
-   whose every changed line is the duration shape change, and the pre-change files still exist under
-   a retained old-version fixture path.
+8. **Given** the golden corpus, **When** it is re-cut, **Then** the re-cut is FR-010's **first recorded
+   event** — a single reviewed diff whose every changed line is the duration shape change or the
+   fade-profile deletion (FR-007a) — and the pre-change files still exist under a retained old-version
+   fixture path. The fade-profile deletion accounts for **one changed golden**, `fade_showcase.xml`
+   being the only document in the tree that carries `fade_profiles`; the narrowed `ActionType`
+   contributes no changed line at all, since no corpus document carries `fade_in` or `fade_out`.
 
 ---
 
@@ -774,18 +778,47 @@ the document, the field, the prior value and the substituted value.
   `<CTimecode>` element and already carries the canonical pattern.
 - **FR-009**: The canonical timecode form MUST be `HH:MM:SS.mmm` everywhere after this feature; no
   surviving pattern, default or example may express the frame-based `HH:MM:SS:FF` form.
-- **FR-010**: The golden corpus MUST be re-cut **once**, as a single reviewed diff that is part of this
-  decision rather than a consequence of it. Every changed line MUST be attributable to FR-003.
+- **FR-010**: The golden corpus MUST be re-cut in **recorded events only**, never as a
+  regenerate-to-pass. **Three** events are sanctioned by this feature and no fourth is:
+  1. **ITEM A's reviewed diff** — every changed line attributable to FR-003's duration reshape or to
+     FR-007a's fade-profile deletion. The two have very different blast radii and the diff MUST be
+     bounded by both: the duration reshape touches every golden of a document carrying a `<duration>`,
+     while the fade-profile deletion touches **exactly one golden, in one place** — `fade_showcase.xml`
+     is the only document in the tree that carries `fade_profiles`, and it carries one. (FR-029a's
+     `ActionType` narrowing changes no golden at all: no corpus document carries `fade_in` or
+     `fade_out`, per SC-012a.)
+  2. **ITEM D's replacement** of `tests/golden/generated/` when `create_script` is superseded
+     (FR-033). This is a *producer change*, not a second cut of the same artifact.
+  3. **ITEM E's renormalisation** once `doc_version` is emitted on every written document (FR-053) —
+     every changed line MUST be the added root attribute and nothing else.
+
+  Each event is its own reviewed commit with its rationale in the commit body. *An earlier draft of
+  this requirement demanded a single cut attributable to FR-003 alone; clarification sessions (c) and
+  (d) added two further golden-affecting changes and FR-053 adds a third, so the obligation is stated
+  as three enumerated events rather than left unsatisfiable.*
 - **FR-011**: The pre-change golden and corpus files MUST be **retained** under an old-version fixture
   path. They are the only first-party collection of real old-shape documents in existence and they are
   ITEM E's conversion fixtures. Deleting them is prohibited.
-- **FR-012**: This feature's `.xsd` edits MUST be recorded as D3's second through fifth exceptions, each
-  scoped to the file and change it names: `settings.xsd`'s dead-type deletion (FR-007, ITEM A),
-  `script.xsd`'s `Media.duration` promotion (FR-002, ITEM A), the version-marker attribute on all six
-  root types (FR-048a, ITEM E), and `script.xsd`'s `ActionType` narrowing (FR-029a, ITEM D). Three land
-  in Phase 1 and one in Phase 2. **Two of the four invalidate documents on disk** — the duration
-  promotion and the `ActionType` narrowing — and both are granted only because ITEM E's conversion
-  carries them; that conditionality MUST be recorded with the exceptions, not separately from them.
+- **FR-012**: This feature's `.xsd` edits MUST be recorded as D3's second through **sixth** exceptions,
+  each scoped to the file and change it names:
+
+  | # | Exception | Requirement | Item | Phase | Documents on disk |
+  |---|---|---|---|---|---|
+  | 2nd | `settings.xsd`'s dead timecode pair deleted | FR-007 | A | 1 | untouched |
+  | 3rd | `script.xsd`'s `Media.duration` promoted | FR-002 | A | 1 | **invalidated** |
+  | 4th | version-marker attribute on all six root types | FR-048a | E | 2 | untouched |
+  | 5th | `script.xsd`'s `ActionType` narrowed | FR-029a | D | 1 | **invalidated** |
+  | 6th | `script.xsd`'s fade-profile surface deleted | FR-007a | A | 1 | **invalidated** |
+
+  **Four land in Phase 1 and one in Phase 2. Three of the five invalidate documents on disk** — the
+  duration promotion, the `ActionType` narrowing and the fade-profile deletion — and all three are
+  granted only because ITEM E's conversion carries them (FR-051, FR-051a, FR-051c respectively). That
+  conditionality MUST be recorded with the exceptions, not separately from them.
+
+  The record MUST live in the migration guide, where a future reader looking for this precedent's
+  scope will find it alongside the consumer impact each exception creates. *Sessions (c) and (d) added
+  the fifth and sixth exceptions after this requirement was first written; it enumerated four until
+  the `/speckit.analyze` pass caught the omission.*
 
 ### ITEM B — Configuration write paths *(Phase 1)*
 
@@ -796,11 +829,18 @@ the document, the field, the prior value and the substituted value.
   symmetric with the existing network-map save accessor.
 - **FR-015**: For each of the three domains, a document MUST survive load → save → load with an equal
   object and a byte-identical document, measured against the input normalised to the writer's output
-  form.
+  form. **Once FR-053 lands, the writer's output form includes the `doc_version` root attribute**; the
+  normalisation MUST absorb it, so that Phase 2 does not silently invalidate Phase 1's round-trip
+  fixtures. *This clause does not make FR-015 a Phase 2 criterion and does not breach FR-057: the
+  normaliser ignores an attribute that is not yet written, so the requirement is judgeable in full with
+  no part of ITEM E in the tree. What it forbids is writing the normaliser so narrowly that Phase 2 has
+  to come back and widen it.*
 - **FR-016**: A routine save MUST NOT write a backup. Backups are a **schema-upgrade** artifact, not a
   general write-path behaviour (FR-041b): a configuration object saved in the ordinary course — an
   operator changing a setting, a node writing an adoption — overwrites its file directly. FR-017's
   all-or-nothing guarantee is what protects that write; a copy of every prior state is not.
+  **FR-041b is the single normative statement of the backup rule**; this requirement is its consequence
+  for the routine configuration write path and MUST NOT be edited independently of it.
 - **FR-017**: A save that fails MUST leave the destination holding either the complete prior content or
   the complete new content, never a partial document.
 - **FR-018**: The save operation's name and signature MUST be fixed in this feature's data model as a
@@ -855,6 +895,12 @@ the document, the field, the prior value and the substituted value.
   machinery that reads enumeration facets and republishes them to consumers (FR-029), so a value left
   in a facet is a value offered to the cue-creation UI. Auditing them once, here, is what stops the
   descriptor from propagating dead vocabulary through the machinery built to end drift.
+  **The audit is an artifact, and the test is written against it — not against the predicate.**
+  "A value nothing in the system honours" is a judgment over three consumer repositories, not something
+  a test can decide, so the audit MUST first produce a **recorded per-value verdict table** (value,
+  enumeration, verdict, evidence, date), and the test then asserts that each enumeration's facets equal
+  that table's retained set. Writing a test that itself decides what is honoured would be a test
+  asserting an opinion.
 - **FR-029c**: **FR-029a and FR-007a are two decisions, and MUST be implemented and reviewed as two.**
   Both remove something spelled "fade", in the same schema, in the same feature — but they rest on
   different evidence and land in different items and phases. FR-029a removes two `xs:enumeration`
@@ -886,9 +932,10 @@ the document, the field, the prior value and the substituted value.
   declaration and exposes it against the field the rule targets. A field that no rule targets cannot be
   flagged as violating anything, so it classifies on default presence alone (FR-031a). Three
   consequences the plan must carry:
-  - The maintained surface is **the rules, not the fields** — 15 declarations today, rather than an
-    annotation on every field across six schemas. An annotation nobody maintains is precisely the drift
-    this descriptor exists to end, so the smaller surface is the point, not a convenience.
+  - The maintained surface is **the rules, not the fields** — 15 declarations today and **10 after
+    FR-007a deletes the five fade-profile rules**, rather than an annotation on every field across six
+    schemas. An annotation nobody maintains is precisely the drift this descriptor exists to end, so the
+    smaller surface is the point, not a convenience.
   - Adding a semantic rule later MUST require declaring its repairability. A rule that does not declare
     is a defect, not a rule that silently defaults to repairable.
   - Reading the rule surface does **not** breach FR-027's independence from the runtime object model.
@@ -997,18 +1044,18 @@ the document, the field, the prior value and the substituted value.
   begins matching its behaviour. Promotion to a real `FadeCue` is explicitly **not** the conversion: it
   would have to invent `curve_type`, `duration` and `target_value`, and would change how converted
   shows behave.
-- **FR-051c**: The marker's **third** client MUST be FR-007a's fade-profile deletion: a document
-  carrying `<fade_profiles>` has those elements **dropped** by the conversion. Dropping data is
-  normally prohibited, and this is the recorded exception — the elements carry no meaning any consumer
-  reads (FR-007b), and retaining them would fail validation against a schema that no longer declares
-  them. The conversion MUST report every dropped element through the same structured report (FR-046),
-  so a document silently losing content is not possible.
 - **FR-051b**: Having **three** independent conversions (FR-051, FR-051a, FR-051c) in the one schema
   whose version they all move, the version marker MUST be shown to carry **all three at one version
   step** — one `script` version increment, three transformations. A mechanism that needs a version per
   change is a per-change tell wearing a version number, which FR-048 prohibits. Three is materially
   better evidence than one: it is the difference between a mechanism that works and a mechanism shown
   to compose.
+- **FR-051c**: The marker's **third** client MUST be FR-007a's fade-profile deletion: a document
+  carrying `<fade_profiles>` has those elements **dropped** by the conversion. Dropping data is
+  normally prohibited, and this is the recorded exception — the elements carry no meaning any consumer
+  reads (FR-007b), and retaining them would fail validation against a schema that no longer declares
+  them. The conversion MUST report every dropped element through the same structured report (FR-046),
+  so a document silently losing content is not possible.
 - **FR-051d**: A version step whose conversion is the **identity** MUST be supported. This is not a
   degenerate case to tolerate — it is the expected shape of every purely additive change, which the
   schema-evolution convention's rule 1 makes the normal way schemas grow. An additive change needs no
@@ -1022,7 +1069,11 @@ the document, the field, the prior value and the substituted value.
   it MUST therefore be covered by its own test rather than left to the first feature that needs it.
 - **FR-052**: A document whose marker is **newer** than the running library MUST raise a distinguishable
   diagnostic. It is neither old nor repairable.
-- **FR-053**: Every document this library writes after this feature MUST carry the marker.
+- **FR-053**: Every document this library writes after this feature MUST carry the marker. Because this
+  changes **every** writer's output, it invalidates the goldens cut in Phase 1 and the config round-trip
+  fixtures of FR-015. Both consequences MUST be discharged deliberately: the goldens by FR-010's third
+  recorded event, the fixtures by FR-015's normalisation. Neither may be left to be discovered as a red
+  suite.
 
 ### Cross-cutting
 
@@ -1123,12 +1174,23 @@ the document, the field, the prior value and the substituted value.
   reviewed.
 - **SC-002**: Every one of the seven yields the same object type from load and the same shape on both
   wires, asserted by a test that treats the promoted element and the six pre-existing ones identically.
-- **SC-003**: The golden re-cut is a single commit whose diff is 100% attributable to the duration shape
-  change, and the pre-change files remain present under a retained fixture path — counted before and
-  after.
-- **SC-004**: Zero occurrences of the frame-based `HH:MM:SS:FF` timecode form remain in any schema,
-  default, model class or example. The settings schema's dead timecode pair and its Python binding are
-  gone; the show schema's `TimecodeType` is present.
+- **SC-003**: Each of FR-010's **three** golden events is a single reviewed commit whose diff is 100%
+  attributable to the change that event names — ITEM A's to the duration reshape and the fade-profile
+  deletion, ITEM D's to the generator replacement, ITEM E's to the added `doc_version` attribute — and
+  the count of golden re-cuts *not* on that list is **zero**. Event 1's fade-profile share is
+  **exactly one changed golden**, `cuems-utils__fade_showcase.xml`; a second fade-attributable file in
+  that diff is a defect, not a variation. The pre-change files remain present under a retained fixture
+  path, counted before and after.
+- **SC-004**: Zero occurrences of the frame-based `HH:MM:SS:FF` timecode form remain in any schema
+  **pattern, default, example or model-class value**. The settings schema's dead timecode pair and its
+  Python binding are gone; the show schema's `TimecodeType` is present.
+  **Scope, stated because a literal count would fail**: `src/cuemsutils/tools/CTimecode.py` carries four
+  `00:00:00:00` occurrences (lines 24, 78, 82, 242) in **docstrings explaining the wrapped library's
+  frame-1 semantics** — why the wrapper canonicalizes at all. Those MUST survive; deleting them removes
+  the explanation, not the form. The count is of the frame-based form being *used* — as a pattern, a
+  default, an example or a stored value — not of prose describing it. Confirmed by measurement:
+  `settings.xsd:140`'s `default="00:00:00:00"` is the **only** frame-based default in any of the six
+  schemas, and it is inside the block FR-007 deletes.
 - **SC-005**: The dead code the promotion exposes is gone, not orphaned: the setter's type dispatch and
   the semantic rule's string branch are removed, and the adapter binding's fate is recorded with the
   verification evidence behind it.
@@ -1154,16 +1216,24 @@ the document, the field, the prior value and the substituted value.
 - **SC-011b**: 100% of registered semantic rules declare their repairability; the count of rules that do
   not is zero, and a rule added without a declaration is rejected by test rather than defaulting.
 - **SC-012a**: `script.xsd`'s `ActionType` enumerates 12 values, not 14: `fade_in` and `fade_out` are
-  absent, `fade_action` is present, and the descriptor publishes exactly the 12. Zero schema
-  enumerations anywhere in the six schemas offer a value the system does not honour, per FR-029b's
-  audit — recorded with evidence per value, not asserted.
+  absent, `fade_action` is present, and the descriptor publishes exactly the 12. Every enumeration's
+  facets across the six schemas equal the retained set of FR-029b's **recorded per-value verdict
+  table**, and the count of values in any facet with no verdict recorded against them is **zero** —
+  measured against the table, not against a test's own opinion of what the system honours.
 - **SC-012b**: A purpose-built fixture document carrying `fade_in` and `fade_out` action cues exists
   and converts to `play` and `stop`. It must be constructed rather than found: the corpus contains
   only `fade_action` and `play`, so nothing on hand proves this conversion.
 - **SC-012c**: The two fade removals are **independently revertible**, demonstrated rather than
   asserted: with FR-007a reverted, FR-029a alone still applies cleanly and the fade-profile surface
-  remains bound, validated by all five rules, and byte-identical in the goldens. This is the test that
-  they were kept as two decisions rather than one search-and-replace.
+  remains bound, validated by all five rules, and byte-identical **against the retained pre-008 copies**
+  (FR-011) — *not* against `tests/golden/`, which by then has been re-cut without fade profiles by
+  FR-010's first event and therefore offers no baseline. This is the test that they were kept as two
+  decisions rather than one search-and-replace.
+  **What carries the weight here is the model half, and the criterion says so rather than implying more
+  than the corpus holds**: "bound and validated by all five rules" exercises the registry, the two model
+  classes and five registered rules, whereas the document half rests on a **single `fade_profiles`
+  occurrence in a single file** — `fade_showcase.xml` is the only document in the tree that has one. The
+  independence claim is proven by the model surface surviving intact, not by the byte comparison.
 - **SC-012**: `create_script` and the hand-maintained settings reference instance are both gone, and the
   descriptor answers every question they were consulted for — including the two frontend call sites that
   read concrete values, each demonstrated answerable from the descriptor alone.
@@ -1268,9 +1338,15 @@ the document, the field, the prior value and the substituted value.
 6. **`create_script`'s output does not need to stay byte-identical**, and its faulty logic does not need
    to be carried forward (D25). This removes the additive-shipping constraint an earlier draft imposed on
    the descriptor and is the reason `create_script` is deleted rather than kept alongside.
-7. **The frontend's template surface is small and bounded** — about seven call sites across two files —
-   and at least two of them read concrete values rather than shape. That is why FR-030 makes defaults
-   mandatory and why a shape-only descriptor would leave 009 with nothing to migrate onto.
+7. **The frontend's template surface is small and bounded**, and at least two of its call sites read
+   concrete values rather than shape. That is why FR-030 makes defaults mandatory and why a shape-only
+   descriptor would leave 009 with nothing to migrate onto.
+   *An earlier draft put this at "about seven call sites across two files". The file count is wrong —
+   **three** files consume the template (`project-edit/sequence/sequence.component.ts`,
+   `services/projects/handlers/project-create.handler.ts`, `project-edit/project-edit.component.ts`) —
+   and the call-site count was never verified. T081 enumerates them rather than inheriting the estimate;
+   the two concrete-value sites are confirmed at `project-edit/sequence/sequence.component.ts:688` and
+   `:727`.*
 8. **This feature adds no new semantic rules.** Four of six schemas have zero today and will have zero
    after. FR-037 makes semantic validation *run* everywhere; it does not make it *find* anything new in
    those four.
@@ -1299,6 +1375,11 @@ the document, the field, the prior value and the substituted value.
 - **The retained pre-change corpus (FR-011)** is a dependency of Phase 2, produced by Phase 1. This is the
   clearest instance of why the phases are ordered rather than parallel.
 - **`cuems-nodeconf`'s `CuemsNodeConf`** — read as the behavioural reference for ITEM C, not edited.
+- **`cuems-editor`** — read for measurement, not edited. Two requirements measure against it and cannot
+  be discharged without a local checkout: FR-007b/FR-053c's zero-reference count for the fade-profile
+  surface, and FR-029b's enumeration audit. It also carries migration-guide entries (the raw-dict fixups
+  and the parser call sites, FR-054). Listed here because a dependency that is only read is still a
+  dependency — the measurement is the entire basis for deleting a reachable schema surface.
 - **`cuems-frontend`'s settings component and the engine's dispatch path** — the live UI and dispatch chain
   ITEM C's API must remain a valid target for. Neither is edited here.
 - **Feature 009** — a hard successor. It executes every migration-guide entry this feature writes.

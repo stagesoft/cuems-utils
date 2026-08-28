@@ -32,9 +32,12 @@ but **not** in the XML path.
 **Project Type**: Single library (`cuemsutils` on PyPI), consumed by engine, editor, nodeconf, common
 **Performance Goals**: FR-PERF-002 — show load ≤ 200% and ≤ 50 ms absolute; config domain load
 ≤ 110%; suite ≤ 110% of 24.79 ms/test (007's baseline, 2026-08-24)
-**Constraints**: `project_load` payload byte-identical (Part 2d hard constraint); no UI channel in the
-library; five recorded D3 relaxations and no sixth
-**Scale/Scope**: 6 schemas, ~56 complex types, 15 registered semantic rules, 2393-test suite
+**Constraints**: `project_load` payload byte-identical **modulo FR-003's deliberate duration reshape**
+(Part 2d hard constraint — the constraint is that nothing *else* moves it, and in particular that
+`doc_version` never reaches it); no UI channel in the library; five recorded D3 relaxations — D3's
+second through **sixth** exceptions — and no seventh
+**Scale/Scope**: 6 schemas, ~56 complex types, 15 registered semantic rules (**10 after FR-007a**
+deletes the five fade-profile rules), 2393-test suite
 
 **No NEEDS CLARIFICATION remain.** Spec carries zero markers; every mechanism the audit left open
 (E10 especially) is resolved in [research.md](research.md) R1–R10.
@@ -62,7 +65,9 @@ Each of the five items needs fail-then-pass tests, the discipline 005 applied to
 changes.
 
 - **ITEM A**: the seventh element's typing, storage and both wire shapes; the golden re-cut as a
-  reviewed diff (standing rule 3's one recorded exception, D29) with originals retained.
+  reviewed diff (standing rule 3's recorded exception, D29) with originals retained. **FR-010 sanctions
+  three golden events across the feature — A's cut, D's generator replacement, E's `doc_version`
+  renormalisation — and no fourth**; each is its own reviewed commit, never a regenerate-to-pass.
 - **ITEM B**: round-trip per domain; interrupted-write atomicity; **zero backups from routine saves**.
 - **ITEM C**: **characterization tests written against `CuemsNodeConf`'s current behaviour *before* the
   port** (E23) — the discipline applied to code this repository does not own yet, so equivalence is
@@ -103,7 +108,7 @@ candidates are not violations.
 ```text
 specs/008-rebuild-extension/
 ├── plan.md              # This file
-├── spec.md              # 81 FRs, 43 SCs, 4 clarification sessions
+├── spec.md              # 80 FRs, 42 SCs, 4 clarification sessions
 ├── research.md          # Phase 0 — R1..R10
 ├── data-model.md        # Phase 1 — incl. the two hand-off interfaces (§2, §3)
 ├── quickstart.md        # Phase 1 — measurement method, phase-gate check
@@ -128,7 +133,8 @@ src/cuemsutils/
 │   ├── AudioCue.py, VideoCue.py # A: fade_profiles declared defaults removed
 │   └── FadeProfile.py           # A: DELETED
 ├── config/
-│   ├── settings.py              # A: CTimecodeType deleted.  B: save()
+│   ├── base.py                  # B: shared atomic-write helper (temp file + os.replace)
+│   ├── settings.py              # A: CTimecodeType deleted.  B: save() ×2 (settings, project_settings)
 │   ├── mappings.py              # B: save() for project_mappings
 │   └── network_map.py           # C: refresh()
 ├── tools/
@@ -145,11 +151,14 @@ src/cuemsutils/
 │   ├── mapper.py                # E: emit doc_version in build_document
 │   ├── descriptor.py            # D: NEW
 │   └── versioning.py            # E: NEW — marker probe + conversion registry
-└── templates/settings.xml       # D: DELETED
+└── xml/registry.py              # A: FadeProfile bindings removed
+
+templates/settings.xml           # D: DELETED — repo root, NOT under src/cuemsutils/
 
 tests/
 ├── data/corpus/pre-008/         # A: retained originals — E's conversion fixtures
-├── golden/                      # A: re-cut once, reviewed
+├── golden/                      # A: cut, then replaced in D, then renormalised in E
+│                                #    — FR-010's three recorded events, no fourth
 ├── unit/, integration/, contract/
 ```
 
@@ -169,7 +178,8 @@ Promote `Media.duration` to `cms:CTimecodeType`, put it on the same `format_time
 
 The wire changes deliberately, in XML and JSON alike. **No "wire unaffected" check is written** — E4
 settles that the field is bound to `_String()`, so no such version of this change ever existed.
-Goldens are re-cut **once** as a reviewed diff, originals retained under `tests/data/corpus/pre-008/`.
+Goldens are cut here as a reviewed diff — FR-010's **first** of three recorded events — with originals
+retained under `tests/data/corpus/pre-008/`.
 
 *Judgeable without ITEM E: seven elements, one type, one machinery, zero string exceptions, dead code
 gone.*
@@ -209,6 +219,12 @@ Strict reading across all six schemas with D21's three outcomes; the `doc_versio
 conversion registry carrying `script` 1→2's three transformations at one step; the public report; the
 standalone tool. Reverses standing rule 8 for **semantic** validation only, recorded as a decision.
 
+**The marker's write side reaches back into Phase 1's artifacts, and that is scheduled rather than
+discovered.** Emitting `doc_version` from `build_document` changes *every* document this library
+writes, so the goldens cut in ITEMs A and D and the config round-trip fixtures of FR-015 all move. Both
+are discharged deliberately — the goldens by FR-010's third recorded event, the fixtures by FR-015's
+normalisation absorbing the attribute. A red suite is not an acceptable way to learn this.
+
 **Honest about coverage** (FR-039): every registered rule targets a `script.xsd` type except one
 `project_mappings` rule. Four domains have zero. "T2 across six schemas" is mostly plumbing there, and
 saying so is what keeps the measured cost from being attributed to enforcement that is not happening.
@@ -230,18 +246,25 @@ gate bought nothing.
 the spec is judgeable with no part of ITEM E in the tree. The one that needed care: ITEM D's
 repairability classification (FR-031a) is a Phase 1 deliverable whose **only consumer is in Phase 2**,
 so it is judged on its own terms — zero unclassified fields, every rule declaring — rather than by
-exercising a repair. That is stated in the spec at US4 scenario 4b and SC-011a/SC-011b.
+exercising a repair. That is stated in the spec at US4 scenario 4b and SC-011a/SC-011b. The gate
+**records** this as its fifth condition (tasks T084(e)) rather than leaving it implied by "merged and
+green" — FR-057/SC-014 ask for a check, and an unrecorded check is indistinguishable from an assumption.
 
 **4. What the gate is not.** Not a release boundary — D27 holds, nothing ships until 009. Not a scope
 split — one spec, one plan, one tasks.md, one feature number, one migration guide.
 
 When tasks are generated, the gate must be **structure, not a comment**: every task grouped under
 Phase 1 or Phase 2, an explicit gate task between them, and no Phase 2 task marked parallel-safe with
-a Phase 1 task.
+a Phase 1 task. As landed, `tasks.md` carries **no parallel markers at all** — dropped by decision on
+2026-08-28 after `/speckit.analyze` found them claiming parallel-safety for tasks that write the same
+file — so this condition is met by construction rather than by annotation. See tasks.md §Execution
+order.
 
-**Then `/speckit.optimize`** — read against D28. It looks for parallelisation and this feature has
-deliberately given some up. Accept findings *within* a phase; reject any that reorder across the seam
-or move work earlier than the item it depends on.
+**Then `/speckit.optimize`** — read against D28, and against that decision. It looks for
+parallelisation; this feature has deliberately given all of it up, so a finding that merely observes
+tasks *could* run concurrently is not new information. Accept findings that correct a **dependency**
+within a phase; reject any that reorder across the seam, move work earlier than the item it depends on,
+or re-propose parallel markers.
 
 ## Complexity Tracking
 
