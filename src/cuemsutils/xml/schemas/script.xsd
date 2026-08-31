@@ -1,4 +1,9 @@
 <?xml version="1.1" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+SPDX-License-Identifier: GPL-3.0-or-later
+SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
+-->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" vc:minVersion="1.1" targetNamespace="https://stagelab.coop/cuems/" xmlns:cms="https://stagelab.coop/cuems/">
   <!-- The main capsule to make it a whole, named CueMs -->
   <!-- Our main object the script-->
@@ -251,12 +256,18 @@
     </xs:restriction>
   </xs:simpleType>
 
+  <!-- linear/sigmoid/ease_in/ease_out are the curves gradient-motiond's
+       CurveFactory implements (the editor UI submits only these);
+       exponential/logarithmic are legacy names kept so old projects still
+       load — the frontend heals them to ease_in/ease_out on next save. -->
   <xs:simpleType name="FadeCurveType">
     <xs:restriction base="xs:string">
       <xs:enumeration value="linear" />
       <xs:enumeration value="exponential" />
       <xs:enumeration value="logarithmic" />
       <xs:enumeration value="sigmoid" />
+      <xs:enumeration value="ease_in" />
+      <xs:enumeration value="ease_out" />
     </xs:restriction>
   </xs:simpleType>
 

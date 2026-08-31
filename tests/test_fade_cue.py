@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
+
 """Unit and integration tests for FadeCue."""
 
 from os import path
@@ -45,11 +49,11 @@ def test_fade_cue_explicit_construction():
     assert fc.target_value == 75
 
 
-def _make_script_with_fade_cue():
+def _make_script_with_fade_cue(curve_type=FadeCurveType.linear):
     """Helper: build a minimal CuemsScript containing one FadeCue."""
     fc = FadeCue({
         'action_target': TARGET_UUID,
-        'curve_type': FadeCurveType.linear,
+        'curve_type': curve_type,
         'duration': '00:00:05.000',
         'target_value': 50,
     })
@@ -126,6 +130,36 @@ def test_invalid_curve_type_raises():
     fc = FadeCue()
     with pytest.raises(ValueError):
         fc.curve_type = 'triangle'
+
+
+@pytest.mark.parametrize('curve', ['linear', 'sigmoid', 'ease_in', 'ease_out'])
+def test_engine_native_curve_type_round_trip(curve):
+    """Every curve name the editor UI submits survives the XML round-trip.
+
+    The frontend sends gradient-motiond's own CurveFactory names (its
+    "exponential"/"logarithmic" labels submit ease_in/ease_out), so both the
+    Python enum and the script.xsd enumeration must accept all four.
+    """
+    script, _ = _make_script_with_fade_cue(FadeCurveType(curve))
+    writer = XmlReaderWriter(schema_name='script', xmlfile=TMP_FILE)
+    writer.write_from_object(script)
+    assert writer.validate() is None
+
+    reader = XmlReaderWriter(schema_name='script', xmlfile=TMP_FILE)
+    loaded_fc = reader.read_to_objects().cuelist.contents[0]
+    assert loaded_fc.curve_type == FadeCurveType(curve)
+
+
+@pytest.mark.parametrize('curve', ['exponential', 'logarithmic'])
+def test_legacy_curve_type_still_accepted(curve):
+    """Legacy curve names keep loading so old projects don't break.
+
+    gradient-motiond never implemented these; the frontend heals them to
+    ease_in/ease_out on load, but utils must keep accepting them until then.
+    """
+    fc = FadeCue()
+    fc.curve_type = curve
+    assert fc.curve_type == FadeCurveType(curve)
 
 
 def test_zero_duration_raises():
