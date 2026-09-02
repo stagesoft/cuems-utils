@@ -87,3 +87,73 @@ def invalid_both_tiers() -> CuemsScript:
     dict.__setitem__(script, "id", BAD_UUID)
     dict.__setitem__(script.cuelist, "id", BAD_UUID)
     return script
+
+
+def repairable_violation() -> CuemsScript:
+    """One T2 violation the descriptor classifies **repairable** (feature 008,
+    ITEM E, US7) — a fade cue whose ``action_type`` is a valid enum member
+    for *some* cue type but not for ``FadeCue`` specifically.
+
+    ``fade_action_type`` is registered ``repairable=True``:
+    ``FadeCue.REQ_ITEMS['action_type']`` is ``'fade_action'``, the one value
+    the rule accepts, so substituting it *is* the repair. Deliberately not a
+    ``target_value``/``curve_type`` violation: both of those are *also*
+    constrained at the schema (T1) level by the same enumeration/range the T2
+    rule checks, so a value that violates either would already fail T1 during
+    decode and never reach this rule — a document on disk cannot demonstrate
+    it. ``action_type`` is different: ``cms:ActionType`` is shared across
+    every action-carrying cue type and permits values (``'play'``, ``'stop'``,
+    ...) that are perfectly valid **XML**, just not valid **for a FadeCue** —
+    which is exactly the cross-field constraint XSD cannot express and T2
+    exists for.
+
+    Contrasts with :func:`semantically_invalid`, whose
+    ``canvas_region_containment`` violation is ``repairable=False`` — between
+    the two, a test exercises both sides of FR-043/FR-044's boundary on the
+    same load path (SC-020a) rather than assuming one implies the other.
+    """
+    from cuemsutils.cues.FadeCue import FadeCue
+
+    script = build_generated_script()
+    fade = next(c for c in script.cuelist.contents if isinstance(c, FadeCue))
+    dict.__setitem__(fade, "action_type", "play")
+    return script
+
+
+def unrepairable_violation_reaching_the_t2_tier() -> CuemsScript:
+    """One T2 violation the descriptor classifies **unrepairable**, that
+    still reaches ``xml.validators.repair`` rather than failing at *decode*
+    time (feature 008, ITEM E, US7).
+
+    :func:`semantically_invalid`'s ``canvas_region_containment`` violation
+    does not serve here: ``VideoCueOutputsType`` is an ``OPAQUE_TYPE``, so
+    decoding it calls ``VideoCueOutput.__init__``, which runs the same
+    containment check itself, *before* the object exists for ``repair`` to
+    walk (FR-024d — the same reason ``test_semantic_not_on_read.py`` does not
+    use it either). An action cue with no target is different: ``TargetType``
+    accepts the empty string and decodes it to ``None`` without complaint
+    (``_UuidAdapter.decode``), so the document decodes cleanly and it is
+    ``action_target_required`` (``repairable=False`` — its own default *is*
+    ``None``, the exact value it rejects) that catches it, downstream, on the
+    load path this feature adds.
+    """
+    from cuemsutils.cues.ActionCue import ActionCue
+
+    script = build_generated_script()
+    action = next(c for c in script.cuelist.contents if isinstance(c, ActionCue))
+    dict.__setitem__(action, "action_target", None)
+    return script
+
+
+def write_bypassing_validation(script: CuemsScript, path) -> None:
+    """Write ``script`` to ``path`` **without** going through ``save()``'s own
+    T1/T2 check, which would refuse every fixture in this module by design.
+
+    Every fixture above is invalid on purpose, so it has to reach disk by the
+    same tree-building machinery ``save()`` itself uses (``build_tree`` /
+    ``write_tree``), stopping one step short of the validation ``save()``
+    layers on top.
+    """
+    from cuemsutils.xml.documents import build_tree, write_tree
+
+    write_tree(build_tree(script, "script"), path)
