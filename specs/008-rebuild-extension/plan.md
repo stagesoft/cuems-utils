@@ -266,6 +266,21 @@ tasks *could* run concurrently is not new information. Accept findings that corr
 within a phase; reject any that reorder across the seam, move work earlier than the item it depends on,
 or re-propose parallel markers.
 
+## T084 — the gate, recorded (D30)
+
+Checked 2026-09-02, against the landed tree rather than the plan. All five conditions hold:
+
+| # | Condition | Evidence |
+|---|---|---|
+| (a) | Phase 1 (T001–T083) complete | Setup + ITEMs A–D implemented and tested on `008-rebuild-extension`; commit split into logically-scoped commits happens per the same standing practice as Setup/A/B/C before Phase 2 work lands on top |
+| (b) | Suite green | `baseline.md`'s T083 entry: 2395 passed, 0 failed, `pyenv exec hatch test -py 3.11` |
+| (c) | Config `save()` interface landed, unchanged | `data-model.md` §2, frozen at T036 — untouched since |
+| (d) | Descriptor interface landed, unchanged, including defaults **and** repairability | `data-model.md` §3, frozen at T082 |
+| (e) | Every Phase 1 acceptance criterion demonstrated green with no part of ITEM E in the tree | No ITEM E artifact exists yet (`xml/versioning.py`, `errors.LoadReport`/`Outcome`/`RepairRecord`/`ConversionRecord`, `doc_version` on any schema) — verified absent, not merely unplanned |
+
+**Not a release boundary** (D27, D31.4): nothing ships until feature 009 lands. Phase 2 (ITEM E) is
+now authorised to begin, written against §2 and §3 above as landed code.
+
 ## Complexity Tracking
 
 *No constitution violations. Two candidates were considered and are recorded here as accounted-for

@@ -58,3 +58,46 @@ of that dict-flattening defect.
 
 Recorded once Phase 1 (ITEMs A–D) is complete and green — see plan.md D30 / quickstart.md "Phase gate
 check".
+
+### T083 — suite green, measured 2026-09-02
+
+Same method as T002's pre-feature baseline above — `pyenv exec hatch test -py 3.11` — so the two
+figures are comparable on the same basis. (A parallel raw-`pytest` run collects 2497 tests against
+hatch's 2493: `tests/test_signalengine.py`'s four tests are absent from hatch's isolated venv, which
+does not carry `systemd-python`, this repository's dependency for `tools.SignalEngine`, CLAUDE.md. This
+gap pre-dates 008 and is a venv-completeness difference, not a Phase 1 regression — it does not appear
+in either figure below.)
+
+```
+PYENV_VERSION=3.11.9 pyenv exec hatch test -py 3.11
+```
+
+```
+2395 passed, 96 skipped, 2 xfailed, 213 warnings in 54.72s
+```
+
+Per-test figure: 54.72s / 2395 = **22.85 ms/test** — under the ≤ 27.27 ms/test budget (FR-PERF-002),
+and *faster* than T002's pre-feature 24.86 ms/test despite the suite growing by 128 tasks' worth of new
+tests (2393 → 2395 passed is misleadingly small because two tests moved to `skipped`/`xfailed`; the
+tree gained far more than 2 tests across Setup + ITEMs A–D — see each item's own test count in its
+tasks.md section).
+
+### T084 — GATE (D30), recorded
+
+All five conditions verified 2026-09-02:
+
+- **(a) Phase 1 complete.** T001–T083 implemented and tested on `008-rebuild-extension`; not yet
+  committed as of this recording — commit-splitting happens on request, per this feature's standing
+  practice (Setup/A/B/C each landed as their own reviewed commit).
+- **(b) Suite green.** T083 above: 2395 passed, 0 failed.
+- **(c) Config `save()` interface landed and unchanged.** `data-model.md` §2, frozen at T036 (ITEM B);
+  untouched by ITEM D.
+- **(d) Descriptor interface landed and unchanged, including defaults and repairability.**
+  `data-model.md` §3, frozen at T082 (ITEM D) — see that section's landed-and-frozen note.
+- **(e) Every Phase 1 acceptance criterion demonstrated green with no part of ITEM E present.** No
+  ITEM E file exists in this tree yet (`xml/versioning.py`, `errors.py`'s `LoadReport`/`Outcome`/
+  `RepairRecord`/`ConversionRecord`, `doc_version` on any schema — none are present), so (a)/(b) above
+  establish this by construction rather than by a separate demonstration.
+
+**Not a release boundary** (D27): nothing ships until feature 009 lands. Phase 2 (ITEM E) may now
+begin, written against `data-model.md` §2 and §3 as landed code.
