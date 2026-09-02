@@ -136,12 +136,55 @@ class CuemsNetworkMapType(ConfigDict):
                 carries the violation (FR-034b).
             OSError: propagated unwrapped, exactly as ``CuemsScript.save``.
         """
-        from ..errors import SchemaError
-        from ..xml.documents import build_tree, iter_schema_errors, write_tree
-        from ..xml.validators import violation_from_schema_error
+        save_document(self, "network_map", path)
 
-        tree = build_tree(self, "network_map")
-        for error in iter_schema_errors("network_map", tree):
-            violation = violation_from_schema_error(error)
-            raise SchemaError(str(violation), violation=violation)
-        write_tree(tree, path)
+    def refresh(self, discovered, path) -> bool:
+        """Merge discovery, keep the controller adopted, write if changed.
+
+        Orchestrates :meth:`~cuemsutils.tools.NodeList.NodeIndex.merge` and
+        :meth:`~cuemsutils.tools.NodeList.NodeIndex.set_controller_always_adopted`
+        — two of ``CuemsNodeConf.refresh_network_map``'s three steps
+        (research R7) — then writes only if the persisted fields actually
+        changed (:meth:`~cuemsutils.tools.NodeList.NodeIndex.signature`),
+        preserving the daemon's "only rewrite /etc on change" behaviour.
+        ``missing_adopted`` is the third step but is reporting only — it
+        never affects the map or the write decision in the daemon either —
+        so it is not called here; a caller that wants the warning calls
+        :meth:`~cuemsutils.tools.NodeList.NodeIndex.missing_adopted`
+        separately, on the same ``discovered`` argument.
+
+        **Not ported**: the daemon additionally clears every non-controller
+        node's ``adopted`` flag on a first run (``CuemsNodeConf.
+        set_master_always_adopted``'s ``self.is_first_run`` branch).
+        ``set_controller_always_adopted()``'s declared shape
+        (data-model.md §5) carries no such parameter, so that behaviour is
+        not reproduced here — recorded as an open item in
+        ``migration-guide.md`` rather than added silently.
+
+        Args:
+            discovered: freshly-discovered nodes, keyed however the caller's
+                discovery mechanism keys them (passed straight to ``merge``
+                and ``missing_adopted`` — never reached for internally,
+                research R7).
+            path: where to write, if a write is needed.
+
+        Returns:
+            bool: whether a write happened.
+        """
+        from ..tools.NodeList import NodeIndex
+
+        current = NodeIndex({
+            item["node"]["mac"]: item["node"]
+            for item in (self.get("node_list") or [])
+        })
+        before = current.signature()
+
+        current.merge(discovered)
+        current.set_controller_always_adopted()
+
+        if current.signature() == before:
+            return False
+
+        self["node_list"] = [{"node": n} for n in current.values()]
+        self.save(path)
+        return True

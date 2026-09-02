@@ -44,11 +44,11 @@ a Phase 1 task — still binds; it is now satisfied structurally rather than by 
 
 ### Setup
 
-- [ ] T001 Re-measure pre-feature load figures on this branch by the method in `quickstart.md` and **research R10**, which pins both the method (median of five warm runs, fresh process) and the fixture: the show document is `tests/data/corpus/cuems-engine/projects/complex_test/script.xml` — the corpus's largest at 24,183 B, **not** `fade_showcase.xml`, on which the ≤ 50 ms absolute cap could never bind. Measure that plus each of the four config domains under **pyenv 3.11.9**, and record in `specs/008-rebuild-extension/baseline.md`
-- [ ] T002 Record the current suite figure (`hatch test --show`) in `specs/008-rebuild-extension/baseline.md` and restate FR-PERF-002's three budgets as absolute numbers
-- [ ] T003 Copy the pre-change golden and corpus files to `tests/data/corpus/pre-008/` **before any schema edit**, and add a README there naming them as ITEM E's conversion fixtures per FR-011
-- [ ] T004 Add a guard test in `tests/contract/test_pre008_corpus_retained.py` asserting `tests/data/corpus/pre-008/` is non-empty and its files **parse — well-formedness only, never schema validation**. This is load-bearing, not pedantry: after T013, T018 and T066 the retained documents are deliberately *invalid* against the current schemas (old duration shape, `fade_profiles`, `fade_in`/`fade_out`), and T080 adds a fixture that is invalid by construction. A guard that validated would go red for exactly the reason the corpus exists (FR-011)
-- [ ] T004a Audit every restricted enumeration across all six schemas and record a **per-value verdict table** (value, enumeration, verdict, evidence, date) in `specs/008-rebuild-extension/enum-audit.md`, citing the consumer-repository evidence per value. This runs at Setup rather than in US4's test block because "a value nothing in the system honours" is a judgment over three repositories, not a predicate a test can decide — T059 is written **against this table**, not against the predicate (FR-029b)
+- [X] T001 Re-measure pre-feature load figures on this branch by the method in `quickstart.md` and **research R10**, which pins both the method (median of five warm runs, fresh process) and the fixture: the show document is `tests/data/corpus/cuems-engine/projects/complex_test/script.xml` — the corpus's largest at 24,183 B, **not** `fade_showcase.xml`, on which the ≤ 50 ms absolute cap could never bind. Measure that plus each of the four config domains under **pyenv 3.11.9**, and record in `specs/008-rebuild-extension/baseline.md`
+- [X] T002 Record the current suite figure (`hatch test --show`) in `specs/008-rebuild-extension/baseline.md` and restate FR-PERF-002's three budgets as absolute numbers
+- [X] T003 Copy the pre-change golden and corpus files to `tests/data/corpus/pre-008/` **before any schema edit**, and add a README there naming them as ITEM E's conversion fixtures per FR-011
+- [X] T004 Add a guard test in `tests/contract/test_pre008_corpus_retained.py` asserting `tests/data/corpus/pre-008/` is non-empty and its files **parse — well-formedness only, never schema validation**. This is load-bearing, not pedantry: after T013, T018 and T066 the retained documents are deliberately *invalid* against the current schemas (old duration shape, `fade_profiles`, `fade_in`/`fade_out`), and T080 adds a fixture that is invalid by construction. A guard that validated would go red for exactly the reason the corpus exists (FR-011)
+- [X] T004a Audit every restricted enumeration across all six schemas and record a **per-value verdict table** (value, enumeration, verdict, evidence, date) in `specs/008-rebuild-extension/enum-audit.md`, citing the consumer-repository evidence per value. This runs at Setup rather than in US4's test block because "a value nothing in the system honours" is a judgment over three repositories, not a predicate a test can decide — T059 is written **against this table**, not against the predicate (FR-029b)
 
 ---
 
@@ -63,29 +63,29 @@ ITEM E present.
 
 #### Tests (write first, must fail)
 
-- [ ] T005 [US1] Test in `tests/unit/test_timecode_typing.py` that exactly seven elements across all six schemas are typed `cms:CTimecodeType` and the count of time-carrying elements typed otherwise is zero (SC-001)
-- [ ] T006 [US1] Test in `tests/unit/test_timecode_typing.py` that `Media.duration` yields the same object type as `FadeCue.duration` from load, and that both are indistinguishable in storage (SC-002)
-- [ ] T007 [US1] Test in `tests/unit/test_mediacue_duration.py` that a media duration set from `str`, `int`, `dict` and `CTimecode` all produce the same object via the shared helper (FR-002)
-- [ ] T008 [US1] Test in `tests/integration/test_duration_wire.py` that XML emits `<duration><CTimecode>…</CTimecode></duration>` and JSON emits `{"CTimecode": "…"}` for media durations (FR-003)
-- [ ] T009 [US1] Test in `tests/contract/test_schema_hygiene.py` that `settings.xsd` declares no `CTimecodeType`/`TimecodeType` and `config/settings.py` has no `CTimecodeType`, while the registry coherence check still passes with no exception list (FR-007)
-- [ ] T010 [US1] Test in `tests/contract/test_schema_hygiene.py` that `script.xsd` still declares `TimecodeType` and that it remains the inner `<CTimecode>` element's type (FR-008)
-- [ ] T011 [US1] Test in `tests/contract/test_schema_hygiene.py` that zero occurrences of the frame-based `HH:MM:SS:FF` form remain as a schema **pattern, default, example or model-class value**. **Exclude explanatory prose**: `src/cuemsutils/tools/CTimecode.py` lines 24, 78, 82 and 242 carry `00:00:00:00` in docstrings describing the wrapped library's frame-1 semantics, and they must survive — a literal grep-and-count returns 4 and fails. Assert against schema text, declared defaults and stored values, not comments (SC-004)
-- [ ] T012 [US1] Test in `tests/contract/test_fade_profile_removed.py` that `FadeProfileType`, `FadeProfilesWrapperType`, `FadeParameterType` and the `fade_profiles` element are absent from `script.xsd`, that `FadeProfile`/`FadeFunctionParameter` no longer import, that the five fade-profile rules are unregistered, and that registry coherence still holds (FR-007a)
+- [X] T005 [US1] Test in `tests/unit/test_timecode_typing.py` that exactly seven elements across all six schemas are typed `cms:CTimecodeType` and the count of time-carrying elements typed otherwise is zero (SC-001)
+- [X] T006 [US1] Test in `tests/unit/test_timecode_typing.py` that `Media.duration` yields the same object type as `FadeCue.duration` from load, and that both are indistinguishable in storage (SC-002)
+- [X] T007 [US1] Test in `tests/unit/test_mediacue_duration.py` that a media duration set from `str`, `int`, `dict` and `CTimecode` all produce the same object via the shared helper (FR-002)
+- [X] T008 [US1] Test in `tests/integration/test_duration_wire.py` that XML emits `<duration><CTimecode>…</CTimecode></duration>` and JSON emits `{"CTimecode": "…"}` for media durations (FR-003)
+- [X] T009 [US1] Test in `tests/contract/test_schema_hygiene.py` that `settings.xsd` declares no `CTimecodeType`/`TimecodeType` and `config/settings.py` has no `CTimecodeType`, while the registry coherence check still passes with no exception list (FR-007)
+- [X] T010 [US1] Test in `tests/contract/test_schema_hygiene.py` that `script.xsd` still declares `TimecodeType` and that it remains the inner `<CTimecode>` element's type (FR-008)
+- [X] T011 [US1] Test in `tests/contract/test_schema_hygiene.py` that zero occurrences of the frame-based `HH:MM:SS:FF` form remain as a schema **pattern, default, example or model-class value**. **Exclude explanatory prose**: `src/cuemsutils/tools/CTimecode.py` lines 24, 78, 82 and 242 carry `00:00:00:00` in docstrings describing the wrapped library's frame-1 semantics, and they must survive — a literal grep-and-count returns 4 and fails. Assert against schema text, declared defaults and stored values, not comments (SC-004)
+- [X] T012 [US1] Test in `tests/contract/test_fade_profile_removed.py` that `FadeProfileType`, `FadeProfilesWrapperType`, `FadeParameterType` and the `fade_profiles` element are absent from `script.xsd`, that `FadeProfile`/`FadeFunctionParameter` no longer import, that the five fade-profile rules are unregistered, and that registry coherence still holds (FR-007a)
 
 #### Implementation
 
-- [ ] T013 [US1] Promote `Media.duration` from `cms:TimecodeType` to `cms:CTimecodeType` at `src/cuemsutils/xml/schemas/script.xsd:182`
-- [ ] T014 [US1] Collapse `set_duration`'s three-branch type dispatch to `format_timecode` in `src/cuemsutils/cues/MediaCue.py`, and update the class comment at ~`:180` that documents the old typing exception (FR-004)
-- [ ] T015 [US1] Remove the now-unreachable `str` branch of the `media_duration` rule in `src/cuemsutils/xml/validators.py` (FR-005)
-- [ ] T016 [US1] **Verify before removing**: determine whether `"TimecodeType": _String()` in `src/cuemsutils/xml/adapters.py:227` still resolves for the inner `<CTimecode>` child; remove it with the evidence it was dead, or retain it with the evidence it resolves — record the finding in `research.md`. Completion requires the recorded evidence either way, not a silent pass (FR-006)
-- [ ] T017 [US1] Delete `CTimecodeType` and `TimecodeType` from `src/cuemsutils/xml/schemas/settings.xsd` (lines ~132–142) and the `CTimecodeType` class from `src/cuemsutils/config/settings.py` (FR-007)
-- [ ] T018 [US1] Delete `FadeProfileType`, `FadeProfilesWrapperType` and `FadeParameterType` from `src/cuemsutils/xml/schemas/script.xsd`, plus the `fade_profiles` element on `AudioCueType` (~`:282`) and `VideoCueType` (~`:319`) (FR-007a)
-- [ ] T019 [US1] Delete `src/cuemsutils/cues/FadeProfile.py`, its registry bindings in `src/cuemsutils/xml/registry.py:189/226/227`, its import in `src/cuemsutils/xml/Parsers.py`, and `FadeProfileXmlBuilder` in `src/cuemsutils/xml/XmlBuilder.py` (FR-007a)
-- [ ] T020 [US1] Remove `fade_profiles` from `MediaCue` (property, setter, `get_fade_profile`) and from `AudioCue`/`VideoCue` declared defaults (FR-007a)
-- [ ] T021 [US1] Delete the five fade-profile rules from `src/cuemsutils/xml/validators.py`: `fade_profile_type`, `fade_profile_mode`, `fade_profile_parameters`, `fade_profile_parameter_value`, `fade_profile_caps`, and retire `tests/unit/test_mediacue_fade_profile.py` and `tests/integration/test_mediacue_fade_roundtrip.py`'s profile assertions (FR-007a)
-- [ ] T022 [US1] Record in `specs/008-rebuild-extension/migration-guide.md`, as one entry with two parts: (a) **FR-007b's justification** as a measurement with date and method — zero references to `fade_profile`/`FadeProfile`/`function_id` across the three consumer repositories — so a future reader can re-run it rather than trust it (FR-053c); and (b) **FR-007c's delete-rather-than-rename reasoning** — a `FadeProfile` carries neither `duration` nor `target_value` so it cannot expand into the `FadeCue` the replacement concept needs, and `mode`/`function_id` duplicates `FadeCurveType`; renaming would ship a known-wrong shape under a better name and force a second migration on documents that would by then hold data (FR-007c)
-- [ ] T023 [US1] Cut the goldens under `tests/golden/` and `tests/data/corpus/` as a single reviewed commit — **FR-010's first of three recorded events**; verify per `quickstart.md` that every changed line is attributable to FR-003's duration reshape or FR-007a's fade-profile deletion. **The blast radius is small and known, so the diff is bounded rather than merely reviewed**: the duration reshape touches every golden of a document carrying a `<duration>` (six corpus documents plus `generated/create_script.xml`), while the fade-profile deletion touches **exactly one** — `tests/golden/xml/cuems-utils__fade_showcase.xml`, one occurrence, the only document in the tree that carries `fade_profiles`. FR-029a's `ActionType` narrowing touches none: no corpus document carries `fade_in`/`fade_out`. **`tests/golden/generated/` is cut here too**, for the duration reshape alone — `create_script.xml` holds two `<duration>` elements and **no** `fade_profiles` (the module never emitted any) — and is then *replaced* in US4 when its producer changes (**T076**, not T077, which only deletes the module). The third and last event is T102a's `doc_version` renormalisation in Phase 2. Three recorded events, no fourth, none a regenerate-to-pass (FR-010, SC-003, D29)
-- [ ] T024 [US1] Update `tests/golden/MANIFEST.sha256` and `tests/golden/outcomes.json` for the cut, and note in the commit body that this is standing rule 3's recorded exception and **the first of FR-010's three golden events** — the other two being T076's generator replacement and T102a's `doc_version` renormalisation
+- [X] T013 [US1] Promote `Media.duration` from `cms:TimecodeType` to `cms:CTimecodeType` at `src/cuemsutils/xml/schemas/script.xsd:182`
+- [X] T014 [US1] Collapse `set_duration`'s three-branch type dispatch to `format_timecode` in `src/cuemsutils/cues/MediaCue.py`, and update the class comment at ~`:180` that documents the old typing exception (FR-004)
+- [X] T015 [US1] Remove the now-unreachable `str` branch of the `media_duration` rule in `src/cuemsutils/xml/validators.py` (FR-005)
+- [X] T016 [US1] **Verify before removing**: determine whether `"TimecodeType": _String()` in `src/cuemsutils/xml/adapters.py:227` still resolves for the inner `<CTimecode>` child; remove it with the evidence it was dead, or retain it with the evidence it resolves — record the finding in `research.md`. Completion requires the recorded evidence either way, not a silent pass (FR-006)
+- [X] T017 [US1] Delete `CTimecodeType` and `TimecodeType` from `src/cuemsutils/xml/schemas/settings.xsd` (lines ~132–142) and the `CTimecodeType` class from `src/cuemsutils/config/settings.py` (FR-007)
+- [X] T018 [US1] Delete `FadeProfileType`, `FadeProfilesWrapperType` and `FadeParameterType` from `src/cuemsutils/xml/schemas/script.xsd`, plus the `fade_profiles` element on `AudioCueType` (~`:282`) and `VideoCueType` (~`:319`) (FR-007a)
+- [X] T019 [US1] Delete `src/cuemsutils/cues/FadeProfile.py`, its registry bindings in `src/cuemsutils/xml/registry.py:189/226/227`, its import in `src/cuemsutils/xml/Parsers.py`, and `FadeProfileXmlBuilder` in `src/cuemsutils/xml/XmlBuilder.py` (FR-007a)
+- [X] T020 [US1] Remove `fade_profiles` from `MediaCue` (property, setter, `get_fade_profile`) and from `AudioCue`/`VideoCue` declared defaults (FR-007a)
+- [X] T021 [US1] Delete the five fade-profile rules from `src/cuemsutils/xml/validators.py`: `fade_profile_type`, `fade_profile_mode`, `fade_profile_parameters`, `fade_profile_parameter_value`, `fade_profile_caps`, and retire `tests/unit/test_mediacue_fade_profile.py` and `tests/integration/test_mediacue_fade_roundtrip.py`'s profile assertions (FR-007a)
+- [X] T022 [US1] Record in `specs/008-rebuild-extension/migration-guide.md`, as one entry with two parts: (a) **FR-007b's justification** as a measurement with date and method — zero references to `fade_profile`/`FadeProfile`/`function_id` across the three consumer repositories — so a future reader can re-run it rather than trust it (FR-053c); and (b) **FR-007c's delete-rather-than-rename reasoning** — a `FadeProfile` carries neither `duration` nor `target_value` so it cannot expand into the `FadeCue` the replacement concept needs, and `mode`/`function_id` duplicates `FadeCurveType`; renaming would ship a known-wrong shape under a better name and force a second migration on documents that would by then hold data (FR-007c)
+- [X] T023 [US1] Cut the goldens under `tests/golden/` and `tests/data/corpus/` as a single reviewed commit — **FR-010's first of three recorded events**; verify per `quickstart.md` that every changed line is attributable to FR-003's duration reshape or FR-007a's fade-profile deletion. **The blast radius is small and known, so the diff is bounded rather than merely reviewed**: the duration reshape touches every golden of a document carrying a `<duration>` (six corpus documents plus `generated/create_script.xml`), while the fade-profile deletion touches **exactly one** — `tests/golden/xml/cuems-utils__fade_showcase.xml`, one occurrence, the only document in the tree that carries `fade_profiles`. FR-029a's `ActionType` narrowing touches none: no corpus document carries `fade_in`/`fade_out`. **`tests/golden/generated/` is cut here too**, for the duration reshape alone — `create_script.xml` holds two `<duration>` elements and **no** `fade_profiles` (the module never emitted any) — and is then *replaced* in US4 when its producer changes (**T076**, not T077, which only deletes the module). The third and last event is T102a's `doc_version` renormalisation in Phase 2. Three recorded events, no fourth, none a regenerate-to-pass (FR-010, SC-003, D29)
+- [X] T024 [US1] Update `tests/golden/MANIFEST.sha256` and `tests/golden/outcomes.json` for the cut, and note in the commit body that this is standing rule 3's recorded exception and **the first of FR-010's three golden events** — the other two being T076's generator replacement and T102a's `doc_version` renormalisation
 
 ---
 
@@ -104,21 +104,21 @@ the input **normalised to the writer's output form**, and that form gains a `doc
 at T102. Write the normaliser to strip/ignore root-level `doc_version` from the outset, so Phase 2 does
 not silently redden these three tests (FR-015).*
 
-- [ ] T025 [US2] Round-trip test in `tests/integration/test_config_save.py` for `settings`: load → save → load yields an equal object and a byte-identical document (FR-015)
-- [ ] T026 [US2] Round-trip test in `tests/integration/test_config_save.py` for `project_settings` (FR-015)
-- [ ] T027 [US2] Round-trip test in `tests/integration/test_config_save.py` for `project_mappings` (FR-015)
-- [ ] T028 [US2] Test in `tests/unit/test_config_save_atomicity.py` that an interrupted save leaves the destination holding the complete prior or complete new content, never a truncated document (FR-017, SC-007)
-- [ ] T029 [US2] Test in `tests/contract/test_no_routine_backups.py` that a full corpus round-trip across all four config domains produces **zero** backup files (FR-016). This is one of SC-016c's three write paths; the other two — show-document saves and repaired-document saves — cannot be judged here because the repair path does not exist until T121, and are covered by T116a
-- [ ] T030 [US2] Test in `tests/contract/test_config_save_parity.py` that all four domains' save surfaces take the same argument shape, the same default-path behaviour and the same failure mode (FR-013)
+- [X] T025 [US2] Round-trip test in `tests/integration/test_config_save.py` for `settings`: load → save → load yields an equal object and a byte-identical document (FR-015)
+- [X] T026 [US2] Round-trip test in `tests/integration/test_config_save.py` for `project_settings` (FR-015)
+- [X] T027 [US2] Round-trip test in `tests/integration/test_config_save.py` for `project_mappings` (FR-015)
+- [X] T028 [US2] Test in `tests/unit/test_config_save_atomicity.py` that an interrupted save leaves the destination holding the complete prior or complete new content, never a truncated document (FR-017, SC-007)
+- [X] T029 [US2] Test in `tests/contract/test_no_routine_backups.py` that a full corpus round-trip across all four config domains produces **zero** backup files (FR-016). This is one of SC-016c's three write paths; the other two — show-document saves and repaired-document saves — cannot be judged here because the repair path does not exist until T121, and are covered by T116a
+- [X] T030 [US2] Test in `tests/contract/test_config_save_parity.py` that all four domains' save surfaces take the same argument shape, the same default-path behaviour and the same failure mode (FR-013)
 
 #### Implementation
 
-- [ ] T031 [US2] Add a shared atomic-write helper (temp file in the destination directory, then `os.replace`) used by every config `save()` in `src/cuemsutils/config/base.py` (FR-017, research R6)
-- [ ] T032 [US2] Implement `save()` on the `settings` root object in `src/cuemsutils/config/settings.py`, matching `CuemsNetworkMapType.save`'s contract: validate T1, then build and write; do not mutate the object; write no backup
-- [ ] T033 [US2] Implement `save()` on the `project_settings` root object in `src/cuemsutils/config/settings.py`
-- [ ] T034 [US2] Implement `save()` on the `project_mappings` root object in `src/cuemsutils/config/mappings.py`
-- [ ] T035 [US2] Add `save_settings`, `save_project_settings` and `save_project_mappings` accessors to `src/cuemsutils/tools/ConfigManager.py`, symmetric with `save_network_map` at `:246` (FR-014)
-- [ ] T036 [US2] Confirm the landed signatures match `data-model.md` §2 exactly and mark that section as the frozen hand-off interface (FR-018)
+- [X] T031 [US2] Add a shared atomic-write helper (temp file in the destination directory, then `os.replace`) used by every config `save()` in `src/cuemsutils/config/base.py` (FR-017, research R6)
+- [X] T032 [US2] Implement `save()` on the `settings` root object in `src/cuemsutils/config/settings.py`, matching `CuemsNetworkMapType.save`'s contract: validate T1, then build and write; do not mutate the object; write no backup
+- [X] T033 [US2] Implement `save()` on the `project_settings` root object in `src/cuemsutils/config/settings.py`
+- [X] T034 [US2] Implement `save()` on the `project_mappings` root object in `src/cuemsutils/config/mappings.py`
+- [X] T035 [US2] Add `save_settings`, `save_project_settings` and `save_project_mappings` accessors to `src/cuemsutils/tools/ConfigManager.py`, symmetric with `save_network_map` at `:246` (FR-014)
+- [X] T036 [US2] Confirm the landed signatures match `data-model.md` §2 exactly and mark that section as the frozen hand-off interface (FR-018)
 
 ---
 
@@ -132,26 +132,26 @@ identical to `CuemsNodeConf`'s current behaviour, before any part of that daemon
 
 #### Characterization tests (write first, against current daemon behaviour, must fail against an empty implementation)
 
-- [ ] T037 [US3] Characterize `merge_discovered_nodes` in `tests/contract/test_nodeindex_characterization.py` from `cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py:440`, capturing UUID-matching against a MAC-keyed map (FR-021, E23)
-- [ ] T038 [US3] Characterize `_map_signature` (`CuemsNodeConf.py:281`) including agreement for reordered but otherwise identical content
-- [ ] T039 [US3] Characterize `adopt_node`/`unadopt_node` (`:516`, `:537`) including the controller-unadopt refusal
-- [ ] T040 [US3] Characterize `set_master_always_adopted` (`:490`)
-- [ ] T041 [US3] Characterize `check_missing_adopted_nodes` (`:501`) with discovery passed as an argument rather than read from a listener
-- [ ] T042 [US3] Test in `tests/contract/test_no_nodeconf_imports.py` that the repository has zero imports from and zero runtime dependencies on `cuems-nodeconf` (SC-009)
-- [ ] T042a [US3] Test in `tests/contract/test_dispatch_chain_target.py` that the new object is a valid target for the operator's adopt/unadopt chain: enumerate every operation the settings-UI → engine → map chain performs today (`nodelist_modify` → `engine_callback` → the daemon's map mutations) and assert each has a corresponding method on `NodeIndex`/`CuemsNetworkMapType` with equivalent behaviour. The enumeration MUST be recorded in `data-model.md` §5 so a later chain change can be checked against it, rather than living only in the test (FR-022, US3 scenario 6)
+- [X] T037 [US3] Characterize `merge_discovered_nodes` in `tests/contract/test_nodeindex_characterization.py` from `cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py:440`, capturing UUID-matching against a MAC-keyed map (FR-021, E23)
+- [X] T038 [US3] Characterize `_map_signature` (`CuemsNodeConf.py:281`) including agreement for reordered but otherwise identical content
+- [X] T039 [US3] Characterize `adopt_node`/`unadopt_node` (`:516`, `:537`) including the controller-unadopt refusal
+- [X] T040 [US3] Characterize `set_master_always_adopted` (`:490`)
+- [X] T041 [US3] Characterize `check_missing_adopted_nodes` (`:501`) with discovery passed as an argument rather than read from a listener
+- [X] T042 [US3] Test in `tests/contract/test_no_nodeconf_imports.py` that the repository has zero imports from and zero runtime dependencies on `cuems-nodeconf` (SC-009)
+- [X] T042a [US3] Test in `tests/contract/test_dispatch_chain_target.py` that the new object is a valid target for the operator's adopt/unadopt chain: enumerate every operation the settings-UI → engine → map chain performs today (`nodelist_modify` → `engine_callback` → the daemon's map mutations) and assert each has a corresponding method on `NodeIndex`/`CuemsNetworkMapType` with equivalent behaviour. The enumeration MUST be recorded in `data-model.md` §5 so a later chain change can be checked against it, rather than living only in the test (FR-022, US3 scenario 6)
 
 #### Implementation
 
-- [ ] T043 [US3] Implement `NodeIndex.merge(discovered)` in `src/cuemsutils/tools/NodeList.py`, matching by `uuid` over the MAC-keyed index (research R7)
-- [ ] T044 [US3] Implement `NodeIndex.adopt(node_uuid)` and `NodeIndex.unadopt(node_uuid)` in `src/cuemsutils/tools/NodeList.py`, preserving the controller refusal
-- [ ] T045 [US3] Implement `NodeIndex.set_controller_always_adopted()` in `src/cuemsutils/tools/NodeList.py`
-- [ ] T046 [US3] Implement `NodeIndex.missing_adopted(discovered)` in `src/cuemsutils/tools/NodeList.py`
-- [ ] T047 [US3] Implement `NodeIndex.signature()` in `src/cuemsutils/tools/NodeList.py`, stable over the persisted fields
-- [ ] T048 [US3] Implement `CuemsNetworkMapType.refresh(discovered)` in `src/cuemsutils/config/network_map.py`, orchestrating merge → controller → missing and writing only when the signature changed; return whether it wrote (FR-019)
-- [ ] T049 [US3] Resolve from T037–T041's results whether `write_network_map`'s `required_fields` filter (`CuemsNodeConf.py:417`) is behaviour to preserve or an artifact; record the answer in `data-model.md` §5
-- [ ] T050 [US3] Resolve the `cleanup()` defect at `CuemsNodeConf.py:579` — `self.cm` is never assigned — either as a permitted D16 consumer edit or as a prescribed change recorded in `migration-guide.md` (FR-025)
-- [ ] T051 [US3] Write the daemon atomization basis in `specs/planning/nodeconf-atomization.md`: E11's ten-responsibility table, which rows are single-class candidates and why, accounting for the live UI at the end of row 5's dispatch chain and the network_map/project_mappings wire entanglement (FR-023, FR-024)
-- [ ] T052 [US3] Add migration-guide entries at call-site granularity for `engine_callback` → `adopt_node`/`unadopt_node` and the `settings.component.ts` → `nodelist_modify` chain (FR-026)
+- [X] T043 [US3] Implement `NodeIndex.merge(discovered)` in `src/cuemsutils/tools/NodeList.py`, matching by `uuid` over the MAC-keyed index (research R7)
+- [X] T044 [US3] Implement `NodeIndex.adopt(node_uuid)` and `NodeIndex.unadopt(node_uuid)` in `src/cuemsutils/tools/NodeList.py`, preserving the controller refusal
+- [X] T045 [US3] Implement `NodeIndex.set_controller_always_adopted()` in `src/cuemsutils/tools/NodeList.py`
+- [X] T046 [US3] Implement `NodeIndex.missing_adopted(discovered)` in `src/cuemsutils/tools/NodeList.py`
+- [X] T047 [US3] Implement `NodeIndex.signature()` in `src/cuemsutils/tools/NodeList.py`, stable over the persisted fields
+- [X] T048 [US3] Implement `CuemsNetworkMapType.refresh(discovered)` in `src/cuemsutils/config/network_map.py`, orchestrating merge → controller → missing and writing only when the signature changed; return whether it wrote (FR-019)
+- [X] T049 [US3] Resolve from T037–T041's results whether `write_network_map`'s `required_fields` filter (`CuemsNodeConf.py:417`) is behaviour to preserve or an artifact; record the answer in `data-model.md` §5
+- [X] T050 [US3] Resolve the `cleanup()` defect at `CuemsNodeConf.py:579` — `self.cm` is never assigned — either as a permitted D16 consumer edit or as a prescribed change recorded in `migration-guide.md` (FR-025)
+- [X] T051 [US3] Write the daemon atomization basis in `specs/planning/nodeconf-atomization.md`: E11's ten-responsibility table, which rows are single-class candidates and why, accounting for the live UI at the end of row 5's dispatch chain and the network_map/project_mappings wire entanglement (FR-023, FR-024)
+- [X] T052 [US3] Add migration-guide entries at call-site granularity for `engine_callback` → `adopt_node`/`unadopt_node` and the `settings.component.ts` → `nodelist_modify` chain (FR-026)
 
 ---
 
