@@ -50,7 +50,7 @@ for where that per-schema line is actually drawn.
 from __future__ import annotations
 
 from ..helpers import Unset
-from .base import ConfigDict
+from .base import ConfigDict, save_document
 
 
 class node(ConfigDict):  # noqa: N801 - the domain's name, not a class-name style
@@ -119,19 +119,14 @@ class CuemsNetworkMapType(ConfigDict):
     def save(self, path) -> None:
         """Validate, **then** write (research R6, contract C5).
 
-        Mirrors ``CuemsScript.save`` — the write path's single entry point
-        (``documents.build_tree``/``write_tree``) is schema-generic and needed
-        no config-specific machinery, only a caller. Config has one validation
-        tier: ``network_map.xsd`` declares no ``xs:assert`` (T2 semantic
-        rules are a ``script.xsd`` concept), so this checks T1 only and raises
-        on the first structural violation — a role value outside the
-        enumeration is exactly that (FR-014).
-
-        Does not mutate ``self``: ``build_tree`` reads declared fields through
-        the adapters' ``to_lexical``/``to_wire``, never writing back into the
-        object (FR-015) — the workaround ``cuems-nodeconf`` built (a separate
-        serialization copy, because its old write path *did* mutate) has
-        nothing left to work around.
+        A thin call onto ``config.base.save_document`` — feature 008 (T031)
+        factors this body out so ``settings``, ``project_settings`` and
+        ``project_mappings`` share it rather than repeating it; see that
+        function's docstring for the full contract (FR-013's symmetry, FR-015
+        non-mutation, FR-017 atomicity). ``network_map.xsd`` declares no
+        ``xs:assert``, so this checks T1 only and raises on the first
+        structural violation — a role value outside the enumeration is
+        exactly that (FR-014).
 
         Args:
             path (str | os.PathLike): where to write.

@@ -263,6 +263,24 @@ class ConfigManager(ConfigBase):
         """
         self.network_map.save(path or self.conf_path('network_map.xml'))
 
+    def save_settings(self, path: str | None = None) -> None:
+        """Write the system-wide ``settings`` back to disk (feature 008, T035).
+
+        Symmetric with :meth:`save_network_map`. ``path`` defaults to where
+        :meth:`load_base_settings` (run by ``__init__``) read from.
+
+        Args:
+            path (str | None): where to write. Defaults to
+                ``self.conf_path('settings.xml')``.
+
+        Raises:
+            SchemaError: the in-memory settings do not match ``settings.xsd``.
+            AttributeError: before construction has run (``_settings_document``
+                is set unconditionally by ``load_base_settings``, so this can
+                only happen mid-construction).
+        """
+        self._settings_document.save(path or self.conf_path('settings.xml'))
+
     def load_net_and_node_mappings(self):
         """
         Loads the network and node mappings.
@@ -326,6 +344,7 @@ class ConfigManager(ConfigBase):
         self.project_mappings = {}
         self.project_node_mappings = {}
         self.project_default_outputs = {}
+        self._project_settings_document = None
 
         self.project_name = project_uname
 
@@ -366,8 +385,31 @@ class ConfigManager(ConfigBase):
         # the settings the document carries, which is a behaviour change no
         # requirement in this feature enumerates. Left alone deliberately.
         self.project_conf = conf.get_dict()
+        # The root object (feature 008, T035) — ``conf.get_dict()`` is always
+        # ``{}`` (the ``main_key`` mismatch above), so ``save_project_settings``
+        # needs the object ``load_config_document`` actually decoded, not that.
+        self._project_settings_document = conf.xml_dict
 
         Logger.info(f'Project {project_uname} settings loaded')
+
+    def save_project_settings(self, project_uname: str, path: str | None = None) -> None:
+        """Write a project's ``settings.xml`` back to disk (feature 008, T035).
+
+        Args:
+            project_uname (str): the project whose settings to write.
+            path (str | None): where to write. Defaults to
+                ``self.project_path(project_uname, 'settings.xml')``.
+
+        Raises:
+            SchemaError: the in-memory settings do not match
+                ``project_settings.xsd``.
+            AttributeError: before :meth:`load_project_settings` has loaded a
+                document for this project (``_project_settings_document`` is
+                ``None`` until then).
+        """
+        self._project_settings_document.save(
+            path or self.project_path(project_uname, 'settings.xml')
+        )
 
     def load_project_mappings(self, project_uname: str):
         """
@@ -395,6 +437,28 @@ class ConfigManager(ConfigBase):
 
         self.number_of_nodes = int(self.mappings['number_of_nodes']) # type: ignore[index]
         Logger.info(f'Project {project_uname} mappings loaded')
+
+    def save_project_mappings(self, project_uname: str, path: str | None = None) -> None:
+        """Write a project's ``mappings.xml`` back to disk (feature 008, T035).
+
+        ``self.project_mappings`` is already the document root object
+        (``ProjectMappings.main_key`` is ``''``, so ``get_dict()``/
+        ``.processed`` return the root itself, not a nested field) — no
+        separate tracking attribute is needed the way settings needs one.
+
+        Args:
+            project_uname (str): the project whose mappings to write.
+            path (str | None): where to write. Defaults to
+                ``self.project_path(project_uname, 'mappings.xml')``.
+
+        Raises:
+            SchemaError: the in-memory mappings do not match
+                ``project_mappings.xsd``.
+            AttributeError: before :meth:`load_project_mappings` has run.
+        """
+        self.project_mappings.save(
+            path or self.project_path(project_uname, 'mappings.xml')
+        )
 
     def get_video_output_id(self, mapping_name: str):
         """

@@ -13,7 +13,7 @@ on exactly that (T042, T043a).
 from __future__ import annotations
 
 from ..helpers import Unset
-from .base import ConfigDict
+from .base import ConfigDict, save_document
 
 
 class PlayerType(ConfigDict):
@@ -120,6 +120,21 @@ class CuemsSettingsType(ConfigDict):
 
     DECLARED_DEFAULTS = {"Settings": Unset}
 
+    def save(self, path) -> None:
+        """Validate (T1), then write atomically (feature 008, FR-013/FR-015/FR-017).
+
+        Symmetric with the landed ``CuemsNetworkMapType.save`` — see
+        ``config.base.save_document`` for the shared contract.
+
+        Args:
+            path (str | os.PathLike): where to write.
+
+        Raises:
+            SchemaError: the document does not match ``settings.xsd``.
+            OSError: propagated unwrapped.
+        """
+        save_document(self, "settings", path)
+
 
 class SettingType(ConfigDict):
     """``project_settings.xsd``'s ``<setting>`` — a name/value pair.
@@ -139,3 +154,18 @@ class CuemsProjectSettingsType(ConfigDict):
     """The document root of a project's ``settings.xml``."""
 
     DECLARED_DEFAULTS = {"setting": Unset}
+
+    def save(self, path) -> None:
+        """Validate (T1), then write atomically (feature 008, FR-013/FR-015/FR-017).
+
+        Symmetric with the landed ``CuemsNetworkMapType.save`` — see
+        ``config.base.save_document`` for the shared contract.
+
+        Args:
+            path (str | os.PathLike): where to write.
+
+        Raises:
+            SchemaError: the document does not match ``project_settings.xsd``.
+            OSError: propagated unwrapped.
+        """
+        save_document(self, "project_settings", path)

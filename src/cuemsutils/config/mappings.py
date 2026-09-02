@@ -20,7 +20,7 @@ says so in a comment. The **classes** are not shared: registries are per schema
 from __future__ import annotations
 
 from ..helpers import Unset
-from .base import ConfigDict
+from .base import ConfigDict, save_document
 
 
 class MappingsType(ConfigDict):
@@ -187,3 +187,18 @@ class CuemsProjectMappingsType(ConfigDict):
         "nodes": Unset,
         "new_nodes": Unset,
     }
+
+    def save(self, path) -> None:
+        """Validate (T1), then write atomically (feature 008, FR-013/FR-015/FR-017).
+
+        Symmetric with the landed ``CuemsNetworkMapType.save`` — see
+        ``config.base.save_document`` for the shared contract.
+
+        Args:
+            path (str | os.PathLike): where to write.
+
+        Raises:
+            SchemaError: the document does not match ``project_mappings.xsd``.
+            OSError: propagated unwrapped.
+        """
+        save_document(self, "project_mappings", path)

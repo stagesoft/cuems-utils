@@ -7,7 +7,49 @@ verbatim rather than running the schema-derived adapter table.
 
 from __future__ import annotations
 
+from os import PathLike
+
 from ..helpers import CuemsDict
+
+
+def save_document(obj, schema_name: str, path: "str | PathLike") -> None:
+    """Validate (T1), then write atomically (feature 008, research R6).
+
+    The one body every config domain's ``save()`` calls — ``settings``,
+    ``project_settings``, ``project_mappings`` and the landed
+    ``network_map`` all share this rather than repeating
+    ``CuemsNetworkMapType.save``'s four lines four times (FR-013's symmetry
+    requirement, answered by factoring a landed pattern rather than
+    reinventing it per domain).
+
+    Configuration schemas declare no ``xs:assert``, so there is one
+    validation tier here (T2 is a ``script.xsd`` concept) — the first
+    structural violation raises and nothing is written. Does not mutate
+    ``obj``: ``build_tree`` reads declared fields through the adapters'
+    ``to_lexical``/``to_wire`` and never writes back (FR-015). Atomicity is
+    ``write_tree``'s: a temp file in the destination directory, then
+    ``os.replace`` — a concurrent reader sees the whole old file or the whole
+    new one, never a truncated document (FR-017).
+
+    Args:
+        obj: the root config object (a ``ConfigDict`` instance).
+        schema_name: which bundled schema to validate and build against.
+        path: where to write.
+
+    Raises:
+        SchemaError: ``obj`` does not match ``{schema_name}.xsd`` — carries
+            the violation.
+        OSError: propagated unwrapped, exactly as ``CuemsScript.save``.
+    """
+    from ..errors import SchemaError
+    from ..xml.documents import build_tree, iter_schema_errors, write_tree
+    from ..xml.validators import violation_from_schema_error
+
+    tree = build_tree(obj, schema_name)
+    for error in iter_schema_errors(schema_name, tree):
+        violation = violation_from_schema_error(error)
+        raise SchemaError(str(violation), violation=violation)
+    write_tree(tree, path)
 
 
 class ConfigDict(CuemsDict):

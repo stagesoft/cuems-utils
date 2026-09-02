@@ -737,6 +737,39 @@ class Mapper:
             return candidates[0]
         return class_name
 
+    def _child_spec_for(self, spec: TypeSpec | None, key: str, field) -> TypeSpec | None:
+        """The child's spec, resolving an **anonymous** nested element too.
+
+        ``field.child`` is ``None`` for a locally-declared element with no
+        named type — ``settings.xsd``'s ``<Settings>`` inside ``<CuemsSettings>``
+        is the case that surfaced this (feature 008, ITEM B): anonymous the
+        same way the schema root types are (research R3), but one level
+        deeper than the root-only path resolution ``build_document`` already
+        does. Without this, every field nested inside such an element resolves
+        with ``spec=None`` — harmless for a value that happens to already be a
+        string (passthrough stringifies it back unchanged), but wrong for a
+        genuinely empty one: ``None`` renders as the *text* ``"None"`` rather
+        than an empty element, because the code cannot tell "undescribed
+        wildcard content" from "described, but the child spec was never
+        derived" without this resolution.
+
+        Extending the path only works when ``spec`` is itself path-bound —
+        true for a root's immediate anonymous child, not in general for an
+        anonymous element nested inside a *named* type reached some other way
+        (``project_mappings.xsd``'s ``PutType.mappings`` is such a case, and
+        is not reached by this: its values are plain scalars/wrapped dicts
+        that pass through the ``spec=None`` fallback correctly today, so
+        widening this beyond the path-bound case is deferred rather than
+        guessed at).
+        """
+        if field is None:
+            return None
+        if field.child is not None:
+            return derive(field.child)
+        if field.xsd_type is None and spec is not None and spec.key.is_path:
+            return derive_path(self.schema_name, f"{spec.key.name}/{key}")
+        return None
+
     def _emit_field(self, element: Element, key: str, value, spec: TypeSpec | None) -> None:
         field = spec.field(key) if spec is not None else None
 
@@ -779,8 +812,23 @@ class Mapper:
             )
             return
 
+        child_spec = self._child_spec_for(spec, key, field)
+
+        if field is not None and field.repeated and isinstance(value, (list, tuple)):
+            # ``key`` **is** the repeated element (feature 008) — e.g.
+            # ``project_settings.xsd``'s ``setting``, declared directly on the
+            # root with ``maxOccurs="unbounded"`` and no wrapper complex type.
+            # There is no ``<setting>`` *wrapper* to create: each list member
+            # is its own sibling ``<setting>`` element. Every other repeated
+            # field in the six schemas sits one level down, inside a wrapper
+            # type reached through a single-occurrence field (``contents``,
+            # ``outputs``, ``node_list``) — those still take the branch below,
+            # unaffected, because *that* field's own ``repeated`` is ``False``.
+            for item in value:
+                self.encode_xml(item, child_spec, element, str(key))
+            return
+
         child = SubElement(element, str(key))
-        child_spec = derive(field.child) if field is not None and field.child else None
 
         if isinstance(value, (list, tuple)):
             for item in value:

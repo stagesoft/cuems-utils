@@ -65,6 +65,13 @@ mechanism composes rather than merely works:
 
 ## 2. Hand-off interface 1 — the config write path (ITEM B)
 
+**Landed and frozen (T036).** `save()` exists on `CuemsSettingsType`, `CuemsProjectSettingsType`,
+`CuemsProjectMappingsType` (`src/cuemsutils/config/`) and the pre-existing `CuemsNetworkMapType`, all
+via the shared `config.base.save_document`; `ConfigManager.save_settings`/`save_project_settings`/
+`save_project_mappings` (`src/cuemsutils/tools/ConfigManager.py`) match the signatures below exactly —
+asserted by `tests/integration/test_config_save.py::test_every_domain_save_has_the_same_argument_shape_and_default_path_behaviour`.
+Phase 2 is written against this as landed code.
+
 Fixed shape. Phase 2's backup-before-upgrade writes through this.
 
 ```

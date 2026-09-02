@@ -86,6 +86,9 @@
         "load_project_settings": "(self, project_uname: str)",
         "project_path": "(self, project_uname: str, file_name: str) -> str",
         "save_network_map": "(self, path: str | None = None) -> None",
+        "save_project_mappings": "(self, project_uname: str, path: str | None = None) -> None",
+        "save_project_settings": "(self, project_uname: str, path: str | None = None) -> None",
+        "save_settings": "(self, path: str | None = None) -> None",
         "set_dir_hierarchy": "(self) -> None",
         "to_wire": "(self, section: str = 'settings') -> dict"
       }

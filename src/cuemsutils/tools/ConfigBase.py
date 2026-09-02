@@ -84,9 +84,15 @@ class ConfigBase():
             dir = base_dir
         self.config_dir = dir
 
-        self.settings = load_config_document(
+        settings_doc = load_config_document(
             Settings, self.conf_path('settings.xml'), 'settings'
-        ).get_dict()
+        )
+        self.settings = settings_doc.get_dict()
+        # The root object, kept alongside its unwrapped ``Settings`` content
+        # (T035, feature 008) — ``self.settings`` is ``CuemsSettingsType``'s
+        # ``Settings`` field, not the document root, and only the root has
+        # ``.save()``.
+        self._settings_document = settings_doc.xml_dict
 
     # HELPER FUNCTIONS #
     def conf_path(self, file_name: str) -> str:
