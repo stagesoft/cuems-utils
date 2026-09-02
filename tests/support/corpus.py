@@ -185,8 +185,18 @@ def by_relpath(relpath: str) -> CorpusDoc:
     raise KeyError(relpath)
 
 
+#: Retained pre-feature originals (feature 008, FR-011) — ITEM E's conversion
+#: fixtures, deliberately invalid against the current schemas. Not part of the
+#: manifest above and excluded from discovery: they are input to a future
+#: feature's conversion path, not documents this suite's read/write/golden
+#: machinery is asked to cover.
+PRE_008_ROOT = CORPUS_ROOT / "pre-008"
+
+
 def discovered_xml_relpaths() -> list[str]:
-    """Every ``.xml`` actually on disk under the corpus root."""
+    """Every ``.xml`` actually on disk under the corpus root, excluding ``pre-008/``."""
     return sorted(
-        str(p.relative_to(CORPUS_ROOT)) for p in CORPUS_ROOT.rglob("*.xml")
+        str(p.relative_to(CORPUS_ROOT))
+        for p in CORPUS_ROOT.rglob("*.xml")
+        if PRE_008_ROOT not in p.parents
     )
