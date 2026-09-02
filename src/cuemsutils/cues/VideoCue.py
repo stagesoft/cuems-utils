@@ -3,10 +3,6 @@ from ..tools.CTimecode import CTimecode
 from ..helpers import ensure_items
 
 REQ_ITEMS = {
-    # Declared here rather than on MediaCue because script.xsd declares
-    # fade_profiles on AudioCueType and VideoCueType, not on MediaCueType
-    # (feature 004, T059).
-    'fade_profiles': None,
     'opacity': 100,  # Default to fully opaque — 0-100 percent scale (cms:PercentType)
 }
 

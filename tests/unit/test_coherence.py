@@ -172,14 +172,18 @@ def test_coverage_reaches_every_bound_model():
     four anonymous document roots, so the number was **40**: 18 show classes
     and 22 config ones. Feature 007 deletes ``network_map.xsd``'s unreferenced
     ``PutType`` — schema item X9, resolved (FR-029) — taking one config class
-    out with it, so the number is now **39**.
+    out with it, so the number was **39**. Feature 008 deletes three more
+    (FR-007a, FR-007): the two fade-profile model classes (``FadeProfile``,
+    ``FadeFunctionParameter``), and ``settings.xsd``'s unreferenced
+    ``CTimecodeType`` binding, which reverts to ``GENERIC`` along with the
+    schema type itself — so the number is now **36**.
 
     Kept as an exact count rather than a lower bound, and rewritten rather than
     relaxed. A count that only ever grows would let a binding disappear in
     silence, which is the whole reason this assertion is stated positively
     alongside the ``UNCOVERED`` one.
     """
-    assert len(COVERED) == 39
+    assert len(COVERED) == 36
     assert not UNCOVERED
 
 

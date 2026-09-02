@@ -221,10 +221,9 @@ class Mapper:
     def _is_wrapper(child_spec: TypeSpec) -> bool:
         """A type whose only job is to hold repeated children.
 
-        ``RegionsType`` holds ``Region``, ``FadeProfilesWrapperType`` holds
-        ``fade_profile``, ``OutputsType`` holds the three output types. The
-        wrapper element exists in the XML but not in the object model, where
-        the field holds the list directly.
+        ``RegionsType`` holds ``Region``, ``OutputsType`` holds the three
+        output types. The wrapper element exists in the XML but not in the
+        object model, where the field holds the list directly.
         """
         elements = [f for f in child_spec.fields if f.kind is FieldKind.ELEMENT]
         return bool(elements) and all(f.repeated for f in elements)
@@ -713,11 +712,11 @@ class Mapper:
         """The element name for a list member — **from the schema**.
 
         The Python class name is only a fallback, and using it unconditionally
-        is wrong: ``FadeProfile`` objects live in elements the schema calls
-        ``fade_profile``, and ``FadeFunctionParameter`` objects in ones it calls
-        ``parameter``. The legacy builder got this right by hardcoding both
-        names in ``FadeProfileXmlBuilder``; here the names come from the
-        content model, so a third such type needs no new code.
+        is wrong: a ``Region`` object lives in an element the schema calls
+        ``Region``, matching its class name, but a member whose class name
+        differs from its element tag needs the schema consulted instead of
+        assumed. The names come from the content model, so a type in that
+        position needs no new code.
 
         Two cases, in order:
 

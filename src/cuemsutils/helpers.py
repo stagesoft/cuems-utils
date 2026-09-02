@@ -647,7 +647,12 @@ def format_timecode(value):
         elif isinstance(value, str):
             return CTimecode(value)
         elif isinstance(value, dict):
-            dict_timecode = value.pop('CTimecode', None)
+            # ``.get``, not ``.pop`` — mutating the caller's dict is a latent
+            # defect a setter that validates-then-assigns (``enforce`` calling
+            # this same function, then the setter calling it again) turns into
+            # a real one: a second call on an already-popped dict would always
+            # see ``None`` (feature 008, found via ``Media.duration``).
+            dict_timecode = value.get('CTimecode', None)
             if dict_timecode is None:
                 return CTimecode()
             elif isinstance(dict_timecode, int):

@@ -45,7 +45,6 @@ AUDIO_CUE_TYPE_ORDER = [
     "outputs",
     # AudioCueType itself
     "master_vol",
-    "fade_profiles",
 ]
 
 
@@ -55,16 +54,18 @@ def test_iter_elements_yields_the_measured_order():
     assert names == AUDIO_CUE_TYPE_ORDER
 
 
-def test_master_vol_precedes_fade_profiles():
+def test_outputs_precedes_master_vol():
     """The single constraint the hardcoded ordering hack exists to fake.
 
-    ``XmlBuilder.MediaCueXmlBuilder.build`` special-cases ``master_vol`` (and
-    ``opacity`` on video cues) to emit ``fade_profiles`` after it. FR-002
-    deletes that branch, which is only safe because the schema already says so.
+    ``XmlBuilder.MediaCueXmlBuilder.build`` used to special-case ``master_vol``
+    (and ``opacity`` on video cues) to emit ``fade_profiles`` after it. FR-002
+    deleted that branch, which was only safe because the schema already said
+    so; FR-007a then deleted ``fade_profiles`` itself, so ``outputs`` (which
+    the same branch left alone) is what demonstrates schema order now.
     """
     schema = get_schema("script")
     names = [e.local_name for e in schema.types["AudioCueType"].content.iter_elements()]
-    assert names.index("master_vol") < names.index("fade_profiles")
+    assert names.index("outputs") < names.index("master_vol")
 
 
 def test_declaration_order_is_not_alphabetical():
@@ -124,12 +125,17 @@ def test_the_script_root_types_are_anonymous():
 
 
 def test_cardinality_is_exposed():
-    """``fade_profiles`` is the optional element the corpus actually exercises."""
+    """``opacity`` is ``VideoCueType``'s optional element.
+
+    ``AudioCueType``'s only optional element was ``fade_profiles``, deleted by
+    FR-007a — every remaining field on it is required (``min_occurs == 1``).
+    """
     schema = get_schema("script")
-    fields = {e.local_name: e for e in schema.types["AudioCueType"].content.iter_elements()}
-    assert fields["fade_profiles"].min_occurs == 0
-    assert fields["fade_profiles"].max_occurs == 1
-    assert fields["master_vol"].min_occurs == 1
+    audio_fields = {e.local_name: e for e in schema.types["AudioCueType"].content.iter_elements()}
+    assert audio_fields["master_vol"].min_occurs == 1
+    video_fields = {e.local_name: e for e in schema.types["VideoCueType"].content.iter_elements()}
+    assert video_fields["opacity"].min_occurs == 0
+    assert video_fields["opacity"].max_occurs == 1
 
 
 def test_pinned_version():

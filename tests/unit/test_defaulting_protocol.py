@@ -26,18 +26,19 @@ from cuemsutils.cues.CuemsScript import CuemsScript
 from cuemsutils.cues.CueOutput import AudioCueOutput, DmxCueOutput, VideoCueOutput
 from cuemsutils.cues.DmxCue import DmxChannel, DmxCue, DmxScene, DmxUniverse
 from cuemsutils.cues.FadeCue import FadeCue
-from cuemsutils.cues.FadeProfile import FadeFunctionParameter, FadeProfile
 from cuemsutils.cues.MediaCue import Media, MediaCue, Region
 from cuemsutils.cues.VideoCue import VideoCue
 from cuemsutils.helpers import Unset
 
-#: All 19 model classes. Defaulting is parametrised over 19; coherence coverage
-#: counts 18, because ``CuemsScript`` is bound by path rather than by type qname
-#: and so never appears in that test's parametrisation.
+#: All 17 model classes — 19 minus ``FadeProfile``/``FadeFunctionParameter``,
+#: deleted whole (feature 008, FR-007a). Defaulting is parametrised over 17;
+#: coherence coverage counts 16, because ``CuemsScript`` is bound by path
+#: rather than by type qname and so never appears in that test's
+#: parametrisation.
 MODEL_CLASSES = [
     Cue, CueList, AudioCue, VideoCue, MediaCue, ActionCue, FadeCue, DmxCue,
-    CuemsScript, DmxScene, DmxUniverse, DmxChannel, FadeProfile,
-    FadeFunctionParameter, Media, Region, AudioCueOutput, VideoCueOutput,
+    CuemsScript, DmxScene, DmxUniverse, DmxChannel,
+    Media, Region, AudioCueOutput, VideoCueOutput,
     DmxCueOutput,
 ]
 IDS = [c.__name__ for c in MODEL_CLASSES]
@@ -48,10 +49,10 @@ PREVIOUSLY_EMPTY = {
 }
 
 
-def test_there_are_nineteen_model_classes():
+def test_there_are_seventeen_model_classes():
     """A parametrisation that silently shrank would pass without testing."""
-    assert len(MODEL_CLASSES) == 19
-    assert len(set(MODEL_CLASSES)) == 19
+    assert len(MODEL_CLASSES) == 17
+    assert len(set(MODEL_CLASSES)) == 17
 
 
 @pytest.mark.parametrize("model", MODEL_CLASSES, ids=IDS)
@@ -126,7 +127,7 @@ def test_req_items_is_still_the_declared_defaults_source():
 
 
 @pytest.mark.parametrize(
-    "model", [Cue, ActionCue, FadeCue, DmxChannel, FadeFunctionParameter],
+    "model", [Cue, ActionCue, FadeCue, DmxChannel],
     ids=lambda c: c.__name__,
 )
 def test_req_items_is_still_the_alphabetical_developer_index(model):

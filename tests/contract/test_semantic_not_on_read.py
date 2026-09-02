@@ -41,34 +41,38 @@ IDS = [d.relpath for d in SCRIPT_DOCS]
 def semantically_invalid_document(tmp_path_factory):
     """A document on disk that is structurally valid and semantically wrong.
 
-    **Duplicate fade profile types**, not an off-canvas region, and the choice
-    is load-bearing. ``VideoCueOutputsType`` is an ``OPAQUE_TYPE``, so decoding
+    **A zero-duration fade**, not an off-canvas region, and the choice is
+    load-bearing. ``VideoCueOutputsType`` is an ``OPAQUE_TYPE``, so decoding
     an output calls ``VideoCueOutput.__init__`` — which runs the containment
     check itself, at construction, before ``super().__init__``. That
     constructor call is what pins two legacy corpus documents as
     ``to_objects: error`` (FR-024d, T074), so an off-canvas region is rejected
     *on read* and cannot demonstrate anything about the write tier.
 
-    ``fade_profiles`` has no such constructor: the rule lives in
-    ``MediaCue.set_fade_profiles``, decode does not run setters, and
-    ``script.xsd`` is happy with two ``<fade_profile>`` elements. So the
-    document loads and only ``save()`` objects — which is precisely the
-    behaviour FR-026 specifies.
+    ``FadeCue.duration`` has no such constructor: the ``fade_duration_positive``
+    rule lives in ``FadeCue.set_duration``, decode does not run setters, and
+    ``script.xsd``'s ``CTimecodeType`` only constrains the lexical *shape* of a
+    timecode, not its sign — ``00:00:00.000`` is a perfectly valid
+    ``CTimecodeType`` value. So the document loads and only ``save()`` objects
+    — which is precisely the behaviour FR-026 specifies.
+
+    (Feature 008, FR-007a: the original fixture used duplicate fade profile
+    types, via ``fade_profile_caps``. That rule and the surface it validated
+    are deleted; this is the same shape of case on a rule that survives.)
 
     Written by hand-editing the *tree*, because ``save()`` would refuse it.
     """
-    import copy
-
     from cuemsutils.xml.documents import build_tree, write_tree
     from tests.support.corpus import by_relpath
 
     script = CuemsScript.load(by_relpath("cuems-utils/fade_showcase.xml").path)
-    cue = next(
-        c for c in script.cuelist.contents if c.get("fade_profiles")
-    )
-    profiles = cue["fade_profiles"]
-    duplicate = copy.deepcopy(profiles[0])
-    dict.__setitem__(cue, "fade_profiles", [profiles[0], duplicate])
+    from cuemsutils.cues.FadeCue import FadeCue
+    from cuemsutils.tools.CTimecode import CTimecode
+
+    cue = next(c for c in script.cuelist.contents if isinstance(c, FadeCue))
+    # Zero, not ``None`` — ``fade_duration_positive`` treats ``None`` as
+    # "not set yet" and only rejects a duration that parses to zero.
+    dict.__setitem__(cue, "duration", CTimecode("00:00:00.000"))
 
     target = tmp_path_factory.mktemp("semantic") / "show.xml"
     write_tree(build_tree(script, "script"), target)

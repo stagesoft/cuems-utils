@@ -434,77 +434,6 @@ def _fade_target_value_range(value, obj=None) -> None:
         raise ValueError(f"target_value must be between 0 and 100, got {number}")
 
 
-@register("fade_profile_type", [("FadeProfile", "type")])
-def _fade_profile_type(value, obj=None) -> None:
-    from ..cues.FadeProfile import VALID_FADE_TYPES
-
-    if value not in VALID_FADE_TYPES:
-        raise ValueError(
-            f"Invalid fade type '{value}'. Must be one of {VALID_FADE_TYPES}"
-        )
-
-
-@register("fade_profile_mode", [("FadeProfile", "mode")])
-def _fade_profile_mode(value, obj=None) -> None:
-    from ..cues.FadeProfile import VALID_FADE_MODES
-
-    if value not in VALID_FADE_MODES:
-        raise ValueError(
-            f"Invalid fade mode '{value}'. Must be one of {VALID_FADE_MODES}"
-        )
-
-
-@register("fade_profile_parameters", [("FadeProfile", "parameters")])
-def _fade_profile_parameters(value, obj=None) -> None:
-    """No two parameters of one profile may share a name."""
-    if value is None:
-        return
-    items = value if isinstance(value, list) else [value]
-    seen: set[str] = set()
-    for item in items:
-        name = item["parameter_name"] if hasattr(item, "keys") else None
-        if name is None:
-            continue
-        if name in seen:
-            raise ValueError(f"Duplicate parameter_name {name!r} in fade profile")
-        seen.add(name)
-
-
-@register(
-    "fade_profile_parameter_value",
-    [("FadeFunctionParameter", "parameter_value")],
-)
-def _fade_profile_parameter_value(value, obj=None) -> None:
-    import math
-
-    try:
-        number = float(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"parameter_value must be numeric, got {value!r}") from exc
-    if math.isnan(number) or math.isinf(number):
-        raise ValueError("parameter_value must be a finite number")
-
-
-@register("fade_profile_caps", [("MediaCue", "fade_profiles")])
-def _fade_profile_caps(value, obj=None) -> None:
-    """The V1 caps on a cue's fade profiles: one per type, complete."""
-    if not value:
-        return
-    items = value if isinstance(value, list) else [value]
-    seen: set[str] = set()
-    for profile in items:
-        if not hasattr(profile, "keys"):
-            continue
-        kind = profile.get("type")
-        if kind in seen:
-            raise ValueError(f"Duplicate fade profile type {kind!r}")
-        seen.add(kind)
-        if not str(profile.get("function_id") or "").strip():
-            raise ValueError("function_id must be non-empty")
-        if profile.get("mode") == "parametric" and not profile.get("parameters"):
-            raise ValueError("parametric fade profile requires non-empty parameters")
-
-
 @register("output_name_shape", [("VideoCueOutput", "output_name")])
 def _output_name_shape(value, obj=None) -> None:
     """A video output name is an alias or a custom slot, and nothing else."""
@@ -548,30 +477,23 @@ def _canvas_region_containment(value, obj=None) -> None:
 
 @register("media_duration", [("Media", "duration")])
 def _media_duration(value, obj=None) -> None:
-    """``Media.duration`` parses as a timecode.
+    """``Media.duration`` parses as a timecode (feature 008, FR-005).
 
-    XSD constrains the *lexical shape* (``TimecodeType`` is a pattern), which
-    cannot express that ``CTimecode`` can actually parse it, nor reject a value
-    of the wrong Python type on an object never written to a document.
+    ``Media.duration`` is now ``cms:CTimecodeType`` — the same type and the
+    same ``format_timecode`` machinery every other time-carrying element
+    uses, so this rule delegates to it exactly as ``fade_duration_positive``
+    does for ``FadeCue.duration``. The ``str`` branch this rule used to carry
+    (parsing a value already known to be ``str``, with its own ``TypeError``
+    for anything else) is gone: it existed because the field used to *store*
+    a string, and a T2 rule only ever sees a stored value. It now stores a
+    ``CTimecode`` exactly as every other such field does, so that branch is
+    unreachable rather than merely redundant.
     """
-    from ..tools.CTimecode import CTimecode
+    from ..helpers import format_timecode
 
-    if value is None or isinstance(value, CTimecode):
+    if value is None:
         return
-    if not isinstance(value, str):
-        # ``TypeError``, not ``ValueError``, and the message is the setter's
-        # verbatim. This is the one rule whose two failure modes had **two**
-        # exception types before it was named, and T071 keeps the setter's
-        # behaviour exactly — so the rule carries both and ``run_rules``
-        # catches both.
-        raise TypeError(
-            f"Media duration must be str, CTimecode, or None, "
-            f"not {type(value).__name__}"
-        )
-    try:
-        CTimecode(value)
-    except Exception as exc:  # noqa: BLE001 - any parse failure is the finding
-        raise ValueError(f"Invalid media duration {value!r}: {exc}") from exc
+    format_timecode(value)
 
 
 @register("cuelist_shape", [("CuemsScript", "CueList")])

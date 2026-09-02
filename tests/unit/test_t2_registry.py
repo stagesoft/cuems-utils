@@ -21,18 +21,15 @@ from cuemsutils.xml.validators import RULES, SEMANTIC_RULES, Rule, enforce, regi
 #: individually so the tier cannot lose one silently.
 SEEDED = ("canvas_region_containment", "one_custom_template_per_node", "media_duration")
 
-#: The fourteen value-rejecting setter rules, relocated by T073.
+#: The value-rejecting setter rules, relocated by T073. Nine of the original
+#: fourteen survive feature 008's fade-profile deletion (FR-007a) — the five
+#: ``fade_profile_*`` rules are gone along with the surface they validated.
 RELOCATED = (
     "action_target_required",
     "fade_action_type",
     "fade_curve_type",
     "fade_duration_positive",
     "fade_target_value_range",
-    "fade_profile_type",
-    "fade_profile_mode",
-    "fade_profile_parameters",
-    "fade_profile_parameter_value",
-    "fade_profile_caps",
     "output_name_shape",
     "canvas_region_containment",
     "media_duration",
@@ -55,9 +52,6 @@ CASES = [
     ("fade_curve_type", "corkscrew", "linear", None),
     ("fade_duration_positive", "00:00:00.000", "00:00:02.000", None),
     ("fade_target_value_range", 101, 50, None),
-    ("fade_profile_type", "sideways", "in", None),
-    ("fade_profile_mode", "improvised", "preset", None),
-    ("fade_profile_parameter_value", "not a number", 2.5, None),
     (
         "canvas_region_containment",
         _OFF_CANVAS,
@@ -73,7 +67,8 @@ CASE_IDS = [case[0] for case in CASES]
 
 
 def test_the_registry_is_not_empty():
-    assert len(RULES) >= 15, sorted(RULES)
+    """10 rules survive feature 008 (FR-007a deletes five fade-profile ones)."""
+    assert len(RULES) >= 10, sorted(RULES)
 
 
 @pytest.mark.parametrize("name", sorted(set(SEEDED)))
@@ -129,39 +124,6 @@ def test_each_rule_fires_on_a_violation(name, bad, good, obj):
 @pytest.mark.parametrize("name,bad,good,obj", CASES, ids=CASE_IDS)
 def test_each_rule_passes_on_a_satisfying_value(name, bad, good, obj):
     enforce(name, good, obj)
-
-
-def test_the_fade_profile_rules_are_covered_too():
-    """The two whose inputs are lists rather than scalars."""
-    with pytest.raises(ValueError):
-        enforce(
-            "fade_profile_parameters",
-            [{"parameter_name": "rate"}, {"parameter_name": "rate"}],
-            None,
-        )
-    enforce(
-        "fade_profile_parameters",
-        [{"parameter_name": "rate"}, {"parameter_name": "depth"}],
-        None,
-    )
-
-    with pytest.raises(ValueError):
-        enforce(
-            "fade_profile_caps",
-            [
-                {"type": "in", "mode": "preset", "function_id": "a"},
-                {"type": "in", "mode": "preset", "function_id": "b"},
-            ],
-            None,
-        )
-    enforce(
-        "fade_profile_caps",
-        [
-            {"type": "in", "mode": "preset", "function_id": "a"},
-            {"type": "out", "mode": "preset", "function_id": "b"},
-        ],
-        None,
-    )
 
 
 # --- T072a: one inventory, not two ----------------------------------------

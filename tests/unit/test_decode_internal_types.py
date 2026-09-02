@@ -108,18 +108,20 @@ def test_media_is_a_media_object(script):
         assert isinstance(cue["Media"], Media)
 
 
-def test_media_duration_stays_a_string(script):
-    """FR-009b — ``MediaType.duration`` is a ``TimecodeType``, i.e. a string.
+def test_media_duration_decodes_to_ctimecode(script):
+    """Feature 008, FR-002 — ``MediaType.duration`` is now ``CTimecodeType``.
 
-    The identically-named ``FadeCue.duration`` is a ``CTimecodeType``. Coercing
-    this one would change the emitted element for every media document and
-    break the getter contract ``cuems-engine`` relies on.
+    Identically-named ``FadeCue.duration`` always was. The exception that kept
+    ``Media.duration`` a plain string is gone: both decode to ``CTimecode``
+    now, on the same machinery.
     """
+    from cuemsutils.tools.CTimecode import CTimecode
+
     for cue in media_cues(script):
         duration = cue["Media"].get("duration")
         if duration is not None:
-            assert isinstance(duration, str), (
-                f"Media.duration is {type(duration).__name__}, not str"
+            assert isinstance(duration, CTimecode), (
+                f"Media.duration is {type(duration).__name__}, not CTimecode"
             )
 
 

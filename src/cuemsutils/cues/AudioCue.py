@@ -6,10 +6,6 @@ from ..helpers import ensure_items
 from ..log import logged, Logger
 
 REQ_ITEMS = {
-    # Declared here rather than on MediaCue because script.xsd declares
-    # fade_profiles on AudioCueType and VideoCueType, not on MediaCueType
-    # (feature 004, T059).
-    'fade_profiles': None,
     'master_vol': 100,  # Default to full volume — 0-100 percent scale (cms:PercentType)
 }
 

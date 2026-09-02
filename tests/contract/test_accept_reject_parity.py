@@ -140,19 +140,31 @@ def test_the_deliberately_bad_document_still_fails():
 def test_legacy_documents_validate_but_do_not_build_objects():
     """The distinction the three-layer split exists for.
 
-    Both ``legacy/`` scripts pass schema validation and fail in
-    ``CueOutput._classify_output_name``: they predate the
-    ``<uuid>_<int>`` / ``<uuid>_custom_<int>`` output-name convention. So they
-    are compatibility evidence at the dict layer and *not* at the object layer,
-    and saying "they load" without qualification would be wrong in a way that
-    matters to FR-035a.
+    Both ``legacy/`` scripts predate the ``<uuid>_<int>`` /
+    ``<uuid>_custom_<int>`` output-name convention, so they fail in
+    ``CueOutput._classify_output_name`` — that was the *entire* story through
+    feature 007, when both passed schema validation and only the object layer
+    rejected them.
+
+    **Feature 008 changes this** (FR-002, D3's second recorded exception,
+    ``migration-guide.md``): ``Media.duration`` is promoted from a bare
+    string to ``cms:CTimecodeType``, which both legacy documents still carry
+    in the old shape — so schema validation (T1) now rejects them too, before
+    the output-name check is ever reached. They are frozen historical
+    snapshots (real revisions of a real script, recovered from
+    ``cuems-engine``'s history) and are deliberately **not** rewritten to the
+    new shape — see ``tests/data/corpus/pre-008/`` for what a retained
+    old-shape document is *for*: this feature's D3 relaxation is licensed
+    only because a Phase 2 conversion path exists to carry documents like
+    these forward, and these two are compatibility evidence of exactly that
+    gap until Phase 2 lands.
     """
     legacy = [d for d in DOCUMENTS if d.category == "legacy"]
     assert legacy
     for doc in legacy:
-        assert OUTCOMES[doc.relpath]["read"]["ok"] is True
+        assert OUTCOMES[doc.relpath]["read"]["ok"] is False
+        assert OUTCOMES[doc.relpath]["read"]["error_type"] == "XMLSchemaValidationError"
         assert OUTCOMES[doc.relpath]["to_objects"]["ok"] is False
-        assert OUTCOMES[doc.relpath]["to_objects"]["error_type"] == "ValueError"
 
 
 def test_every_negative_document_is_rejected():
@@ -265,22 +277,24 @@ LEGACY_REJECTED = [
 
 @pytest.mark.parametrize("relpath", LEGACY_REJECTED)
 def test_the_two_pinned_documents_keep_exactly_their_outcomes(relpath):
-    """FR-024d — ``read: ok`` and ``to_objects: error``, still.
+    """FR-024d, superseded by feature 008's D3 duration relaxation.
 
-    These two are the reason T074 exists. ``VideoCueOutput.__init__`` calls
+    These two were the reason T074 exists: ``VideoCueOutput.__init__`` calls
     ``_classify_output_name`` **before** ``super().__init__``, and it is that
-    *constructor* call — not the setter — that rejects them. Delegation moves a
-    rule's body; moving the call would have quietly made both documents load.
-
-    Feature 005 had to correct this same misreading in flight, which is why it
-    is asserted rather than assumed.
+    *constructor* call — not the setter — that used to reject them, with
+    schema validation (T1) passing. Feature 008 promotes ``Media.duration``
+    to ``cms:CTimecodeType`` (FR-002); both documents still carry the old
+    bare-string shape, so T1 now rejects them first and the object layer is
+    never reached. What is pinned here is that they are still rejected, only
+    earlier and for a different, recorded reason.
     """
     record = OUTCOMES[relpath]
-    assert record["read"]["ok"] is True
+    assert record["read"]["ok"] is False
     assert record["to_objects"]["ok"] is False
 
     doc = next(d for d in DOCUMENTS if d.relpath == relpath)
-    rt.read_dict(doc)  # reads fine
+    with pytest.raises(Exception):
+        rt.read_dict(doc)
     with pytest.raises(Exception):  # noqa: B017 - the type is pinned by the golden
         rt.read_objects(doc)
 

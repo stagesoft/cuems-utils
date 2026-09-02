@@ -40,22 +40,24 @@ def test_sequence_type_reports_declaration_order():
     spec = derive_named("script", "AudioCueType")
     assert spec.ordered
     assert spec.field_names[:3] == ("autoload", "description", "enabled")
-    assert spec.field_names[-2:] == ("master_vol", "fade_profiles")
+    assert spec.field_names[-2:] == ("outputs", "master_vol")
 
 
 def test_order_keys_sorts_by_declaration_not_by_name():
     """The assertion that separates "derived" from "alphabetical".
 
-    ``master_vol`` sorts *after* ``fade_profiles`` alphabetically and *before*
-    it in the schema. Any implementation that sorted by name would fail here,
-    which is the whole point of choosing this pair.
+    ``master_vol`` sorts *before* ``outputs`` alphabetically and *after* it in
+    the schema (feature 008, FR-007a — ``fade_profiles`` is deleted, and
+    ``outputs``/``master_vol`` is the pair that now demonstrates the same
+    property). Any implementation that sorted by name would fail here, which
+    is the whole point of choosing this pair.
     """
     spec = derive_named("script", "AudioCueType")
-    assert spec.order_keys(["fade_profiles", "master_vol"]) == [
+    assert spec.order_keys(["master_vol", "outputs"]) == [
+        "outputs",
         "master_vol",
-        "fade_profiles",
     ]
-    assert sorted(["fade_profiles", "master_vol"]) == ["fade_profiles", "master_vol"]
+    assert sorted(["master_vol", "outputs"]) == ["master_vol", "outputs"]
 
 
 def test_order_keys_is_stable_regardless_of_input_order():
@@ -122,7 +124,7 @@ def test_order_free_ordering_is_not_reachable_for_ordered_types():
     unchanged, dict iteration order would be deciding the output.
     """
     spec = derive_named("script", "AudioCueType")
-    shuffled = ["fade_profiles", "master_vol", "autoload"]
+    shuffled = ["outputs", "master_vol", "autoload"]
     assert spec.order_keys(shuffled) != shuffled
 
 
@@ -160,9 +162,14 @@ def test_anonymous_root_types_are_keyed_by_element_path():
 
 
 def test_cardinality_comes_from_the_schema():
-    spec = derive_named("script", "AudioCueType")
-    assert spec.field("fade_profiles").required is False
-    assert spec.field("master_vol").required is True
+    audio = derive_named("script", "AudioCueType")
+    assert audio.field("master_vol").required is True
+
+    # ``AudioCueType``'s only optional field was ``fade_profiles``, deleted
+    # by FR-007a (feature 008) — every remaining field on it is required.
+    # ``VideoCueType.opacity`` is the schema's example of an optional field.
+    video = derive_named("script", "VideoCueType")
+    assert video.field("opacity").required is False
 
 
 def test_repeated_elements_are_marked():

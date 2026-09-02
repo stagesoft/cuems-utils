@@ -90,7 +90,7 @@
                             <Media>
                                 <file_name>sposa_non_mi_conosci.16.s.wav</file_name>
                                 <id>32afd4cb-a42b-48c8-9bb3-18f273d741fc</id>
-                                <duration>00:00:00.000</duration>
+                                <duration><CTimecode>00:00:00.000</CTimecode></duration>
                                 <regions>
                                     <Region>
                                         <id>0</id>
@@ -150,7 +150,7 @@
                             <Media>
                                 <file_name>sposa_non_mi_conosci.mp4</file_name>
                                 <id>32afeeff-a42b-48c8-9bb3-18f273d741fc</id>
-                                <duration>00:00:00.000</duration>
+                                <duration><CTimecode>00:00:00.000</CTimecode></duration>
                                 <regions>
                                     <Region>
                                         <id>0</id>
@@ -248,7 +248,7 @@
                             <Media>
                                 <file_name>strokes.mp4</file_name>
                                 <id>42afd4cb-a42b-48c8-9bb3-18f273d741fc</id>
-                                <duration>00:00:00.000</duration>
+                                <duration><CTimecode>00:00:00.000</CTimecode></duration>
                                 <regions>
                                     <Region>
                                         <id>0</id>
@@ -318,7 +318,7 @@
                             <Media>
                                 <file_name>strokes.wav</file_name>
                                 <id>52afd4cb-a42b-48c8-9bb3-18f273d741fc</id>
-                                <duration>00:00:00.000</duration>
+                                <duration><CTimecode>00:00:00.000</CTimecode></duration>
                                 <regions>
                                     <Region>
                                         <id>0</id>
@@ -380,7 +380,7 @@
                     <Media>
                         <file_name>sync.2.mp4</file_name>
                         <id>62afd4cb-a42b-48c8-9bb3-18f273d741fc</id>
-                        <duration>00:00:00.000</duration>
+                        <duration><CTimecode>00:00:00.000</CTimecode></duration>
                         <regions>
                             <Region>
                                 <id>0</id>
@@ -450,7 +450,7 @@
                     <Media>
                         <file_name>daft25.m4v</file_name>
                         <id>72afd4cb-a42b-48c8-9bb3-18f273d741fc</id>
-                        <duration>00:00:00.000</duration>
+                        <duration><CTimecode>00:00:00.000</CTimecode></duration>
                         <regions>
                             <Region>
                                 <id>0</id>

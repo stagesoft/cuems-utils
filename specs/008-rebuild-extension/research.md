@@ -258,4 +258,22 @@ Carrying 006's figures forward would compare different suites.
   *verified* rather than assumed, because `TimecodeType` survives as the lexical type of the inner
   `<CTimecode>` element (script.xsd:167) and may still resolve there. The verification is a task, not
   a research question.
+
+  **Verified dead, and removed (T016).** `Mapper._decode_field` consults the adapter for a field's
+  *own* `xsd_type` **before** considering whether that type has a child to recurse into
+  (`mapper.py:154-163`, comment: "treating 'has a child type' as 'recurse into it' leaves every
+  timecode as a bare `{'CTimecode': '...'}` dict instead of a `CTimecode` object"). So a field typed
+  `CTimecodeType` resolves `ADAPTERS["CTimecodeType"]` (`_CTimecodeAdapter`) and that adapter consumes
+  the whole `{"CTimecode": "..."}` subtree in one call — it never recurses into the inner `<CTimecode>`
+  element as a separate field, so `ADAPTERS["TimecodeType"]` is never looked up through that path.
+  `coercion._resolve` (`coercion.py:135-145`) is the only other adapter-resolution call site, and it
+  only iterates the fields of a class **bound to a real model** via the registry; `CTimecodeType` is
+  bound `GENERIC` (no model class), so `_resolve` is never invoked for it either. Confirmed
+  empirically: walking `derive()` for every complex type across all six schemas finds exactly two
+  fields whose `xsd_type` is `"TimecodeType"` — `script.CTimecodeType.CTimecode` and
+  `settings.CTimecodeType.CTimecode` — and both belong to complex types with no bound model class, so
+  neither reaches an adapter lookup. Before this feature, the **one** live use was `Media.duration`'s
+  own field type (bare `cms:TimecodeType`, not wrapped) — T013 promotes exactly that field to
+  `CTimecodeType`, which is what removes the last path that ever reached this entry. Removed from
+  `ADAPTERS` in `xml/adapters.py`.
 - **`create_script()`'s fate** — D25: superseded, output need not stay byte-identical.

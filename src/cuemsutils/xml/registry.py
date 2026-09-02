@@ -186,7 +186,6 @@ def _build_script_registry() -> SchemaRegistry:
     from ..cues.CueOutput import AudioCueOutput, DmxCueOutput, VideoCueOutput
     from ..cues.DmxCue import DmxChannel, DmxCue, DmxScene, DmxUniverse
     from ..cues.FadeCue import FadeCue
-    from ..cues.FadeProfile import FadeFunctionParameter, FadeProfile
     from ..cues.MediaCue import Media, MediaCue, Region
     from ..cues.VideoCue import VideoCue
 
@@ -222,10 +221,6 @@ def _build_script_registry() -> SchemaRegistry:
     registry.bind("DmxUniverseType", DmxUniverse)
     registry.bind("DmxChannelType", DmxChannel)
 
-    # Fades.
-    registry.bind("FadeProfileType", FadeProfile)
-    registry.bind("FadeParameterType", FadeFunctionParameter)
-
     # Wildcard content (R6). ``UI_properties`` exists as a class and is *never*
     # reached today: the tag→class lookup searches for ``ui_properties`` while
     # the class is spelled ``UI_properties``, so all 20 hits fall through to
@@ -248,8 +243,6 @@ def _build_script_registry() -> SchemaRegistry:
         "CanvasRegionType",
         "Coordinates",
         "DmxUniverseContentsType",
-        "FadeParametersType",
-        "FadeProfilesWrapperType",
         "VideoCornersType",
         "VideoOutputGeometryType",
     ):
@@ -284,7 +277,6 @@ def _config_models(schema_name: str) -> tuple[dict[str, type], dict[str, type]]:
                 "AudioPlayerType": s.AudioPlayerType,
                 "AudioMixerType": s.AudioMixerType,
                 "DmxPlayerType": s.DmxPlayerType,
-                "CTimecodeType": s.CTimecodeType,
             },
             {
                 "CuemsSettings": s.CuemsSettingsType,

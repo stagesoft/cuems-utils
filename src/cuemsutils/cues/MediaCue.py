@@ -1,7 +1,6 @@
 from typing import Tuple
 
 from .Cue import Cue
-from .FadeProfile import FadeProfile
 from ..helpers import CuemsDict, ensure_items, format_timecode, Unset
 from ..tools.CTimecode import CTimecode
 
@@ -177,11 +176,12 @@ class Media(CuemsDict):
     #: All four are required by the schema, so each takes ``Unset``: a ``Media``
     #: built bare must not start emitting four empty elements.
     #:
-    #: ``duration`` is a ``TimecodeType`` — a restricted **string** — not the
-    #: ``CTimecodeType`` that ``FadeCue.duration`` uses. It is out of scope for
-    #: every coercion change in this feature (FR-009b); the schema-derived
-    #: adapter table already resolves it to a passthrough, so this needs no
-    #: special case, only the discipline not to add one.
+    #: ``duration`` is ``cms:CTimecodeType`` (feature 008, FR-002/FR-003) — the
+    #: same type and the same ``format_timecode`` machinery every other
+    #: time-carrying element uses. It used to be the plain-string
+    #: ``TimecodeType``, the last of seven time values with its own storage
+    #: exception; that exception is gone, and so is the three-branch dispatch
+    #: it needed.
     DECLARED_DEFAULTS = {
         'file_name': Unset,
         'id': Unset,
@@ -237,52 +237,39 @@ class Media(CuemsDict):
 
     def get_duration(self):
         """Get the duration of the media file.
-        
+
         Returns:
-            str: The duration of the media file.
+            CTimecode | None: The duration of the media file.
         """
         return super().__getitem__('duration')
-    
+
     def set_duration(self, duration):
         """Set the duration of the media file, validating on write.
 
-        The stored value is always a canonical ``HH:MM:SS.mmm`` string (or
-        ``None``). This guards against the historical class of duration
-        corruption at the object boundary: a malformed value is rejected
-        rather than silently persisted. The getter contract stays ``str`` so
-        existing consumers — e.g. the engine's ``CTimecode(cue.media.duration)``
-        — are unchanged.
+        Collapsed to the same one-branch shape every other ``CTimecodeType``
+        setter uses (feature 008, FR-004) — ``FadeCue.duration``'s pattern,
+        now that ``Media.duration`` carries the same schema type. The stored
+        value is a ``CTimecode`` object, not a string: the getter's contract
+        changes accordingly (FR-002), which is the point of retyping the
+        field rather than a side effect of it.
 
         Args:
-            duration (str | CTimecode | None): timecode string, ``CTimecode``,
-                or ``None``.
+            duration (str | CTimecode | int | float | dict | None):
+                anything :func:`~cuemsutils.helpers.format_timecode` accepts.
 
         Raises:
-            ValueError: If a string cannot be parsed as a timecode.
-            TypeError: If *duration* is not a str, CTimecode, or None.
+            ValueError: If *duration* cannot be parsed as a timecode.
         """
         from ..xml.validators import enforce
 
-        # The rule, by name (T073). It accepts ``None``, a ``CTimecode`` and a
-        # parseable string, and rejects everything else with the message this
-        # setter has always produced.
+        # The rule, by name (T073) — parses via the same ``format_timecode``
+        # this setter then uses to store, so a value that fails here would
+        # fail identically below (FR-005).
         enforce('media_duration', duration, self)
         if duration is None:
             super().__setitem__('duration', None)
             return
-        if isinstance(duration, CTimecode):
-            super().__setitem__('duration', str(duration))
-            return
-        if isinstance(duration, str):
-            super().__setitem__('duration', str(CTimecode(duration)))
-            return
-        # Unreachable: the rule above rejects every other type, with this
-        # setter's own ``TypeError`` and its own message. Left as a guard
-        # rather than as a fall-through into silence.
-        raise TypeError(
-            f"Media duration must be str, CTimecode, or None, "
-            f"not {type(duration).__name__}"
-        )
+        super().__setitem__('duration', format_timecode(duration))
 
     duration = property(get_duration, set_duration)
 
@@ -363,21 +350,6 @@ class MediaCue(Cue):
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
 
-    def __setitem__(self, key, value):
-        if key == 'fade_profile':
-            self.set_fade_profiles(value)
-            return
-        if key == 'fade_profiles':
-            if isinstance(value, dict) and 'fade_profile' in value:
-                inner = value['fade_profile']
-                self.set_fade_profiles(
-                    inner if isinstance(inner, list) else [inner]
-                )
-                return
-            self.set_fade_profiles(value)
-            return
-        super().__setitem__(key, value)
-
     def get_Media(self):
         """Get the media object associated with this cue.
         
@@ -415,48 +387,6 @@ class MediaCue(Cue):
         super().__setitem__('outputs', outputs)
 
     outputs = property(get_outputs, set_outputs)
-
-    def get_fade_profiles(self):
-        return super().__getitem__('fade_profiles')
-
-    def set_fade_profiles(self, value):
-        if value is None:
-            super().__setitem__('fade_profiles', None)
-            return
-        if isinstance(value, FadeProfile):
-            value = [value]
-        elif not isinstance(value, list):
-            value = [value]
-        if len(value) == 0:
-            super().__setitem__('fade_profiles', None)
-            return
-        from ..xml.validators import enforce
-
-        result = [
-            item if isinstance(item, FadeProfile) else FadeProfile(item)
-            for item in value
-        ]
-        # Coercion first, then the named rule — so the rule sees exactly the
-        # objects the write/validate tier will see (T073).
-        enforce('fade_profile_caps', result, self)
-        super().__setitem__('fade_profiles', result)
-
-    fade_profiles = property(get_fade_profiles, set_fade_profiles)
-
-    def get_fade_profile(self, direction: str):
-        """Return the fade profile for ``in``/``out`` (or ``fade_in``/``fade_out``)."""
-        norm = {'fade_in': 'in', 'fade_out': 'out'}.get(direction, direction)
-        if norm not in ('in', 'out'):
-            raise ValueError(
-                f"direction must be 'in', 'out', 'fade_in', or 'fade_out', got {direction!r}"
-            )
-        fps = self.get_fade_profiles()
-        if not fps:
-            return None
-        for fp in fps:
-            if fp.type == norm:
-                return fp
-        return None
 
     def get_all_output_names(self) -> list[Tuple[str, str]]:
         """Get all output names splitted into node and output ids for the media cue.

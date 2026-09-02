@@ -213,12 +213,15 @@ def test_the_deleted_parser_tree_is_actually_gone():
 
 
 def test_the_ordering_hack_is_unreached(corpus_deprecations):
-    """FR-002 — the ``master_vol``/``opacity`` branch still exists, frozen.
+    """FR-002 — the ``master_vol``/``opacity`` branch is gone outright now.
 
-    It lives in ``MediaCueXmlBuilder.build``, whose class is deprecated, so
-    reaching it during a write would show up as a deprecation warning from
-    ``XmlBuilder.py``. T036 separately asserts the branch does not exist in any
-    live engine module.
+    It used to live in ``MediaCueXmlBuilder.build``, frozen behind the
+    deprecated ``XmlBuilder`` class, so reaching it during a write would have
+    shown up as a deprecation warning from ``XmlBuilder.py``. Feature 008
+    (FR-007a) deletes the branch and the ``FadeProfileXmlBuilder`` it called,
+    rather than leaving them frozen-but-unreachable like the rest of that
+    module — there is nothing left for either to build. This assertion is
+    kept as a regression guard: the corpus must still emit no such warning.
     """
     offenders = [line for line in corpus_deprecations if "XmlBuilder" in line]
     assert not offenders

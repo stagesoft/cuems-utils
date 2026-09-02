@@ -98,56 +98,6 @@
     </xs:choice>
   </xs:complexType>
 
-  <!-- Fade profiles (optional, max two: one per direction) -->
-  <xs:simpleType name="FadeTypeType">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="in" />
-      <xs:enumeration value="out" />
-    </xs:restriction>
-  </xs:simpleType>
-
-  <xs:simpleType name="FadeModeType">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="preset" />
-      <xs:enumeration value="parametric" />
-    </xs:restriction>
-  </xs:simpleType>
-
-  <xs:simpleType name="FadeFunctionIdType">
-    <xs:restriction base="xs:string">
-      <xs:minLength value="1" />
-    </xs:restriction>
-  </xs:simpleType>
-
-  <xs:complexType name="FadeParameterType">
-    <xs:sequence>
-      <xs:element name="parameter_name" type="xs:string" />
-      <xs:element name="parameter_value" type="xs:float" />
-    </xs:sequence>
-  </xs:complexType>
-
-  <xs:complexType name="FadeParametersType">
-    <xs:sequence minOccurs="0" maxOccurs="unbounded">
-      <xs:element name="parameter" type="cms:FadeParameterType" />
-    </xs:sequence>
-  </xs:complexType>
-
-  <xs:complexType name="FadeProfileType">
-    <xs:sequence>
-      <xs:element name="type" type="cms:FadeTypeType" />
-      <xs:element name="mode" type="cms:FadeModeType" />
-      <xs:element name="function_id" type="cms:FadeFunctionIdType" />
-      <xs:element name="parameters" type="cms:FadeParametersType" minOccurs="0" />
-    </xs:sequence>
-  </xs:complexType>
-
-  <!-- Single wrapper so xmlschema decoding keeps sibling cue fields (see CMLCuemsConverter). -->
-  <xs:complexType name="FadeProfilesWrapperType">
-    <xs:sequence>
-      <xs:element name="fade_profile" type="cms:FadeProfileType" minOccurs="0" maxOccurs="2" />
-    </xs:sequence>
-  </xs:complexType>
-
   <!-- MediaCue -->
     <xs:complexType name="MediaCueType">
       <xs:complexContent>
@@ -179,7 +129,7 @@
     <xs:sequence minOccurs="0" maxOccurs="1">
       <xs:element name="file_name" type="xs:string" />
       <xs:element name="id" type="cms:TargetType" />
-      <xs:element name="duration" type="cms:TimecodeType" />
+      <xs:element name="duration" type="cms:CTimecodeType" />
       <xs:element name="regions" type="cms:RegionsType" />
     </xs:sequence>
   </xs:complexType>
@@ -279,7 +229,6 @@
       <xs:extension base="cms:MediaCueType">
         <xs:sequence>
           <xs:element name="master_vol" type="cms:PercentType" />
-          <xs:element name="fade_profiles" type="cms:FadeProfilesWrapperType" minOccurs="0" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
@@ -316,7 +265,6 @@
                with existing project files authored before this field existed;
                absent -> Python-side REQ_ITEMS default of 100 (fully opaque). -->
           <xs:element name="opacity" type="cms:PercentType" minOccurs="0" />
-          <xs:element name="fade_profiles" type="cms:FadeProfilesWrapperType" minOccurs="0" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>

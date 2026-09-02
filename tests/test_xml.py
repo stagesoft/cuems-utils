@@ -352,7 +352,12 @@ def test_json_readwrite(caplog):
     audio_before = before['CueList']['contents'][0]['AudioCue']
     audio_after = after['CueList']['contents'][0]['AudioCue']
     assert audio_after['master_vol'] == audio_before['master_vol'] == 80
-    assert audio_after['Media'] == audio_before['Media']
+    # ``Media.duration`` reshapes (enumerated as difference (d) below); every
+    # other ``Media`` field passes through untouched.
+    media_before = dict(audio_before['Media'])
+    media_after = dict(audio_after['Media'])
+    del media_before['duration'], media_after['duration']
+    assert media_after == media_before
     assert audio_after['prewait'] == {'CTimecode': '00:00:05.000'}
 
     # 3. The enumerated differences, each stated once.
@@ -366,8 +371,16 @@ def test_json_readwrite(caplog):
     assert after['ui_properties']['warning'] == '0'
     #    c. An optional field with no value is **absent**, not present-and-null
     #       — the same rule the XML writer applies, now applied here too.
-    assert audio_before['fade_profiles'] is None
-    assert 'fade_profiles' not in audio_after
+    #       ``AudioCueType`` had no optional field to demonstrate this with
+    #       once ``fade_profiles`` was deleted (feature 008, FR-007a); the
+    #       property itself is still covered elsewhere, on
+    #       ``VideoCueOutput.canvas_region``.
+    #    d. ``Media.duration`` reshapes from a bare string to the same
+    #       ``{"CTimecode": "..."}`` wrapper every other timecode field
+    #       carries (feature 008, FR-002/FR-003) — the one sanctioned change
+    #       to this payload's shape.
+    assert audio_before['Media']['duration'] == '00:03:01.000'
+    assert audio_after['Media']['duration'] == {'CTimecode': '00:03:01.000'}
 
 def test_settings():
     from cuemsutils.xml import Settings

@@ -1,5 +1,4 @@
 from ..cues import *
-from ..cues.FadeProfile import FadeFunctionParameter, FadeProfile
 from ..cues.MediaCue import Media, Region
 from ..cues.CueOutput import AudioCueOutput, VideoCueOutput, DmxCueOutput
 from ..cues.Cue import Cue, UI_properties

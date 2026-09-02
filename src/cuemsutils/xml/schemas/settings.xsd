@@ -129,19 +129,6 @@
         </xs:restriction>
     </xs:simpleType>
 
-    <xs:simpleType name="TimecodeType">
-        <xs:restriction base="xs:string">
-            <xs:pattern value="[0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{2}" />
-        </xs:restriction>
-    </xs:simpleType>
-
-    <xs:complexType name="CTimecodeType">
-        <xs:choice>
-            <xs:element name="CTimecode" type="cms:TimecodeType" default="00:00:00:00" />
-            <xs:element name="NoneType" type="xs:string" />
-        </xs:choice>
-    </xs:complexType>
-
     <xs:simpleType name="NonEmptyString">
         <xs:restriction base="xs:string">
             <xs:minLength value="1" />

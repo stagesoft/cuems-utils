@@ -418,24 +418,28 @@
   "legacy/script_complex_test-engine-e6fc6c9.xml": {
     "category": "legacy",
     "read": {
-      "ok": true
+      "error_head": "failed validating <Element 'duration' at 0xADDR> with Xsd11Group(model='choice', occurs=[0, 1]):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
     },
     "schema": "script",
     "to_objects": {
-      "error_head": "output_name 'VideoOut1' does not match alias '<uuid>_<int>' or custom '<uuid>_custom_<int>' shape",
-      "error_type": "ValueError",
+      "error_head": "failed validating <Element 'duration' at 0xADDR> with Xsd11Group(model='choice', occurs=[0, 1]):",
+      "error_type": "XMLSchemaValidationError",
       "ok": false
     }
   },
   "legacy/script_complex_test-engine-e7215ae.xml": {
     "category": "legacy",
     "read": {
-      "ok": true
+      "error_head": "failed validating <Element 'duration' at 0xADDR> with Xsd11Group(model='choice', occurs=[0, 1]):",
+      "error_type": "XMLSchemaValidationError",
+      "ok": false
     },
     "schema": "script",
     "to_objects": {
-      "error_head": "output_name 'VideoOut1' does not match alias '<uuid>_<int>' or custom '<uuid>_custom_<int>' shape",
-      "error_type": "ValueError",
+      "error_head": "failed validating <Element 'duration' at 0xADDR> with Xsd11Group(model='choice', occurs=[0, 1]):",
+      "error_type": "XMLSchemaValidationError",
       "ok": false
     }
   },

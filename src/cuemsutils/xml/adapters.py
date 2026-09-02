@@ -224,8 +224,6 @@ ADAPTERS: dict[str, Adapter] = {
     "NameStringType": _String(),
     "DescriptionStringType": _String(),
     "EmptyStringType": _String(),
-    "TimecodeType": _String(),
-    "FadeFunctionIdType": _String(),
     "DateType": _String(),
 }
 

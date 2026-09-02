@@ -141,24 +141,19 @@ def test_assignment_still_fails_immediately_with_the_current_message():
         cue.curve_type = "corkscrew"
 
 
-def test_the_fade_profile_messages_are_unchanged():
-    from cuemsutils.cues.FadeProfile import FadeProfile
+def test_the_media_duration_message_delegates_to_format_timecode():
+    """Feature 008, FR-004 — the message changed on purpose.
 
-    profile = FadeProfile()
-    with pytest.raises(ValueError, match="Invalid fade type"):
-        profile.type = "sideways"
-    with pytest.raises(ValueError, match="Invalid fade mode"):
-        profile.mode = "improvised"
-
-
-def test_the_media_duration_messages_are_unchanged():
+    ``Media.duration`` no longer wraps the parse failure in its own
+    "Invalid media duration ..." text; it delegates entirely to
+    ``format_timecode``/``CTimecode``, the same machinery every other
+    ``CTimecodeType`` setter uses, and gets that machinery's message.
+    """
     from cuemsutils.cues.MediaCue import Media
 
     media = Media()
-    with pytest.raises(ValueError, match="Invalid media duration"):
+    with pytest.raises(ValueError, match="invalid literal for int"):
         media.duration = "garbage"
-    with pytest.raises(TypeError, match="must be str, CTimecode, or None"):
-        media.duration = 12345
 
 
 @pytest.mark.parametrize(

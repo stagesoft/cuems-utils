@@ -90,23 +90,6 @@ class NodeConfType(ConfigDict):
     }
 
 
-class CTimecodeType(ConfigDict):
-    """``settings.xsd``'s ``CTimecodeType`` — an ``xs:choice`` of two elements.
-
-    **No element in ``settings.xsd`` references it.** It is declared and
-    unreachable, which is why it is modelled rather than left ``GENERIC``: the
-    registry requires a binding for every complex type (C7), and the coherence
-    test (T041) compares its declared field set against the schema's whether or
-    not a document ever produces one. Modelling it costs nothing and keeps
-    "every type in the schema is accounted for" true without an exception list.
-    """
-
-    DECLARED_DEFAULTS = {
-        "CTimecode": Unset,
-        "NoneType": Unset,
-    }
-
-
 class SettingsType(ConfigDict):
     """The anonymous ``<Settings>`` element inside ``<CuemsSettings>``.
 
