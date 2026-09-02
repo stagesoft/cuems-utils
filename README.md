@@ -140,7 +140,6 @@ Project file I/O, validation, and settings loading, built on `xmlschema` 3.x and
 ### Root modules
 
 * **`helpers`** — `format_timecode(value)` converts arbitrary values to canonical CTimecode string form. `ensure_items` validates required dict keys against a defaults spec.
-* **`create_script`** — scripted `CuemsScript` factory that emits a schema-valid XML project file covering every cue subclass; used in script template creation and completeness integration tests.
 * **`log`** — `Logger` wrapper that captures caller module and class name in every log record.
 * **`timeoutloop`** — `TimeoutLoop` utility that runs a callable with a configurable deadline; raises on timeout.
 

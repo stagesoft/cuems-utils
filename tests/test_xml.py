@@ -261,9 +261,9 @@ def test_jsonload(caplog):
 
 def test_json_dump():
     import json
-    from cuemsutils.create_script import create_script
+    from cuemsutils.xml.descriptor import generate_script_example
 
-    script = create_script()
+    script = generate_script_example()
     audio_cue = script.cuelist.contents[0]
     json_string = json.dumps(script)
     json_string = '{"CuemsScript": ' + json_string + '}'

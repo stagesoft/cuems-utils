@@ -3,7 +3,7 @@
 **Must FAIL on pre-005 code**: ``Uuid.__init__`` mints a fresh uuid4 whenever
 its argument is falsy, so ``script.id = None`` assigns a **new random id**
 instead of emptying the field. The initial template ships two random ids that
-the code plainly intends to clear — ``create_script`` sets them to ``None`` and
+the code plainly intends to clear — the retired script-template function set them to ``None`` and
 they come back populated.
 
 This is a coercion-location fix, not a setter special case (research R7).
@@ -15,7 +15,7 @@ assignment time.
 
 from __future__ import annotations
 
-from cuemsutils.create_script import create_script
+from cuemsutils.xml.descriptor import generate_script_example
 from cuemsutils.cues.ActionCue import ActionCue
 from cuemsutils.cues.AudioCue import AudioCue
 from cuemsutils.cues.CuemsScript import CuemsScript
@@ -79,29 +79,28 @@ def test_generation_still_happens_at_defaulting_time():
     assert isinstance(AudioCue({"name": "probe"})["id"], Uuid)
 
 
-# --- the consumer-visible change (FR-022) ---------------------------------
+# --- the generated example (feature 008, T074) -----------------------------
 
 
-def test_the_initial_template_ships_without_identifiers():
-    """The delta the editor sees, asserted as the fields FR-022 enumerates.
+def test_the_generated_example_carries_populated_identifiers():
+    """The retired script-template function's id-blanking step is not
+    carried forward (FR-033):
 
-    ``create_script`` clears the script and cue-list identifiers at the end;
-    three of the five cue identifiers already arrive empty, and these two came
-    back random. This is the behaviour change consumers observe.
+    it existed only to produce a "blank template for the editor to fill in",
+    and validating a populated script and then clearing ids on the way out is
+    exactly the ordering defect FR-033 names. ``generate_script_example()``
+    has nothing to undo that defect *for* — every identifier it sets stays
+    set.
     """
-    template = create_script()
-    assert template["id"] is None, f"script id is {template['id']!r}"
-    assert template["CueList"]["id"] is None, (
-        f"cue-list id is {template['CueList']['id']!r}"
-    )
+    example = generate_script_example()
+    assert example["id"] is not None
+    assert example["CueList"]["id"] is not None
 
 
-def test_the_initial_template_still_carries_its_content():
-    """Clearing ids must not clear anything else."""
-    template = create_script()
-    assert template["name"]
-    assert template["CueList"]["contents"]
-    assert len(template["CueList"]["contents"]) == 5
+def test_the_generated_example_carries_its_content():
+    example = generate_script_example()
+    assert example["name"]
+    assert example["CueList"]["contents"]
 
 
 # --- feature 006 addition (T070, FR-024a) ----------------------------------

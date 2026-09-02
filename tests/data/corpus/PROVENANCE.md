@@ -35,9 +35,9 @@ that vanishes without the count changing takes its coverage with it.
 | `negative/` | **3** |
 | **Total** | **30** |
 
-Generated documents from `src/cuemsutils/create_script.py` are **not** counted here: they
-are produced by the harness at capture time rather than vendored, and their goldens live
-under `tests/golden/generated/` (T012).
+Generated documents from `cuemsutils.xml.descriptor`'s example-script generator (feature
+008, T070) are **not** counted here: they are produced by the harness at capture time
+rather than vendored, and their goldens live under `tests/golden/generated/` (T012).
 
 ---
 

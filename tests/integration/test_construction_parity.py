@@ -6,7 +6,8 @@ pre-005 code, so the gap is a number before it is a fix.
 The three entry points, all carrying the *same content* so that any difference
 can only come from construction:
 
-* **built** — the programmatic path, ``create_script``'s generated document;
+* **built** — the programmatic path, the descriptor-generated example document
+  (``cuemsutils.xml.descriptor.generate_script_example``, feature 008);
 * **XML-decoded** — that same document written out and read back;
 * **JSON-decoded** — the same object through the editor's payload round-trip.
 

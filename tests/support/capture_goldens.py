@@ -225,11 +225,11 @@ def capture(force: bool = False) -> GoldenWriter:
     return writer
 
 
-#: Fixed timestamps for the generated document. ``create_script`` deliberately
-#: returns its template with ``created``/``modified`` set to ``None`` — it is
-#: sent to the editor empty — but ``script.xsd`` carries
-#: ``<xs:assert test="modified >= created"/>``, which an empty string cannot
-#: satisfy. Stamping both is what makes the template writable at all.
+#: Fixed timestamps for the generated document (T070/T072). The generator
+#: (``descriptor.generate_script_example``) stamps live ``created``/
+#: ``modified`` values, which would make the captured golden different on
+#: every run; these two are substituted in afterward purely for byte
+#: reproducibility, the same reason ``normalize_uuids`` exists below.
 GENERATED_CREATED = "2026-01-01T00:00:00"
 GENERATED_MODIFIED = "2026-01-01T00:00:00"
 
@@ -242,14 +242,14 @@ _UUID_RE = re.compile(
 def normalize_uuids(raw: bytes) -> bytes:
     """Rewrite uuid4 values to a stable sequence, in first-appearance order.
 
-    Applied **only** to the generated document. ``create_script`` mints a fresh
-    uuid for the script, the cue list, each of the five cues and each media
+    Applied **only** to the generated document. ``generate_script_example``
+    mints a fresh uuid for the script, the cue list, each cue and each media
     item, so its bytes differ on every call and cannot be a golden as they
     stand.
 
     Normalizing the output is deliberately preferred over seeding the generator.
     Seeding was tried first and does not hold: the number of uuids minted before
-    ``create_script`` reaches its own depends on import order and on lazily
+    the generator reaches its own depends on import order and on lazily
     constructed, cached object defaults, so a patched counter lands on different
     values in a fresh process than in one that has already walked the corpus —
     reproducible *most* of the time, which is the worst property a golden can
@@ -275,52 +275,34 @@ def normalize_uuids(raw: bytes) -> bytes:
     return _UUID_RE.sub(replace, raw)
 
 
-def _make_template_writable(script) -> None:
-    """Undo the blanking ``create_script`` does on its way out.
-
-    ``create_script`` validates a fully-populated script and *then* clears every
-    id and both timestamps, because what it returns is a blank template for the
-    editor to fill in. That template cannot be written back: ``script.xsd``
-    requires ids to match a uuid4 pattern and asserts ``modified >= created``,
-    and the empty string satisfies neither.
-
-    So the fields are restamped here with values from the same deterministic
-    sequence. This is not working around a defect — it is reproducing the state
-    ``create_script`` itself validated three lines before returning.
-    """
-    from cuemsutils.helpers import new_uuid
-
-    script.created = GENERATED_CREATED
-    script.modified = GENERATED_MODIFIED
-    script["id"] = new_uuid()
-    script["CueList"]["id"] = new_uuid()
-    for cue in script.cuelist["contents"]:
-        cue["id"] = new_uuid()
-
-
 def build_generated_script():
-    """The deterministic ``create_script`` document (T012).
+    """The deterministic example-script document (T012, T070).
 
     The single implementation, shared by the capture script and by every test
     that needs the document — two copies of this would drift, and the drift
     would look like a byte-identity regression.
 
-    The uuids it contains are random and are *not* stabilised here — see
-    ``normalize_uuids``, which is applied to the serialized bytes instead.
+    Unlike the retired hand-written script-template function, ``generate_script_example()`` returns an
+    already-populated, already-valid object with nothing left to restamp:
+    there is no blanking step to undo (FR-033) — only the two timestamps are
+    overridden, for byte reproducibility across runs. The uuids it contains
+    are random and are *not* stabilised here — see ``normalize_uuids``, which
+    is applied to the serialized bytes instead.
     """
-    from cuemsutils.create_script import create_script
+    from cuemsutils.xml.descriptor import generate_script_example
 
-    script = create_script()
-    _make_template_writable(script)
+    script = generate_script_example()
+    script.created = GENERATED_CREATED
+    script.modified = GENERATED_MODIFIED
     return script
 
 
 def _capture_generated(writer: GoldenWriter) -> dict:
-    """Goldens for documents built by ``create_script.py`` (T012).
+    """Goldens for the descriptor-generated example script (T012, T070).
 
     This is where the corpus gets its breadth. The vendored tree has exactly
     **three** documents the write path accepts, and none of them exercises every
-    cue type; ``create_script`` emits one that covers audio, video, dmx, action
+    cue type; the generator emits one that covers audio, video, dmx, action
     and fade cues together. Without it, C1 — byte-identical *written* XML —
     would be measured on almost nothing.
     """
@@ -330,7 +312,7 @@ def _capture_generated(writer: GoldenWriter) -> dict:
     out = Path(tempfile.mkdtemp()) / "generated.xml"
     XmlReaderWriter(schema_name="script", xmlfile=str(out)).write_from_object(script)
     writer.put(
-        "generated/create_script.xml",
+        "generated/example_script.xml",
         normalize_uuids(normalize_schema_location(out.read_bytes())),
     )
     # Both normalizations apply to the dict too. Unlike the vendored documents —
@@ -339,12 +321,12 @@ def _capture_generated(writer: GoldenWriter) -> dict:
     # absolute path to the ``.xsd`` straight into the golden (F24).
     read_back = XmlReaderWriter(schema_name="script", xmlfile=str(out)).read()
     writer.put(
-        "generated/create_script.reader.json",
+        "generated/example_script.reader.json",
         normalize_uuids(normalize_schema_location(_json_bytes(read_back))),
     )
 
     return {
-        "<generated>/create_script": {
+        "<generated>/example_script": {
             "schema": "script",
             "category": "generated",
             "read": {"ok": True},

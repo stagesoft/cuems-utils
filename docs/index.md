@@ -180,5 +180,5 @@ Each module's public API is generated directly from docstrings:
 - [Cues](cues.md) — `Cue`, `MediaCue`, `AudioCue`, `VideoCue`, `DmxCue`, `FadeCue`, `ActionCue`, `FadeProfile`, `CueOutput`, `CueList`, `CuemsScript`
 - [Tools](tools.md) — `CTimecode`, `CTimecodeTimer`, `FadeCalculator`, `ConfigManager`, `CommunicatorServices`, `HubServices`, `SignalEngine`, `Uuid`
 - [XML](xml.md) — `XmlReaderWriter`, `XmlBuilder`, `Settings`, `CMLCuemsConverter`, `Parsers`
-- [API (root modules)](api.md) — `create_script`, `helpers`, `log`, `timeoutloop`
+- [API (root modules)](api.md) — `helpers`, `log`, `timeoutloop`
 - [Canvas Region](canvas_region.md) — coordinate model, validation rules, V1 caps, and deferred work

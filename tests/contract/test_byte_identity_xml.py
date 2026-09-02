@@ -50,14 +50,14 @@ def test_generated_script_is_byte_identical():
     """
     doc = next(d for d in DOCUMENTS if d.schema == "script")
     produced = rt.normalize_uuids(rt.write_bytes(doc, rt.build_generated_script()))
-    assert produced == rt.golden_bytes("generated/create_script.xml")
+    assert produced == rt.golden_bytes("generated/example_script.xml")
 
 
 # --- the enumerated properties C1 covers ---------------------------------
 # Stated as separate assertions rather than left to the reader, so that a
 # regression names the property it broke instead of dumping two files.
 
-ALL_XML = [f"xml/{d.slug}.xml" for d in WRITABLE] + ["generated/create_script.xml"]
+ALL_XML = [f"xml/{d.slug}.xml" for d in WRITABLE] + ["generated/example_script.xml"]
 
 
 @pytest.mark.parametrize("golden", ALL_XML)

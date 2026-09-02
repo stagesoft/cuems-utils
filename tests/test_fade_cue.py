@@ -183,38 +183,37 @@ def test_fade_cue_inherits_none_target_guard():
 
 
 # ---------------------------------------------------------------------------
-# Phase 5 — User Story 3: create_script integration
+# Phase 5 — User Story 3: descriptor-generated example script integration
+# (feature 008, T070/T074 — ported from the retired script-template function)
 # ---------------------------------------------------------------------------
 
-def test_create_script_contains_fade_cue():
-    """T026: create_script() produces a script that contains at least one FadeCue."""
-    from cuemsutils.create_script import create_script
+def test_generated_example_contains_fade_cue():
+    """T026: the descriptor-generated example script contains a FadeCue."""
+    from cuemsutils.xml.descriptor import generate_script_example
 
-    script = create_script()
+    script = generate_script_example()
     fade_cues = [c for c in script.cuelist.contents if isinstance(c, FadeCue)]
-    assert len(fade_cues) >= 1, "Expected at least one FadeCue in create_script() output"
+    assert len(fade_cues) >= 1, "Expected at least one FadeCue in the generated example"
 
 
-def test_create_script_validates_with_fade_cue():
-    """T027: create_script() internally validates its output with FadeCue and returns.
+def test_generated_example_validates_with_fade_cue():
+    """T027: the generated example, FadeCue included, is schema-valid as returned.
 
-    create_script() calls validate_template() before returning.  If schema
-    validation had failed the error would be logged and the script returned
-    would still contain the FadeCue (the function does not raise).  This test
-    verifies the function completes successfully and the FadeCue is present,
-    confirming no regression was introduced by adding FadeCue to the template.
+    Unlike the retired hand-written script-template function, the generator
+    does not validate and then mutate its result on the way out (FR-033) —
+    so this asserts the returned object validates directly, rather than
+    trusting an internal call that no longer exists.
     """
-    from cuemsutils.create_script import create_script
+    from cuemsutils.xml.descriptor import generate_script_example
 
-    # create_script() runs validate_template internally — if it raised the test fails
-    script = create_script()
+    script = generate_script_example()
+    assert not script.validate(), script.validate()
 
     fade_cues = [c for c in script.cuelist.contents if isinstance(c, FadeCue)]
     assert len(fade_cues) >= 1, (
-        "create_script() must return a script containing at least one FadeCue; "
-        "check that the internal validate_template() call did not eliminate it"
+        "the generated example must contain a FadeCue"
     )
-    # Verify the FadeCue properties are intact after the function returns
+    # Verify the FadeCue properties are intact
     fc = fade_cues[0]
     assert fc.action_type == 'fade_action'
     assert isinstance(fc.curve_type, FadeCurveType)

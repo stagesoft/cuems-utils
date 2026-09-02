@@ -150,8 +150,121 @@ Per `data-model.md` §5's table:
 
 ## ITEM D — `create_script` retirement and the schema descriptor
 
-*(Recorded incrementally as ITEM D lands — not yet reached in the
-implementation sequence as of this entry.)*
+### T069 — every `create_script` consumer, before anything is deleted
+
+18 entries, checked by `grep -rl "create_script\b" src/ tests/ templates/` on
+2026-09-02. **Fifteen are live references** — deleting the function without
+moving them first turns the suite red in fifteen files. **Three are prose**
+(a docstring, a comment, a provenance note) — they redden nothing, but
+T079's check is counted rather than reviewed, so they fail it just the same.
+
+**Six direct callers** (import and call `create_script()` themselves):
+
+- `tests/test_cuelist.py`
+- `tests/test_xml.py`
+- `tests/test_fade_cue.py`
+- `tests/integration/test_mediacue_fade_roundtrip.py`
+- `tests/integration/test_create_script_completeness.py`
+- `tests/unit/test_id_clearing.py`
+
+**Four golden assertions** (compare a produced document against
+`generated/create_script.xml`/`.reader.json`):
+
+- `tests/integration/test_d14_chain.py:109`
+- `tests/contract/test_byte_identity_xml.py:53,60`
+- `tests/contract/test_byte_identity_dict.py:64`
+- `tests/contract/test_dmx_failure_path.py:135`
+
+**Two support modules** (the shared harness every one of the above actually
+routes through):
+
+- `tests/support/capture_goldens.py` — `build_generated_script()`,
+  `_make_template_writable()`, `_capture_generated()`
+- `tests/support/invalid_scripts.py` — `build_generated_script()`'s base
+
+**Two manifest/inventory entries**:
+
+- `tests/contract/test_corpus_coverage.py:116` — the slug set
+- `tests/golden/MANIFEST.sha256:29-30` and `tests/golden/outcomes.json` —
+  the `generated/create_script` entries
+
+**Three prose-only references** (no executable dependency, but counted by
+T079's check):
+
+- `tests/integration/test_construction_parity.py:9` — module docstring
+- `tests/unit/test_script_equality.py:38` — comment
+- `tests/data/corpus/PROVENANCE.md:38` — provenance note
+
+### What replaced it (T070)
+
+`cuemsutils.xml.descriptor.generate_script_example()` — one `CuemsScript`
+carrying one instance of every concrete cue type. Structural completeness
+(*which* cue types appear) is read off the registry's
+`CueListContentsType` binding rather than hand-listed, so a schema addition
+is caught by `descriptor._assert_every_choice_member_has_a_builder` at
+generation time instead of silently missing. Each cue's *content* (a media
+file, an output's geometry, a DMX channel) is not schema-derivable and stays
+a small, explicit, hand-authored builder per type — see
+`descriptor._script_cue_builders`.
+
+**Output is not byte-identical to `create_script()`'s** (FR-033, sanctioned):
+fresh uuid4s throughout, `name`/`description` differ, and — the one
+deliberate behavioural difference — **there is no id-blanking step**.
+`create_script()` validated a fully-populated script and then cleared the
+script id, cue-list id and every direct cue's id on the way out, which is
+exactly the ordering defect FR-033 names (the returned, blanked object is
+not the one that was validated). The new generator has nothing to undo that
+defect *for* — `capture_goldens._make_template_writable`, which existed only
+to restamp what `create_script` blanked, is deleted with it (T072). A
+"blank template for the UI to fill in" is a 009/frontend-integration
+concern now, not something this repository's example-document builder
+re-implements.
+
+`generate_settings_example()` (T078) replaces `templates/settings.xml`
+the same way: field *names* are read off `settings.xsd` via
+`spec.derive()`, so an added or removed field is caught at generation time;
+field *values* come from a small explicit table
+(`descriptor._SETTINGS_EXAMPLE_VALUES`) transcribed from the retired
+template's illustrative content.
+
+### T081 — frontend template call sites (FR-036), enumerated rather than estimated
+
+Checked 2026-09-02 against `/disk/Projects/StageLab/cuems-frontend` on disk. Three files
+consume `ProjectsService.projectTemplate()` (the Angular service that used to be populated
+from this repository's `initial_template` payload, `create_script()`'s output); only two
+call sites read **concrete values** out of it rather than just checking presence/shape:
+
+- **`src/app/components/projects/project-edit/sequence/sequence.component.ts:688`** —
+  `newCue.master_vol = template?.['CuemsScript']?.['CueList']?.['contents']?.find((item:
+  any) => item.AudioCue)?.AudioCue?.master_vol || 20`. The fallback (`20`) already diverges
+  from the schema's own default (`100`, `AudioCueType.master_vol` — SC-012's descriptor
+  answer), which is worth 009 noticing independently of this migration: reading
+  `SchemaDescriptor().describe(TypeKey("script","AudioCueType"))`'s `master_vol` field
+  default replaces both the template walk *and* silently fixes the fallback's drift from the
+  schema.
+- **`src/app/components/projects/project-edit/sequence/sequence.component.ts:726-727`** —
+  walks `template['CuemsScript']['CueList']['contents']`, finds the entry carrying `DmxCue`,
+  and reads `DmxCue.DmxScene.DmxUniverse.dmx_channels` (unwrapping each `{DmxChannel:
+  {...}}` entry) to seed the new cue's initial channel list. The descriptor's answer for
+  `DmxUniverseType.dmx_channels`'s default is `None` (T057) — an empty starting list, not a
+  channel to copy — so 009's port is a **behaviour choice**, not a mechanical substitution:
+  either keep this component's own hard-coded `[{channel: 1, value: 0}]` fallback as the
+  sole source, or decide a real seed value belongs in `descriptor._SETTINGS_EXAMPLE_VALUES`-
+  style table for the show schema too. Recorded here rather than resolved, since the
+  decision is 009's to make against the live UI, not this feature's.
+- **`src/app/services/projects/handlers/project-create.handler.ts`** and
+  **`src/app/components/projects/project-edit/project-edit.component.ts:141`** — both consume
+  `projectTemplate()` (clone/existence checks) but read no concrete field values from it;
+  no descriptor migration is needed at these two call sites beyond whatever 009 does to the
+  service's own population source.
+
+**`cuems-engine`'s now-unreachable fade-action handlers** (FR-053b, restated here at
+call-site granularity per T081's instruction): `_handle_fade_in` (`ActionHandler.py:516`)
+and `_handle_fade_out` (`ActionHandler.py:542`), their `_ACTION_HANDLERS` entries
+(`ActionHandler.py:784-785`) and their `SUPPORTED_CUE_ACTIONS` members (`:30`) become dead
+code once `fade_in`/`fade_out` (FR-029a, T066) can no longer appear in a schema-valid
+document. `_handle_fade_out`'s recorded zombie-process defect (bumps `_go_generation`
+without calling `disarm()`) disappears with the handler rather than needing its own fix.
 
 ---
 

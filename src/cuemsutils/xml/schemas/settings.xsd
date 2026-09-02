@@ -8,14 +8,14 @@
                                          is set; precedence defined in
                                          cuemsutils.tools.ConfigManager)
 
-    A reference template (with REPLACE-... placeholders for per-node
-    values and inline operator guidance) lives in this same repo at:
-        templates/settings.xml
-
-    Any change to this schema MUST be reflected in the template — they
-    are two sides of the same contract. In the future, the in-dev
-    cuems-hardware-discovery project will consume the template, probe
-    node hardware, and populate the final deployed file automatically.
+    A reference instance is generated from this schema, not hand-maintained
+    alongside it (feature 008, FR-034): see
+    cuemsutils.xml.descriptor.generate_settings_example. A schema change
+    that adds or removes a required field is caught there — at generation
+    time — rather than relying on a second file nothing enforced agreement
+    with. In the future, the in-dev cuems-hardware-discovery project will
+    consume such a reference, probe node hardware, and populate the final
+    deployed file automatically.
 -->
 <xs:schema targetNamespace="https://stagelab.coop/cuems/" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:cms="https://stagelab.coop/cuems/">
     <xs:element name="CuemsSettings">

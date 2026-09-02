@@ -132,7 +132,7 @@ def test_a_healthy_scene_still_emits():
     """
     obj = rt.build_generated_script()
     produced = rt.normalize_uuids(rt.write_bytes(SCRIPT_DOC, obj))
-    assert produced == rt.golden_bytes("generated/create_script.xml")
+    assert produced == rt.golden_bytes("generated/example_script.xml")
     assert b"<DmxScene>" in produced
 
 

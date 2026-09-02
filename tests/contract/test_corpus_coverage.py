@@ -113,7 +113,7 @@ def test_no_golden_without_a_document():
     An orphaned golden is worse than a missing one — it keeps passing while
     covering nothing.
     """
-    slugs = {d.slug for d in DOCUMENTS} | {"create_script"}
+    slugs = {d.slug for d in DOCUMENTS} | {"example_script"}
     # ``outcomes.json``, ``MANIFEST.sha256`` and ``api/`` are per-feature, not
     # per-document: the first records verdicts for the whole corpus, the
     # second (T002) hashes every golden for the immutability guard, the third

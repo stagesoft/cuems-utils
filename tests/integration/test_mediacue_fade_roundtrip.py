@@ -7,19 +7,17 @@ The fade-profile round-trip assertions this file used to carry are retired
 
 import pytest
 
-from cuemsutils.create_script import create_script, validate_template
-from cuemsutils.helpers import new_datetime, new_uuid
+from cuemsutils.xml.descriptor import generate_script_example
 
 
-def test_create_script_template_validates_with_schema():
-    """Mirror create_script validation window (ids and dates set)."""
-    script = create_script()
-    now = new_datetime()
-    script.created = now
-    script.modified = now
-    script['id'] = new_uuid()
-    script['CueList']['id'] = new_uuid()
-    for i in range(len(script.cuelist.contents)):
-        script.cuelist.contents[i]['id'] = new_uuid()
-    script['ui_properties'] = {'warning': 0}
-    validate_template(script)
+def test_generated_example_validates_with_schema():
+    """The descriptor-generated example script is valid as returned (T070/T074).
+
+    Unlike the retired hand-written script-template function, there is no
+    separate "validation window" to mirror: the generator returns an
+    already-populated, already-valid object with nothing left to restamp
+    (FR-033).
+    """
+    script = generate_script_example()
+    report = script.validate()
+    assert not report, report

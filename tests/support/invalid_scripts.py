@@ -10,11 +10,10 @@ or assembled key-by-key — which is what ``cuems-editor`` does.
 Each helper returns a script that is broken in exactly **one** stated way, so a
 test asserting "this violation is reported" cannot pass on a different one.
 
-The valid base is ``build_generated_script()``, not a bare ``create_script()``:
-the latter blanks every id on its way out because what it returns is a *blank
-template*, so it is already structurally invalid before anything here touches
-it — and a test proving "invalid scripts are rejected" against a base that was
-never valid proves nothing.
+The valid base is ``build_generated_script()``, a fully-populated,
+already-valid document (``descriptor.generate_script_example()``, T070) — not
+a partially-built object of our own, since a test proving "invalid scripts
+are rejected" against a base that was never valid proves nothing.
 """
 
 from __future__ import annotations
@@ -61,7 +60,7 @@ def structurally_invalid_three_ways() -> CuemsScript:
 def custom_video_output(script: CuemsScript) -> VideoCueOutput:
     """The generated show's one custom-mode video output.
 
-    ``create_script`` already builds both modes — an alias output and a custom
+    The generator already builds both modes — an alias output and a custom
     one carrying a valid ``canvas_region`` — so the semantic case below only
     has to move the region, not assemble an output from scratch.
     """

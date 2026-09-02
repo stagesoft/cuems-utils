@@ -35,11 +35,12 @@ from tests.support.corpus import by_relpath
 
 RUNTIME_SENTINEL = object()
 
-#: A **fixed** document, not the generated template. ``create_script`` mints a
-#: fresh uuid per call, so two of its scripts differ in a declared field by
-#: construction — which is correct behaviour and useless as an equality
-#: fixture. Loading the same document twice gives two independent objects with
-#: identical content, which is the pair equality is actually about.
+#: A **fixed** document, not the generated example. The example-script
+#: generator mints a fresh uuid per call, so two of its scripts differ in a
+#: declared field by construction — which is correct behaviour and useless as
+#: an equality fixture. Loading the same document twice gives two independent
+#: objects with identical content, which is the pair equality is actually
+#: about.
 DOC = by_relpath("cuems-engine/projects/complex_test/script.xml")
 
 

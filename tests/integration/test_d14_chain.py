@@ -106,7 +106,7 @@ def test_generated_document_survives_the_whole_chain():
     obj = rt.build_generated_script()
 
     direct = rt.normalize_uuids(rt.write_bytes(doc, obj))
-    assert direct == rt.golden_bytes("generated/create_script.xml")
+    assert direct == rt.golden_bytes("generated/example_script.xml")
 
     rebuilt = _json_to_object(json.loads(json.dumps(obj)))
     via_json = rt.normalize_uuids(rt.write_bytes(doc, rebuilt))

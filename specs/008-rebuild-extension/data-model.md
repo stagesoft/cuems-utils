@@ -106,6 +106,14 @@ written against landed code (D28, D30).
 
 ## 3. Hand-off interface 2 — the schema descriptor (ITEM D)
 
+**Landed and frozen (T082).** `SchemaDescriptor`, `TypeDescriptor`, `FieldDescriptor` and
+`Repairability` exist in `src/cuemsutils/xml/descriptor.py`, matching the shape below exactly —
+including `default`'s `Unset` sentinel and the three-rule repairability derivation in §3.1.
+Verified against the landed module directly (not against the tests alone) on 2026-09-02: field
+for field, `FieldDescriptor` carries `name`, `xsd_type`, `required`, `repeated`, `order`, `kind`,
+`enum_values`, `default`, `repairability` — no more, no fewer. Phase 2 is written against this as
+landed code.
+
 New module. Reuses `spec.derive()` for structure; adds what `derive` does not carry (research R3).
 
 ```
