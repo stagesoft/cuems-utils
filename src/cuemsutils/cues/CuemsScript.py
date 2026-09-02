@@ -5,7 +5,7 @@ from collections.abc import Mapping
 
 from .CueList import CueList
 from .MediaCue import MediaCue
-from ..errors import IngestError, SchemaError, ValidationError
+from ..errors import IngestError, LoadReport, SchemaError, ValidationError
 from ..log import logged, Logger
 from ..helpers import as_cuemsdict, ensure_items, new_uuid, new_datetime, unique_values_to_list, CuemsDict
 from ..tools.Uuid import Uuid
@@ -306,11 +306,22 @@ class CuemsScript(CuemsDict):
         written. That is a guarantee rather than a convention — there is no
         public path that produces a partially coerced script.
 
-        Runs T1 (schema-derived, structural) validation and **no** T2
-        (semantic) validation: a document that violates a semantic rule
-        *loads*, because reading never becomes stricter (FR-026). Its runtime
-        state is already initialized, so the engine can run it with no
-        promotion step.
+        **Runs full validation — T1 and T2** (feature 008, FR-037). This is a
+        deliberate reversal of the earlier principle that reading never
+        becomes stricter (FR-038, recorded here since this is the call site
+        the reversal happens at): a document version older than this schema's
+        current one converts **in memory** (the file on disk is left
+        untouched — FR-041, FR-041a); a current document with a repairable
+        semantic violation is repaired to its descriptor default; a current
+        document with an unrepairable one raises; a document whose version
+        marker is newer than this library raises, distinguishably (FR-052).
+        Its runtime state is already initialized either way, so the engine can
+        run it with no promotion step.
+
+        This method keeps its signature so existing callers compile — it
+        simply has no way to hand back *what* happened beyond the object
+        itself. A caller that needs the conversions/repairs applied calls
+        :meth:`load_with_report` instead (contracts §2).
 
         Replaces ``XmlReaderWriter(schema_name="script",
         xmlfile=path).read_to_objects()``.
@@ -323,22 +334,88 @@ class CuemsScript(CuemsDict):
             CuemsScript: the decoded script.
 
         Raises:
-            SchemaError: the document does not match ``script.xsd``.
+            SchemaError: the document does not match ``script.xsd`` (T1).
+            ValidationError: an unrepairable T2 violation, or a document
+                version newer than this library (T2/version, FR-044/FR-052).
             OSError: propagated **unwrapped** — ``FileNotFoundError`` for a
                 missing file, ``PermissionError`` for an unreadable one. Every
                 consumer already handles these, and wrapping them would force
                 callers to unwrap them to find out what happened (FR-035).
         """
-        from ..xml.documents import read_document
+        obj, _report = cls._load_full(path)
+        return obj
+
+    @classmethod
+    def load_with_report(cls, path) -> tuple['CuemsScript', 'LoadReport']:
+        """As :meth:`load`, and also returns what the load did (contracts §2).
+
+        The report answers FR-046's five questions from data alone — which
+        document, which conversions ran, which fields were repaired and to
+        what, and whether the file on disk is now stale — so a caller
+        (feature 009) can surface a load that changed something without this
+        library acquiring a notification channel of its own (FR-047).
+
+        A caller that saves a repaired or converted object **without** having
+        read this report first destroys the original document, unreviewed,
+        the moment it does — the library cannot prevent that, which is why
+        surfacing the report is a migration-guide precondition (FR-053a)
+        rather than something this method enforces.
+
+        Returns:
+            tuple[CuemsScript, LoadReport]: the decoded script, and a report
+            with ``outcome == Outcome.CLEAN`` and both tuples empty for a
+            document that needed neither conversion nor repair — never
+            ``None`` in place of the report.
+
+        Raises:
+            Same as :meth:`load`.
+        """
+        return cls._load_full(path)
+
+    @classmethod
+    def _load_full(cls, path) -> tuple['CuemsScript', 'LoadReport']:
+        """The one load path both :meth:`load` and :meth:`load_with_report`
+        share (mirrors :meth:`_decode` being the one decode path both public
+        entry points share, FR-001)."""
+        from ..errors import ConversionRecord, Outcome
+        from ..xml.documents import read_document_versioned
+        from ..xml.validators import Violation, repair
+        from ..xml.versioning import DocumentTooNewError
 
         try:
-            source = read_document(SCHEMA_NAME, path)
+            source, original_version, steps = read_document_versioned(SCHEMA_NAME, path)
         except OSError:
             raise
+        except DocumentTooNewError as exc:
+            raise ValidationError(
+                str(exc),
+                violation=Violation("T1", "document_version_too_new", (None, None), str(exc)),
+            ) from exc
         except Exception as exc:
             raise SchemaError(f"{path} is not a valid script document: {exc}") from exc
 
-        return cls._decode(source)
+        obj = cls._decode(source)
+        repairs = repair(obj)
+
+        if repairs:
+            outcome = Outcome.REPAIRED
+        elif steps:
+            outcome = Outcome.CONVERTED
+        else:
+            outcome = Outcome.CLEAN
+
+        conversions = tuple(
+            ConversionRecord(step.from_version, step.to_version, step.description, step.dropped_elements)
+            for step in steps
+        )
+        report = LoadReport(
+            document=str(path),
+            outcome=outcome,
+            conversions=conversions,
+            repairs=tuple(repairs),
+            file_differs_from_loaded=outcome is not Outcome.CLEAN,
+        )
+        return obj, report
 
     @classmethod
     def from_json(cls, payload) -> 'CuemsScript':

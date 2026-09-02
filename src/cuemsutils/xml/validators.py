@@ -349,27 +349,25 @@ def _walk(obj, cue_type: type, cue_id: str | None = None):
             yield from _walk(item, cue_type, cue_id)
 
 
-def run_rules(obj) -> list[Violation]:
-    """Every T2 violation in ``obj`` — **the seam, now filled** (T072).
+def _iter_t2_findings(obj):
+    """Every T2 violation below ``obj``, paired with **where it happened**.
 
-    ``save()`` and ``validate()`` bound to this signature two phases before the
-    registry existed (T023b). Building the seam first is what kept US1 from
-    calling a function no task created, and what lets this task *fill* it
-    rather than introduce it — so the signature the public surface depends on
-    never changed.
+    Yields ``(Violation, node, field, Rule)`` — the same walk :func:`run_rules`
+    exposes as bare ``Violation``s, plus the object and field a caller would
+    need to *act* on the finding rather than only report it. Introduced for
+    :func:`repair` (ITEM E, US7): substituting a field's descriptor default
+    needs the node the violation is on, which a bare ``Violation`` does not
+    carry (FR-045).
 
     The walk asks the **registry**, not a list of special cases: for every
     object below ``obj``, every rule bound to one of its MRO names and to a
-    field it actually carries is run, and a ``ValueError`` becomes a
-    ``Violation``. Adding a rule therefore extends this without editing it,
-    which is the difference between a tier and an archaeology exercise.
-
-    Rules are run in **registration order** so a document with several
-    violations reports them in a stable order rather than a dict-iteration one.
+    field it actually carries is run, and a ``ValueError``/``TypeError``
+    becomes a finding. Rules run in **registration order** so a document with
+    several violations reports them in a stable order rather than a
+    dict-iteration one.
     """
     from ..cues.Cue import Cue
 
-    violations: list[Violation] = []
     for cue_id, node in _walk(obj, Cue):
         class_names = frozenset(cls.__name__ for cls in type(node).__mro__)
         for rule in RULES.values():
@@ -382,11 +380,83 @@ def run_rules(obj) -> list[Violation]:
                     # ``TypeError`` is here for one rule: ``media_duration``
                     # rejects a wrong *type* with a ``TypeError`` because that
                     # is what its setter has always raised, and T071 keeps the
-                    # setter's behaviour. A report is a report either way.
-                    violations.append(
-                        Violation("T2", rule.name, (cue_id, field), str(exc))
+                    # setter's behaviour. A finding is a finding either way.
+                    yield (
+                        Violation("T2", rule.name, (cue_id, field), str(exc)),
+                        node,
+                        field,
+                        rule,
                     )
-    return violations
+
+
+def run_rules(obj) -> list[Violation]:
+    """Every T2 violation in ``obj`` — **the seam, now filled** (T072).
+
+    ``save()`` and ``validate()`` bound to this signature two phases before the
+    registry existed (T023b). Building the seam first is what kept US1 from
+    calling a function no task created, and what lets this task *fill* it
+    rather than introduce it — so the signature the public surface depends on
+    never changed.
+
+    Built on :func:`_iter_t2_findings`, discarding the node/field/rule a
+    caller would need to *act* on a finding — ``run_rules`` only ever reports.
+    """
+    return [violation for violation, _node, _field, _rule in _iter_t2_findings(obj)]
+
+
+def repair(obj) -> list:
+    """Repair every repairable T2 violation in ``obj``, **in place** (ITEM E,
+    US7, data-model.md §3.1).
+
+    For each violation found: a field with **no** model-layer default is
+    unrepairable regardless of what the rule declares (data-model.md §3.1's
+    rule 2 outranks rule 1 — there is nothing to recover it to); otherwise the
+    rule's own ``repairable`` declaration decides. A repairable field is set to
+    its default (the default **is** the repair — every ``repairable=True``
+    rule accepts its field's own default, by construction of the rule table),
+    and a :class:`~cuemsutils.errors.RepairRecord` is appended. The first
+    unrepairable violation raises :class:`~cuemsutils.errors.ValidationError`
+    immediately (FR-044), naming the same ``Violation`` :meth:`validate` would
+    report (FR-034b) — nothing repaired so far is undone, matching ``save()``'s
+    early-stop posture rather than ``validate()``'s collect-everything one.
+
+    Setting ``node[field]`` uses plain ``dict`` assignment: no ``CuemsDict``
+    subclass overrides ``__setitem__``, so this neither re-triggers a property
+    setter's own validation nor mutates anything but the one field (FR-045).
+
+    Returns:
+        list[RepairRecord]: one per field repaired, in the order
+        :func:`_iter_t2_findings` found them. Empty for a clean object.
+
+    Raises:
+        ValidationError: the first violation found in a field the descriptor
+            (via the rule's own declaration, joined with default-presence)
+            classifies unrepairable.
+    """
+    from ..errors import RepairRecord, ValidationError
+    from ..helpers import Unset
+
+    repairs: list[RepairRecord] = []
+    for violation, node, field, rule in _iter_t2_findings(obj):
+        default = type(node).declared_defaults().get(field, Unset)
+        if default is Unset or not rule.repairable:
+            raise ValidationError(str(violation), violation=violation)
+
+        previous = node[field]
+        substituted = default() if callable(default) else default
+        node[field] = substituted
+
+        cue_id, _ = violation.location
+        field_path = "/".join(str(part) for part in (cue_id, field) if part is not None)
+        repairs.append(
+            RepairRecord(
+                field_path=field_path,
+                previous_value=previous,
+                substituted_value=substituted,
+                rule_name=rule.name,
+            )
+        )
+    return repairs
 
 
 # --- the rules themselves (T073) -------------------------------------------

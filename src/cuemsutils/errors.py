@@ -38,7 +38,19 @@ actually happened.
 
 from __future__ import annotations
 
-__all__ = ["CuemsError", "IngestError", "SchemaError", "ValidationError"]
+from dataclasses import dataclass
+from enum import Enum
+
+__all__ = [
+    "CuemsError",
+    "IngestError",
+    "SchemaError",
+    "ValidationError",
+    "ConversionRecord",
+    "LoadReport",
+    "Outcome",
+    "RepairRecord",
+]
 
 
 class CuemsError(Exception):
@@ -129,6 +141,101 @@ def network_map_node_type_message(xmlfile: str, exc: Exception) -> str | None:
     if replacement is not None:
         message += f" note: {value!r} is the retired spelling for {replacement!r}."
     return message
+
+
+def project_mappings_semantic_message(exc: Exception) -> str | None:
+    """Whether ``exc`` is ``project_mappings``' one T2 (semantic) violation.
+
+    ``ProjectMappings._validate_custom_templates`` delegates to
+    ``xml.validators.check_canvas_region_containment`` /
+    ``check_one_custom_template_per_node`` — the same two checks the
+    registered ``one_custom_template_per_node`` T2 rule delegates to (feature
+    008, ITEM D) — and both raise a plain ``ValueError``. Recognised by
+    message shape, matching the pattern this module already uses for
+    ``network_map``'s two known failure modes, so ``load_config_document`` can
+    tell a **semantic** (T2) violation from a **structural** (T1) one and
+    raise the right exception type (feature 008, FR-037).
+    """
+    # Matched against the **exact** wording ``check_canvas_region_containment``
+    # / ``check_one_custom_template_per_node`` raise (``xml/validators.py``),
+    # not a loose substring — an auto-generated ``xmlschema`` structural (T1)
+    # message can legitimately name the ``canvas_region`` *element* too (e.g.
+    # "Unexpected child with tag 'canvas_region'"), and that must stay a
+    # ``SchemaError``, not be reclassified as this rule's ``ValidationError``.
+    message = str(exc)
+    if "canvas_region" in message and "must be <= 1, got" in message:
+        return message
+    if "custom templates (canvas_region entries); at most" in message:
+        return message
+    return None
+
+
+# ---------------------------------------------------------------------------
+# The repair report (feature 008, ITEM E, US7) — data-model.md §4.
+#
+# Public, joining ``ValidationError``/``SchemaError``/``IngestError`` on 006's
+# precedent: a repair the caller cannot inspect is one it cannot surface.
+# ---------------------------------------------------------------------------
+
+
+class Outcome(Enum):
+    """What a load did, beyond returning an object (FR-046)."""
+
+    CLEAN = "clean"
+    CONVERTED = "converted"
+    REPAIRED = "repaired"
+
+
+@dataclass(frozen=True)
+class RepairRecord:
+    """One field, repaired to its descriptor default on load (FR-043, FR-045).
+
+    ``field_path`` is the enclosing cue's id and the field name, joined the
+    same way ``Violation.__str__`` joins its location — ``"<cue_id>/<field>"``,
+    or bare ``"<field>"`` for a document-scoped field with no enclosing cue.
+    """
+
+    field_path: str
+    previous_value: object
+    substituted_value: object
+    rule_name: str
+
+
+@dataclass(frozen=True)
+class ConversionRecord:
+    """One version step applied on load (FR-046, data-model.md §1.1).
+
+    ``dropped_elements`` names what a **lossy** step discarded — empty for
+    every step that only reshapes or remaps. FR-051c's fade-profile drop is
+    the one case in this feature that populates it; reporting it is what
+    makes that drop permissible rather than a silent loss (SC-016e).
+    """
+
+    from_version: int
+    to_version: int
+    description: str
+    dropped_elements: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class LoadReport:
+    """What a load did beyond returning an object (data-model.md §4).
+
+    Answers FR-046's five questions from data alone: which document
+    (:attr:`document`), which fields were repaired and what replaced what
+    (:attr:`repairs`), which conversions ran (:attr:`conversions`), and
+    whether the file on disk is now stale (:attr:`file_differs_from_loaded`).
+
+    A clean load returns ``outcome == Outcome.CLEAN`` with both tuples empty
+    — **never** ``None`` — so a caller never branches on presence before
+    reading (contracts §1).
+    """
+
+    document: str
+    outcome: Outcome
+    conversions: tuple[ConversionRecord, ...] = ()
+    repairs: tuple[RepairRecord, ...] = ()
+    file_differs_from_loaded: bool = False
 
 
 def network_map_role_enum_message(xmlfile: str, exc: Exception) -> str | None:

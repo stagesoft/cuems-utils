@@ -2,29 +2,40 @@ from os import environ, path
 
 from ..errors import (
     SchemaError,
+    ValidationError,
     network_map_node_type_message,
     network_map_role_enum_message,
+    project_mappings_semantic_message,
 )
 from ..log import Logger, logged
 # The concrete module, not the package root: ``cuemsutils.xml.Settings``
 # is a deprecation shim as of T061, and contract C8 forbids the library
 # calling one of its own deprecated names.
 from ..xml.settings import Settings
+from ..xml.versioning import DocumentTooNewError
 from ..helpers import mkdir_recursive
 
 
 def load_config_document(cls, xmlfile: str, schema_name: str):
     """Open one configuration document with the **accessor's** error posture.
 
-    One function, every call site (FR-014b, contract C2). The two failure kinds
-    a consumer must tell apart are kept apart here rather than at each of the
+    One function, every call site (FR-014b, contract C2). The failure kinds a
+    consumer must tell apart are kept apart here rather than at each of the
     six places a configuration file is opened:
 
     * ``OSError``/``FileNotFoundError`` propagate **unwrapped** — every
       consumer already handles them, and wrapping would force callers to
       unwrap to find out what actually happened (FR-035);
-    * anything else is a schema failure and becomes ``SchemaError``, carrying
-      the original reason so the offending element is still named.
+    * a document version newer than this library becomes ``ValidationError``,
+      distinguishably (feature 008, FR-052);
+    * ``project_mappings``' one T2 (semantic) rule violation — the only
+      registered rule any configuration schema carries (FR-039) — becomes
+      ``ValidationError`` rather than the generic ``SchemaError`` every other
+      failure gets, so a caller can tell a structural failure from a semantic
+      one the same way it can for a show document (feature 008, FR-037);
+    * anything else is a structural (T1) schema failure and becomes
+      ``SchemaError``, carrying the original reason so the offending element
+      is still named.
 
     The internal reader (``xml/settings.py``) deliberately does **not** wrap:
     its raw verdicts are what ``tests/golden/outcomes.json`` pins document by
@@ -43,7 +54,24 @@ def load_config_document(cls, xmlfile: str, schema_name: str):
         raise
     except SchemaError:
         raise
+    except ValidationError:
+        raise
+    except DocumentTooNewError as exc:
+        Logger.error(str(exc))
+        raise ValidationError(str(exc)) from exc
     except Exception as exc:
+        # ``project_mappings``' one T2 rule violation checked **first**, and
+        # matched on exact wording rather than by exception type: it raises a
+        # plain ``ValueError``, and so does ``xmlschema``'s own
+        # ``XMLSchemaValidationError`` (it subclasses ``ValueError``) for a
+        # genuine T1 structural failure — ``isinstance`` cannot tell them
+        # apart, which is why ``project_mappings_semantic_message`` matches
+        # the rule's own wording instead (feature 008, FR-037).
+        if schema_name == 'project_mappings':
+            semantic_message = project_mappings_semantic_message(exc)
+            if semantic_message is not None:
+                Logger.error(semantic_message)
+                raise ValidationError(semantic_message) from exc
         if schema_name == 'network_map':
             for diagnose in (network_map_node_type_message, network_map_role_enum_message):
                 specific_message = diagnose(xmlfile, exc)

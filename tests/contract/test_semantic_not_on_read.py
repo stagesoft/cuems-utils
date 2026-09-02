@@ -1,24 +1,25 @@
-"""FR-026, SC-016 (T068) — **reading never becomes stricter**.
+"""FR-037, FR-038 (feature 008, ITEM E) — **reading now becomes stricter**.
 
-This is the feature's second required decision stop, and it was answered with
-measurement rather than judgement: a corpus sweep, per rule, re-invoking each
-value-rejecting setter against the values the load path actually produces
-(``specs/006-public-object-api/corpus-sweep.md``).
+This file pinned the opposite standing principle through feature 006
+(FR-026/SC-016 there): "reading never becomes stricter", decided by measuring
+that none of the fourteen setter rules would reject a value the load path
+actually produced. That measurement is superseded, not wrong for its time —
+feature 008 makes the **deliberate, recorded** reversal (FR-038): the public
+show load surface and every configuration accessor now run **both** tiers,
+T1 and T2, on every read (FR-037). ``CuemsScript.load``'s own docstring
+records the same reversal at its call site.
 
-The answer was split, and that split is why the tier runs where it does:
-
-* of the fourteen setter rules, **none** would reject anything the library
-  accepts today — six proven against real values, eight unproven for lack of a
-  fade document in the corpus;
-* the fifteenth — the uuid4 shape check — **would**, three times in one
-  ordinary editor payload, on the nil ``Media.id`` the editor sends for media
-  that has no id yet.
-
-So T2 runs on ``save()`` and ``validate()`` **only**. A document that violates
-a semantic rule loads; it fails when someone tries to persist it. That keeps
-the read path exactly as permissive as it is today, which is what FR-025's
-accept/reject parity requires, and it is why the uuid rule stayed a *coercion*
-concern rather than joining the registry (T070).
+The reversal is not "run every rule against the read path and see what
+breaks" — it composes with ITEM D's descriptor and ITEM E's repair-and-notify
+(US7): a **repairable** violation loads anyway, silently corrected to the
+descriptor's default; only an **unrepairable** one raises. This file's fixture
+is deliberately the latter (``fade_duration_positive`` is declared
+``repairable=False`` in ``xml/validators.py`` — "no value both satisfies
+positive-and-non-zero and carries no meaning of its own" — so there is no
+default to repair it to), which is what lets this module keep demonstrating a
+document that "loads" under the old principle and now does not, rather than
+needing a second fixture to cover the newly-added repair path (that path has
+its own tests in ``tests/integration/test_repair.py``).
 """
 
 from __future__ import annotations
@@ -39,7 +40,8 @@ IDS = [d.relpath for d in SCRIPT_DOCS]
 
 @pytest.fixture(scope="module")
 def semantically_invalid_document(tmp_path_factory):
-    """A document on disk that is structurally valid and semantically wrong.
+    """A document on disk that is structurally valid and semantically wrong,
+    in a field the descriptor classifies **unrepairable**.
 
     **A zero-duration fade**, not an off-canvas region, and the choice is
     load-bearing. ``VideoCueOutputsType`` is an ``OPAQUE_TYPE``, so decoding
@@ -47,14 +49,16 @@ def semantically_invalid_document(tmp_path_factory):
     check itself, at construction, before ``super().__init__``. That
     constructor call is what pins two legacy corpus documents as
     ``to_objects: error`` (FR-024d, T074), so an off-canvas region is rejected
-    *on read* and cannot demonstrate anything about the write tier.
+    *on read* for a different reason and cannot demonstrate anything about
+    ITEM E's T2-on-load tier specifically.
 
     ``FadeCue.duration`` has no such constructor: the ``fade_duration_positive``
     rule lives in ``FadeCue.set_duration``, decode does not run setters, and
     ``script.xsd``'s ``CTimecodeType`` only constrains the lexical *shape* of a
     timecode, not its sign — ``00:00:00.000`` is a perfectly valid
-    ``CTimecodeType`` value. So the document loads and only ``save()`` objects
-    — which is precisely the behaviour FR-026 specifies.
+    ``CTimecodeType`` value. So the document decodes without complaint and it
+    is ITEM E's new T2-on-load tier that objects — which is precisely the
+    behaviour FR-037/FR-038 add.
 
     (Feature 008, FR-007a: the original fixture used duplicate fade profile
     types, via ``fade_profile_caps``. That rule and the surface it validated
@@ -80,51 +84,87 @@ def semantically_invalid_document(tmp_path_factory):
 
 
 def test_the_fixture_really_is_semantically_invalid(semantically_invalid_document):
-    """The control: without it, "it loads" could mean "it is fine"."""
-    assert CuemsScript.load(semantically_invalid_document).validate()
+    """The control: without it, "load() raises" could mean "the file is
+    unreadable", not "the T2 tier caught something real". Bypasses
+    ``load()``'s new strictness on purpose, via the tree-building path
+    ``validate()`` itself uses, so this assertion does not depend on the
+    behaviour under test."""
+    from cuemsutils.xml.documents import read_document
+
+    script = CuemsScript._decode(read_document("script", semantically_invalid_document))
+    assert script.validate()
 
 
-def test_a_semantically_invalid_document_loads(semantically_invalid_document):
-    script = CuemsScript.load(semantically_invalid_document)
-    assert script is not None
-    assert script.cuelist.contents
+def test_an_unrepairable_semantically_invalid_document_raises_on_load(
+    semantically_invalid_document,
+):
+    """The reversal's headline case (FR-037, FR-038, FR-044): a document that
+    used to load and only fail on ``save()`` now fails at ``load()``, because
+    the violated field has no descriptor default to repair it to."""
+    with pytest.raises(ValidationError):
+        CuemsScript.load(semantically_invalid_document)
 
 
-def test_it_fails_only_on_save(semantically_invalid_document, tmp_path):
-    script = CuemsScript.load(semantically_invalid_document)
+def test_it_fails_on_load_and_would_still_fail_on_save(
+    semantically_invalid_document, tmp_path
+):
+    """``save()``'s own T2 check is unchanged by this feature — it would
+    still refuse the object, if a caller ever got one to call it on by
+    bypassing ``load()``."""
+    with pytest.raises(ValidationError):
+        CuemsScript.load(semantically_invalid_document)
+
+    from cuemsutils.xml.documents import read_document
+
+    script = CuemsScript._decode(read_document("script", semantically_invalid_document))
     with pytest.raises(ValidationError):
         script.save(tmp_path / "out.xml")
 
 
 def test_from_json_runs_no_semantic_rule(semantically_invalid_document):
-    payload = CuemsScript.load(semantically_invalid_document).to_json()
+    """``from_json`` is **not** part of FR-037's reversal (contracts §2 names
+    only ``load``/``load_with_report``) — the editor's ingestion path keeps
+    its existing, decode-time-only posture, unchanged by this feature."""
+    from cuemsutils.xml.documents import read_document
+
+    script = CuemsScript._decode(read_document("script", semantically_invalid_document))
+    payload = script.to_json()
     rebuilt = CuemsScript.from_json(payload)
     assert rebuilt is not None
     assert rebuilt.validate(), "the rebuilt script lost the violation, not the check"
 
 
-def test_load_runs_zero_rules(monkeypatch, semantically_invalid_document):
-    """Counted, not inferred.
+def test_load_now_runs_the_tier(monkeypatch, semantically_invalid_document):
+    """Counted, not inferred — the reversal's other half.
 
-    "It loaded, so no rule rejected it" is weaker than it looks: a rule that
-    ran and *passed* would also load. Counting invocations distinguishes "the
-    tier is off on read" from "the tier happened to agree".
+    Feature 006 counted invocations to prove the tier was **off**; feature 008
+    counts them to prove it is now **on**. ``load()``'s repair path
+    (``xml.validators.repair``) walks T2 findings directly rather than calling
+    ``run_rules`` (which stays reserved for ``validate()``/``save()``'s
+    collect-everything and stop-at-first postures), so this counts calls to
+    the shared primitive both go through: ``_iter_t2_findings``.
     """
     from cuemsutils.xml import validators
 
     calls: list[str] = []
-    original = validators.run_rules
-    monkeypatch.setattr(
-        validators, "run_rules", lambda obj: calls.append("run") or original(obj)
-    )
+    original = validators._iter_t2_findings
 
-    CuemsScript.load(semantically_invalid_document)
-    assert calls == [], "load() invoked the semantic tier"
+    def _counted(obj):
+        calls.append("run")
+        return original(obj)
+
+    monkeypatch.setattr(validators, "_iter_t2_findings", _counted)
+
+    with pytest.raises(ValidationError):
+        CuemsScript.load(semantically_invalid_document)
+    assert calls == ["run"], "load() did not invoke the semantic tier"
 
 
 @pytest.mark.parametrize("doc", SCRIPT_DOCS, ids=IDS)
 def test_every_corpus_document_still_loads(doc):
-    """FR-025 over the corpus: reading is no stricter than it was."""
+    """No corpus document regresses under the new strictness — every one of
+    them is either clean or repairable, none carries this fixture's
+    unrepairable shape."""
     assert CuemsScript.load(doc.path) is not None
 
 

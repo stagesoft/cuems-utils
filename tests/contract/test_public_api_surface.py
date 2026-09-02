@@ -44,7 +44,21 @@ PUBLIC_CLASSES = {
     "ConfigBase": ("cuemsutils.tools.ConfigBase", "ConfigBase"),
 }
 
-PUBLIC_ERRORS = ("CuemsError", "IngestError", "SchemaError", "ValidationError")
+#: The exception hierarchy, plus the repair-report types feature 008 (ITEM E)
+#: adds to the same module — ``LoadReport``/``Outcome``/``RepairRecord``/
+#: ``ConversionRecord`` are data, not exceptions, but they join
+#: ``cuemsutils.errors`` on 006's precedent (data-model.md §4): a repair the
+#: caller cannot inspect is one it cannot surface.
+PUBLIC_ERRORS = (
+    "ConversionRecord",
+    "CuemsError",
+    "IngestError",
+    "LoadReport",
+    "Outcome",
+    "RepairRecord",
+    "SchemaError",
+    "ValidationError",
+)
 
 #: Reachable by dotted access for one release, warning on use (FR-019a).
 DEPRECATED_DOTTED = [

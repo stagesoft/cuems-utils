@@ -8,6 +8,15 @@
     "XmlReaderWriter"
   ],
   "errors": {
+    "ConversionRecord": {
+      "bases": [
+        "object"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, from_version: 'int', to_version: 'int', description: 'str', dropped_elements: 'tuple[str, ...]' = ()) -> None"
+      }
+    },
     "CuemsError": {
       "bases": [
         "Exception"
@@ -28,6 +37,31 @@
         "__init__": "(self, /, *args, **kwargs)",
         "add_note": "<no signature>",
         "with_traceback": "<no signature>"
+      }
+    },
+    "LoadReport": {
+      "bases": [
+        "object"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, document: 'str', outcome: 'Outcome', conversions: 'tuple[ConversionRecord, ...]' = (), repairs: 'tuple[RepairRecord, ...]' = (), file_differs_from_loaded: 'bool' = False) -> None"
+      }
+    },
+    "Outcome": {
+      "bases": [
+        "Enum"
+      ],
+      "kind": "EnumType",
+      "methods": {}
+    },
+    "RepairRecord": {
+      "bases": [
+        "object"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, field_path: 'str', previous_value: 'object', substituted_value: 'object', rule_name: 'str') -> None"
       }
     },
     "SchemaError": {
@@ -126,6 +160,7 @@
         "items": "(self)",
         "keys": "<no signature>",
         "load": "(path) -> 'CuemsScript'",
+        "load_with_report": "(path) -> tuple['CuemsScript', 'LoadReport']",
         "pop": "<no signature>",
         "popitem": "(self, /)",
         "runtime_fields": "() -> dict[str, typing.Any]",
