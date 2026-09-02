@@ -37,6 +37,13 @@ IDS = [d.relpath for d in SCRIPT_DOCS]
 #: part of the oracle claim, which is about the fields the schema describes.
 SCHEMA_LOCATION_KEY = "{http://www.w3.org/2001/XMLSchema-instance}schemaLocation"
 
+#: Feature 008, ITEM E: the written tree also carries ``doc_version``
+#: (FR-053) — a document property, excluded from every wire projection by
+#: design (research R1), never a field ``encode_wire`` could agree or
+#: disagree about. Dropped from the oracle's decode for the same reason
+#: ``SCHEMA_LOCATION_KEY`` is.
+DOC_VERSION_KEY = "doc_version"
+
 
 def _slow_oracle(doc, obj) -> dict:
     """``object -> tree -> to_dict`` — the round trip ``encode_wire`` replaces."""
@@ -49,7 +56,9 @@ def _slow_oracle(doc, obj) -> dict:
     decoded = reader.schema_object.to_dict(
         tree, validation="strict", strip_namespaces=False
     )
-    return {k: v for k, v in decoded.items() if k != SCHEMA_LOCATION_KEY}
+    return {
+        k: v for k, v in decoded.items() if k not in (SCHEMA_LOCATION_KEY, DOC_VERSION_KEY)
+    }
 
 
 @pytest.mark.parametrize("doc", SCRIPT_DOCS, ids=IDS)

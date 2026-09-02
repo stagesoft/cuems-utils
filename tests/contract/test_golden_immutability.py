@@ -1,9 +1,20 @@
 """Golden-immutability guard (T002).
 
 Standing rule 1 (tasks.md): no existing golden is ever regenerated to make a
-test pass. Exactly two tasks in this feature (T065, T080) **modify** a
-recorded golden, and each does so with a recorded justification; every other
-change under ``tests/golden/`` must be an **addition**.
+test pass. Exactly two tasks in **this file's original feature** (T065, T080)
+**modify** a recorded golden, and each does so with a recorded justification;
+every other change under ``tests/golden/`` must be an **addition**.
+
+**Feature 008 (ITEM E) updates the manifest a third time, deliberately**
+(FR-010's three recorded golden events — ITEM A's cut, ITEM D's generator
+replacement, and this one, T102a). Emitting the ``doc_version`` marker from
+``mapper.build_document`` (FR-053) changes every document this library
+writes, so the manifest entries for the goldens under ``ITEMs A/D`` and the
+two hand-authored corpus documents that gained the marker in place
+(``tests/data/corpus/cuems-utils/{fade_showcase,unicode_showcase}.xml``) were
+re-hashed here, once, with the reason recorded at this call site rather than
+left for a diff to explain on its own.
+
 
 ``MANIFEST.sha256`` pins the hash of every file under this directory at the
 moment T002 ran (after T003b/T003c added the two new corpus documents' goldens,

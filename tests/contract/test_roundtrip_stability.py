@@ -64,6 +64,13 @@ def test_stability_holds_for_a_third_cycle(doc, tmp_path):
 #: for them ``save(load(x)) == x`` now holds outright. That is the strengthening
 #: this file's docstring asks someone to notice, so it is asserted rather than
 #: excluded.
+#:
+#: Feature 008, ITEM E: the writer gained a **second** root attribute,
+#: ``doc_version`` (FR-053) — beside ``xsi:schemaLocation``, the same one
+#: T037 already normalised. Both corpus documents were updated in place to
+#: carry it (``doc_version="2"``, this schema's current version), which is
+#: what keeps this file's claim strengthened rather than silently
+#: reclassifying these two into ``REFORMATTED``.
 FIRST_CYCLE_IS_IDENTITY = {
     "cuems-utils/fade_showcase.xml",
     "cuems-utils/unicode_showcase.xml",

@@ -974,6 +974,49 @@ def read_config_document(schema_object, xmlfile):
     return schema_object.to_dict(xmlfile, **CONFIG_READER_OPTIONS)
 
 
+def read_versioned_config_document(schema_object, schema_name: str, xmlfile: str):
+    """As :func:`read_config_document`, but ITEM E's version-aware read (US6).
+
+    Probes the document's version marker **before** any schema decode is
+    attempted (research R2 — an old document does not validate against the
+    current schema by definition), applies any conversion the registry names
+    for its version, and only then decodes — so the decode below always sees
+    a document shaped like the current schema, converted or not.
+
+    Returns ``(raw, original_version, conversion_steps)``: ``raw`` is exactly
+    what :func:`read_config_document` would have produced (config's decode
+    posture — no adapters except where a schema opts in — is unaffected by
+    this); ``original_version`` is what the document declared, or 1 if it
+    declared none (FR-050); ``conversion_steps`` is what
+    ``versioning.convert`` applied, empty when the document was already
+    current.
+
+    Raises:
+        FileNotFoundError: unwrapped, exactly as :func:`read_config_document`
+            (via the underlying decode) — this adds an explicit check so the
+            message names the file before any parsing is attempted.
+        versioning.DocumentTooNewError: the document's marker exceeds this
+            schema's current version (FR-052). Callers translate this to a
+            distinguishable ``ValidationError``.
+    """
+    import os as _os
+    from xml.etree.ElementTree import parse as _parse_tree
+
+    from .versioning import CURRENT_VERSION, DocumentTooNewError, convert, read_version
+
+    Logger.info(f"Reading configuration document {xmlfile}")  # file access (FR-033)
+    if not _os.path.exists(xmlfile):
+        raise FileNotFoundError(f"No such file: {xmlfile}")
+    tree = _parse_tree(xmlfile)
+    version = read_version(tree)
+    current = CURRENT_VERSION[schema_name]
+    if version > current:
+        raise DocumentTooNewError(schema_name, version, current)
+    steps = convert(schema_name, tree, version, current) if version < current else []
+    raw = schema_object.to_dict(tree, **CONFIG_READER_OPTIONS)
+    return raw, version, tuple(steps)
+
+
 def build_document(
     project_object,
     *,
@@ -1017,6 +1060,8 @@ def build_document(
     root is bound to the object's own class, the object *is* the root's
     content, so it is filled directly into ``root`` instead.
     """
+    from .versioning import CURRENT_VERSION, DOC_VERSION_ATTR
+
     namespace_uri = next(iter(namespace.values()))
     register_namespace(next(iter(namespace)), namespace_uri)
 
@@ -1024,7 +1069,13 @@ def build_document(
     root.attrib = {
         f"{{{SCHEMA_INSTANCE_URI}}}schemaLocation": (
             f"{namespace_uri} {os.path.basename(xsd_path)}"
-        )
+        ),
+        # The document-version marker (feature 008, ITEM E, FR-053): every
+        # document this library writes carries it from here on, because this
+        # is the one funnel every writer goes through. Excluded from
+        # ``spec._derive_attributes`` and every wire projection (research R1)
+        # — it is a document property, not a domain field.
+        DOC_VERSION_ATTR: str(CURRENT_VERSION[schema_name]),
     }
 
     mapper = Mapper(schema_name)

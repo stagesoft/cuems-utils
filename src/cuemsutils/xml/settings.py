@@ -7,7 +7,7 @@ from typing import Any
 from ..helpers import strtobool
 from ..log import Logger
 from ._deprecation import deprecated_symbol
-from .mapper import Mapper, read_config_document
+from .mapper import Mapper, read_versioned_config_document
 from .validators import validate_custom_templates
 from .xml_reader_writer import XmlReaderWriter
 
@@ -29,6 +29,12 @@ class Settings(XmlReaderWriter):
       self.xml_dict = {}
       self.processed = {}
       self.loaded = False
+      #: The document's declared version (1 if absent, FR-050) and the
+      #: conversion steps :meth:`read` applied, if any (feature 008, US6).
+      #: Set here so both are defined even when ``self.schema``/``self.xmlfile``
+      #: are ``None`` and :meth:`read` never runs.
+      self.document_version = 1
+      self.document_conversions = ()
 
       if self.schema is not None and self.xmlfile is not None:
           self.read()
@@ -73,6 +79,15 @@ class Settings(XmlReaderWriter):
         else — no coercion, no reshaping. See that method's docstring for why
         both of those are the config domain stating a fact about itself rather
         than the engine acquiring a mode.
+
+        **Version-aware as of feature 008** (ITEM E, US6): the document's
+        ``doc_version`` marker is probed **before** any schema decode is
+        attempted (research R2), and any conversion this schema's registry
+        names for that version runs first. Every configuration schema stays at
+        version 1 in this feature (FR-048b) — the marker is plumbed through
+        uniformly, but nothing here actually converts anything yet, and
+        ``versioning.CURRENT_VERSION`` is what makes that a measured fact
+        rather than an assumption (T099a).
         """
         # A missing file raises ``FileNotFoundError`` rather than
         # ``urllib.error.URLError``. Without the check ``xmlschema`` treats the
@@ -89,7 +104,9 @@ class Settings(XmlReaderWriter):
         if not os.path.exists(self.xmlfile):
             raise FileNotFoundError(f'No such file: {self.xmlfile}')
 
-        raw = read_config_document(self.schema_object, self.xmlfile)
+        raw, self.document_version, self.document_conversions = read_versioned_config_document(
+            self.schema_object, self.schema_name, self.xmlfile
+        )
         self.xml_dict = Mapper(self.schema_name).decode_config(raw)
         if (hasattr(self, 'process_xml_dict')):
             self.process_xml_dict() # type: ignore[attr-defined]

@@ -70,6 +70,11 @@ def test_round_trip_diff_is_exactly_the_rename_and_value_mapping(
     for found, mapped in (("NodeType.master", "controller"), ("NodeType.slave", "node")):
         stripped_removed = stripped_removed.replace(f"<node_type>{found}</node_type>", "X")
         stripped_added = stripped_added.replace(f"<node_role>{mapped}</node_role>", "X")
+    # ``doc_version`` (feature 008, ITEM E, FR-053) is a second, independent
+    # addition every write picks up from here on — orthogonal to the 007
+    # rename this test is about, so it is stripped before the comparison
+    # rather than left to fail it.
+    stripped_added = stripped_added.replace(' doc_version="1"', "")
     assert stripped_removed == stripped_added
 
 

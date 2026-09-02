@@ -200,6 +200,30 @@ def _derive_fields(schema_name: str, xsd_type) -> tuple[tuple[FieldSpec, ...], b
     return tuple(fields), has_wildcard
 
 
+#: Attributes the object model does not own (feature 008, ITEM E, research R1).
+#:
+#: A list of two, each with its reason, rather than a special case buried in a
+#: conditional:
+#:
+#: * ``doc_version`` — the document-version marker (FR-048a). It is declared
+#:   in all six schemas as of this feature, so unlike ``schemaLocation`` below
+#:   it **would** otherwise be derived like any other attribute: a
+#:   ``FieldSpec`` on the type, a coherence-check expectation, a wire key. It
+#:   is a document property, not a domain field — written by
+#:   ``mapper.build_document`` beside ``xsi:schemaLocation`` and read by a
+#:   pre-validation probe (``xml/versioning.py``, research R2) — and it must
+#:   stay invisible to the object model, so it is excluded here rather than
+#:   bound.
+#: * ``schemaLocation`` — the ``xsi:`` namespaced attribute every document
+#:   carries. Listed for symmetry ("the attributes the model does not own" is
+#:   a list of two, not one) even though it needs no active filtering here:
+#:   it is never a *declared* attribute of a complex type (it lives in the
+#:   ``xsi:`` namespace, not this schema's), so ``xsd_type.attributes`` never
+#:   enumerates it in the first place. It leaks into the decoded dict through
+#:   a different path (mapper.py, spec.py's undescribed-content handling).
+ATTRIBUTES_THE_MODEL_DOES_NOT_OWN = frozenset({"doc_version", "schemaLocation"})
+
+
 def _derive_attributes(schema_name: str, xsd_type, start: int) -> tuple[FieldSpec, ...]:
     """Attributes, recorded separately from elements (research R7).
 
@@ -209,11 +233,17 @@ def _derive_attributes(schema_name: str, xsd_type, start: int) -> tuple[FieldSpe
     With the converter's ``attr_prefix=''`` the decoded key is ambiguous
     between the two. That ambiguity is pre-existing and preserved, not
     resolved: fixing it would be a wire change (FR-010, R7).
+
+    ``doc_version`` (feature 008, ITEM E) is a **third** declared attribute,
+    added to every schema's root type, and it is excluded here deliberately —
+    see :data:`ATTRIBUTES_THE_MODEL_DOES_NOT_OWN`.
     """
     declared = getattr(xsd_type, "attributes", None) or {}
     specs = []
     for offset, (name, attribute) in enumerate(declared.items()):
         if name is None:  # the anyAttribute wildcard
+            continue
+        if name in ATTRIBUTES_THE_MODEL_DOES_NOT_OWN:
             continue
         specs.append(
             FieldSpec(

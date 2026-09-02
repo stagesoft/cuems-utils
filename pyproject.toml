@@ -42,6 +42,11 @@ dependencies = [
     "aiofiles==24.1.0",
 ]
 
+[project.scripts]
+# ITEM E, US6, FR-042/SC-019 — batch/offline/post-install document upgrade,
+# sharing the one conversion registry the load path also consults.
+cuems-convert-documents = "cuemsutils.xml.convert_documents:main"
+
 [project.optional-dependencies]
 systemd = [
     "systemd-python==235",

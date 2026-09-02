@@ -99,14 +99,54 @@ def read_document(schema_name: str, source: str | PathLike) -> dict:
     ``OSError``/``FileNotFoundError`` propagate unwrapped (FR-035); a
     structurally invalid document raises ``xmlschema``'s validation error,
     which the public surface translates to ``SchemaError``.
+
+    A thin wrapper over :func:`read_document_versioned` for callers that only
+    want the decoded dict — any version conversion still runs, it is just not
+    reported back.
     """
+    decoded, _version, _steps = read_document_versioned(schema_name, source)
+    return decoded
+
+
+def read_document_versioned(schema_name: str, source: str | PathLike):
+    """As :func:`read_document`, but ITEM E's version-aware read (US6).
+
+    Probes the document's version marker **before** any schema decode is
+    attempted (research R2), applies any conversion the registry names for
+    its version, and only then decodes against the current schema — so the
+    strict T1 decode below always sees a document shaped like the current
+    schema, converted or not.
+
+    Returns ``(decoded, original_version, conversion_steps)``, exactly the
+    shape :func:`mapper.read_versioned_config_document` returns for the
+    configuration domains, so the public surface builds a ``LoadReport`` the
+    same way from either.
+
+    Raises:
+        FileNotFoundError: unwrapped (FR-035).
+        versioning.DocumentTooNewError: the document's marker exceeds this
+            schema's current version (FR-052). The public surface translates
+            this to a distinguishable ``ValidationError``.
+    """
+    from xml.etree.ElementTree import parse as _parse_tree
+
+    from .versioning import CURRENT_VERSION, DocumentTooNewError, convert, read_version
+
     source = os.fspath(source)
     # INFO is declared at the level of XML file access (FR-033): one record per
     # file touched, never one per cue.
     Logger.info(f"Reading {schema_name} document {source}")
     if not os.path.exists(source):
         raise FileNotFoundError(f"No such file: {source}")
-    return schema_object(schema_name).to_dict(source, **DOCUMENT_READER_OPTIONS)
+
+    tree = _parse_tree(source)
+    version = read_version(tree)
+    current = CURRENT_VERSION[schema_name]
+    if version > current:
+        raise DocumentTooNewError(schema_name, version, current)
+    steps = convert(schema_name, tree, version, current) if version < current else []
+    decoded = schema_object(schema_name).to_dict(tree, **DOCUMENT_READER_OPTIONS)
+    return decoded, version, tuple(steps)
 
 
 def build_tree(obj, schema_name: str) -> ElementTree:
