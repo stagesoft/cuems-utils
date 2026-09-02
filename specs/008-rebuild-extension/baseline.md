@@ -101,3 +101,88 @@ All five conditions verified 2026-09-02:
 
 **Not a release boundary** (D27): nothing ships until feature 009 lands. Phase 2 (ITEM E) may now
 begin, written against `data-model.md` §2 and §3 as landed code.
+
+## Phase 2 (ITEM E) — measured, 2026-09-02
+
+Same method throughout: median of five warm runs, fresh process per measurement, `pyenv 3.11.9`
+(T123). Compared against T001's pre-feature figures (Setup, above) — not against T083's, which already
+includes Phase 1's own cost.
+
+### Suite (T124)
+
+```
+PYENV_VERSION=3.11.9 pyenv exec hatch test -py 3.11
+```
+
+```
+2456 passed, 96 skipped, 2 xfailed, 213 warnings in 54.19s
+```
+
+Per-test: 54.19s / 2456 = **22.06 ms/test** — under the ≤ 27.27 ms/test budget (FR-PERF-002), and
+faster in absolute per-test terms than both T002's pre-feature 24.86 ms/test and T083's post-Phase-1
+22.85 ms/test, despite the suite gaining ITEM E's own ~60 new tests on top of Phase 1's growth.
+
+### Show document
+
+Fixture unchanged: `tests/data/corpus/cuems-engine/projects/complex_test/script.xml` (24,183 B).
+
+```
+runs (ms): [18.673, 23.063, 18.81, 18.372, 17.934]
+median: 18.673 ms
+```
+
+Budget (against **T001's** pre-feature 17.994 ms, not T083's — FR-PERF-002 measures the strictness this
+phase adds against the true pre-feature baseline): ≤ 200% (35.99 ms) **and** ≤ 50 ms absolute →
+**18.673 ms, well under both.** The added cost is one extra `ElementTree.parse` (the version probe,
+research R2) plus the T2 tier now running on every load — on a document with no semantic violation, T2
+costs one walk that finds nothing, which is why the delta from T001's 17.994 ms is small.
+
+### Configuration domains (T090)
+
+**Coverage caveat, stated beside the numbers it qualifies rather than only in `spec.md`
+(FR-039):** four of the six schemas (`settings`, `network_map`, `project_settings`, `outputs`)
+carry **zero** registered T2 rules, and `project_mappings` carries exactly **one**
+(`one_custom_template_per_node`). So "T2 now runs on every configuration read" is, for these
+domains, mostly plumbing — a walk that finds nothing to check — not enforcement catching real
+violations. The measured costs below must not be read as "the cost of validating these
+domains"; they are the cost of the walk itself plus the version-probe parse, on schemas that
+had almost nothing for T2 to do even before this feature.
+
+Same fixtures as T001, same method.
+
+| Domain | T001 baseline (ms) | Budget (≤110%) | Measured (ms) | Margin |
+|---|---|---|---|---|
+| `network_map` | 9.277 | 10.20 | 10.14–10.49 (3 trials) | **at the edge — see note** |
+| `settings` (system) | 20.575 | 22.63 | 20.79 | under |
+| `project_mappings` (default) | 22.523 | 24.78 | 22.67 | under |
+| `project_settings` | 6.504 | 7.15 | 5.73 | under |
+
+**`network_map` is recorded as exceeded-or-marginal, not restated as passing** (FR-PERF-002's own
+instruction). Three repeated trials of five runs each gave medians 9.984 / 10.486 / 10.214 ms against a
+10.20 ms budget — straddling the line within measurement noise on a ~10 ms operation, where a
+millisecond of scheduler jitter is a double-digit percentage. The **mechanism** for the added cost is
+identified rather than hand-waved: `read_versioned_config_document` (`xml/mapper.py`) now parses the
+document into a stdlib `xml.etree.ElementTree` **itself** (so the version probe, research R2, and any
+conversion have a tree to work against) and hands that already-built tree to
+`schema_object.to_dict(tree, ...)`, where the pre-008 path handed `to_dict` the **file path** directly
+and let `xmlschema`'s own resource loader parse it — foreclosing whatever internal fast path that
+loader may take for a bare path/URL argument versus an already-materialised foreign tree object. This
+is a real, identified cost, not a guess dressed as one: it is paid on **every** config read regardless
+of whether any conversion ever runs, on a domain FR-039 already notes carries **zero** T2 rules — so
+100% of the measured delta here is version-probe plumbing, not enforcement. No mitigation is applied in
+this pass: the absolute cost (~1 ms) is small, `network_map` is the smallest of the four config
+fixtures (so a fixed per-call overhead shows up as its largest *percentage*), and D27 means nothing
+ships on this figure alone — recorded here as a measurement obligation for 009's release gate to weigh,
+per FR-PERF-002's instruction to record an exceeded budget rather than silently pass it. A cheaper
+probe (e.g. a bounded `iterparse` that stops after the root's start-tag, only building the full tree
+when a conversion actually applies) is the natural next step if this needs to be closed rather than
+carried; not attempted here because it is exactly the kind of change that wants its own measurement.
+
+### Mechanism summary, for whoever reads this next
+
+Every load-path measurement above pays two new fixed costs versus T001: routing the decode through a
+pre-parsed tree instead of a bare path (so the version probe, research R2, has something to read) and
+one T2 walk (`xml.validators.repair`/`_iter_t2_findings`, unconditional per FR-037). Show documents
+amortise both over a much larger parse and a real (if often empty) semantic surface; the smallest
+config fixture (`network_map`) amortises them the least, which is exactly what the measured margins
+above show.

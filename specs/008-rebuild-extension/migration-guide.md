@@ -270,5 +270,126 @@ without calling `disarm()`) disappears with the handler rather than needing its 
 
 ## ITEM E — strict reading, versioning, repair
 
-*(FR-053a's precondition — surfacing the repair report before saving a
-repaired document — will be recorded here once ITEM E lands.)*
+### FR-053a — surfacing the repair report is a precondition of saving a repaired document
+
+`CuemsScript.load_with_report(path)` returns `(script, report)`; `report.outcome` is
+`REPAIRED` when a field was substituted to its descriptor default. **Saving that `script`
+overwrites the original on disk with no backup** (FR-041c, `config.base.save_document`'s and
+`CuemsScript.save`'s existing atomic-overwrite behaviour — nothing new was built for this,
+because the ordinary save path already does the right thing). That overwrite **destroys the
+corrupt original**, and the only thing that makes destroying it safe is that a human saw
+`report.repairs` first and agreed the substitution is acceptable.
+
+**009's obligation, stated precisely so it is not lost in translation**: wherever the UI (or
+any other 009 caller) calls `load_with_report` and then later calls `.save()` on the result,
+the repair report **must** have been surfaced to the operator, and the save must not proceed
+on a `REPAIRED` (or `CONVERTED`) outcome without that surfacing having happened. This library
+cannot enforce the ordering — `load_with_report` and `.save()` are two independent calls, and
+nothing stops a caller from doing the second without ever inspecting the first's report — so
+the obligation is procedural, recorded here, not a runtime check anywhere in `cuemsutils`.
+
+### FR-037/FR-038 — every consumer of `CuemsScript.load`/config accessors gains new failure modes
+
+`CuemsScript.load(path)` keeps its signature but can now raise `ValidationError` in two new
+cases it previously could not:
+
+- an **unrepairable** T2 violation on a current-version document (FR-044) — previously this
+  loaded silently and only failed at `save()`;
+- a document whose `doc_version` marker is **newer** than this library's (FR-052) —
+  previously not a concept that existed at all.
+
+Every call site across `cuems-engine`/`cuems-editor` that calls `CuemsScript.load` and only
+catches `SchemaError` (a T1-only expectation, reasonable before this feature) should widen its
+catch to `ValidationError` (`SchemaError`'s own base) if it wants to handle **both** failure
+kinds the same way, or add a second `except ValidationError` branch if it wants to
+distinguish them (`isinstance(exc, SchemaError)` still tells T1 from T2/version at the catch
+site). **009's migration task**: audit `cuems-engine`'s show-loading call site(s) — the engine
+loads a project's `script.xml` at startup/project-open — for this widened failure surface, and
+decide whether an unrepairable violation there should be a startup-abort (current behaviour,
+appropriate) or something the operator is prompted about via 009's own UI work.
+
+The same reversal applies to every `ConfigManager`/`ConfigBase` accessor
+(`load_network_map`, `load_base_settings`, `load_net_and_node_mappings`,
+`load_project_mappings`, `load_project_settings`) — each now runs T2 as well as T1. Measured
+consequence: only `project_mappings` carries a registered T2 rule today
+(`one_custom_template_per_node`, FR-039), and it is `repairable=False`, so the only new
+observable behaviour is that a config document already carrying two custom templates on one
+node — which would previously have loaded and been rejected later, at the point something
+actually used the offending mapping — now raises `ValidationError` (not `SchemaError`) at
+`ConfigManager` construction time. No corpus document exercises this today, so no consumer is
+known to be affected; recorded as the honest, narrow scope FR-039 asks for rather than
+inflated into a broader warning.
+
+### FR-041/FR-041a — an old `script.xml` on disk now converts in memory rather than failing
+
+This closes the obligation ITEM A's section above opened ("Until Phase 2 lands, any
+production `script.xml` written before this feature will fail to load"). As of ITEM E, it no
+longer fails: `CuemsScript.load` detects a `doc_version` of 1 (or absent), applies the
+registered `script` 1→2 conversion in memory, and returns a loaded, valid object — the file on
+disk is **not** rewritten by the load path (FR-041a). **009 still has a sequencing decision**:
+whether to run the standalone `cuems-convert-documents` tool as part of the `.deb` post-install
+step (rewriting every on-disk document once, with a backup per FR-042) or to rely on
+convert-on-every-load indefinitely. The former pays a one-time backup+rewrite cost per document
+and then every subsequent load is the cheap, already-current path; the latter re-runs the
+(cheap, but non-zero) conversion on every single load forever. Not decided here — a 009 choice,
+now that both paths exist and are tested.
+
+### FR-042/SC-019 — the standalone conversion tool, `cuems-convert-documents`
+
+New entry point (`pyproject.toml`'s `[project.scripts]`), implemented in
+`cuemsutils.xml.convert_documents`. Takes one or more file paths, converts each whose version
+precedes its schema's current one, and writes a timestamped `.bak` copy before rewriting. 009's
+packaging work should decide where in the `.deb`'s postinst this runs (candidate: immediately
+after the package's own files are in place, before any CUEMS service that reads these
+documents is (re)started) and over which directories (`/etc/cuems/*.xml`, every project's
+`script.xml`/`mappings.xml`/`settings.xml` under the library path).
+
+### T125a — D3's second through sixth exceptions, one table (FR-012)
+
+Recorded together, with the conditionality that makes three of them safe stated *with* them
+rather than filed separately — each of the three that invalidates documents on disk was
+granted **only** because ITEM E's conversion (this section) exists to carry it.
+
+| # | Exception | File | Requirement | Item / Phase | Invalidates documents on disk? |
+|---|---|---|---|---|---|
+| 2nd | `CTimecodeType`/`TimecodeType` deleted (unreachable pair) | `settings.xsd` | FR-007 | A / Phase 1 | No — unreachable from any element |
+| 3rd | `Media.duration` promoted to `cms:CTimecodeType` | `script.xsd` | FR-002/FR-003 | A / Phase 1 | **Yes** — carried by `script` 1→2's duration reshape (FR-051) |
+| 4th | `doc_version` optional attribute added to all six root types | all six `.xsd` | FR-048a | E / Phase 2 | No — purely additive, `use="optional"` |
+| 5th | `ActionType` enumeration drops `fade_in`/`fade_out` | `script.xsd` | FR-029a | D / Phase 1 | **Yes** — carried by `script` 1→2's action-type remap (FR-051a) |
+| 6th | Fade-profile surface deleted (3 types, 1 element on 2 cue types) | `script.xsd` | FR-007a | A / Phase 1 | **Yes** — carried by `script` 1→2's fade-profile drop (FR-051c) |
+
+**What this precedent does not license**, stated because a future feature will be tempted to
+cite it: not X1–X13 (the schema-evolution convention's own deferred backlog); not a schema edit
+in a feature that has no conversion path to carry the invalidation; not anything past this
+feature's own boundary. A seventh exception needs its own decision record — this table is not
+a blanket pre-approval.
+
+### T126a — the two new user-facing surfaces, checked against existing convention (FR-UX-001)
+
+**The repair report** (`RepairRecord`/`ConversionRecord`, `cuemsutils.errors`). Field names follow
+`Violation`'s own pattern in `xml/validators.py` (`tier`/`rule`/`location`/`message`): a `*_name`
+suffix for a rule identifier (`rule_name`, matching `Violation.rule`'s role), `field_path` built the
+same "cue_id/field, or bare field" join `Violation.__str__`'s `where` computation already uses —
+literally the same expression, not a look-alike. No second vocabulary for "what rule caused this" or
+"where in the document" was invented.
+
+**The conversion tool's output** (`cuems-convert-documents`). Follows `capture_goldens.py`'s existing
+CLI convention in this repository (the only other hand-rolled CLI tool here): one line per item to
+`stdout` for a success/neutral outcome (`"{path}: converted"` / `"{path}: already current"`), one line
+per item to `stderr` for a problem (`"{path}: skipped (...)"`), and a non-zero exit code when anything
+was skipped — the same shape `capture_goldens.main`'s `new`/`unchanged`/`REPLACED`/`CONFLICT` reporting
+and exit-code convention uses. No new severity vocabulary, no structured-output format invented for a
+tool this feature does not otherwise require one from.
+
+Checked 2026-09-02; no second vocabulary found necessary or introduced.
+
+### FR-051a — `fade_in`/`fade_out` conversion and cuems-engine's stub handlers
+
+Restated at its point of actual effect: once a document on disk is converted (ITEM E, this
+section), any `fade_in`/`fade_out` action cue it held is now `play`/`stop` **in the object
+model** the moment it loads. `cuems-engine`'s `_handle_fade_in`/`_handle_fade_out`
+(`ActionHandler.py:516-553`, named in ITEM A's section above) become unreachable **the moment
+009 also deletes their dispatch-table entries** — until then they remain reachable only by an
+`action_type` value no schema-valid document can carry once converted, i.e. effectively dead
+but not yet removed. 009 should delete them in the same change that adopts this feature.
+

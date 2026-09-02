@@ -76,6 +76,82 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
+- `008-rebuild-extension` (**Phase 2/ITEM E landed** 2026-09-02; Phase 1/ITEMs A–D landed
+  2026-09-02 at the D30 gate — see `specs/008-rebuild-extension/plan.md`): five structural
+  changes landed as one dependency chain across two gated phases. Phase 1 — ITEM A retypes
+  `Media.duration` to `cms:CTimecodeType` (the seventh and last time-carrying element) and
+  deletes the fade-profile surface and a dead `settings.xsd` timecode pair; ITEM B gives
+  `settings`/`project_settings`/`project_mappings` a `save()` path symmetric with `network_map`'s
+  (007); ITEM C ports the network-map domain logic (`NodeIndex.merge`/`adopt`/`unadopt`/
+  `set_controller_always_adopted`/`missing_adopted`/`signature`, `CuemsNetworkMapType.refresh`) in
+  from `cuems-nodeconf`, characterized before the port, with **no first-party caller yet**; ITEM D
+  builds a schema descriptor (`xml/descriptor.py`) over all six schemas — types, enums, model-layer
+  defaults, and a repairability classification for every field — and retires `create_script()` and
+  the hand-maintained `templates/settings.xml` in favour of descriptor-generated examples.
+  - **Phase 2 (ITEM E) makes reading strict — the one deliberate reversal of "reading never becomes
+    stricter"** (feature 006's FR-026, superseded here as FR-037/FR-038): `CuemsScript.load` and
+    every `ConfigManager`/`ConfigBase` accessor now run T1 **and** T2 on every read. Five outcomes:
+    valid loads clean; a version-old document converts **in memory** (file on disk untouched); a
+    current document with a **repairable** T2 violation loads with the field repaired to the
+    descriptor's default; an **unrepairable** one raises `ValidationError`; a document newer than
+    the library raises, distinguishably. `CuemsScript.load_with_report(path)` is the new public
+    entry point that returns `(script, LoadReport)` — `load()` keeps its old signature and just
+    discards the report.
+  - **The document-version marker** (`doc_version`, `xs:positiveInteger`, `use="optional"`) is now
+    on every schema's root type — D3's **fourth** relaxation, purely additive, invalidates nothing
+    on disk. It is a document property, never a domain field: excluded from `spec._derive_attributes`
+    and every wire projection, read by a pre-validation stdlib-`ElementTree` probe
+    (`xml/versioning.read_version`) before any schema decode is attempted. Versions move **per
+    schema** — `script` is now version **2**; the other five stay at **1**. `mapper.build_document`
+    emits it on every document this library writes from here on, which is why the goldens under
+    `tests/golden/` and two hand-authored corpus documents
+    (`tests/data/corpus/cuems-utils/{fade_showcase,unicode_showcase}.xml`) carry it now too —
+    FR-010's **third** and last recorded golden event this feature sanctions (after ITEM A's cut and
+    ITEM D's generator replacement).
+  - **The conversion registry** (`xml/versioning.py`, `(schema_name, from_version) -> Conversion`)
+    carries `script` 1→2's three transformations in **one** version step — the duration reshape
+    (bare text → `<CTimecode>` wrapper), `action_type` `fade_in`/`fade_out` → `play`/`stop`
+    (behaviour-preserving: `cuems-engine` already dispatches both as stubs treated exactly that
+    way), and the `fade_profiles` block dropped with every drop named in the report. An
+    unregistered step is a valid **identity** step (purely additive schema growth needs no
+    transformation, only a version bump). The same registry backs the new
+    `cuems-convert-documents` standalone entry point (`xml/convert_documents.py`,
+    `[project.scripts]`), which backs up each document before rewriting and treats a backup
+    failure as fatal for that document only — the load path itself writes nothing and needs no
+    backup (the obligation attaches to *persisting* an upgrade, not to converting).
+  - **The repair report** (`cuemsutils.errors.LoadReport`/`Outcome`/`RepairRecord`/
+    `ConversionRecord`, new public symbols joining `CuemsError`/`ValidationError`/`SchemaError`/
+    `IngestError`) answers which document, which fields were repaired and to what, which
+    conversions ran, and whether the file on disk is now stale — from data alone, never `None` in
+    place of an empty report. Every substituted value and every repairable/unrepairable decision
+    traces to the descriptor (`xml.validators.repair`, built on the closed T2 rule table); zero
+    hand-written per-field fallbacks or unrepairable-field lists exist. The library acquires no
+    notification/messaging channel — the report is returned, not sent anywhere; forwarding it to an
+    operator is 009's job, and saving a repaired document (a plain overwrite, no backup) is only
+    safe because 009 must surface the report first, which is a migration-guide obligation this
+    library cannot enforce at runtime.
+  - **Config domains get the same T1/T2 distinction as the show path**, measured narrowly:
+    `project_mappings` is the only configuration schema carrying a registered T2 rule
+    (`one_custom_template_per_node`), and it is `repairable=False`, so the only observable change
+    there is that its violation now raises `ValidationError` (not the generic `SchemaError` every
+    other config failure still gets) — matched on the rule's own exact wording in
+    `tools.ConfigBase.load_config_document`, not by exception type, because `xmlschema`'s own T1
+    validation errors are *also* `ValueError` subclasses.
+  - **Performance, measured and recorded rather than assumed**: show-document load 18.673 ms
+    (budget ≤ 35.99 ms), suite 22.06 ms/test (budget ≤ 27.27 ms/test) — both comfortably under.
+    `network_map`'s config-domain load (10.14–10.49 ms across three trials) sits **at the edge** of
+    its ≤ 10.20 ms budget; recorded as exceeded-or-marginal rather than restated as passing, with
+    the mechanism identified (the version probe now routes decode through a pre-parsed
+    `ElementTree` instead of a bare file path) and no mitigation applied in this pass — see
+    `specs/008-rebuild-extension/baseline.md`.
+  - D3 stands relaxed **five times** across this feature (its second through sixth exceptions,
+    tabulated in `specs/008-rebuild-extension/migration-guide.md`); three of the five invalidate
+    documents already on disk and were granted *only* because ITEM E's conversion registry exists
+    to carry them.
+  - Nothing ships from this landing alone (D27) — feature 009 (consumer migration across
+    `cuems-engine`/`cuems-editor`/`cuems-nodeconf`/`cuems-frontend`) is a hard successor, not a
+    follow-up, and `specs/008-rebuild-extension/migration-guide.md` is its hand-off document.
+
 - `007-node-model-migration` (**landed in `cuems-utils` only**, 2026-08-24 — see below): the node
   object model moves in from `cuems-nodeconf`, and `network_map.xsd`'s `<node_type>` (free text,
   `NodeType.master`/`NodeType.slave`) is renamed `<node_role>`, typed `cms:NodeRoleType`
