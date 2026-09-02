@@ -182,6 +182,16 @@
     </xs:complexContent>
   </xs:complexType>
 
+  <!-- FR-029a: ``fade_in``/``fade_out`` deleted (feature 008, ITEM D). Both
+       were never-implemented stubs in cuems-engine, identical to ``play`` and
+       ``stop`` respectively, superseded by ``fade_action`` since feature 003.
+       This is a separate decision from the ``fade_profiles`` deletion
+       (FR-007a) — a naming collision only: "fade" appears in both because
+       both were early, competing approaches to the same eventual envelope
+       concept, not because one caused the other (FR-029c). See
+       specs/008-rebuild-extension/enum-audit.md for the per-value evidence
+       and specs/planning/envelope-feature.md for the design this leaves for
+       later. -->
   <xs:simpleType name="ActionType">
     <xs:restriction base="xs:string">
       <xs:enumeration value="play" />
@@ -191,8 +201,6 @@
       <xs:enumeration value="unload" />
       <xs:enumeration value="enable" />
       <xs:enumeration value="disable" />
-      <xs:enumeration value="fade_in" />
-      <xs:enumeration value="fade_out" />
       <xs:enumeration value="fade_action" />
       <xs:enumeration value="wait" />
       <xs:enumeration value="go_to" />

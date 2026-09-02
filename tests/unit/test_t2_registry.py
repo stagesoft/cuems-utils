@@ -110,7 +110,7 @@ def test_registering_the_same_name_twice_is_refused():
     """The registry is an inventory; two entries under one name is not one."""
     with pytest.raises(ValueError):
 
-        @register("media_duration", [("Media", "duration")])
+        @register("media_duration", [("Media", "duration")], repairable=False)
         def _shadow(value, obj=None):  # pragma: no cover - never called
             pass
 

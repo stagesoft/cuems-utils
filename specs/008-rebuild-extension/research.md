@@ -233,6 +233,39 @@ suite's per-test figure (≤ 110% of 24.79 ms).
 **The show fixture is named here, not left to the measurer**:
 `tests/data/corpus/cuems-engine/projects/complex_test/script.xml` — **24,183 bytes**, the corpus's
 largest show document, confirmed loadable (median 11.76 ms, indicative, Python 3.13, 2026-08-28).
+
+---
+
+## T068 — FR-029c's independence claim, measured
+
+**Claim under test.** The `ActionType` narrowing (FR-029a, deleting `fade_in`/`fade_out`, T066) is a
+**separate decision** from the `fade_profiles` deletion (FR-007a, T018–T021) — the two share the word
+"fade" because both were early, competing approaches to the same eventual envelope concept, not because
+one depends on the other.
+
+**Method.** A scratch `git worktree`, checked out at `7013489` (the tip before any Phase 1 commit —
+confirmed by inspection that this repository's actual commit graph interleaves the "setup" commit
+*after* ITEM A, not before, so the naive "parent of the setup commit" checkout would already have
+carried ITEM A's fade-profile deletion; `7013489` is the true pre-Phase-1 state). T066's `ActionType`
+edit alone was applied on top — nothing from T018–T021. Run against the worktree's own `src/` via
+`PYTHONPATH`, since the pyenv environment's editable install otherwise shadows it with the main
+checkout (the CLAUDE.md-documented venv gotcha, encountered here in miniature).
+
+**Result, 2026-09-02.** With `fade_in`/`fade_out` deleted and `FadeProfileType`/`FadeProfilesWrapperType`/
+`FadeParameterType`/`FadeProfile.py`/the five `fade_profile_*` T2 rules all still present and unmodified:
+
+- `tests/unit/test_mediacue_fade_profile.py`, `tests/integration/test_mediacue_fade_roundtrip.py`,
+  `tests/contract/test_fade_rules_corpus.py`, `tests/contract/test_mediacue_fade_schema_contract.py`,
+  `tests/integration/test_mediacue_fade_performance.py` and `tests/unit/test_t2_registry.py` — **96
+  passed**, 0 failed. The fade-profile surface stays bound and validated by all five of its rules with
+  no part of FR-007a applied.
+- `tests/data/corpus/pre-008/cuems-utils/fade_showcase.xml` (the one corpus document carrying
+  `fade_profiles`) round-trips through `CuemsScript.load`/`.save` **byte-identical** to the pre-008
+  original in this configuration.
+
+**Conclusion.** FR-029c's independence claim holds on measured evidence, not just by inspection of the
+diff. The scratch branch and worktree were discarded after the run (SC-012c); nothing here is carried
+into the working tree.
 Pinning it is part of the method, because the fixture determines whether the absolute cap can bind at
 all: on `fade_showcase.xml` (2,649 B, 3.48 ms) the 50 ms cap sits 14× away and is unreachable, which
 would satisfy FR-PERF-002 on paper while measuring nothing. `quickstart.md` named `fade_showcase.xml`

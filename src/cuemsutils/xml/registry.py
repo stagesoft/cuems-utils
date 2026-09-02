@@ -96,6 +96,21 @@ class SchemaRegistry:
     def bound_type_names(self) -> frozenset[str]:
         return frozenset(self._by_type)
 
+    @property
+    def bound_path_names(self) -> frozenset[str]:
+        return frozenset(self._by_path)
+
+    def bindings(self) -> tuple[Binding, ...]:
+        """Every binding, named-type and path alike (ITEM D, T062).
+
+        The descriptor is the first caller needing *all* of a schema's
+        bindings at once — resolving a rule's class-name target to the XSD
+        types that class is bound to (data-model.md §3.1) has to search both
+        maps, since the root types are path-bound (R3) and everything else is
+        type-bound.
+        """
+        return tuple(self._by_type.values()) + tuple(self._by_path.values())
+
     def spec_for_model(self, model: type) -> TypeSpec | None:
         """The ``TypeSpec`` bound to a Python class, or ``None`` (T004a).
 

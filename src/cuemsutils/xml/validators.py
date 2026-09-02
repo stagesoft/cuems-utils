@@ -149,6 +149,14 @@ class Rule:
     #: they came from: the rule names are new, the wording is not.
     check: object
 
+    #: Whether substituting the field's descriptor default silences this
+    #: rule's violation without changing what the document means (ITEM D,
+    #: research R8). Declared per rule, not inferred, because "does a default
+    #: exist" and "would using it be honest" are different questions — a field
+    #: can have a default that is itself invalid (``action_target_required``'s
+    #: is ``None``, the exact value the rule rejects).
+    repairable: bool
+
     def fields_for(self, class_names: frozenset[str]) -> tuple[str, ...]:
         return tuple(
             field for cls, field in self.applies_to if cls in class_names
@@ -159,18 +167,23 @@ class Rule:
 RULES: dict[str, Rule] = {}
 
 
-def register(name: str, applies_to):
+def register(name: str, applies_to, *, repairable: bool):
     """Register a rule under ``name``, bound to ``(type, field)`` pairs.
 
     Returns the undecorated function, so the setter that used to hold the body
     can call it directly and the registry and the setter cannot drift — which
     is the whole content of FR-024c. Two call sites, one function object.
+
+    ``repairable`` is **required and keyword-only, with no default** (research
+    R8, FR-031b): a rule that does not declare it is a defect, and a required
+    keyword makes that a ``TypeError`` at import time rather than a silent
+    "permissive by omission".
     """
 
     def decorator(fn):
         if name in RULES:
             raise ValueError(f"rule {name!r} is already registered")
-        RULES[name] = Rule(name, tuple(applies_to), fn)
+        RULES[name] = Rule(name, tuple(applies_to), fn, repairable)
         return fn
 
     return decorator
@@ -387,14 +400,27 @@ def run_rules(obj) -> list[Violation]:
 # output's ``output_name``, and a fade profile's on its siblings.
 
 
-@register("action_target_required", [("ActionCue", "action_target")])
+@register(
+    "action_target_required",
+    [("ActionCue", "action_target")],
+    # ``ActionCue.REQ_ITEMS['action_target']`` is ``None`` — the exact value
+    # this rule rejects. Substituting the field's own default would not
+    # repair the violation, it would restate it.
+    repairable=False,
+)
 def _action_target_required(value, obj=None) -> None:
     """An action cue must name what it acts on."""
     if value is None:
         raise ValueError("action_target is required")
 
 
-@register("fade_action_type", [("FadeCue", "action_type")])
+@register(
+    "fade_action_type",
+    [("FadeCue", "action_type")],
+    # ``FadeCue.REQ_ITEMS['action_type']`` is ``'fade_action'`` — the one
+    # value this rule accepts. The default *is* the repair.
+    repairable=True,
+)
 def _fade_action_type(value, obj=None) -> None:
     if value != "fade_action":
         raise ValueError(
@@ -402,7 +428,13 @@ def _fade_action_type(value, obj=None) -> None:
         )
 
 
-@register("fade_curve_type", [("FadeCue", "curve_type")])
+@register(
+    "fade_curve_type",
+    [("FadeCue", "curve_type")],
+    # ``FadeCue.REQ_ITEMS['curve_type']`` is ``FadeCurveType.linear`` — a
+    # valid member of the same enumeration this rule checks.
+    repairable=True,
+)
 def _fade_curve_type(value, obj=None) -> None:
     from ..cues.FadeCue import FadeCurveType
 
@@ -415,7 +447,16 @@ def _fade_curve_type(value, obj=None) -> None:
         raise ValueError(f"curve_type must be one of {valid}, got '{value}'")
 
 
-@register("fade_duration_positive", [("FadeCue", "duration")])
+@register(
+    "fade_duration_positive",
+    [("FadeCue", "duration")],
+    # ``FadeCue.REQ_ITEMS['duration']`` is ``None``, which this rule accepts
+    # as "not set yet" — but ``duration`` is a required schema element, so
+    # substituting ``None`` would trade a T2 violation for a T1 one, not
+    # repair the document. No value both satisfies "positive and non-zero"
+    # and carries no meaning of its own.
+    repairable=False,
+)
 def _fade_duration_positive(value, obj=None) -> None:
     """``None`` is accepted — it means "not set yet", not "zero"."""
     from ..cues.FadeCue import _ZERO_TC
@@ -427,14 +468,27 @@ def _fade_duration_positive(value, obj=None) -> None:
         raise ValueError("duration must be positive and non-zero")
 
 
-@register("fade_target_value_range", [("FadeCue", "target_value")])
+@register(
+    "fade_target_value_range",
+    [("FadeCue", "target_value")],
+    # ``FadeCue.REQ_ITEMS['target_value']`` is ``0`` — a boundary value this
+    # rule accepts.
+    repairable=True,
+)
 def _fade_target_value_range(value, obj=None) -> None:
     number = int(value)
     if not (0 <= number <= 100):
         raise ValueError(f"target_value must be between 0 and 100, got {number}")
 
 
-@register("output_name_shape", [("VideoCueOutput", "output_name")])
+@register(
+    "output_name_shape",
+    [("VideoCueOutput", "output_name")],
+    # No default (``VideoCueOutput.DECLARED_DEFAULTS['output_name']`` is
+    # ``Unset``) — this is an identity field an output is addressed by, and
+    # nothing generic stands in for it.
+    repairable=False,
+)
 def _output_name_shape(value, obj=None) -> None:
     """A video output name is an alias or a custom slot, and nothing else."""
     from ..cues.CueOutput import _classify_output_name
@@ -442,7 +496,13 @@ def _output_name_shape(value, obj=None) -> None:
     _classify_output_name(value)
 
 
-@register("canvas_region_containment", [("VideoCueOutput", "canvas_region")])
+@register(
+    "canvas_region_containment",
+    [("VideoCueOutput", "canvas_region")],
+    # No default (``Unset``) — a placement region has no generic stand-in
+    # that would not silently relocate the output.
+    repairable=False,
+)
 def _canvas_region_containment(value, obj=None) -> None:
     """The region fits the canvas, **and** matches the output's mode.
 
@@ -475,7 +535,14 @@ def _canvas_region_containment(value, obj=None) -> None:
     _validate_canvas_region(value)
 
 
-@register("media_duration", [("Media", "duration")])
+@register(
+    "media_duration",
+    [("Media", "duration")],
+    # No default (``Media.DECLARED_DEFAULTS['duration']`` is ``Unset``) — a
+    # media file's length is intrinsic to the file, not a value a generic
+    # substitute could stand in for.
+    repairable=False,
+)
 def _media_duration(value, obj=None) -> None:
     """``Media.duration`` parses as a timecode (feature 008, FR-005).
 
@@ -496,7 +563,16 @@ def _media_duration(value, obj=None) -> None:
     format_timecode(value)
 
 
-@register("cuelist_shape", [("CuemsScript", "CueList")])
+@register(
+    "cuelist_shape",
+    [("CuemsScript", "CueList")],
+    # ``CuemsScript.REQ_ITEMS['CueList']`` is the ``CueList`` class itself —
+    # a factory for a fresh, empty cue list (helpers.py's callable-default
+    # convention). Substituting it would silently discard whatever cues the
+    # malformed value held, which is too large a meaning change to call a
+    # repair.
+    repairable=False,
+)
 def _cuelist_shape(value, obj=None) -> None:
     from ..cues.CueList import CueList
 
@@ -510,7 +586,13 @@ def _cuelist_shape(value, obj=None) -> None:
         ) from exc
 
 
-@register("one_custom_template_per_node", [("NodeType", "video")])
+@register(
+    "one_custom_template_per_node",
+    [("NodeType", "video")],
+    # No default (``Unset``), and a count violation has no single substitute
+    # value that would decide which duplicate template to keep.
+    repairable=False,
+)
 def _one_custom_template_per_node(value, obj=None) -> None:
     """At most one custom template — an entry carrying a ``canvas_region``.
 
