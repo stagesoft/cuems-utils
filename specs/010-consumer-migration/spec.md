@@ -150,6 +150,29 @@ only as an obligation to "surface" or "verify", without saying what the consumer
   Governs FR-095c and FR-095d, and sizes the "what does a mid-conversion library look like"
   requirement FR-095 already carried. Governs SC-017b.
 
+A third pass (checklist review, same day) closed two findings `release-readiness.md` raised against
+the spec's own text — CHK002 and CHK003, both cases where a requirement could be satisfied by doing
+the wrong thing:
+
+- Q: "Byte-identical to today's" has no pinned baseline — after the migration, "today" is gone.
+  What is the comparison against? → A: **this repository's golden corpus** (`tests/golden/`), not a
+  payload captured at migration time. The goldens were deliberately re-cut during this rebuild
+  (D29) and already carry `doc_version="2"` and the wrapped duration, so they *are* the behaviour
+  consumers must produce rather than a record of what preceded it — verified 2026-09-03. A fresh
+  capture would pin the wrong side of a change made on purpose, and would be unreviewed where the
+  goldens are reviewed, versioned and checksummed. **And the payload is not the interface**:
+  consumers implement object-to-object, with the projection produced once at the UI edge, because
+  the Angular client is the one consumer that cannot hold an object. Governs FR-013a, FR-013b.
+- Q: FR-043 never required the editor's raw-dict fixups to keep **catching** what they caught, so it
+  was satisfiable by deleting them. Where do they belong? → A: **split by responsibility**, on the
+  test of whether a fixup needs anything beyond the document. Dangling-reference nulling needs only
+  the document, so it becomes a **library** semantic rule — repairable, reported — and the editor's
+  copy is deleted rather than ported. Duration-from-database needs the editor's database, which the
+  library has no access to and must not gain, so it **stays in the editor** as an object-level
+  operation. Both must still detect what they detect today, measured against the cases the current
+  implementation catches. Recorded because the split is not what "make the fixups the library's
+  responsibility" reads like at first: one of the two cannot move. Governs FR-043–FR-043d.
+
 ---
 
 ## User Scenarios & Testing *(mandatory)*
@@ -588,6 +611,19 @@ repositories on disk and show the count is zero; then delete and run the suite.
   property, excluded from every wire projection.
 - **FR-013**: Payload equality MUST be verified against the **two-delta** statement above, not
   against unconditional byte-identity — which has not held since 008 landed.
+- **FR-013a**: The baseline for that comparison is this repository's **golden corpus**
+  (`tests/golden/`), not a payload captured at migration time. The goldens were deliberately re-cut
+  during this rebuild (D29, and 008's three recorded golden events), so they already carry
+  `doc_version="2"` and the wrapped duration — they *are* the behaviour consumers must produce, not
+  a record of what preceded it. Capturing a fresh "today's payload" fixture would pin the wrong
+  side of a change this rebuild made on purpose, and would be unreviewed where the goldens are
+  reviewed, versioned and checksummed.
+- **FR-013b**: Consumers MUST implement against **objects, not payloads**. The wire projection is a
+  **boundary** artifact, produced once at the UI edge, because the Angular client is the one
+  consumer that cannot hold an object. No consumer may manipulate the payload dict internally to
+  achieve an object-level result — that is the raw-dict habit D12 exists to end, and FR-043 removes
+  its last instance. Payload byte-equality is therefore a **migration-period** check against
+  FR-013a's goldens, not the interface consumers are built on.
 
 #### `cuems-utils` — the library's own three obligations (D16)
 
@@ -669,10 +705,29 @@ repositories on disk and show the count is zero; then delete and run the suite.
   four in the project store plus the fifth in the duration-repair tool, which the first audit pass
   missed.
 - **FR-042**: The project load path MUST return the public wire projection, subject to FR-010.
-- **FR-043**: The raw-dict fixups performed before parsing MUST become sanctioned pre-validation
-  steps or real object-level operations — not dict edits ahead of a now-strict read — and MUST be
-  checked against the library's repair path **first**, so the editor does not duplicate a repair
-  the library now performs.
+- **FR-043**: The raw-dict fixups performed before parsing MUST be **split by responsibility**,
+  not ported wholesale. The dividing question is whether the fixup needs anything beyond the
+  document itself: a repair the document alone determines belongs to the library, which owns
+  repair (D21); a correction requiring the editor's database belongs to the editor, which owns the
+  database. Neither may remain a dict edit ahead of a now-strict read.
+- **FR-043a**: **Dangling-reference nulling moves into the library** as a registered semantic rule
+  — every `target` and `action_target` MUST resolve to a cue present in the same document, and a
+  reference that does not MUST be **repairable**, cleared to the field's default and named in the
+  load report. It needs only the document, so under FR-043's rule it is the library's. The editor's
+  implementation is **deleted, not ported**; two implementations of one repair is how they drift.
+- **FR-043b**: **Duration-from-database correction stays in the editor.** It overwrites a cue's
+  media duration from the project database, and the library has no database and MUST NOT gain one.
+  It MUST become an **object-level operation** on the loaded show object rather than a dict walk,
+  and MUST run at a point the strict read path sanctions.
+- **FR-043c**: Whichever side owns a fixup, it MUST still **detect what it detected before** —
+  dangling targets and action targets, and durations the database disagrees with. Equivalence MUST
+  be measured against the cases the editor's implementation catches today, not asserted from the
+  new code's shape. Without this, FR-043 is satisfiable by deleting the fixups entirely.
+- **FR-043d**: FR-043a changes behaviour for **every** consumer, not only the editor: a show
+  document with a dangling reference now loads with that reference cleared and reported, where
+  previously only documents passing through the editor were corrected. This MUST be recorded in the
+  migration guide as a deliberate widening — the engine could previously dispatch against a
+  reference to a cue that does not exist.
 - **FR-044**: The duration-repair tool MUST move off the deprecated reader/parser paths and off
   its private timecode regex; its document-rewriting pass MUST be folded into the library's
   conversion tool rather than kept as a second rewriter; and its media-probing pass stays local.
@@ -987,6 +1042,17 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **SC-010**: The duration-repair tool still reads **100%** of the corrupt documents it could read
   before, verified against a fixture set rather than assumed, and the ecosystem contains exactly
   **one** document rewriter.
+- **SC-005a**: The payload comparison runs against the **golden corpus**, and the goldens used are
+  identified by their checksums — zero payload baselines are captured at migration time.
+- **SC-005b**: **Zero** consumer code paths manipulate the wire dict to achieve an object-level
+  result; the projection appears once, at the UI boundary, in each consumer that has one.
+- **SC-010a**: A show document carrying a dangling `target` or `action_target` loads with that
+  reference cleared and named in the report — from **every** consumer, not only through the editor
+  — and **100%** of the cases the editor's current implementation catches are caught by the
+  library's rule, measured case by case.
+- **SC-010b**: The editor retains **exactly one** fixup — the database-sourced duration
+  correction — and it operates on the loaded object, not on a dict. Zero dangling-reference code
+  remains in that repository.
 - **SC-011**: A document repaired on load produces a report that reaches the screen — traced
   end to end through library, editor and UI in a single scenario — and the file on disk is
   unchanged by that load, verified byte-for-byte.
@@ -1054,6 +1120,9 @@ repositories on disk and show the count is zero; then delete and run the suite.
    for it. Both are true and the second is the operative one. Q2's answer grows the first of the
    three: it is now "publish the descriptor **and add one capability to it**", which is a larger
    claim than "publish what exists" and is stated here so nobody reads FR-022a as a re-export.
+   FR-043a enlarges it once more: the library gains a **semantic rule** it did not have, which is
+   neither descriptor capability (FR-026) nor a schema change (FR-027), but is new behaviour on the
+   validating read path and must be reviewed as such.
 3. **Everything else this feature asks of the library already exists** and is confirmed rather
    than rebuilt: the non-mutating adoption partition, the standalone conversion command, the
    public report types, and the strict load path with its three outcomes. Verified on disk

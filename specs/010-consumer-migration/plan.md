@@ -46,7 +46,11 @@ no worse than **008's post-landing 18.673 ms**; `network_map` config load no wor
 post-landing 10.14–10.49 ms** (see the Constitution check — this is *not* 007's 10.20 ms cap, and
 the difference matters).
 **Constraints**: no `.xsd` edits (D3, already relaxed three times by 007/008 and not further here);
-the editor→UI payload changes in exactly two enumerated ways and no other (FR-010/FR-011); hard
+the editor→UI payload changes in exactly two enumerated ways and no other (FR-010/FR-011), verified
+against this repository's **golden corpus** rather than a payload captured at migration time
+(FR-013a) — the goldens already carry `doc_version="2"` and the wrapped duration, verified
+2026-09-03; consumers implement **object-to-object**, with the projection produced once at the UI
+edge (FR-013b); hard
 cutovers with no dual-spelling state for the role rename and the duration change; nothing releases
 until every wave lands (D27).
 **Scale/Scope**: 7 repositories; ~35 named call sites; a document library of **hundreds** of show
@@ -160,8 +164,15 @@ repository and both are stated here so a reviewer can reject them before they ar
    on an existing entry point, **not** descriptor capability, so FR-026 does not reach it; it is
    recorded anyway because it grows this repository's share for a third time.
 
-No constitutional violation requires justification. See Complexity Tracking for the one structural
-cost this plan accepts.
+3. **A semantic rule the library does not have today** — dangling `target`/`action_target`
+   references become a registered, repairable T2 rule (FR-043a). Measured 2026-09-03, the rule
+   table holds exactly **one** rule (`one_custom_template_per_node`), so this is the second, and the
+   first that fires on the *show* path. It is neither descriptor capability (FR-026 does not reach
+   it) nor a schema change (FR-027 does not either), but it is new behaviour on the validating read
+   path and is reviewed as such.
+
+No constitutional violation requires justification. See Complexity Tracking for the structural
+costs this plan accepts.
 
 ## Project Structure
 
@@ -234,7 +245,13 @@ where one already exists the guide names it rather than the library adding a syn
 *Why first*: the editor cannot serve what it cannot import, and the frontend cannot render forms
 from a descriptor with no path. This is the one wave with an outgoing edge to two others.
 
-*Why it is not merely a re-export*: FR-022a. That is the whole reason this is library work.
+**Wave 0 also carries FR-043a's semantic rule** — dangling references, repairable to the field's
+default, named in the report. It lands here rather than in wave 2 because the editor's corresponding
+code is *deleted* in wave 2a, and deleting a correction before its replacement exists leaves a
+window in which neither runs.
+
+*Why it is not merely a re-export*: FR-022a and FR-043a. That is the whole reason this is library
+work.
 
 ### Wave 1 — the independent consumer repairs *(four tracks, parallel)*
 
@@ -275,9 +292,11 @@ valid intermediate state to merge into.
   `CuemsDBProject.py` `update`:356, `new`:489, `duplicate`:571,
   `update_projects_existed_media`:808, plus `repair_durations.py`:230 — move to the public show
   object (FR-041). `load()` returns `to_wire()`, subject to FR-010's two-delta constraint. The
-  raw-dict pre-parse fixups are checked **against the library's repair path first** and then become
-  sanctioned pre-validation steps or object-level operations — never dict pokes ahead of a strict
-  parse, and never a duplicate of a repair the library now performs (FR-043). The node field list
+  raw-dict pre-parse fixups are **split by responsibility** (FR-043–FR-043d): the dangling-reference
+  code is **deleted**, its job having moved to wave 0's library rule, and the database-sourced
+  duration correction **stays** — the library has no database and must not gain one — but becomes an
+  object-level operation on the loaded show object. Both must still detect what they detect today,
+  measured case by case against the current implementation (FR-043c). The node field list
   at `CuemsWsServer.py:425` and the `reload_network_map_nodes` reads take the typed values
   (FR-046). The WS message family arrives: descriptor serving, config-domain saves, the repair
   report, the unrepairable-load failure and the payload-version handshake
@@ -447,12 +466,12 @@ construction rather than by sampling.
 
 | Wave / track | Requirements |
 |---|---|
-| **0 — public descriptor path** | FR-020, FR-021, FR-022, FR-022a, FR-022b, FR-023, FR-024, FR-025, FR-026, FR-027, FR-028 |
+| **0 — public descriptor path** | FR-020, FR-021, FR-022, FR-022a, FR-022b, FR-023, FR-024, FR-025, FR-026, FR-027, FR-028, **FR-043a** |
 | 1a — `cuems-wsclient` | FR-050, FR-051, FR-052, FR-053 |
 | 1b — `cuems-editor` start-up | FR-040 |
 | 1c — `cuems-engine` | FR-030, FR-031, FR-032, FR-033, FR-034, FR-035 |
 | 1d — Avahi cutover (both repos) | FR-060, FR-061, FR-062, FR-063 |
-| 2a — `cuems-editor` | FR-010, FR-011, FR-012, FR-013, FR-041, FR-042, FR-043, FR-044, FR-045, FR-046, FR-047, FR-048, FR-048a, FR-048b, FR-048c, FR-049, FR-049a, FR-049b, FR-049c, FR-105, FR-106, FR-107 |
+| 2a — `cuems-editor` | FR-010, FR-011, FR-012, FR-013, FR-013a, FR-013b, FR-041, FR-042, FR-043, FR-043b, FR-043c, FR-043d, FR-044, FR-045, FR-046, FR-047, FR-048, FR-048a, FR-048b, FR-048c, FR-049, FR-049a, FR-049b, FR-049c, FR-105, FR-106, FR-107 |
 | 2b — `cuems-nodeconf` | FR-064, FR-065, FR-066, FR-067, FR-068, FR-069 |
 | 3 — `cuems-frontend` | FR-084, FR-085, FR-086, FR-087, FR-088, FR-088a, FR-088b, FR-088c, FR-088d, FR-088e, FR-105 (UI half), FR-108 |
 | **4 — rollout, gate, data migration** | FR-036, FR-091, FR-092, FR-093, FR-094, FR-095, FR-095a, FR-095b, FR-095c, FR-095d, FR-096, FR-097, FR-100, FR-101, FR-102, FR-103, FR-104 |
@@ -482,4 +501,5 @@ construction rather than by sampling.
 | A configuration-domain object serves the **show** schema's descriptor (FR-020/FR-021) | One public path for one mechanism, reachable by the component that already serves both configuration forms and the show template | Two public paths — a config accessor and a separate show accessor — doubles the surface consumers must learn and version, for a distinction that exists only inside this library |
 | The library grows a **sixth** descriptor fact (FR-022a) inside a feature whose FR-026 forbids growth | `getTemplateOutputStructure` needs a nested object; no combination of per-field facts supplies one | A hand-authored seed in the UI leaves a hand-maintained shape that drifts from the schema — the exact failure the template cutover exists to end. Cloning a generated example works only while the example happens to contain one of every cue type |
 | A **runtime payload-version handshake** duplicates, at runtime, what packaging does for the other consumers (FR-105/FR-108) | `cuems-frontend` has no `debian/` directory and therefore cannot hold a release-gate edge, yet it is the surface both payload deltas land on | "They deploy together" is a convention, not a mechanism, and it does not cover a cached browser bundle — the one way a UI can actually lag an editor that serves it |
+| A **fourth** enlargement: a semantic rule for dangling references (FR-043a) | The correction must live where the document alone determines it, and the library owns repair (D21). Left in the editor, only documents passing through the editor are corrected | Porting the editor's dict walk into its own object layer keeps two implementations of one repair, and leaves the engine dispatching against references to cues that do not exist |
 | A **third** enlargement of this repository's share: a no-write mode on the conversion command | FR-103's rollback boundary must be checkable without hand-inspecting documents | The tool as landed can only answer "is this converted?" by converting, which is not a check. A documented `grep` over `doc_version` is inspecting documents by hand with extra steps |
