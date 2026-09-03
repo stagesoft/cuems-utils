@@ -61,7 +61,6 @@ rm -rf /usr/lib/cuems/lib/python3.11/site-packages/cuemsutils   # pip leaves non
 Note `pip install -e` needs network for the build backend, so it is not an option on an offline node — install the `.deb` there instead. And an `apt install --reinstall cuems-utils` restores the packaged copy and silently re-shadows the editable tree.
 
 ## Active Technologies
-
 - Python 3.11+. **Tests run under pyenv 3.11.9** — conda environments are not used for
   this project.
 - `xmlschema==3.4.3` (pinned; XSD 1.1 required by `xs:assert` in `script.xsd`),
