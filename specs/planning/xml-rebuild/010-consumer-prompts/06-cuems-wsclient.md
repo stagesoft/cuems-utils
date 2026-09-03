@@ -1,4 +1,4 @@
-# Feature 009 — `cuems-wsclient`: the sixth consumer, silently broken
+# Feature 010 — `cuems-wsclient`: the sixth consumer, silently broken
 
 **Status:** ready to run — **independent; start immediately**
 **Date:** 2026-09-03
@@ -144,12 +144,12 @@ outside this subset: read §2 of the prompts file above.
   D11 the node model lives in cuemsutils ONLY. No consumer re-implements or re-tests it.
   D12 public surface returns objects, never raw dicts
   D15 public objects are CuemsScript (show) and ConfigManager/ConfigBase (config)
-  D32 THIS REPOSITORY IS IN FEATURE 009'S SCOPE IN FULL. Its private ElementTree
+  D32 THIS REPOSITORY IS IN FEATURE 010'S SCOPE IN FULL. Its private ElementTree
       network-map reader is REPLACED by the library's public path, not merely re-spelled to
       node_role: a second reader for a schema cuemsutils owns is the duplication the whole
       rebuild exists to end. It also carries 5 of the ecosystem's node_type occurrences, so
       "zero, counted" cannot pass without it.
-  D27 nothing in the ecosystem releases until every 009 flow lands
+  D27 nothing in the ecosystem releases until every 010 flow lands
   Q14 -> (i) cuemsutils.xml is internal machinery; use ConfigManager, not xml/
 
 MEASURED STARTING STATE — verified against live files 2026-09-03, not transcribed:
@@ -292,7 +292,7 @@ hostname; unresolvable reported not dropped) preserved exactly and covered by a 
 empty-node-list behaviour decided and implemented, with the reachability poll no longer
 skipped on the anomalous path; tests/ created and green; the cuemsutils dependency real,
 non-optional where it is now used, and upper-bounded; zero node_type / NodeType. occurrences
-remaining, counted; and this repository recorded as a consumer in the 009 migration guide so
+remaining, counted; and this repository recorded as a consumer in the 010 migration guide so
 the next ecosystem-wide count includes it by construction.
 ```
 ```
@@ -313,7 +313,7 @@ private network-map parser gone; the node filter on `NodeRole` with a test that
 fails against the old string; the avahi-resolution policy preserved and covered;
 the zero-node shutdown behaviour decided and implemented; the `cuemsutils`
 dependency real and bounded; zero `node_type` occurrences; and this repository
-present in the 009 migration guide as a consumer.
+present in the 010 migration guide as a consumer.
 
 **Does not ship alone** (D27) — but it is the flow whose current state is most
 worth fixing early.

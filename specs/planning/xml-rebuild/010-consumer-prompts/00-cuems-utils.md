@@ -1,4 +1,4 @@
-# Feature 009 — `cuems-utils`: descriptor path, deprecation removal, the guide
+# Feature 010 — `cuems-utils`: descriptor path, deprecation removal, the guide
 
 **Status:** ready to run — **starts first, finishes last**
 **Date:** 2026-09-03 (scope corrected the same day — see "What is actually left")
@@ -9,7 +9,7 @@ ITEM 2 is gated on **all six** consumer flows. See the [index](README.md).
 
 ## What is actually left in this repository, and why it is not zero
 
-Part 4 §8 framed feature 009 as "this spec lives in `cuems-utils` and defines the
+Part 4 §8 framed feature 010 as "this spec lives in `cuems-utils` and defines the
 contract and guide; the edits happen in each consumer repo as its own PR". That
 made it easy to read this repository's own share as empty. Checked against the
 goal documents on 2026-09-03, it is not — three items remain, and one of them is
@@ -24,11 +24,11 @@ never tabulated:
 
 | Obligation | Source | State 2026-09-03 |
 |---|---|---|
-| A migration guide in this repo mapping every removed or changed entry point to its replacement, with before/after examples | §8, and Constitution III ("the migration guide is the UX deliverable") | **not started** — 006, 007 and 008 each have one; there is no `specs/009-*` directory at all |
+| A migration guide in this repo mapping every removed or changed entry point to its replacement, with before/after examples | §8, and Constitution III ("the migration guide is the UX deliverable") | **not started** — 006, 007 and 008 each have one; there is no `specs/010-*` directory at all |
 | Deprecated entry points removed from `cuemsutils`, **only after** all consumers are on the new API | §8; `_deprecation.REMOVAL_RELEASE = "v0.1.1"` | **not started, and correctly so** — it is gated on the six consumer flows |
 | The descriptor reachable from a public path | D34 / C4 | **not started** — `SchemaDescriptor` is in `cuemsutils.xml`, whose `__all__` is `[]` |
 
-Everything else 009 asks of this repository already exists and was verified
+Everything else 010 asks of this repository already exists and was verified
 rather than assumed: `NetworkMap.partition_by_adoption` (`xml/settings.py:209`),
 `cuems-convert-documents` (`xml/convert_documents.py` + `[project.scripts]`),
 `cuemsutils.errors`' public `LoadReport`/`Outcome`/`RepairRecord`/
@@ -51,13 +51,17 @@ six have finished; ITEM 3 accumulates as they do.
 | Working tree | 3 modified planning files (this prompt set); commit or stash before starting |
 | Spec-kit | present (`0.5.1.dev0`, 9 skills) |
 | Constitution | present — `.specify/memory/constitution.md`, v1.0.0 |
-| Existing features | `specs/001-*` … `specs/008-*`; **this is `009-consumer-migration`** |
-| Tests | `hatch test --show` — **2562 passed, 96 skipped, 2 xfailed in 53.24 s = 20.8 ms/test** |
+| Existing features | `specs/001-*` … `specs/008-*` on `feat/xml-refactor`; **this is `010-consumer-migration`**, renumbered from `009` on 2026-09-03 because `specs/009-fix-dmx-channel-conversion/` — a small, unrelated bugfix, unplanned in advance — landed the `009` slot first on its own branch. Confirm no `specs/009-*` exists on `feat/xml-refactor` before running `/speckit.specify`; if the branches have merged by then, this repository's next free number may have moved again. |
+| Tests | `hatch test --show` — **2573 passed, 96 skipped, 2 xfailed in 53.34 s = 20.73 ms/test** |
 | Version | `0.1.0rc15` |
 
-**The suite baseline is 20.8 ms/test, not 008's recorded 22.06.** Forty tests
-landed after that measurement (`TimeoutLoop`, `StringSanitizer`,
-`CopyMoveVersioned`). Principle IV budgets derive from 20.8.
+**The suite baseline is 20.73 ms/test, not the 20.8 recorded 2026-09-03 before
+today.** Re-measured after `specs/009-fix-dmx-channel-conversion/` (11 new
+tests) and the `009`→`010` renumbering landed on `feat/xml-refactor`
+(`7a1893f`) — neither changed per-test cost measurably, but the count moved,
+so the figure is re-measured rather than inherited, same discipline this
+document already applies to 008's number. Principle IV budgets derive from
+20.73.
 
 ---
 
@@ -67,14 +71,14 @@ Already on `feat/xml-refactor`. Nothing to create. Commit or stash the working
 tree first — `/speckit.specify` writes into `specs/`.
 
 Spec-kit's sequential branch numbering will want a branch of its own. **Stay on
-`feat/xml-refactor`**; let it name `specs/009-consumer-migration/` only.
+`feat/xml-refactor`**; let it name `specs/010-consumer-migration/` only.
 
 ---
 
 ## 2. Constitution — check, do not amend
 
 Read `.specify/memory/constitution.md`. Principle IV (Performance Budgets Are
-Requirements) is the one that binds here, and its baseline is the 20.8 ms/test
+Requirements) is the one that binds here, and its baseline is the 20.73 ms/test
 figure above. No amendment is needed: this task adds a public accessor and
 deletes no behaviour.
 
@@ -86,8 +90,8 @@ deletes no behaviour.
 CONTEXT — read these before writing anything:
   specs/planning/xml-rebuild/xml-rebuild-06-target-design.md       THE TARGET DESIGN — authoritative
   specs/planning/xml-rebuild/xml-rebuild-08-extension-audit.md     feature 008 evidence (E1-E26)
-  specs/planning/xml-rebuild/xml-rebuild-09-consumer-audit.md      feature 009 evidence (C1-C12) — C4 is this task
-  specs/008-rebuild-extension/migration-guide.md                   what 008 handed to 009
+  specs/planning/xml-rebuild/xml-rebuild-09-consumer-audit.md      feature 010 evidence (C1-C12) — C4 is this task
+  specs/008-rebuild-extension/migration-guide.md                   what 008 handed to 010
   specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md §2  the FULL settled-decision list (D1-D35)
 
 SETTLED — the decisions that bind THIS task. Do not reopen; do not propose
@@ -105,7 +109,7 @@ alternatives. Anything outside this subset: read §2 of the prompts file above.
       paths for one mechanism. Q14 therefore stands. cuems-nodeconf's existing
       cuemsutils.xml.mapper / cuemsutils.xml.settings imports move onto public equivalents
       in the same feature rather than being grandfathered (C4).
-  D27 nothing in the ecosystem releases until every 009 flow lands. This repository holds
+  D27 nothing in the ecosystem releases until every 010 flow lands. This repository holds
       the LAST step of that gate: the deprecated surface cannot be removed until all six
       consumer flows are done, and the release cannot happen until it is removed.
   Q14 -> (i) xml/ is internal machinery
@@ -157,9 +161,11 @@ MEASURED STARTING STATE (C4, 2026-09-03):
     (Mapper, read_config_document) and cuemsutils.xml.settings (NetworkMap) TODAY. No
     feature has ever recorded this as a violation. It is one, and this task ends it.
 
-PERFORMANCE BASELINE (Principle IV): 2562 passed, 96 skipped, 2 xfailed in 53.24 s
-  = 20.8 ms/test, measured 2026-09-03 on feat/xml-refactor @ 7c5896c. Do NOT inherit
-  008's 22.06 ms/test: 40 tests landed after that measurement.
+PERFORMANCE BASELINE (Principle IV): 2573 passed, 96 skipped, 2 xfailed in 53.34 s
+  = 20.73 ms/test, measured 2026-09-03 on feat/xml-refactor @ 7a1893f, after the
+  DMX-fix feature (009-fix-dmx-channel-conversion, +11 tests) and the 009->010
+  renumbering landed. Do NOT inherit 008's 22.06 ms/test or the earlier 20.8
+  figure recorded before those two commits.
 ```
 
 ---
@@ -169,7 +175,7 @@ PERFORMANCE BASELINE (Principle IV): 2562 passed, 96 skipped, 2 xfailed in 53.24
 ```
 /speckit.specify <PASTE CONTEXT BLOCK>
 
-Complete cuems-utils' own share of feature 009: publish the schema descriptor, remove the
+Complete cuems-utils' own share of feature 010: publish the schema descriptor, remove the
 deprecated surface once every consumer is off it, and write the migration guide that maps
 what changed to what replaced it. THREE ITEMS, and their timing differs sharply — ITEM 1
 must land before two consumer flows can start, ITEM 2 cannot land until all six have
@@ -196,10 +202,10 @@ WHAT MUST BE TRUE WHEN DONE:
   by giving the one legitimate external consumer a door that is not the back one.
 - The two internal imports cuems-nodeconf makes today (cuemsutils.xml.mapper's Mapper and
   read_config_document, cuemsutils.xml.settings's NetworkMap) have public equivalents, so
-  that repository's own 009 flow has something to move onto. Where a public equivalent
+  that repository's own 010 flow has something to move onto. Where a public equivalent
   already exists (ConfigManager covers most of it), say so rather than adding a synonym —
   the deliverable is a stated, tested migration target per import, not necessarily new code.
-- The migration guide for 009 records the public path at call-site granularity, the way
+- The migration guide for 010 records the public path at call-site granularity, the way
   007's and 008's guides do, so 02 and 05 can be written against it without reading source.
 
 WHAT THIS TASK DOES NOT DO:
@@ -245,10 +251,10 @@ WHAT MUST BE TRUE WHEN DONE:
   alias as one of its six. Those are two different symbols; check which is which before
   deleting either.
 
-ITEM 3 — THE 009 MIGRATION GUIDE. Accumulates across the whole feature.
+ITEM 3 — THE 010 MIGRATION GUIDE. Accumulates across the whole feature.
 
 WHAT MUST BE TRUE WHEN DONE:
-- specs/009-*/migration-guide.md exists and maps every removed or changed entry point to its
+- specs/010-*/migration-guide.md exists and maps every removed or changed entry point to its
   replacement, with before/after examples — the same shape 006's, 007's and 008's have, and
   Constitution III's UX deliverable for this feature.
 - It records cuems-wsclient as a consumer (C1). That repository was absent from 007's guide,
@@ -259,7 +265,7 @@ WHAT MUST BE TRUE WHEN DONE:
   repository's own src/ has sixteen occurrences, all of them migration-detection code that
   must survive. A guide that reports "zero except where it matters" without saying where is
   how a working diagnostic gets deleted by the next person to run the count.
-- It states, in one place, which of 009's obligations landed in which repository — because
+- It states, in one place, which of 010's obligations landed in which repository — because
   seven spec-kit flows produce seven tasks.md files and no single view of the whole.
 ```
 
@@ -294,11 +300,11 @@ Scope, by item:
   src/cuemsutils/xml/descriptor.py (unchanged in behaviour; re-exported).
 - ITEM 2: the five shim modules, xml/__init__.py:81-91, the four deprecated_symbol sites,
   tests/contract/test_deprecation_shims.py, and __version__.
-- ITEM 3: specs/009-*/migration-guide.md.
+- ITEM 3: specs/010-*/migration-guide.md.
 
 SEQUENCING IS THE HARD PART OF THIS PLAN, and it is not a note — it is the structure.
 ITEM 1 blocks flows 02 and 05, so it lands first and alone. ITEM 2 is blocked BY ALL SIX
-consumer flows and lands last in the entire feature 009, across every repository; its tasks
+consumer flows and lands last in the entire feature 010, across every repository; its tasks
 must be unrunnable until a measured check says twelve live imports have become zero. Do not
 let /speckit.tasks interleave them: a task list that permits ITEM 2 to start early is a task
 list that can break six repositories at once, and that possibility should not exist in the
@@ -313,7 +319,7 @@ Constitution check:
   precondition rather than a test: the suite here cannot see another repository's imports.
 - III: the migration guide is the UX deliverable, and its audience is six other
   repositories' spec-kit flows plus whoever runs the next ecosystem sweep.
-- IV: baseline 20.8 ms/test. A public re-export should cost nothing measurable; if the
+- IV: baseline 20.73 ms/test. A public re-export should cost nothing measurable; if the
   accessor eagerly builds all six descriptors where the internal path built one lazily,
   that IS measurable and is a design error, not a budget overrun to accept. ITEM 2 should
   make the suite FASTER (22 contract tests retire); if it does not, something else changed.
@@ -361,17 +367,17 @@ sampled; `cuemsutils.xml.__all__` is still `[]`; every `cuemsutils.xml.*` import
 generators are reachable from the same path; and flows 02 and 05 can be written
 without reading `cuemsutils` source.
 
-**ITEM 2** (last in all of feature 009): a measured zero live imports of every
+**ITEM 2** (last in all of feature 010): a measured zero live imports of every
 deprecated path across all six consumer repositories; the five shim modules,
 seven aliases and four `deprecated_symbol` sites gone; contract C9's 22 tests
 retired with the reason recorded; `__version__` matching `REMOVAL_RELEASE`'s
 promise.
 
-**ITEM 3**: `specs/009-*/migration-guide.md` complete, including
+**ITEM 3**: `specs/010-*/migration-guide.md` complete, including
 `cuems-wsclient` as a consumer, the `node_type` count with its exempt set
 enumerated, and a single statement of which obligation landed where.
 
-Suite green at or under 20.8 ms/test throughout — and faster after ITEM 2.
+Suite green at or under 20.73 ms/test throughout — and faster after ITEM 2.
 
 **This repository closes the gate it does not open.** D27 holds: nothing in the
 ecosystem releases until all seven flows land, and ITEM 2 is the last of them.

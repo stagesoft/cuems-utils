@@ -1,11 +1,11 @@
-# Feature 009 — `cuems-frontend`: characterization first, then the port
+# Feature 010 — `cuems-frontend`: characterization first, then the port
 
 **Status:** ready to run — **gated on [00](00-cuems-utils.md) and [02](02-cuems-editor.md)**
 **Date:** 2026-09-03
 **Repository:** `/disk/Projects/StageLab/cuems-frontend`
 **Run order:** 05 of 06. See the [index](README.md).
 
-The largest single port in feature 009, in the repository with the least test
+The largest single port in feature 010, in the repository with the least test
 coverage. That combination is why D35 puts characterization tests before
 anything else.
 
@@ -135,7 +135,7 @@ outside this subset: read §2 of the prompts file above.
       reaches this repository as a WS message from cuems-editor, and rendering it is this
       repository's job. A silent repair is the exact outcome the three-outcome design exists
       to prevent.
-  D27 nothing in the ecosystem releases until every 009 flow lands
+  D27 nothing in the ecosystem releases until every 010 flow lands
 
 THE WIRE CHANGES IN EXACTLY TWO WAYS (C3) — this is the whole payload delta, and the
 pre-2026-09-03 planning wording said something stronger and wrong:

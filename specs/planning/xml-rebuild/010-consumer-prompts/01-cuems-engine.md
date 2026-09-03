@@ -1,4 +1,4 @@
-# Feature 009 — `cuems-engine`: node-role readers, strict loads, dead handlers
+# Feature 010 — `cuems-engine`: node-role readers, strict loads, dead handlers
 
 **Status:** ready to run
 **Date:** 2026-09-03
@@ -82,7 +82,7 @@ outside this subset: read §2 of the prompts file above.
       (file untouched); a CURRENT but repairable one loads with the field repaired and the
       repair carried in a report; an UNREPAIRABLE one raises. A document NEWER than the
       library raises, distinguishably.
-  D27 nothing in the ecosystem releases until every 009 flow lands
+  D27 nothing in the ecosystem releases until every 010 flow lands
   Q14 -> (i) cuemsutils.xml is internal machinery; do not import from it
 
 MEASURED STARTING STATE — verified against live files 2026-09-03, not transcribed:

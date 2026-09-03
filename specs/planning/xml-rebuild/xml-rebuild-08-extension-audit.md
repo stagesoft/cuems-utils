@@ -146,7 +146,7 @@ type (E3) is the coherent option precisely because it moves the field onto
    *recorded, reviewed* re-cut of a deliberately changed wire — but it needs
    saying out loud, and the pre-change goldens should be **kept as the
    conversion path's test corpus** rather than deleted. See E24.
-3. **Consumer impact, 009's to execute.** `cuems-engine`'s
+3. **Consumer impact, 010's to execute.** `cuems-engine`'s
    `CTimecode(cue.media.duration)` becomes `CTimecode(CTimecode_instance)`;
    `cuems-editor`'s duration read/write paths (E18, E21) move from string to
    object; `cuems-frontend` unwraps `{"CTimecode": …}` for media durations the
@@ -306,7 +306,7 @@ consequences the plan must honour:
   report type is public, under `cuemsutils.errors`, on 006's precedent that
   "an exception the caller cannot name is one it cannot catch" — a repair the
   caller cannot inspect is one it cannot surface. **008 produces the report;
-  009 wires it to the UI.**
+  010 wires it to the UI.**
 
 ---
 
@@ -352,14 +352,14 @@ touches the file; not itself a reason to scope more work.
 
 **E23 — 008 ships row 5's API with no first-party caller, and that is a
 measurable risk, not just a noted one.** D22 puts merge/adopt/unadopt in
-`cuems-utils`; D16 permits but does not require touching `cuems-nodeconf`; 009
+`cuems-utils`; D16 permits but does not require touching `cuems-nodeconf`; 010
 does the swap. So without mitigation, 008 would ship an API whose only proof
 is its own tests, against a caller it never runs. **Mitigation, adopted:**
 port `CuemsNodeConf`'s current behaviours into `cuems-utils` as
 *characterization* tests — `merge_discovered_nodes`, `_map_signature`,
 `adopt_node`/`unadopt_node` and `set_master_always_adopted` are pure enough
 over a `NodeIndex` to be pinned this way — so equivalence is **measured in
-008** rather than asserted at 009 time.
+008** rather than asserted at 010 time.
 
 **Decision (this feature):** row 5 (network-map config-object logic) moves
 into `cuems-utils`, extending `NodeIndex`/`CuemsNetworkMapType` to own
@@ -368,15 +368,15 @@ merge/adopt/unadopt/refresh/signature/write orchestration, mirroring
 feature instead records the target-design basis for that full atomization (the
 table above, plus which rows are single-class candidates and why) so it can
 become its own dedicated `cuems-nodeconf` feature later. `cuems-nodeconf`'s
-actual consumption of the new object is 009's job, per the general
+actual consumption of the new object is 010's job, per the general
 consumer-modification rule (D16).
 
-**E14 — the engine IPC dispatch (row 10) is worth naming explicitly for 009,
+**E14 — the engine IPC dispatch (row 10) is worth naming explicitly for 010,
 and it has a live UI on the other end.** `engine_callback` is how
 `cuems-engine`'s adopt/unadopt actions reach the network map today — and E20
 shows those actions originate in a real `cuems-frontend` component that users
 operate. Whatever `NodeIndex`/`CuemsNetworkMapType` grows in 008 has to be a
-valid target for `nodelist_modify` → `engine_callback` → `adopt_node` once 009
+valid target for `nodelist_modify` → `engine_callback` → `adopt_node` once 010
 migrates it, and the behaviour that chain delivers today must be preserved,
 not merely re-implemented.
 
@@ -488,7 +488,7 @@ direction.
 **E18 — `cuems-editor`'s mutation surface, corrected upward.**
 `CuemsDBProject.py` is on the deprecated `cuemsutils.xml.Parsers.CuemsParser`
 at **four** call sites — `update` (line 356), `new` (489), `duplicate` (571),
-`update_projects_existed_media` (808) — already documented 009 debt per 006's
+`update_projects_existed_media` (808) — already documented 010 debt per 006's
 migration guide, which recorded three.
 
 More relevant here: its business logic runs as **raw dict mutation on the JSON
@@ -527,7 +527,7 @@ of every decision in this feature:
 **Split, per the repo owner's direction:** **008** owns the library side —
 the `Media.duration` type promotion, the document conversion that carries it
 to existing files, and the repair-and-notify contract that lets a
-corrupt-duration document still be read. **009** owns `repair_durations.py`
+corrupt-duration document still be read. **010** owns `repair_durations.py`
 itself: migrate it off `CuemsParser`/`XmlReaderWriter`, drop its private
 `TIMECODE_SHAPE` regex in favour of the library's canonical form, and fold its
 Pass B into the standalone conversion tool instead of maintaining a second XML
@@ -578,7 +578,7 @@ the new dynamic-form UI entities, but logic needs to be preserved."*
    `settings` domain and edits `network_map` nodes. Do not let the new
    per-domain views inherit that naming.
 
-**Decisions (this feature and 009):**
+**Decisions (this feature and 010):**
 
 - **008** ships a standalone schema descriptor — new machinery, independent of
   the runtime object model, walking the parsed XSD directly (may share
@@ -590,7 +590,7 @@ the new dynamic-form UI entities, but logic needs to be preserved."*
   008 **replaces** it with descriptor-derived generation rather than shipping
   the descriptor alongside it (E26 applies the same treatment to
   `templates/settings.xml`).
-- **009** extends this to the consumer cutover: `initial_template`-as-a-
+- **010** extends this to the consumer cutover: `initial_template`-as-a-
   concrete-instance is retired. Script domain is a *migration* of the ~7-call-
   site surface (E19), bundled with `CuemsDBProject`'s forced move off
   `CuemsParser` and its raw-dict fixups (E18) and `repair_durations.py`'s
@@ -600,11 +600,11 @@ the new dynamic-form UI entities, but logic needs to be preserved."*
   schema-form-renderer, with the domains disentangled (E25) and new
   `cuems-editor` WS message types generalising the `initial_mappings` /
   `nodelist_modify` pair.
-- **Noted for 009's design, not settled**: consider serving **partial**
+- **Noted for 010's design, not settled**: consider serving **partial**
   elements on demand from the editor backend — a script sub-object, a duration
   value queried against the DB — rather than requiring the frontend to hold or
   compute full payloads client-side, if doing so simplifies the new config/form
-  UI entities by shifting work to the editor. An option to weigh during 009's
+  UI entities by shifting work to the editor. An option to weigh during 010's
   `/speckit.plan`, not a requirement fixed here.
 
 ---
@@ -624,8 +624,8 @@ the new dynamic-form UI entities, but logic needs to be preserved."*
   model and `network_map` object model E11–E14 build on). Because 008 changes
   behaviour incompatible with what consumers assume today (E3's `duration`
   type and wire shape, E7's load-strictness reversal), it inherits the release
-  gate 007 established for 009 (FR-030c/FR-030d) — extended so nothing ships
-  until **009** lands. **Confirmed by the repo owner, 2026-08-25 (D27)** — 008
+  gate 007 established for 010 (FR-030c/FR-030d) — extended so nothing ships
+  until **010** lands. **Confirmed by the repo owner, 2026-08-25 (D27)** — 008
   does not ship independently, despite touching no consumer repository
   directly.
 - **Scope shape**: none of 008's items *require* editing a consumer repository
@@ -660,4 +660,4 @@ the new dynamic-form UI entities, but logic needs to be preserved."*
   and that if ITEM E's undesigned mechanism (E10) turns out larger than the
   plan assumed, that is discovered with four items already merged rather than
   with the whole feature in flight. It is **not** a release boundary: D27 holds
-  and nothing ships until 009 lands.
+  and nothing ships until 010 lands.

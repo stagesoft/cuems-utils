@@ -31,7 +31,7 @@ and outside Part 3's original scope (§7) — the same review-ability rule still
 | `006-public-object-api` | 5, 7 | Yes (API + `initial_template`) | 005 |
 | `007-node-model-migration` | 6 | **Yes** — `node_type` → `node_role`, a hard cutover across three repos | 006 + `feat/nodeconf-reenable` landing |
 | `008-rebuild-extension` | — (new; not one of Part 3's original eight) | **Yes** — see §7. Lands in **two gated phases** (D30) | 007 |
-| `009-consumer-migration` | 9 | Cross-repo — **six** consumer repos plus one cuems-utils task (D32/D34); per-repo prompts in [`009-consumer-prompts/`](009-consumer-prompts/README.md) | 006, 007, 008 |
+| `010-consumer-migration` | 9 | Cross-repo — **six** consumer repos plus one cuems-utils task (D32/D34); per-repo prompts in [`010-consumer-prompts/`](010-consumer-prompts/README.md) | 006, 007, 008 |
 
 Run them in order. Do not start the next until the previous is merged and green.
 
@@ -42,14 +42,14 @@ Phase 2 (ITEM E) task starts. One spec, one plan, one feature number — a seque
 a scope split, and not a release boundary. It is applied at a **deliberate stop between
 `/speckit.plan` and `/speckit.tasks`** (D31, §7.2) — the only such stop in the rebuild.
 
-**007, 008 and 009 are a triple that does not ship independently.** The row above said "No
+**007, 008 and 010 are a triple that does not ship independently.** The row above said "No
 (intake)" until 2026-08-24; clarification enlarged 007 to edit `network_map.xsd` and three
 repositories, and the rename is a hard cutover with no dual-spelling release. 008 then widened the
 scope further (2026-08-25): none of its five items *require* editing a consumer repository
 directly — closer in shape to 004–006 than to 007 — but several change behaviour in ways existing
 consumers assume differently today (`Media.duration`'s type **and wire shape**, `load()`'s
-strictness), so the same no-independent-release logic that bound 007↔009 is extended to cover 008
-too: **nothing in the ecosystem releases until 009 lands** (007 FR-030c/FR-030d's gate, extended
+strictness), so the same no-independent-release logic that bound 007↔010 is extended to cover 008
+too: **nothing in the ecosystem releases until 010 lands** (007 FR-030c/FR-030d's gate, extended
 rather than re-derived — confirmed by the repo owner on 2026-08-25, D27).
 
 008 also raises the stakes of that gate. 007's hard cutover converted **one config file per
@@ -58,7 +58,7 @@ node**; 008's `Media.duration` promotion converts **every project document in ev
 bounded by a node's config directory.
 
 > **2026-08-25 renumbering note (resolved)**: consumer migration was originally slotted as
-> feature `008` and moved to `009` when the team decided to extend the rebuild's scope before
+> feature `008` and moved to `010` when the team decided to extend the rebuild's scope before
 > consumer migration starts. `008-rebuild-extension`'s row above and §7 below are that new
 > feature's content, gathered in conversation with the repo owner on 2026-08-25. Evidence backing
 > §7 lives in
@@ -78,7 +78,7 @@ Read `.specify/memory/constitution.md` before starting. Two clauses bind this wo
   each spec MUST enumerate every change explicitly. The prompts below do that; do not drop
   those sections.
 - **Principle IV — Performance Budgets Are Requirements:** every plan MUST carry measurable
-  targets **before** implementation. Baseline for feature 009: `hatch test` = **2562 passed, 96 skipped, 2 xfailed in 53.24 s** (measured 2026-09-03 on `feat/xml-refactor` @ `7c5896c`, after 008 and the three commits that followed it). Compare **per test** — **20.8 ms** — not wall time: the suite has grown with every feature, so a wall-time budget reads growth as regression. Do **not** inherit 008's recorded 22.06 ms/test: 40 tests landed after that measurement. (This line carried 007's 2393 / 24.79 ms until 2026-09-03, 006's 2222 / ~27 ms before that, and "557 passed in ~7.4 s" before that; re-measure it after each feature rather than inheriting it.) Plus
+  targets **before** implementation. Baseline for feature 010: `hatch test` = **2573 passed, 96 skipped, 2 xfailed in 53.34 s** (measured 2026-09-03 on `feat/xml-refactor` @ `7a1893f`, after `specs/009-fix-dmx-channel-conversion/` — an unrelated bugfix, +11 tests — and the `009`→`010` renumbering both landed). Compare **per test** — **20.73 ms** — not wall time: the suite has grown with every feature, so a wall-time budget reads growth as regression. Do **not** inherit 008's recorded 22.06 ms/test, or this line's own earlier-same-day figure of 2562 passed / 20.8 ms/test (measured at `7c5896c`, before the two commits above landed). (This line carried 007's 2393 / 24.79 ms until 2026-09-03, 006's 2222 / ~27 ms before that, and "557 passed in ~7.4 s" before that; re-measure it after each feature rather than inheriting it.) Plus
   `tests/integration/test_mediacue_fade_performance.py`.
 
 **No amendment is needed.** If you disagree after reading, run:
@@ -106,9 +106,9 @@ CONTEXT — read these before writing anything:
   specs/planning/xml-rebuild/xml-rebuild-04-object-model.md       construction paths, measured divergence
   specs/planning/xml-rebuild/xml-rebuild-05-ui-wire-contract.md   editor<->UI payload contract
   specs/planning/xml-rebuild/xml-rebuild-06-target-design.md      THE TARGET DESIGN — authoritative
-  specs/planning/xml-rebuild/xml-rebuild-08-extension-audit.md    feature 008 evidence (E1-E26) — read for 008/009 prompts only
+  specs/planning/xml-rebuild/xml-rebuild-08-extension-audit.md    feature 008 evidence (E1-E26) — read for 008/010 prompts only
                                                                   (REVISED 2026-08-25; read its revision table first)
-  specs/planning/xml-rebuild/xml-rebuild-09-consumer-audit.md     feature 009 evidence (C1-C12) — read for the 009 prompt only
+  specs/planning/xml-rebuild/xml-rebuild-09-consumer-audit.md     feature 010 evidence (C1-C12) — read for the 010 prompt only
                                                                   (measured 2026-09-03, AFTER 008 landed; it corrects and
                                                                    extends §8, which was written from 008's PLAN)
 
@@ -124,7 +124,7 @@ SETTLED — do not reopen, do not propose alternatives:
   D14 xml -> object -> json -> object -> xml is tested end to end
   D15 public objects are CuemsScript (show) and ConfigManager/ConfigBase (config)
   D16 consumer-repo modifications ARE allowed from feature 008 onward, when a requirement
-      needs them; each one MUST be described and incorporated into 009's content (feature
+      needs them; each one MUST be described and incorporated into 010's content (feature
       008 introduced this — see xml-rebuild-08-extension-audit.md's intro)
   D17 EVERY element that carries a time value is typed cms:CTimecodeType and stores a
       CTimecode object, with no exception. This PROMOTES Media.duration in script.xsd from
@@ -155,15 +155,15 @@ SETTLED — do not reopen, do not propose alternatives:
         UNREPAIRABLE -> raise
       Defaults come from D25's descriptor (no hand-written per-field fallbacks). The report
       is public (cuemsutils.errors) because cuemsutils has no UI channel and must not gain
-      one: 008 produces the report, 009 forwards it to the UI.
+      one: 008 produces the report, 010 forwards it to the UI.
   D22 network-map config-object logic (merge/adopt/unadopt/refresh/signature/write
       orchestration) lives in cuems-utils, on NodeIndex/CuemsNetworkMapType, mirroring
       ConfigManager/ConfigBase -- not reimplemented ad hoc on cuems-nodeconf's daemon.
       Equivalence with today's behaviour is MEASURED in 008 via characterization tests
-      ported from CuemsNodeConf, not asserted at 009 time (E23).
+      ported from CuemsNodeConf, not asserted at 010 time (E23).
   D23 CuemsNodeConf's full atomization (the other nine responsibilities besides the
       network-map config object) is NOT executed in 008 -- 008 records the target-design
-      basis only; execution is a later, dedicated cuems-nodeconf feature, tracked via 009.
+      basis only; execution is a later, dedicated cuems-nodeconf feature, tracked via 010.
       That basis MUST account for E20/E25: row 5 has a live UI on the far end of its
       dispatch chain, and the split cannot be designed as if it were headless.
   D24 config object save() ships for settings/project_settings/project_mappings in 008.
@@ -176,7 +176,7 @@ SETTLED — do not reopen, do not propose alternatives:
       call sites both consume values, not shape (E19). create_script() is SUPERSEDED, not
       preserved (its output need not stay byte-identical); templates/settings.xml, the
       second hand-maintained template, is superseded on the same grounds (E26).
-  D26 009 completes the cutover: initial_template-as-a-concrete-instance is retired.
+  D26 010 completes the cutover: initial_template-as-a-concrete-instance is retired.
       Script domain is a migration of the ~7-call-site frontend surface. Config domain is
       ALSO a migration, NOT greenfield -- a network_map editing UI exists and is in daily
       use (settings.component.ts, nodelist_modify adopt/unadopt), and project_mappings has
@@ -184,7 +184,7 @@ SETTLED — do not reopen, do not propose alternatives:
       LOGIC PRESERVED; the network_map/project_mappings wire entanglement (E25) is
       untangled as part of that port.
   D27 008 does NOT ship independently: 007's no-independent-release gate (FR-030c/FR-030d)
-      extends through 008, so nothing in the ecosystem releases until 009 lands -- 008 is
+      extends through 008, so nothing in the ecosystem releases until 010 lands -- 008 is
       cuems-utils-only in scope (D16) but not independently shippable in consequence
   D28 item order is a dependency chain, and structural soundness outranks parallelization:
       timecode (defines the new wire) -> config write paths -> network-map object ->
@@ -205,12 +205,12 @@ SETTLED — do not reopen, do not propose alternatives:
       be reviewed against something that already exists. Splitting there also means Phase 2
       is written against ITEM D's descriptor and ITEM B's save() as LANDED CODE rather than
       as planned interfaces, which is the whole point of the dependency order (D28).
-      This is NOT a release boundary: D27 still holds and nothing ships until 009 lands.
+      This is NOT a release boundary: D27 still holds and nothing ships until 010 lands.
   D31 the split is applied at a DELIBERATE STOP after /speckit.plan and before
       /speckit.tasks -- see §7.2. The plan covers all five items as one dependency chain;
       the stop is where that plan is cut into two phases and the gate between them is
       written down. Do not let /speckit.tasks emit one undifferentiated task list.
-  D32 cuems-wsclient is a SIXTH consumer repository, in 009's scope in full. It parses
+  D32 cuems-wsclient is a SIXTH consumer repository, in 010's scope in full. It parses
       /etc/cuems/network_map.xml with its own ElementTree reader and filters on the string
       "NodeType.slave" -- silently selecting nothing since 007 (C1). Its private reader is
       REPLACED by the library's public path, not merely re-spelled to node_role: a second
@@ -218,7 +218,7 @@ SETTLED — do not reopen, do not propose alternatives:
       It also carries 5 of the ecosystem's node_type occurrences, so "zero, counted"
       cannot pass without it.
   D33 the Avahi TXT-record vocabulary (node_type=master|slave|firstrun) is renamed in BOTH
-      cuems-common AND cuems-nodeconf, inside 009, as ONE coordinated cutover -- including
+      cuems-common AND cuems-nodeconf, inside 010, as ONE coordinated cutover -- including
       the two template FILENAMES and the debian/install entries that place them, the
       publisher (CuemsSettings.py), the consumer (CuemsAvahiListener.py) and
       _AVAHI_NODE_TYPE_TO_ROLE. It cannot be half-renamed: a listener reading node_role
@@ -706,7 +706,7 @@ stay in cuems-nodeconf. Also out of scope: network_map.xsd edits, node_type form
 > a real `NodeRoleType` enumeration over `controller`/`node`/`firstrun`. The reasoning is in
 > `specs/007-node-model-migration/spec.md` §Clarifications — the schema is the single source of
 > truth, this lands as a strong rebuild, and the rename is the migration `cuems-common/CLAUDE.md`
-> already had scheduled. That decision is what makes 009 a hard successor rather than a follow-up,
+> already had scheduled. That decision is what makes 010 a hard successor rather than a follow-up,
 > pulls `cuems-common` into 007's scope, and hands this feature the four items §7 lists.
 
 ```
@@ -772,7 +772,7 @@ table is the fastest way to see what changed.
 *allowed*, not *required*) — closer in shape to 004–006 than to 007. Two of them (D17's
 `Media.duration` type-and-wire change, D19's load-strictness reversal) change behaviour
 consumers assume differently today, which is why §0's release-gate note extends 007's
-no-independent-release logic through 009 rather than stopping at 008.
+no-independent-release logic through 010 rather than stopping at 008.
 
 **The items are ordered as a dependency chain (D28), not by size or by what can run in
 parallel.** Each is the next one's precondition: A defines the new wire, B and C complete the
@@ -793,7 +793,7 @@ against ITEM D's descriptor and ITEM B's `save()` as **landed code** rather than
 interfaces — which is the point of ordering them first — and if ITEM E's design turns out to
 be larger than the plan assumed, that discovery happens with four items already merged
 instead of with the whole feature in flight. The gate is **not** a release boundary: D27
-still holds and nothing in the ecosystem ships until 009 lands.
+still holds and nothing in the ecosystem ships until 010 lands.
 
 ```
 /speckit.specify <PASTE SHARED CONTEXT BLOCK>
@@ -854,14 +854,14 @@ ITEM C — network-map config object (D22, D23; E11-E14, E23):
   lines, ten bundled responsibilities, cataloged in E11's corrected table) and does not
   exist in cuems-utils at all today.
 - Prove equivalence by MEASUREMENT, not assertion (E23). 008 ships this API with no
-  first-party caller -- 009 does the swap -- so port CuemsNodeConf's current behaviours
+  first-party caller -- 010 does the swap -- so port CuemsNodeConf's current behaviours
   into cuems-utils as characterization tests. merge_discovered_nodes, _map_signature,
   adopt_node/unadopt_node and set_master_always_adopted are pure enough over a NodeIndex
   to be pinned this way.
 - Design the API against its real caller AND its real user: cuems-nodeconf's
   engine_callback (E14) is the dispatch path, and cuems-frontend's settings.component.ts
   (E20) is the UI that originates every adopt/unadopt on the far end of it. That chain
-  works today; whatever this feature builds has to keep it working once 009 migrates it.
+  works today; whatever this feature builds has to keep it working once 010 migrates it.
 - Do NOT execute cuems-nodeconf's full atomization (the other nine responsibilities in
   E11's table) here. Record the target-design basis for it -- which responsibilities are
   single-class candidates and why -- as this feature's deliverable, so it can become its
@@ -882,7 +882,7 @@ ITEM D — schema-derived descriptor (D25; E16-E17, E19, E26):
   drift this descriptor exists to end), and at least two of the frontend's template call
   sites read concrete values out of initial_template today -- sequence.component.ts:688
   takes the example AudioCue's master_vol, :727 maps the example DmxCue's dmx_channels
-  (E19). A shape-only descriptor gives 009 nothing to migrate those onto.
+  (E19). A shape-only descriptor gives 010 nothing to migrate those onto.
 - FieldSpec (004) carries name/xsd_type/required/repeated/order/kind/child and neither
   enum facets nor defaults (E17). Decide whether to extend it or to build alongside it;
   either is fine, but say which and why.
@@ -896,7 +896,7 @@ ITEM D — schema-derived descriptor (D25; E16-E17, E19, E26):
   settings.xsd's own header declares it a binding contract ("any change to this schema MUST
   be reflected in the template"). The descriptor should be able to generate it, and that
   header should stop asserting a hand-maintenance obligation once it can.
-- Do NOT attempt the frontend/editor cutover here -- that is 009's (D26). Record the
+- Do NOT attempt the frontend/editor cutover here -- that is 010's (D26). Record the
   handoff in the migration guide at per-call-site granularity, as 007 did.
 
 ITEM E — validate() on load(), versioning, and repair (D19-D21; E7-E10, E21, E22, E24):
@@ -917,7 +917,7 @@ ITEM E — validate() on load(), versioning, and repair (D19-D21; E7-E10, E21, E
 - The repair report is PUBLIC, under cuemsutils.errors, on 006's precedent that an
   exception the caller cannot name is one it cannot catch: a repair the caller cannot
   inspect is one it cannot surface. cuemsutils has no UI channel and must not gain one --
-  008 produces the report, 009 forwards it to the UI as a WS message.
+  008 produces the report, 010 forwards it to the UI as a WS message.
 - A new EXPLICIT, systemic document-version marker is designed and built -- not another
   bespoke per-change tell like 007's node_type/node_role presence check. Where it lives
   (root attribute vs dedicated element, per-schema vs document-wide) and how it composes
@@ -953,14 +953,14 @@ WHAT MUST BE TRUE WHEN DONE:
   current document repairs to default and reports, an unrepairable one raises.
 - A document-version marker exists, is read by that check, and carries ITEM A's conversion.
 - A migration guide entry exists for every item with consumer impact, at the call-site
-  granularity E14/E18/E19/E21 establish, ready for 009 to execute against.
+  granularity E14/E18/E19/E21 establish, ready for 010 to execute against.
 
 EXPLICITLY OUT OF SCOPE: cuems-nodeconf's full daemon atomization (basis only, per ITEM C);
 any consumer repository edit not strictly required to prove an item works (D16 permits, does
-not mandate); the frontend/editor template and config-form cutover (009's, per D26);
-repair_durations.py's own migration (009's, per E21 -- 008 owns only the library side that
+not mandate); the frontend/editor template and config-form cutover (010's, per D26);
+repair_durations.py's own migration (010's, per E21 -- 008 owns only the library side that
 makes it viable). NOTE: this feature does NOT ship independently despite touching no consumer
-repository directly (D27) -- nothing in the ecosystem releases until 009 lands, same gate 007
+repository directly (D27) -- nothing in the ecosystem releases until 010 lands, same gate 007
 established.
 ```
 
@@ -1044,7 +1044,7 @@ Constitution check:
 - IV: ITEM E's load()-strictness cost must be measured against the CURRENT baseline
   (007's: 24.79 ms/test over 2393 tests), not 006's, and not assumed acceptable because
   the requirement says so.
-- III: every item with consumer impact gets a migration-guide entry at 009 handoff.
+- III: every item with consumer impact gets a migration-guide entry at 010 handoff.
 - Standing rule 3: ITEM A re-cuts goldens deliberately. That is not the regenerate-to-pass
   the rule forbids, but it MUST be a reviewed diff with the originals retained (D29), and
   the spec must say so plainly rather than letting a large golden diff appear unexplained.
@@ -1070,7 +1070,7 @@ At this stop, do four things and write them into `plan.md` before generating tas
    be judged complete with no part of ITEM E in the tree. If any criterion needs
    validate-on-load, versioning or repair to be true, it belongs in Phase 2 — move it.
 4. **Restate what the gate is not.** It is not a release boundary (D27 is unchanged, nothing
-   ships until 009), and it is not a scope split (one `spec.md`, one `plan.md`, one feature
+   ships until 010), and it is not a scope split (one `spec.md`, one `plan.md`, one feature
    number, one migration guide).
 
 Then generate tasks with the boundary already in them:
@@ -1134,12 +1134,12 @@ stable. **Merge before continuing.**
 the strictness cost is a measured number against 007's baseline.
 
 **Feature exit:** both phases green; the migration guide complete at call-site granularity for
-009, covering every item with consumer impact including `repair_durations.py`. Nothing ships —
-D27 holds until 009 lands.
+010, covering every item with consumer impact including `repair_durations.py`. Nothing ships —
+D27 holds until 010 lands.
 
 ---
 
-## 8. Feature 009 — consumer migration
+## 8. Feature 010 — consumer migration
 
 Cross-repo. **Superseded as an execution plan on 2026-09-03**, and the supersession is the
 point rather than a caveat: this section used to say "this spec lives in `cuems-utils` and
@@ -1147,7 +1147,7 @@ defines the contract and guide; the edits happen in each consumer repo as its ow
 framing does not survive contact with the repositories — five of the seven have no spec-kit
 and therefore cannot receive a PR shaped by a spec that lives elsewhere, and three must not
 branch from `main`. **Each repository now runs its own spec-kit flow**
-([`009-consumer-prompts/`](009-consumer-prompts/README.md)), and `cuems-utils` gets one too,
+([`010-consumer-prompts/`](010-consumer-prompts/README.md)), and `cuems-utils` gets one too,
 because it has real library work of its own left (below). This section remains the
 **cross-repo shape and decision record**; it is no longer the thing you paste.
 
@@ -1159,7 +1159,7 @@ targets. See §7's ITEMs C, D and E for what 008 hands here, and
 `xml-rebuild-08-extension-audit.md`'s E14/E18–E21/E25 for the call-site evidence — **the revised
 version**, whose corrections all land in this feature's scope rather than 008's.
 
-**009 is a hard successor to 007, not a follow-up, and 008 extends the same gate.** 007 renames
+**010 is a hard successor to 007, not a follow-up, and 008 extends the same gate.** 007 renames
 `<node_type>` to `<node_role>` as a **hard cutover** — no release accepts both spellings — so
 there is no working partially-deployed state between them. 008 then changes behaviour
 (`Media.duration`'s type **and wire shape**, `load()`'s strictness) that existing consumers assume
@@ -1170,7 +1170,7 @@ release-gate note). Read `specs/007-node-model-migration/migration-guide.md`,
 first; all three are this feature's input, not context.
 
 **This section is the cross-repo plan. The runnable prompts are
-[`009-consumer-prompts/`](009-consumer-prompts/README.md)** — one self-contained file per
+[`010-consumer-prompts/`](010-consumer-prompts/README.md)** — one self-contained file per
 repository, each carrying its own branch-and-bootstrap step, its own constitution step
 (five of the seven repositories have no spec-kit and no constitution), its own CONTEXT block
 with sibling-absolute paths, and its own exit criteria. Read this section for the shape of
@@ -1179,7 +1179,7 @@ stays authoritative if the two ever disagree.
 
 **Updated a third time, 2026-09-03, from a pass over the live code in every consuming
 repository — run after 008 actually landed rather than from its plan.**
-[Part 6 — feature 009 consumer audit](xml-rebuild-09-consumer-audit.md) records that pass
+[Part 6 — feature 010 consumer audit](xml-rebuild-09-consumer-audit.md) records that pass
 (findings `C1`–`C12`) and is this section's evidence the way Part 5 is §7's. **Read it
 before running any prompt below.** Everything §8 already named was re-verified and still
 holds at the stated lines; what Part 6 adds is a sixth repository nobody had listed
@@ -1437,7 +1437,7 @@ WHAT MUST BE TRUE WHEN DONE:
   local 007-node-model-migration branch has carried the mirror, conversion, postinst wiring,
   versioned deps and docs since 2026-08-24 — unmerged, but not "not started");
   cuems-common's CLAUDE.md:88 says CONTROLLER_NETWORK_FLAG is "migrated in feature 008"
-  (the renumbering makes that 009); and cuems-nodeconf's AvahiTool.py:12 /
+  (the renumbering makes that 010); and cuems-nodeconf's AvahiTool.py:12 /
   CuemsAvahiListener.py:19-24 defer the TXT key "to feature 008" (a closed feature).
 - Zero occurrences of node_type or the NodeType. prefix remain anywhere in the ecosystem,
   counted rather than reviewed — including the four files 007 excluded from its own count
@@ -1559,9 +1559,11 @@ Constitution check:
   Each one needs a test that fails against the old value.
 - III: the migration guide is the UX deliverable. Features 007's AND 008's guides are its
   input.
-- IV: the cuems-utils baseline is 2562 passed / 96 skipped / 2 xfailed in 53.24 s =
-  20.8 ms/test, measured 2026-09-03 on feat/xml-refactor @ 7c5896c -- NOT 008's recorded
-  22.06 ms/test, which predates 40 tests that landed after it closed. No regression in
+- IV: the cuems-utils baseline is 2573 passed / 96 skipped / 2 xfailed in 53.34 s =
+  20.73 ms/test, measured 2026-09-03 on feat/xml-refactor @ 7a1893f (after
+  specs/009-fix-dmx-channel-conversion/ and the 009->010 renumbering landed) -- NOT
+  008's recorded 22.06 ms/test, nor this document's own earlier-same-day 2562/20.8
+  figure at 7c5896c. No regression in
   engine project-load time — and note that 008 added T1+T2 validation to
   that path, so measure against 008's post-landing figure, not 007's baseline, or the budget
   charges this feature for 008's decision. Network-map load stays within 007's recorded budget.

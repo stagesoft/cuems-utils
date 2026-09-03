@@ -1,11 +1,11 @@
-# Feature 009 — `cuems-editor`: it does not start today
+# Feature 010 — `cuems-editor`: it does not start today
 
 **Status:** ready to run — **gated on [00-cuems-utils](00-cuems-utils.md)**
 **Date:** 2026-09-03
 **Repository:** `/disk/Projects/StageLab/cuems-editor`
 **Run order:** 02 of 06. See the [index](README.md).
 
-The largest Python-side migration in feature 009, and the only repository whose
+The largest Python-side migration in feature 010, and the only repository whose
 **first** task is making the process start at all.
 
 ---
@@ -129,9 +129,9 @@ outside this subset: read §2 of the prompts file above.
       model-layer defaults
   D26 initial_template-as-a-concrete-instance is retired. The config domain is a MIGRATION,
       not a greenfield build: a network_map editing UI exists and is in daily use.
-  D34 the descriptor reaches this repository THROUGH ConfigManager (feature 009 flow 00).
+  D34 the descriptor reaches this repository THROUGH ConfigManager (feature 010 flow 00).
       Do NOT import cuemsutils.xml.descriptor directly; that package declares __all__ == [].
-  D27 nothing in the ecosystem releases until every 009 flow lands
+  D27 nothing in the ecosystem releases until every 010 flow lands
   Q14 -> (i) cuemsutils.xml is internal machinery
 
 HARD CONSTRAINT (Part 2d), AS AMENDED BY 006 AND 008 (C3) — this is the one most likely to

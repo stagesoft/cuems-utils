@@ -1,4 +1,4 @@
-# Feature 009 — consumer migration: the per-repository prompt set
+# Feature 010 — consumer migration: the per-repository prompt set
 
 **Status:** ready to run
 **Date:** 2026-09-03
@@ -38,7 +38,7 @@ parallel.
 
 | # | File | Repository | Gated on | Why |
 |---|---|---|---|---|
-| 00 | [00-cuems-utils.md](00-cuems-utils.md) | `cuems-utils` | ITEM 1: — · ITEM 2: **all six** | Three items with different timing: the public descriptor path (blocks 02 and 05), the `v0.1.1` deprecation removal (blocked by every consumer flow — the last step in all of 009), and the 009 migration guide. **Starts first, finishes last.** |
+| 00 | [00-cuems-utils.md](00-cuems-utils.md) | `cuems-utils` | ITEM 1: — · ITEM 2: **all six** | Three items with different timing: the public descriptor path (blocks 02 and 05), the `v0.1.1` deprecation removal (blocked by every consumer flow — the last step in all of 010), and the 010 migration guide. **Starts first, finishes last.** |
 | 01 | [01-cuems-engine.md](01-cuems-engine.md) | `cuems-engine` | — | Node-role readers, the show-load path, the dead fade handlers. Independent of 00. |
 | 02 | [02-cuems-editor.md](02-cuems-editor.md) | `cuems-editor` | 00 | Starts by fixing an import that stops the process today (C2), then the five parser sites, then serves the descriptor 00 published. |
 | 03 | [03-cuems-common.md](03-cuems-common.md) | `cuems-common` | pairs with 04 | Postinst ordering, packaging gate edges, and **half** of the Avahi cutover. |
@@ -103,7 +103,7 @@ Spec-kit numbers features per repository, so this one work item gets a
 
 | Repository | Existing `specs/NNN-*` | This feature becomes |
 |---|---|---|
-| `cuems-utils` | 001–008 | `009-consumer-migration` |
+| `cuems-utils` | 001–008 (on `feat/xml-refactor`) | `010-consumer-migration` — jumps 008→010: `009` was taken by an unrelated, unplanned bugfix (`specs/009-fix-dmx-channel-conversion/`) on its own branch, 2026-09-03 |
 | `cuems-engine` | 004–007 | `008-cuems-utils-migration` |
 | `cuems-editor` | none | `001-cuems-utils-migration` |
 | `cuems-common` | none | `001-node-role-and-conversion-ordering` |

@@ -1,4 +1,4 @@
-# Feature 009 — `cuems-nodeconf`: adopt the network-map object, rename the discovery wire
+# Feature 010 — `cuems-nodeconf`: adopt the network-map object, rename the discovery wire
 
 **Status:** ready to run — **pairs with [03-cuems-common](03-cuems-common.md)**
 **Date:** 2026-09-03
@@ -123,16 +123,16 @@ outside this subset: read §2 of the prompts file above.
       class; those tests are the yardstick. The swap is done when they still pass against
       the new API, NOT when the code looks equivalent.
   D23 the full atomization of this class (the other nine responsibilities) is NOT this
-      feature's work. 008 recorded the target-design basis; feature 009 consumes row 5 only.
+      feature's work. 008 recorded the target-design basis; feature 010 consumes row 5 only.
       Leave that basis intact for whoever picks it up; do not execute it, and do not
       invalidate it.
   D33 the Avahi TXT-record vocabulary (node_type=master|slave|firstrun) is renamed in BOTH
-      this repository AND cuems-common, inside feature 009, as ONE coordinated cutover. It
+      this repository AND cuems-common, inside feature 010, as ONE coordinated cutover. It
       cannot be half-renamed: a listener reading node_role against a publisher writing
       node_type discovers nothing.
   D34 the descriptor and the config objects reach this repository through PUBLIC paths
-      (feature 009 flow 00). cuemsutils.xml declares __all__ == [].
-  D27 nothing in the ecosystem releases until every 009 flow lands
+      (feature 010 flow 00). cuemsutils.xml declares __all__ == [].
+  D27 nothing in the ecosystem releases until every 010 flow lands
   Q14 -> (i) cuemsutils.xml is internal machinery
 
 MEASURED STARTING STATE — verified against live files 2026-09-03, not transcribed.

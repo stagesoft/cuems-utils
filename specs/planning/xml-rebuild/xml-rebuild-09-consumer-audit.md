@@ -1,8 +1,8 @@
-# XML infrastructure rebuild — Part 6: feature 009 consumer audit
+# XML infrastructure rebuild — Part 6: feature 010 consumer audit
 
-**Status:** ready to inform `/speckit.specify` for feature `009`
+**Status:** ready to inform `/speckit.specify` for feature `010`
 **Date:** 2026-09-03
-**Purpose:** measured current-state evidence backing the feature-009 prompt in
+**Purpose:** measured current-state evidence backing the feature-010 prompt in
 [Part 4](xml-rebuild-07-speckit-prompts.md) §8 — the same role
 [Part 1](xml-rebuild-01-audit.md) plays for 004–007 and
 [Part 5](xml-rebuild-08-extension-audit.md) plays for 008. Findings are
@@ -20,10 +20,20 @@ revision note applied to its own first draft.
 ## Verification baseline
 
 `hatch test` on `feat/xml-refactor` @ `7c5896c`, measured 2026-09-03:
-**2562 passed, 96 skipped, 2 xfailed in 53.24 s = 20.8 ms/test.** This is
-009's Principle IV baseline, **not** 008's recorded 22.06 ms/test — the suite
+2562 passed, 96 skipped, 2 xfailed in 53.24 s = 20.8 ms/test — since superseded,
+see the correction below. This is
+010's Principle IV baseline, **not** 008's recorded 22.06 ms/test — the suite
 grew by 40 tests after 008 closed (`TimeoutLoop`, `StringSanitizer`,
-`CopyMoveVersioned`). Derive the budget from 20.8 ms/test.
+`CopyMoveVersioned`).
+
+**Re-measured, same day, after two more commits landed on this branch**:
+`specs/009-fix-dmx-channel-conversion/` (an unrelated bugfix, +11 tests) and
+the `009`→`010` renumbering this document itself is part of. `hatch test` on
+`feat/xml-refactor` @ `7a1893f`: **2573 passed, 96 skipped, 2 xfailed in
+53.34 s = 20.73 ms/test.** Derive the budget from **20.73 ms/test**, not the
+20.8 figure above — recorded rather than silently replaced, on this
+document's own "re-measure it after each feature rather than inheriting it"
+rule.
 
 ## What §8 got right
 
@@ -69,11 +79,11 @@ skipped**. Nothing raises. This is 007 FR-030a-ii's "keeps resolving but
 becomes semantically wrong" class, in its purest form, in the one repository
 nobody was searching.
 
-It also carries 5 of the ecosystem's `node_type` occurrences, so 009's "zero
+It also carries 5 of the ecosystem's `node_type` occurrences, so 010's "zero
 occurrences, counted rather than reviewed" exit criterion cannot pass without
 it.
 
-**Decision (D32, 2026-09-03):** `cuems-wsclient` joins 009's per-repo scope in
+**Decision (D32, 2026-09-03):** `cuems-wsclient` joins 010's per-repo scope in
 full — its private `ElementTree` reader is replaced by the library's
 `ConfigManager`/`network_map` path, not merely re-spelled. A second XML reader
 for a schema `cuemsutils` owns is the F15 failure the rebuild exists to end.
@@ -96,7 +106,7 @@ import: the editor process does not start, and no call site is reached.
 
 Two consequences §8 does not state:
 
-1. It is 009's **first** task in `cuems-editor`, not a downstream consequence
+1. It is 010's **first** task in `cuems-editor`, not a downstream consequence
    of the template cutover. Until it is done, nothing else in that repository
    can be tested against the new library at all.
 2. `new_uuid` is imported from the same deleted module and must be re-sourced
@@ -148,7 +158,7 @@ moment the editor moves to `to_wire()`, and it is one line to delete.
 
 ## C4 — the schema descriptor has no public import path
 
-009 requires `cuems-editor` to serve the descriptor over WS (D25/D26), but it
+010 requires `cuems-editor` to serve the descriptor over WS (D25/D26), but it
 lives at `cuemsutils.xml.descriptor` (`SchemaDescriptor`, `generate_script_example`,
 `generate_settings_example`) and `cuemsutils.xml.__all__` is `[]` — Q14's
 "`xml/` is internal machinery", asserted by 006's FR-019 and SC-005.
@@ -170,7 +180,7 @@ rather than leaving them to be inferred:
    and because the editor that serves config forms is the same one that serves
    the script template.
 2. `cuems-nodeconf`'s two internal imports move onto public equivalents in the
-   same feature, so 009 ends the Q14 erosion rather than extending it.
+   same feature, so 010 ends the Q14 erosion rather than extending it.
 
 ---
 
@@ -200,9 +210,9 @@ script's contents, finds the `AudioCue`/`VideoCue`, and deep-clones its **first
 This one is materially harder than the other two. `master_vol` is a scalar with
 a schema default (`100`, against the component's drifted `|| 20` fallback);
 `dmx_channels`'s descriptor default is `None` (T057), which 008 already flagged
-as a behaviour choice for 009. But an *entire nested output object* —
+as a behaviour choice for 010. But an *entire nested output object* —
 `output_geometry`, `canvas_region`, the mapping shape — is not a field default
-at all. 009 must decide whether the descriptor emits a constructible empty
+at all. 010 must decide whether the descriptor emits a constructible empty
 instance per type, or whether this component keeps a hand-authored seed.
 
 **The media-duration display site is concrete** and worth naming, since §8
@@ -218,7 +228,7 @@ the pattern to copy.
 
 ## C6 — the Avahi TXT-record vocabulary has two owners, and §8 assigns one
 
-§8 hands 009 `cuems-common`'s four files. But the retired vocabulary lives in
+§8 hands 010 `cuems-common`'s four files. But the retired vocabulary lives in
 **both** repositories, and the TXT key is the wire between two daemons:
 
 **`cuems-common`** (27 `node_type` occurrences total):
@@ -242,11 +252,11 @@ deferring this "to feature 008" — the pre-renumbering name. 008 was
 cuems-utils-only, so the work is currently assigned to a feature that has
 closed.
 
-**Decision (D33, 2026-09-03):** both halves land **inside 009**, as one
+**Decision (D33, 2026-09-03):** both halves land **inside 010**, as one
 coordinated cutover. The TXT key cannot be half-renamed: a listener reading
 `node_role` against a publisher writing `node_type` discovers nothing, and
 discovery failure is how a cluster loses its topology. This is the largest
-single sub-scope 009 acquires from this audit; the plan sequences it as one
+single sub-scope 010 acquires from this audit; the plan sequences it as one
 unit (publisher, template files, filenames, `debian/install`, listener,
 `_AVAHI_NODE_TYPE_TO_ROLE`'s removal) rather than per-repo.
 
@@ -278,18 +288,18 @@ Only `cuems-common` enforces anything, and only against `cuems-nodeconf`
 3. **007 moved the mechanical demonstration here** (T054b, its guide §13):
    no packaging sandbox existed to install an out-of-order combination and
    watch `dpkg` refuse it. 008 then added a second, larger breaking change to
-   the same gate without adding an edge. 009 both *runs* that demonstration
+   the same gate without adding an edge. 010 both *runs* that demonstration
    and *supplies the missing edges*.
 
 ---
 
-## C8 — the frontend has no test coverage where 009 works hardest
+## C8 — the frontend has no test coverage where 010 works hardest
 
 Counted 2026-09-03: **112** `.ts` files, **5** `.spec.ts` files —
 `app.component`, `components/design`, `components/ui/icon`,
 `components/layout/app-footer`, `components/layout/app-header`.
 
-None of the three files 009 rewrites has one:
+None of the three files 010 rewrites has one:
 
 | File | Lines | Spec? |
 |---|---|---|
@@ -313,7 +323,7 @@ domain untangling preserved behaviour.
 
 ---
 
-## C9 — three stale documents that are 009's own inputs
+## C9 — three stale documents that are 010's own inputs
 
 1. **`cuems-utils/CLAUDE.md`** states the cuems-common node-identity field
    contract is *"not yet updated for the rename"*. **False as of 2026-08-24**:
@@ -328,12 +338,12 @@ domain untangling preserved behaviour.
    "not started".
 2. **`cuems-common/CLAUDE.md:88`** says `CONTROLLER_NETWORK_FLAG` and the enum
    constants are *"migrated in feature 008"*. The 2026-08-25 renumbering makes
-   that **009**.
+   that **010**.
 3. **`cuems-nodeconf/cuemsnodeconf/AvahiTool.py:12`** and
    **`CuemsAvahiListener.py:19-24`** defer the TXT-record change *"to feature
-   008"* — see C6; now 009's, by D33.
+   008"* — see C6; now 010's, by D33.
 
-All three are read by whoever executes 009. Correcting them is part of the
+All three are read by whoever executes 010. Correcting them is part of the
 feature, not housekeeping after it.
 
 ---
@@ -383,7 +393,7 @@ that no package manager mediates.
 `duration, in_time, out_time, offset, ...` with
 `TIMECODE_SHAPE.match(value)` against string values. Post-008 those are dicts
 on the wire, so `match` is never reached with a string and the guard silently
-stops catching anything — an FR-030a-ii instance *inside* the tool 009 is
+stops catching anything — an FR-030a-ii instance *inside* the tool 010 is
 migrating, which is why E21 said this file sits at the intersection of every
 008 decision.
 
@@ -427,7 +437,7 @@ that list still counts.
 
 ## The runnable prompts derived from this document
 
-[`009-consumer-prompts/`](009-consumer-prompts/README.md) — one self-contained
+[`010-consumer-prompts/`](010-consumer-prompts/README.md) — one self-contained
 spec-kit flow per repository, each starting from that repository's actual state
 (branch, spec-kit presence, constitution, test runner) and branching to
 `feat/xml-refactor`. This document is their evidence; Part 4 §8 is their shape.
@@ -447,7 +457,7 @@ Two things surfaced while writing them that belong with the findings above:
   `cuems-wsclient`). Only `cuems-utils` and `cuems-engine` are initialized. Each
   of the five gets spec-kit added on its first run plus a `/speckit.constitution`
   prompt grounded in what that repository actually is — which also means feature
-  009 is the first time most of this ecosystem states its own engineering rules.
+  010 is the first time most of this ecosystem states its own engineering rules.
 
 ## Decisions settled by this pass
 
@@ -456,11 +466,11 @@ Added to Part 4 §2's SETTLED block:
 - **C12/D36** — the ecosystem-wide `node_type` count gains an enumerated exempt set for
   detection and conversion code (this document's C12). Without it the criterion fails
   against a fully migrated repository and instructs the reader not to notice.
-- **D32** — `cuems-wsclient` is in 009's scope, in full: its private
+- **D32** — `cuems-wsclient` is in 010's scope, in full: its private
   `ElementTree` network-map reader is replaced by the library's public path,
   not merely re-spelled to `node_role`. (C1)
 - **D33** — the Avahi TXT-record vocabulary (`node_type=master|slave|firstrun`)
-  is renamed in **both** `cuems-common` and `cuems-nodeconf` inside 009, as one
+  is renamed in **both** `cuems-common` and `cuems-nodeconf` inside 010, as one
   coordinated cutover including the two template **filenames** and
   `debian/install`. It cannot be half-renamed. (C6)
 - **D34** — `SchemaDescriptor` is exposed to consumers **through
@@ -475,7 +485,7 @@ Added to Part 4 §2's SETTLED block:
 
 - **Whether the descriptor emits a constructible empty instance per complex
   type**, which `getTemplateOutputStructure` (C5) needs and field-level
-  defaults do not provide. A 009 `/speckit.plan` question.
+  defaults do not provide. A 010 `/speckit.plan` question.
 - **Where the batch conversion runs** — postinst, first-boot, or an operator
   command — given C11's deploy path makes "convert on the controller" a
   cluster-wide event rather than a local one. 008 left this open deliberately.
@@ -483,5 +493,5 @@ Added to Part 4 §2's SETTLED block:
   counted": `cuems-engine/dev/network_map.xml`,
   `dev/test_xml_files/network_map.xml`, `dev/CuemsEngine_old.py` and
   `cuems-nodeconf/test_run_nodeconfig.py` carry the old spelling in
-  non-shipped code. 007 counted `src/` only; 009's exit criterion says
+  non-shipped code. 007 counted `src/` only; 010's exit criterion says
   "ecosystem-wide" without saying whether that reaches `dev/`.

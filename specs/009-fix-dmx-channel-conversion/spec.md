@@ -19,6 +19,13 @@ xml-rebuild feature sequence (008/009-consumer-migration in `specs/planning/xml-
 This feature's own branch number (009) collides in name only with the "feature 009" referenced
 there — they are unrelated pieces of work; no dependency in either direction.
 
+**Resolved 2026-09-03**: the collision this note flagged is gone, not merely explained —
+`specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md` and
+`xml-rebuild-09-consumer-audit.md` (including the `010-consumer-prompts/` directory, renamed
+from `009-consumer-prompts/`) were updated to renumber that planned feature `010`, since this
+branch landed the `009` slot first. The two paragraphs above are left as originally written —
+the historical record of why this feature's own number briefly looked ambiguous.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A corrupt DMX universe fails to construct, loudly and precisely (Priority: P1)
