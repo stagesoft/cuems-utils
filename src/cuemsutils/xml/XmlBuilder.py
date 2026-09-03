@@ -333,7 +333,7 @@ class NoneTypeXmlBuilder(GenericSimpleSubObjectXmlBuilder): # TODO: clean, not n
 # the model, so there is nothing left for them to build.
 # ---------------------------------------------------------------------------
 
-from ._deprecation import deprecated_symbol  # noqa: E402
+from .._deprecation import deprecated_symbol  # noqa: E402
 
 _MIGRATION = "the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md)"
 

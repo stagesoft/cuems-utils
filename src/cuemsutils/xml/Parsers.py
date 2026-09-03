@@ -180,7 +180,7 @@ class CuemsParser():
 # a warning subclass would silently make every one of those checks False.
 # ---------------------------------------------------------------------------
 
-from ._deprecation import deprecated_symbol  # noqa: E402
+from .._deprecation import deprecated_symbol  # noqa: E402
 
 _MIGRATION = "the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md)"
 

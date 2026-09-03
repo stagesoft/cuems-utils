@@ -16,7 +16,7 @@ imports only public API (D5, research R11). Decoded output is byte-identical
 across the whole corpus in both reader configurations.
 """
 
-from ._deprecation import deprecated_alias
+from .._deprecation import deprecated_alias
 from .converter import CuemsConverter as _CuemsConverter
 
 _NEW = "cuemsutils.xml.converter"

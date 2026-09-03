@@ -25,7 +25,7 @@ import warnings
 
 import pytest
 
-from cuemsutils.xml._deprecation import REMOVAL_RELEASE
+from cuemsutils._deprecation import REMOVAL_RELEASE
 
 OLD_IMPORT_PATHS = [
     "cuemsutils.xml.XmlReaderWriter",
