@@ -36,12 +36,14 @@ Single project (existing `cuems-utils` library layout): `src/cuemsutils/`, `test
 
 **Purpose**: Establish the pre-change baseline this feature must not regress.
 
-- [ ] T001 Run `hatch test --show` from the repo root and confirm the full suite is green
+- [X] T001 Run `hatch test --show` from the repo root and confirm the full suite is green
       (baseline, no changes yet). Note the pass/skip/xfail counts so Phase 4's regression check
       (T011) has something concrete to compare against, per FR-008/SC-003. (The performance
       baseline is already measured and recorded in research.md Decision 6 / plan.md's Technical
       Context — 0.7130 ms/call for an 8-entry batch, 37.0715 ms/call for a 512-entry batch, Python
       3.11.9 — no need to re-measure here; T008 re-measures against the *fixed* code later.)
+      **Baseline confirmed 2026-09-03: 2562 passed, 96 skipped, 2 xfailed in 53.41s** (`hatch test`,
+      hatch-test env, Python 3.11).
 
 **Checkpoint**: Baseline confirmed green. Safe to start Foundational work.
 
@@ -54,7 +56,7 @@ raise it.
 
 **⚠️ CRITICAL**: T002 must be complete before T005 (the fix) can be written.
 
-- [ ] T002 Add `DmxChannelDecodeError` to `src/cuemsutils/errors.py`: a direct subclass of
+- [X] T002 Add `DmxChannelDecodeError` to `src/cuemsutils/errors.py`: a direct subclass of
       `CuemsError`, constructor `__init__(self, universe, index: int, entry: object)` storing
       `self.universe`, `self.index`, `self.entry`, building the message
       `f"DMX channel entry at index {index} in universe {universe_num!r} could not be converted to a DmxChannel (entry: {type(entry).__name__})."`
@@ -89,7 +91,7 @@ quickstart.md for the exact snippets.
 
 ### Tests for User Story 1 (write first, confirm they FAIL against the still-unfixed code)
 
-- [ ] T003 [P] [US1] In `tests/unit/test_dmx_universe_channels.py`:
+- [X] T003 [P] [US1] In `tests/unit/test_dmx_universe_channels.py`:
       - Rewrite the three "exception-swallow fallback" tests to assert the new behavior instead of
         pinning the old one:
         - `test_a_malformed_dict_entry_falls_back_to_storing_the_raw_input` → assert
@@ -120,7 +122,7 @@ quickstart.md for the exact snippets.
         referencing this feature). Import `DmxChannelDecodeError` and `DmxChannel` from
         `cuemsutils.errors`/`cuemsutils.cues.DmxCue` as needed.
 
-- [ ] T004 [P] [US1] Create `tests/contract/test_dmx_channel_decode_failure_path.py`, mirroring
+- [X] T004 [P] [US1] Create `tests/contract/test_dmx_channel_decode_failure_path.py`, mirroring
       `tests/contract/test_dmx_failure_path.py`'s structure and module-docstring style (explain
       what changed and why, citing this feature and the precedent it mirrors). Cover:
       - a malformed entry raises `DmxChannelDecodeError` (the change);
@@ -147,7 +149,7 @@ quickstart.md for the exact snippets.
 
 ### Implementation for User Story 1
 
-- [ ] T005 [US1] In `src/cuemsutils/cues/DmxCue.py`, rewrite `DmxUniverse.set_dmx_channels`
+- [X] T005 [US1] In `src/cuemsutils/cues/DmxCue.py`, rewrite `DmxUniverse.set_dmx_channels`
       (currently lines 372-396) as a single unified pass — no separate branch per kind of entry,
       no per-iteration reassignment (research.md Decision 3, revised):
 
@@ -168,32 +170,46 @@ quickstart.md for the exact snippets.
               except (KeyError, TypeError) as exc:
                   raise DmxChannelDecodeError(universe=self, index=index, entry=entry) from exc
               channel_list.append(converted)
-          super().__setitem__('dmx_channels', channel_list)
+          if channel_list:
+              super().__setitem__('dmx_channels', channel_list)
       ```
+
+      **The trailing `if channel_list:` guard is load-bearing, verified empirically during
+      implementation, not obvious from reading the original code**: today, `super().__setitem__`
+      only ever runs inside the original loop's `if r is not None:` branch, so an empty list or an
+      all-`None` batch calls it **zero times** — `dmx_channels` is left completely untouched (its
+      declared default on a fresh universe; unchanged if reassigned on an already-populated one),
+      **never actually set to `[]`**. (This corrects the spec's original Edge Cases claim that an
+      empty list "stores an empty list" — that was never true; verify with
+      `DmxUniverse().dmx_channels` after assigning `[]` or `[None]` before trusting either the old
+      or new code's behavior here.) Since every non-`None` entry either appends to `channel_list`
+      or raises, `channel_list` is non-empty exactly when at least one non-`None` entry existed and
+      converted successfully — so `if channel_list:` reproduces today's "touch the key iff at least
+      one non-`None` entry existed" rule exactly, without the per-iteration reassignment that made
+      it expensive (Decision 3/6).
 
       Keep the existing `isinstance(channels, list)` wrapping (unchanged — a single non-list
       argument is still wrapped into a one-item list before the loop, per Acceptance Scenario 4).
-      Keep the `None`-skip behavior (Edge Cases: a batch of only `None`s stores an empty list, not
-      an error). Already-`DmxChannel` instances are appended **as-is** (identity preserved — this
-      is what keeps `test_a_single_dmxchannel_instance_is_wrapped_into_a_list_unconverted` and
+      Already-`DmxChannel` instances are appended **as-is** (identity preserved — this is what
+      keeps `test_a_single_dmxchannel_instance_is_wrapped_into_a_list_unconverted` and
       `test_a_list_of_dmxchannel_instances_passes_through_unconverted` passing, since both only
       assert element identity via `is`, not that the *list object itself* is unchanged). Raw dict
-      entries are converted and the **new** instance appended. `dmx_channels` is assigned exactly
-      once, after the loop completes without a failure — there is no separate fallback branch, no
-      outer `try`/`except Exception`, and no per-iteration `super().__setitem__` call left in the
-      new code. Import `DmxChannelDecodeError` from `cuemsutils.errors` at the top of this file.
+      entries are converted and the **new** instance appended. There is no separate fallback
+      branch, no outer `try`/`except Exception`, and no per-iteration `super().__setitem__` call
+      left in the new code. Import `DmxChannelDecodeError` from `cuemsutils.errors` at the top of
+      this file.
 
 ### Verification for User Story 1
 
-- [ ] T006 [US1] Run
+- [X] T006 [US1] Run
       `hatch test --show -- tests/unit/test_dmx_universe_channels.py tests/contract/test_dmx_channel_decode_failure_path.py`
       and confirm all tests pass, including the five unmodified well-formed-path tests in
       `test_dmx_universe_channels.py` and the new mixed-batch and `from_json` cases in T003/T004.
-- [ ] T007 [US1] Manually run the "Reproduce the defect", "After the fix", "Verify no regression on
+- [X] T007 [US1] Manually run the "Reproduce the defect", "After the fix", "Verify no regression on
       valid input", and "Verify the mixed-batch fix" snippets from `quickstart.md` in a Python
       shell (or a scratch script) against the fixed code, and confirm the output matches what
       quickstart.md documents.
-- [ ] T008 [US1] **Performance verification (SC-PERF-001, closes analysis finding C1)**: run
+- [X] T008 [US1] **Performance verification (SC-PERF-001, closes analysis finding C1)**: run
       `quickstart.md`'s "Verify the performance budget" snippet (or an equivalent benchmark script)
       against the **fixed** implementation for both a realistic (8-entry) and a maximum (512-entry)
       batch, matching research.md Decision 6's methodology (`hatch run test:python`, warm-up loop,
@@ -204,6 +220,13 @@ quickstart.md for the exact snippets.
       Technical Context, and spec.md's SC-PERF-001 with the new measured number instead of leaving
       the "no regression versus baseline" placeholder bar in place — a real improved number is more
       useful to future readers than a preserved-baseline bar once it's known.
+      **Measured 2026-09-03 (Python 3.11.9, two runs each)**: 8-entry — 0.727/0.736 ms/call (budget
+      met, ≤3ms, unchanged from 0.71 ms/call pre-fix). 512-entry — 37.60/37.80 ms/call (budget met:
+      no regression vs. 37.07 ms/call pre-fix, within measurement noise). **The "expected to
+      improve" prediction was wrong** — measured and corrected in research.md/spec.md/plan.md: the
+      redundant per-iteration reassignment this fix removes was never the 512-entry case's
+      dominant cost; the 512 individual `DmxChannel(...)` constructions are, and this fix doesn't
+      touch those.
 
 **Checkpoint**: User Story 1 is fully implemented, tested, and independently verified — including
 the mixed-batch fix, the `from_json` reachability path, and the performance budget. This is the
@@ -216,18 +239,34 @@ entire feature — proceed to Polish.
 **Purpose**: Constitution gates (lint, types, full-suite regression) and keeping this repo's
 self-documentation (CLAUDE.md, the defect record) accurate now that the fix has landed.
 
-- [ ] T009 [P] Run `hatch run test:lint` (`ruff check src/ tests/`) and confirm zero new warnings
+- [X] T009 [P] Run `hatch run test:lint` (`ruff check src/ tests/`) and confirm zero new warnings
       in `src/cuemsutils/cues/DmxCue.py`, `src/cuemsutils/errors.py`,
       `tests/unit/test_dmx_universe_channels.py`, and
       `tests/contract/test_dmx_channel_decode_failure_path.py`.
-- [ ] T010 [P] Run `hatch run types:check` (`mypy --install-types --non-interactive src/cuemsutils tests`)
+      **Verified**: the repo has 605 pre-existing lint findings unrelated to this feature (checked
+      via before/after diff on every touched file). `errors.py` was clean before and after;
+      `DmxCue.py` dropped from 63 to 62 pre-existing findings (net improvement, none introduced);
+      both new/rewritten test files pass `ruff check` cleanly (one `I001` blank-line fix applied).
+- [X] T010 [P] Run `hatch run types:check` (`mypy --install-types --non-interactive src/cuemsutils tests`)
       and confirm no new type errors introduced by this feature's changes.
-- [ ] T011 [P] Run the full suite (`hatch test --show`) and confirm the only differences from
+      **Verified**: the one `DmxCue.py` mypy finding (a pre-existing `DECLARED_DEFAULTS` type
+      mismatch, unrelated to `set_dmx_channels`) and the "cannot find stub for pytest" errors
+      across the whole test suite both predate this feature — confirmed via `git stash`
+      before/after comparison. `errors.py` type-checks clean.
+- [X] T011 [P] Run the full suite (`hatch test --show`) and confirm the only differences from
       T001's baseline are: the three rewritten tests plus the new mixed-batch test in
       `tests/unit/test_dmx_universe_channels.py` passing, and the new
       `tests/contract/test_dmx_channel_decode_failure_path.py` file's tests passing — no other
       test's outcome changes (SC-003).
-- [ ] T012 [P] Add a "Recent Changes" bullet for `009-fix-dmx-channel-conversion` to `CLAUDE.md`
+      **Verified, after two real regressions found and fixed**: `test_public_api_surface.py`'s
+      exact-match assertion on `cuemsutils.errors.__all__` failed (expected — `PUBLIC_ERRORS`
+      needed the new name added, plus the `api/public_api.json` golden needed the new class's
+      snapshot entry) and `test_golden_immutability.py` then failed on that golden's changed hash
+      (expected — re-hashed in `MANIFEST.sha256` with a recorded justification paragraph, following
+      the feature 008 ITEM E precedent exactly). Final: **2573 passed** (2562 baseline + 11: 1 new
+      test in T003, 10 new tests in T004), 96 skipped, 2 xfailed — identical skip/xfail counts,
+      confirming zero other test's outcome changed.
+- [X] T012 [P] Add a "Recent Changes" bullet for `009-fix-dmx-channel-conversion` to `CLAUDE.md`
       (top of the list, matching the existing entries' style for 007/008): summarize that
       `DmxUniverse.set_dmx_channels` now raises `DmxChannelDecodeError` (`cuemsutils.errors`)
       instead of silently storing corrupted channel data on a conversion failure, that a mixed
@@ -236,7 +275,7 @@ self-documentation (CLAUDE.md, the defect record) accurate now that the fix has 
       `script.xml` (confirmed by investigation — no `.xsd` change), that it is reachable from
       `CuemsScript.from_json`/direct construction, and the measured performance budget
       (SC-PERF-001, with T008's final numbers).
-- [ ] T013 [P] Update `specs/planning/dmx-universe-channel-conversion-defect.md` to record that
+- [X] T013 [P] Update `specs/planning/dmx-universe-channel-conversion-defect.md` to record that
       this defect is resolved by `specs/009-fix-dmx-channel-conversion/` (remediation proposal 1),
       following this repo's own convention of correcting planning docs once their described gap is
       closed (see the `007-node-model-migration` correction note in `CLAUDE.md`'s "Submodules"

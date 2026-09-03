@@ -37,12 +37,15 @@ Added to `cuemsutils/errors.py`'s `__all__`.
    catching this and inspecting `exc.index` gets the earliest offender, not necessarily the only
    one.
 5. **Never raised for input that converts cleanly** — including every entry already a `DmxChannel`
-   instance, every `None` entry (skipped, as today), an empty list (stored as empty, as today), and
-   a batch **mixing** already-`DmxChannel` instances with still-raw-but-valid dict entries (FR-004a
-   — this last case is a **defined**, tested behavior as of this feature, not merely "unraised";
-   see data-model.md's Invariants for why today's two-branch code could silently drop entries in
-   exactly this case). This is the "zero behavior change on the success path, and a well-defined
-   fix for the one path that was previously ill-defined" guarantee (FR-004, FR-004a, FR-008).
+   instance, every `None` entry (skipped, as today), an empty list or all-`None` list (a no-op that
+   leaves `dmx_channels` at whatever it was before the call — its declared default on a fresh
+   universe — never actually assigned an empty list, verified empirically rather than assumed from
+   reading the code), and a batch **mixing** already-`DmxChannel` instances with still-raw-but-valid
+   dict entries (FR-004a — this last case is a **defined**, tested behavior as of this feature, not
+   merely "unraised"; see data-model.md's Invariants for why today's two-branch code could silently
+   drop entries in exactly this case). This is the "zero behavior change on the success path, and a
+   well-defined fix for the one path that was previously ill-defined" guarantee (FR-004, FR-004a,
+   FR-008).
 6. **Not raised, and not reachable, from loading a schema-valid `script.xml`** — confirmed by the
    XSD investigation (spec.md). A caller building error-handling around `CuemsScript.load` does not
    need to add a `DmxChannelDecodeError` clause there; it only needs one around

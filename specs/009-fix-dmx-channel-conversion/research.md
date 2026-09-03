@@ -82,14 +82,30 @@ for index, entry in enumerate(channels):
     except (KeyError, TypeError) as exc:
         raise DmxChannelDecodeError(universe=self, index=index, entry=entry) from exc
     channel_list.append(converted)
-super().__setitem__('dmx_channels', channel_list)
+if channel_list:
+    super().__setitem__('dmx_channels', channel_list)
 ```
 
 Every entry is resolved to a proper `DmxChannel` object — already-converted instances are appended
 as-is (identity preserved), raw dicts are converted and the new instance appended — before
-anything is placed in the result. `dmx_channels` is assigned exactly once, after the full pass
-succeeds. Any single failure still aborts the whole call immediately (FR-003): the first bad entry
-raises, not after finishing the batch and reporting every bad entry found.
+anything is placed in the result. `dmx_channels` is assigned once, after the full pass succeeds,
+**and only if at least one entry survived** (see the empirical correction below — an empty or
+all-`None` input must leave the key untouched, not set it to `[]`). Any single failure still
+aborts the whole call immediately (FR-003): the first bad entry raises, not after finishing the
+batch and reporting every bad entry found.
+
+**Empirical correction, found during implementation (not by reading the code)**: the first draft
+of this decision assigned `channel_list` unconditionally at the end. Running the *original* code
+against an empty list and an all-`None` list revealed that `dmx_channels` is **never actually set**
+in either case — the original loop's `super().__setitem__` call lives inside its `if r is not
+None:` branch, so it runs zero times for both inputs, leaving the key exactly as it was before the
+call (its declared default, `None`, on a freshly constructed `DmxUniverse`). An unconditional
+assignment at the end of the unified loop would have turned this into "always sets `[]`" — a real,
+untested observable behavior change, and one this feature's own FR-004 explicitly forbids. The
+`if channel_list:` guard reproduces the original rule exactly, because every non-`None` entry
+either appends or raises, so "channel_list is non-empty" and "at least one non-`None` entry
+existed and converted" are the same condition. This also means spec.md's original Edge Cases text
+("an empty list stores an empty list") was wrong and has been corrected there.
 
 **Rationale**: The original two-branch design (research.md's first draft of this decision) kept
 each branch's existing per-iteration `super().__setitem__` call to minimize the diff, but this
@@ -158,6 +174,21 @@ keeps the budget honest at both scales.
   fact, bring the worst case under a tighter number.
 - *"N/A with rationale" (original plan.md text)*. Rejected per finding C1 — the constitution's
   Principle IV text contains no such carve-out.
+
+**Post-implementation measurement (T008), and a correction**: the finished implementation measures
+0.727-0.736 ms/call for the 8-entry case (two runs) and 37.60-37.80 ms/call for the 512-entry case
+(two runs) — both within the stated budget, the 8-entry case with the same comfortable margin as
+pre-fix. The paragraph above predicted the 512-entry case would improve because it assumed the
+redundant per-iteration `dmx_channels` reassignment was the dominant cost there. **That assumption
+was wrong, and measurement is what caught it**: the ~1-2% difference between pre- and post-fix
+512-entry timings is within this benchmark's own run-to-run noise (the 8-entry case shows the same
+spread between its two runs), meaning the reassignment was never the dominant cost. The true
+dominant cost is the 512 individual `DmxChannel(...)` constructions themselves — each one runs
+through `ensure_items`, `self.setter(...)`, and two property setters with `Logger` calls — and this
+fix's loop restructuring does not touch that at all; it only changes *what happens on failure* and
+*how many times the cheap list-reassignment runs on success*, and the latter was never expensive
+relative to object construction. The budget stands as "no regression", met — not "improved", which
+is what the pre-measurement paragraph above claimed to expect.
 
 ## Decision 4: What counts as "cannot be converted" — exception scope
 

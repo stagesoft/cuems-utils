@@ -15,6 +15,15 @@ two hand-authored corpus documents that gained the marker in place
 re-hashed here, once, with the reason recorded at this call site rather than
 left for a diff to explain on its own.
 
+**Feature 009 re-hashes ``api/public_api.json`` once, deliberately.** FR-006
+adds ``DmxChannelDecodeError`` to ``cuemsutils.errors.__all__`` (a new,
+public, catchable error type — see ``specs/009-fix-dmx-channel-conversion/``).
+This is an **addition** to the public surface, not a signature change to an
+existing class, but it lands inside a single JSON snapshot file covering the
+whole ``errors`` module, so that file's hash necessarily changes to record
+the new entry. ``tests/contract/test_public_api_surface.py``'s
+``PUBLIC_ERRORS`` tuple gained the one new name in the same commit.
+
 
 ``MANIFEST.sha256`` pins the hash of every file under this directory at the
 moment T002 ran (after T003b/T003c added the two new corpus documents' goldens,

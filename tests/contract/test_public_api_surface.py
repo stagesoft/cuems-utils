@@ -48,10 +48,13 @@ PUBLIC_CLASSES = {
 #: adds to the same module — ``LoadReport``/``Outcome``/``RepairRecord``/
 #: ``ConversionRecord`` are data, not exceptions, but they join
 #: ``cuemsutils.errors`` on 006's precedent (data-model.md §4): a repair the
-#: caller cannot inspect is one it cannot surface.
+#: caller cannot inspect is one it cannot surface. ``DmxChannelDecodeError``
+#: joins in feature 009 (FR-006) — a DMX channel entry that cannot be
+#: converted, replacing that setter's former swallow-and-log fallback.
 PUBLIC_ERRORS = (
     "ConversionRecord",
     "CuemsError",
+    "DmxChannelDecodeError",
     "IngestError",
     "LoadReport",
     "Outcome",

@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from cuemsutils.log import Logger
+from cuemsutils.errors import DmxChannelDecodeError
 from ..helpers import ensure_items
 from .Cue import Cue, CuemsDict
 from .CueOutput import DmxCueOutput
@@ -370,31 +371,43 @@ class DmxUniverse(CuemsDict):
         return super().__getitem__('dmx_channels')
 
     def set_dmx_channels(self, channels):
-        """Set the output routing configuration.
-        
+        """Set the DMX channel list, converting raw entries to ``DmxChannel``.
+
         Args:
-            channels (list): The list of output configurations.
+            channels (list): The list of channel entries — already-``DmxChannel``
+                instances, raw ``{'DmxChannel': {...}}`` dicts, or ``None``
+                (skipped).
+
+        Raises:
+            DmxChannelDecodeError: an entry could not be converted (feature
+                009) — replaces the former swallow-and-log fallback that
+                stored the raw, unconverted input on any single entry's
+                failure.
         """
         Logger.info("DmxUniverse set_channels called with channels: {}".format(channels))
         if not isinstance(channels, list):
             channels = [channels]
-        channel_list = []
         Logger.debug(f'Channels to process: {channels} Type: {type(channels)}')
-        try:
-            for r in channels:
-                    if r is not None:
-                        Logger.debug(f'Processing channel: {r}')
-                        if not isinstance(r, DmxChannel):
-                            Logger.debug(f"Converting to DmxChannel: {r['DmxChannel']}")
-                            new_dmxchannel = DmxChannel(r['DmxChannel'])
-                            channel_list.append(new_dmxchannel)
-                            super().__setitem__('dmx_channels', channel_list)
-                        else:
-                            super().__setitem__('dmx_channels', channels)
-        except Exception as e:
-            Logger.error(f"Error converting channels to DmxChannel: {e}")
-            super().__setitem__('dmx_channels', channels)
-        
+        channel_list = []
+        for index, entry in enumerate(channels):
+            if entry is None:
+                continue
+            Logger.debug(f'Processing channel: {entry}')
+            if isinstance(entry, DmxChannel):
+                channel_list.append(entry)
+                continue
+            try:
+                Logger.debug(f"Converting to DmxChannel: {entry['DmxChannel']}")
+                converted = DmxChannel(entry['DmxChannel'])
+            except (KeyError, TypeError) as exc:
+                raise DmxChannelDecodeError(universe=self, index=index, entry=entry) from exc
+            channel_list.append(converted)
+        # Only touch the key if at least one entry survived — an empty or
+        # all-``None`` input must leave ``dmx_channels`` exactly as it was
+        # before this call (its declared default, on a fresh universe),
+        # never overwritten with ``[]`` (verified empirically, feature 009).
+        if channel_list:
+            super().__setitem__('dmx_channels', channel_list)
 
     dmx_channels = property(get_dmx_channels, set_dmx_channels)
 

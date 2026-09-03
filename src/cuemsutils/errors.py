@@ -7,7 +7,8 @@ what it is handed — that is why ``ValidationReport`` lives in
 is one the caller cannot catch, and the alternative consumers reach for is
 matching on message strings.
 
-Four types, and the shape of the tree is the contract:
+Four types shipped with feature 006, and a fifth joined in feature 009 — the shape of the tree is
+still the contract:
 
 ``CuemsError``
     the base. Lets a consumer catch everything this library raises without
@@ -30,6 +31,14 @@ Four types, and the shape of the tree is the contract:
     ``ValidationError``: nothing was validated, because there was nothing of
     the right shape to validate.
 
+``DmxChannelDecodeError`` (feature 009)
+    a DMX channel entry could not be converted. Deliberately a direct
+    ``CuemsError`` subclass, not a ``ValidationError``: this is unreachable
+    from a schema-valid document (T1 already rejects the malformed shape), so
+    it is never a *document* validation outcome — only a payload that bypassed
+    schema validation entirely (``CuemsScript.from_json``, direct
+    construction) can trigger it.
+
 **I/O failures are not wrapped** (FR-035). A missing or unreadable file raises
 the standard library's ``OSError``/``FileNotFoundError``, which every consumer
 already handles. Wrapping it would force callers to unwrap it to find out what
@@ -43,6 +52,7 @@ from enum import Enum
 
 __all__ = [
     "CuemsError",
+    "DmxChannelDecodeError",
     "IngestError",
     "SchemaError",
     "ValidationError",
@@ -84,6 +94,40 @@ class IngestError(CuemsError):
     UTF-8. The message names **what was expected** rather than surfacing a
     structural error from inside the machinery.
     """
+
+
+class DmxChannelDecodeError(CuemsError):
+    """A DMX channel entry could not be converted to a ``DmxChannel`` (FR-001).
+
+    Raised by ``DmxUniverse.set_dmx_channels`` (feature 009) in place of that
+    method's former swallow-and-log fallback, which stored the raw,
+    unconverted ``channels`` argument on any single entry's ``KeyError``/
+    ``TypeError`` — silently corrupting every entry in the batch, not just the
+    offending one. Unreachable from a schema-valid ``script.xml`` (T1 already
+    rejects a malformed ``<DmxChannel>``); reachable from ``CuemsScript.from_json``
+    or direct/programmatic construction (FR-007).
+
+    Carries **identifiers only, never the object repr** (FR-002, FR-UX-001),
+    mirroring ``DmxSceneWriteError``'s (``xml/mapper.py``) precedent: the
+    universe, the failing entry's index, and the failing entry itself (for
+    programmatic inspection only — never rendered into the message, which
+    names only the entry's type).
+    """
+
+    def __init__(self, universe, index: int, entry: object):
+        self.universe = universe
+        self.index = index
+        self.entry = entry
+
+        try:
+            universe_num = universe.universe_num
+        except Exception:  # noqa: BLE001 - a broken universe must still name itself
+            universe_num = "<universe_num unknown>"
+
+        super().__init__(
+            f"DMX channel entry at index {index} in universe {universe_num!r} "
+            f"could not be converted to a DmxChannel (entry: {type(entry).__name__})."
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,19 @@
 # `DmxUniverse.set_dmx_channels` silently swallows conversion failures
 
+**Resolved 2026-09-03 by `specs/009-fix-dmx-channel-conversion/`, implementing remediation proposal
+1** (below): the swallow is replaced by a raise (`DmxChannelDecodeError`, new in
+`cuemsutils.errors`), naming the universe and the failing entry, mirroring `DmxSceneWriteError`'s
+precedent exactly as proposal 1 anticipated. That feature's own investigation additionally found
+this defect is **unreachable from a schema-valid `script.xml`** — contrary to this document's
+"reachable from untrusted input... on the read path for files loaded from disk" framing below,
+which turned out to overstate the risk for the XML path specifically: T1 already rejects a
+malformed `<DmxChannel>` before this method ever runs on XML-sourced content. The defect is real
+and was reachable, but only via `CuemsScript.from_json` or direct/programmatic construction, not
+via a corrupted `script.xml` on disk. See `specs/009-fix-dmx-channel-conversion/spec.md`'s "XSD
+investigation, resolved" section for the full trace. The rest of this document is left as
+originally written — the historical record of what was found and why, not updated to match the
+resolution beyond this note.
+
 Found while closing a code-coverage gap (no feature attached yet) — `src/cuemsutils/cues/DmxCue.py:372-396`.
 Characterized, not fixed, by `tests/unit/test_dmx_universe_channels.py`. Written as the record a
 future feature should read before deciding what to do about it.

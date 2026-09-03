@@ -28,6 +28,17 @@
         "with_traceback": "<no signature>"
       }
     },
+    "DmxChannelDecodeError": {
+      "bases": [
+        "CuemsError"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, universe, index: 'int', entry: 'object')",
+        "add_note": "<no signature>",
+        "with_traceback": "<no signature>"
+      }
+    },
     "IngestError": {
       "bases": [
         "CuemsError"

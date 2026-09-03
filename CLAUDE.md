@@ -75,6 +75,24 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
+- `009-fix-dmx-channel-conversion` (**landed** 2026-09-03): `DmxUniverse.set_dmx_channels`
+  (`cues/DmxCue.py`) no longer swallows a per-entry conversion failure and silently stores the raw,
+  unconverted input — it raises `DmxChannelDecodeError` (new, `cuemsutils.errors`, joining
+  `CuemsError`/`ValidationError`/`SchemaError`/`IngestError`), naming the universe and the failing
+  entry's index/type, mirroring feature 005's `DmxSceneWriteError` precedent on the read side.
+  Confirmed unreachable from a schema-valid `script.xml` (T1 already rejects a malformed
+  `<DmxChannel>`) — reachable only from `CuemsScript.from_json` or direct/programmatic
+  construction, so this feature makes **no `.xsd` change**. A batch mixing already-`DmxChannel`
+  instances with still-raw-but-valid entries is now correctly converted on both sides instead of
+  silently dropping one (today's original code raced two independent per-branch reassignments,
+  order-dependently). Performance budget (SC-PERF-001) measured rather than assumed: ≤3 ms for a
+  realistic universe (met, 0.71-0.74 ms/call unchanged), no regression for the 512-channel maximum
+  (met, 37.07 ms/call pre-fix vs. 37.6-37.8 ms/call post-fix, within measurement noise — the
+  redundant per-iteration reassignment this fix removes was never the dominant cost there; the 512
+  individual `DmxChannel(...)` constructions are, untouched by this fix). See
+  `specs/009-fix-dmx-channel-conversion/` for the full spec/plan/research, including a
+  `/speckit.analyze` pass that caught a genuine contradiction in the original fix design for the
+  mixed-batch case and a constitution-required performance budget stated as "N/A".
 - `008-rebuild-extension` (**Phase 2/ITEM E landed** 2026-09-02; Phase 1/ITEMs A–D landed
   2026-09-02 at the D30 gate — see `specs/008-rebuild-extension/plan.md`): five structural
   changes landed as one dependency chain across two gated phases. Phase 1 — ITEM A retypes

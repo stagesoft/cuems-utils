@@ -39,17 +39,19 @@ batches mixing already-converted instances with still-raw-but-valid entries.
 no platform-specific concerns.
 **Project Type**: Library (single project, `src/cuemsutils/`).
 **Performance Goals**: **≤ 3 ms per `set_dmx_channels` call for a realistic DMX universe (≤ 32
-channels)** — SC-PERF-001. Measured pre-fix baseline (Python 3.11.9, `hatch run test:python`, 5000
-calls): **0.71 ms/call** for an 8-entry batch, comfortably under budget already, so this is a
-non-regression bar. Separately measured for the DMX-spec maximum (512 channels, 2000 calls):
-**37.07 ms/call** pre-fix, dominated by today's redundant per-iteration `dmx_channels`
-reassignment inside the conversion loop — the fix's unified single-assignment-after-the-loop
-design (research.md Decision 3, revised) removes that pattern, so this number is expected to drop,
-but the budget for the 512-channel case is stated as "no regression versus 37.07 ms/call", not a
-specific improved figure, until the actual fixed implementation is measured (Phase 4 polish task).
-This path is not on document decode's measured hot path (confirmed by the XSD investigation: DMX
-construction runs through opaque, non-recursive `DmxCue(body)` construction, already outside the
-measured `Mapper.decode` path), so the existing suite-level budget
+channels)** — SC-PERF-001, **met**. Pre-fix baseline (Python 3.11.9, `hatch run test:python`, 5000
+calls): 0.71 ms/call for an 8-entry batch; post-fix (measured on the finished implementation, two
+runs): 0.727-0.736 ms/call — statistically unchanged, 4x headroom. Separately measured for the
+DMX-spec maximum (512 channels, 2000 calls): 37.07 ms/call pre-fix, 37.60-37.80 ms/call post-fix
+(two runs) — also within the "no regression" bar (the ~1-2% delta is run-to-run noise, matching the
+spread seen in the 8-entry case). **Correction, made honestly rather than left standing**: this
+document originally speculated the redundant per-iteration `dmx_channels` reassignment removed by
+research.md Decision 3's unified loop was the 512-entry case's dominant cost, and expected
+measurable improvement there. Measuring the finished implementation disproved that — the dominant
+cost is the 512 individual `DmxChannel(...)` constructions, unaffected by this fix's loop
+restructuring. This path is not on document decode's measured hot path (confirmed by the XSD
+investigation: DMX construction runs through opaque, non-recursive `DmxCue(body)` construction,
+already outside the measured `Mapper.decode` path), so the existing suite-level budget
 (`specs/008-rebuild-extension/baseline.md`) is unaffected by this feature either way.
 **Constraints**: Zero behavior change for any input that converts cleanly today (FR-004, FR-008,
 SC-003) — this is a pure failure-path change.

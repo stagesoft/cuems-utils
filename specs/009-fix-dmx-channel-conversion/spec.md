@@ -76,11 +76,14 @@ convert exactly as it does today.
 
 ### Edge Cases
 
-- What happens when `channels` is an empty list? Today this stores an empty list; this fix MUST
-  preserve that (no error — nothing to fail to convert).
-- What happens when every entry in the batch is `None`? Today `None` entries are skipped inside
-  the loop, and if the resulting `channel_list` is empty this is not treated as an error; this fix
-  MUST preserve that (a batch of only `None`s is not a conversion failure).
+- What happens when `channels` is an empty list, or a batch of only `None` entries? **Corrected
+  during implementation** (the original text here was wrong — verified empirically, not just read
+  from the code): today, `dmx_channels` is only ever assigned when at least one entry in the input
+  is not `None`. An empty list or an all-`None` list touches nothing — `dmx_channels` is left at
+  **whatever it was before this call** (its declared default, `None`, on a freshly constructed
+  `DmxUniverse`; unchanged if the universe already had channels and is reassigned an empty/all-`None`
+  list). It is never actually set to `[]`. This fix MUST preserve that exact behavior (no error, and
+  no observable assignment) — not "stores an empty list", which was never true.
 - What happens when an entry is already a `DmxChannel` instance mixed in with unconverted-but-valid
   dict entries (no malformed entry present)? Today this is not really supported (the `else` branch
   re-stores the *original* `channels` list on a matching iteration, which a later iteration's
@@ -188,17 +191,19 @@ convert exactly as it does today.
   schema-valid `script.xml` document — every existing passing test outside the
   swallow-and-fallback characterization tests continues to pass unmodified.
 - **SC-PERF-001**: `set_dmx_channels` completes in **≤ 3 ms** for a realistic DMX universe (≤ 32
-  channels — comfortably above typical fixture/channel counts in a show). Measured pre-fix
-  baseline (Python 3.11.9, pyenv, this project's pinned test runtime, `hatch run test:python`, 5000
-  calls, 8-entry batch): **0.71 ms/call** — already well under budget, so this is a non-regression
-  bar, not a new constraint the fix must strain to meet. Separately, for the DMX-spec maximum of
-  512 channels in one universe, the pre-fix baseline measures **37.07 ms/call**, dominated by
-  today's per-iteration `dmx_channels` reassignment inside the conversion loop (FR-004a's fix
-  removes that pattern as a side effect of assigning once after the loop, which is expected to
-  improve this case too, though no specific post-fix number is promised without measuring the
-  actual implementation — see the Polish-phase verification task). For the 512-channel case, the
-  bar is **no regression versus the measured 37.07 ms/call baseline**, not the 3 ms figure, which
-  applies to realistic universe sizes only.
+  channels — comfortably above typical fixture/channel counts in a show). **Met, measured on the
+  finished implementation** (Python 3.11.9, `hatch run test:python`, 5000 calls, 8-entry batch):
+  **0.727-0.736 ms/call** across two runs, statistically unchanged from the 0.71 ms/call pre-fix
+  baseline — 4x headroom either way. For the DMX-spec maximum of 512 channels in one universe:
+  pre-fix baseline **37.07 ms/call**; post-fix, **37.60-37.80 ms/call** across two runs. This
+  feature's original text speculated the redundant per-iteration `dmx_channels` reassignment this
+  fix removes was the dominant cost and expected the 512-channel case to improve — **measured and
+  found wrong**: the ~1-2% delta between pre- and post-fix runs is within this benchmark's own
+  run-to-run noise (the 8-entry case shows the same ~2-3% spread between runs), and the true
+  dominant cost is the 512 individual `DmxChannel(...)` constructions themselves (property-setter
+  and logging overhead per instance), which this fix does not touch. The bar for the 512-channel
+  case is **no regression versus the measured 37.07 ms/call baseline**, and it is met (within
+  measurement noise) — not improved, contrary to the original speculation.
 - **SC-QUALITY-001**: No new lint/type warnings introduced; the new error type follows the
   existing `cuemsutils.errors` module's conventions exactly (docstring shape, `__all__` entry,
   base-class placement in the `CuemsError` hierarchy).
