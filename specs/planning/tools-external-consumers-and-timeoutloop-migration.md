@@ -136,8 +136,32 @@ contract, the tests were added here, not only in the consumer:
 
 ### Track 2 — relocate `Timeoutloop` → `tools/TimeoutLoop.py`, with a compatibility shim
 
-Per the explicit instruction: move the module into `tools/`, rename the class `Timeoutloop` →
-`TimeoutLoop`, add a full docstring, type hints, and usage examples. Concretely:
+**Status: done.** Per the explicit instruction: moved the module into `tools/`, renamed the class
+`Timeoutloop` → `TimeoutLoop`, added a full docstring, type hints, and usage examples. As
+originally sketched below, with two differences worth recording:
+
+- **Option (b) was chosen** for where `deprecated_alias` lives: `_deprecation.py` was promoted to
+  `src/cuemsutils/_deprecation.py` (package root) in its own commit before this track started,
+  updating all seven `xml/`-internal import sites plus the one test import. `timeoutloop.py`'s shim
+  imports it from there.
+- **One real edge-case correction, found by the new tests, not assumed going in**: the sketch's
+  docstring claimed a `timeout <= 0` "times out on the very first iteration." Under a genuinely
+  frozen clock (the test suite's fake-clock fixture) that's false — `0 > 0` is false, so it does
+  *not* raise until *some* time has actually elapsed. This is not a class bug (a real
+  `time.time()` always advances by a nonzero amount between two calls, so the practical behaviour
+  is unchanged), but the docstring's wording was corrected to state the true invariant ("raises as
+  soon as any time at all has elapsed... in practice immediately") rather than the imprecise one,
+  and the test models it by advancing the fake clock explicitly rather than asserting a falsehood.
+
+Landed as: `src/cuemsutils/tools/TimeoutLoop.py` (the class), `src/cuemsutils/timeoutloop.py`
+(rewritten as the shim, `Timeoutloop = deprecated_alias(TimeoutLoop, "cuemsutils.tools.TimeoutLoop")`),
+`tests/unit/test_timeout_loop.py` (8 tests, fake-clock-based, zero real waiting), and
+`tests/unit/test_timeout_loop_deprecation_shim.py` (5 tests — deliberately kept separate from
+`tests/contract/test_deprecation_shims.py`, which pins feature 006's own twelve-call-site retirement
+contract and is not this shim's concern). `README.md`, `docs/index.md`, `docs/api.md`, and
+`docs/tools.md` all updated. Full suite green after (2562 passed, up from 2549).
+
+Original plan, for reference:
 
 1. **New module** `src/cuemsutils/tools/TimeoutLoop.py`:
    ```python

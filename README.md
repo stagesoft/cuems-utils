@@ -114,6 +114,8 @@ Runtime utilities shared by all CueMS processes.
 
 * **`CopyMoveVersioned`** — atomic versioned file copy/move for project file management.
 
+* **`TimeoutLoop`** — iterator-based bounded polling loop; raises `TimeoutError` once elapsed time exceeds `timeout`. Formerly `timeoutloop.Timeoutloop` at the package root; that path still resolves but is deprecated (removed in `v0.1.1`).
+
 ---
 
 ### XML: `xml/`
@@ -141,7 +143,6 @@ Project file I/O, validation, and settings loading, built on `xmlschema` 3.x and
 
 * **`helpers`** — `format_timecode(value)` converts arbitrary values to canonical CTimecode string form. `ensure_items` validates required dict keys against a defaults spec.
 * **`log`** — `Logger` wrapper that captures caller module and class name in every log record.
-* **`timeoutloop`** — `TimeoutLoop` utility that runs a callable with a configurable deadline; raises on timeout.
 
 ---
 

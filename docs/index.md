@@ -98,6 +98,9 @@ data models or utilities add it as a dependency and import the relevant classes.
 - **`SignalEngine`** — systemd `sd_notify` and watchdog keepalive wrapper.
 - **`Uuid`**, **`StringSanitizer`**, **`CopyMoveVersioned`** — UUID generation, input
   sanitization, and atomic versioned file management.
+- **`TimeoutLoop`** — iterator-based bounded polling loop; raises `TimeoutError` once
+  elapsed time exceeds `timeout`. Formerly `timeoutloop.Timeoutloop` at the package root;
+  that path still resolves but is deprecated (removed in `v0.1.1`).
 
 ### XML layer
 
@@ -178,7 +181,7 @@ for exactly this reason).
 Each module's public API is generated directly from docstrings:
 
 - [Cues](cues.md) — `Cue`, `MediaCue`, `AudioCue`, `VideoCue`, `DmxCue`, `FadeCue`, `ActionCue`, `FadeProfile`, `CueOutput`, `CueList`, `CuemsScript`
-- [Tools](tools.md) — `CTimecode`, `CTimecodeTimer`, `FadeCalculator`, `ConfigManager`, `CommunicatorServices`, `HubServices`, `SignalEngine`, `Uuid`
+- [Tools](tools.md) — `CTimecode`, `CTimecodeTimer`, `FadeCalculator`, `ConfigManager`, `CommunicatorServices`, `HubServices`, `SignalEngine`, `TimeoutLoop`, `Uuid`
 - [XML](xml.md) — `XmlReaderWriter`, `XmlBuilder`, `Settings`, `CMLCuemsConverter`, `Parsers`
-- [API (root modules)](api.md) — `helpers`, `log`, `timeoutloop`
+- [API (root modules)](api.md) — `helpers`, `log`
 - [Canvas Region](canvas_region.md) — coordinate model, validation rules, V1 caps, and deferred work
