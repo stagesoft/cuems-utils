@@ -3,7 +3,7 @@
 **Status:** ready to run
 **Date:** 2026-09-03
 **Parent:** [Part 4 §8](../xml-rebuild-07-speckit-prompts.md) is the cross-repo
-prompt; [Part 6](../xml-rebuild-09-consumer-audit.md) (`C1`–`C11`) is its
+prompt; [Part 6](../xml-rebuild-09-consumer-audit.md) (`C1`–`C12`) is its
 call-site evidence. This directory is those two, **cut per repository**, so each
 consumer can run its own spec-kit flow from its own checkout without reading the
 other six.
@@ -38,7 +38,7 @@ parallel.
 
 | # | File | Repository | Gated on | Why |
 |---|---|---|---|---|
-| 00 | [00-cuems-utils.md](00-cuems-utils.md) | `cuems-utils` | — | D34's public descriptor path through `ConfigManager`. **Precondition** of 02 and 05; nothing consumer-side can be written against an internal module. |
+| 00 | [00-cuems-utils.md](00-cuems-utils.md) | `cuems-utils` | ITEM 1: — · ITEM 2: **all six** | Three items with different timing: the public descriptor path (blocks 02 and 05), the `v0.1.1` deprecation removal (blocked by every consumer flow — the last step in all of 009), and the 009 migration guide. **Starts first, finishes last.** |
 | 01 | [01-cuems-engine.md](01-cuems-engine.md) | `cuems-engine` | — | Node-role readers, the show-load path, the dead fade handlers. Independent of 00. |
 | 02 | [02-cuems-editor.md](02-cuems-editor.md) | `cuems-editor` | 00 | Starts by fixing an import that stops the process today (C2), then the five parser sites, then serves the descriptor 00 published. |
 | 03 | [03-cuems-common.md](03-cuems-common.md) | `cuems-common` | pairs with 04 | Postinst ordering, packaging gate edges, and **half** of the Avahi cutover. |
@@ -53,7 +53,12 @@ half-renamed intermediate state. Their specs are separate because the
 repositories are; their *merges* are simultaneous.
 
 **Nothing releases until all seven are done** (D27, extending 007's
-FR-030c/FR-030d). These are seven spec-kit flows, one release.
+FR-030c/FR-030d). These are seven spec-kit flows, one release — and flow 00's
+ITEM 2 is what physically closes the gate: `_deprecation.REMOVAL_RELEASE` has
+promised `v0.1.1` in every warning this library has emitted since feature 006,
+and twelve live imports across `cuems-engine`, `cuems-editor` and
+`cuems-nodeconf` still route through those paths today. The deprecated surface
+comes out when that count is measured at zero, and the release follows.
 
 **Run 06 first anyway.** It is last in the dependency order because nothing waits
 on it, but tracing `slave_avahi_names` into its only caller turned C1 from "a

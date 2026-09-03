@@ -67,7 +67,7 @@ CONTEXT — read these before writing anything. They live in the SIBLING checkou
 /disk/Projects/StageLab/cuems-utils, not in this repository:
   .../cuems-utils/specs/007-node-model-migration/migration-guide.md      §5 IS THIS REPO'S INVENTORY
   .../cuems-utils/specs/008-rebuild-extension/migration-guide.md         what 008 handed here
-  .../cuems-utils/specs/planning/xml-rebuild/xml-rebuild-09-consumer-audit.md   C1-C11 (C7, C11 are this repo's)
+  .../cuems-utils/specs/planning/xml-rebuild/xml-rebuild-09-consumer-audit.md   C1-C12 (C7, C11 are this repo's)
   .../cuems-utils/specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md  §2 = the FULL decision list
 
 SETTLED — the decisions that bind THIS repository. Do not reopen. Anything

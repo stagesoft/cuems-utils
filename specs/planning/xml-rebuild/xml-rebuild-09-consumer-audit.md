@@ -6,7 +6,7 @@
 [Part 4](xml-rebuild-07-speckit-prompts.md) §8 — the same role
 [Part 1](xml-rebuild-01-audit.md) plays for 004–007 and
 [Part 5](xml-rebuild-08-extension-audit.md) plays for 008. Findings are
-labelled `C1`–`C11` (consumer) rather than continuing `F`/`X`/`E`, since this
+labelled `C1`–`C12` (consumer) rather than continuing `F`/`X`/`E`, since this
 is a third pass, run **after** 008 landed rather than before it.
 
 **Why this document exists.** §8 was written on 2026-08-25, from 007's
@@ -389,6 +389,42 @@ migrating, which is why E21 said this file sits at the intersection of every
 
 ---
 
+## C12 — the zero-`node_type` criterion cannot pass as written
+
+§8's exit criterion is "zero occurrences of `node_type` or the `NodeType.`
+prefix remain anywhere in the ecosystem, **counted rather than reviewed**". Run
+that count against `cuems-utils` itself, 2026-09-03:
+
+```
+$ grep -rn 'node_type\|NodeType\.' src/ | wc -l
+16
+```
+
+All sixteen are correct code, and deleting any of them would be a regression:
+
+| Site | What it is |
+|---|---|
+| `errors.py:106-110` | the `"NodeType.master"`/`"NodeType.slave"`/`"NodeType.firstrun"` → `controller`/`node`/`firstrun` mapping |
+| `errors.py:120-135` | `network_map_node_type_message` — the diagnostic that tells an operator their document still carries `<node_type>`, instead of failing with a bare schema error |
+| `tools/ConfigBase.py:6, :46, :76` | wiring that diagnostic into the config load path |
+| `config/network_map.py:26, :32` | prose recording the rename and the string `cuems-engine` used to compare against |
+| `xml/schemas/network_map.xsd:55` | the schema comment recording feature 007's change |
+
+Code whose **purpose** is detecting or converting the retired spelling has to
+contain it. `cuems-common`'s `cuems-migrate-network-map` and its three tests are
+exempt on the same grounds — a converter that cannot name what it converts is
+not a converter.
+
+So the criterion as written fails against a repository that is fully migrated,
+and the failure mode is worse than a false alarm: "counted rather than reviewed"
+is a deliberate instruction *not* to exercise judgement, so the natural response
+is to delete a working migration diagnostic to make a number reach zero.
+
+**Fix, applied to Part 4 §8:** the count keeps its "counted, not reviewed"
+discipline and gains an **enumerated** exempt set — detection and conversion
+code, listed site by site rather than described by category. Everything outside
+that list still counts.
+
 ## The runnable prompts derived from this document
 
 [`009-consumer-prompts/`](009-consumer-prompts/README.md) — one self-contained
@@ -417,6 +453,9 @@ Two things surfaced while writing them that belong with the findings above:
 
 Added to Part 4 §2's SETTLED block:
 
+- **C12/D36** — the ecosystem-wide `node_type` count gains an enumerated exempt set for
+  detection and conversion code (this document's C12). Without it the criterion fails
+  against a fully migrated repository and instructs the reader not to notice.
 - **D32** — `cuems-wsclient` is in 009's scope, in full: its private
   `ElementTree` network-map reader is replaced by the library's public path,
   not merely re-spelled to `node_role`. (C1)

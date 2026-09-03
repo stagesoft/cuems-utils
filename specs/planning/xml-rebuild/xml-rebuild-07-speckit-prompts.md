@@ -108,7 +108,7 @@ CONTEXT — read these before writing anything:
   specs/planning/xml-rebuild/xml-rebuild-06-target-design.md      THE TARGET DESIGN — authoritative
   specs/planning/xml-rebuild/xml-rebuild-08-extension-audit.md    feature 008 evidence (E1-E26) — read for 008/009 prompts only
                                                                   (REVISED 2026-08-25; read its revision table first)
-  specs/planning/xml-rebuild/xml-rebuild-09-consumer-audit.md     feature 009 evidence (C1-C11) — read for the 009 prompt only
+  specs/planning/xml-rebuild/xml-rebuild-09-consumer-audit.md     feature 009 evidence (C1-C12) — read for the 009 prompt only
                                                                   (measured 2026-09-03, AFTER 008 landed; it corrects and
                                                                    extends §8, which was written from 008's PLAN)
 
@@ -1141,8 +1141,15 @@ D27 holds until 009 lands.
 
 ## 8. Feature 009 — consumer migration
 
-Cross-repo. This spec lives in `cuems-utils` and defines the **contract and guide**; the
-edits happen in each consumer repo as its own PR.
+Cross-repo. **Superseded as an execution plan on 2026-09-03**, and the supersession is the
+point rather than a caveat: this section used to say "this spec lives in `cuems-utils` and
+defines the contract and guide; the edits happen in each consumer repo as its own PR". That
+framing does not survive contact with the repositories — five of the seven have no spec-kit
+and therefore cannot receive a PR shaped by a spec that lives elsewhere, and three must not
+branch from `main`. **Each repository now runs its own spec-kit flow**
+([`009-consumer-prompts/`](009-consumer-prompts/README.md)), and `cuems-utils` gets one too,
+because it has real library work of its own left (below). This section remains the
+**cross-repo shape and decision record**; it is no longer the thing you paste.
 
 **Updated 2026-08-24** from feature 007's migration checklist, which handed four items to this
 feature and changed its standing from follow-up to release gate. **Updated again 2026-08-25**
@@ -1173,7 +1180,7 @@ stays authoritative if the two ever disagree.
 **Updated a third time, 2026-09-03, from a pass over the live code in every consuming
 repository — run after 008 actually landed rather than from its plan.**
 [Part 6 — feature 009 consumer audit](xml-rebuild-09-consumer-audit.md) records that pass
-(findings `C1`–`C11`) and is this section's evidence the way Part 5 is §7's. **Read it
+(findings `C1`–`C12`) and is this section's evidence the way Part 5 is §7's. **Read it
 before running any prompt below.** Everything §8 already named was re-verified and still
 holds at the stated lines; what Part 6 adds is a sixth repository nobody had listed
 (`cuems-wsclient`, silently broken since 007 — C1), an import that already fails outright
@@ -1438,6 +1445,18 @@ WHAT MUST BE TRUE WHEN DONE:
   EXPLICITLY whether non-shipped dev fixtures count — cuems-engine's dev/network_map.xml,
   dev/test_xml_files/network_map.xml, dev/CuemsEngine_old.py and cuems-nodeconf's
   test_run_nodeconfig.py all carry the old spelling, and 007 counted src/ only.
+  THE COUNT HAS A NECESSARY EXEMPTION, and it must be stated or the criterion fails against
+  correct code (C12). Code whose PURPOSE is detecting or converting the retired spelling has
+  to contain it. Measured 2026-09-03, cuems-utils' own src/ carries SIXTEEN occurrences and
+  every one is exempt: errors.py:106-110's "NodeType.master"/"NodeType.slave"/
+  "NodeType.firstrun" -> role mapping, errors.py:120-135's network_map_node_type_message (the
+  diagnostic that tells an operator their document is unconverted, instead of failing with a
+  bare schema error), tools/ConfigBase.py:6/:46/:76 wiring it in, plus prose in
+  config/network_map.py and a comment in network_map.xsd. cuems-common's
+  cuems-migrate-network-map and its tests are exempt for the same reason. A count that flags
+  these pushes someone to delete a working migration diagnostic in order to make a number go
+  to zero. Enumerate the exempt set rather than leaving it to judgement, and count everything
+  else.
 - All 008 items with consumer impact are verified against each live call site 008's migration
   guide named, the same discipline 007 required of this feature for the node-model rename:
   `Media.duration`'s type AND wire change (cuems-engine's `CTimecode(cue.media.duration)`,
@@ -1554,8 +1573,13 @@ Constitution check:
 /speckit.taskstoissues
 ```
 
-Use `speckit-taskstoissues` here specifically — cross-repo work is easier to track as
-GitHub issues than as a single `tasks.md`.
+Use `speckit-taskstoissues` here specifically — but note its rationale changed on
+2026-09-03. It used to be "cross-repo work is easier to track as GitHub issues than as a
+single `tasks.md`", and there is no longer a single `tasks.md`: each of the seven
+repositories emits its own. The remaining reason is narrower and still real — the
+**cross-repo dependencies** (00 before 02 and 05; 03 and 04 merging together; the release
+gate spanning all seven) live in no repository's `tasks.md` and need somewhere to be
+tracked. Use it for those, not for re-issuing work each repository already tracks locally.
 
 ```
 /speckit.checklist Cross-repo readiness: version pins aligned, no consumer left on a
@@ -1575,7 +1599,7 @@ it exists to repair; every project document converted to the new duration shape,
 sampled, with backups accounted for; the ported config-domain UI proven to still adopt and
 unadopt nodes end to end; and the descriptor-driven forms checked against every enumeration
 AND every default the six schemas actually declare, not a hand-picked subset.
-Plus, from Part 6's consumer audit (C1-C11): "UI payload byte-equality" checked against §2's
+Plus, from Part 6's consumer audit (C1-C12): "UI payload byte-equality" checked against §2's
 AMENDED constraint, i.e. the two enumerated deltas are present and nothing else moved, not
 against an unconditional byte-equality that has not held since 008; cuems-wsclient's private
 network-map reader gone rather than re-spelled, with its silent all-nodes-skipped filter
