@@ -96,6 +96,11 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   and 006, so an absolute wall-time budget compares different suites and reads a growing
   test corpus as a regression. See `specs/006-public-object-api/baseline.md` for the
   measurement context and the per-operation numbers.
+- **Feature 010 adds no new technology to this repository.** It is an ecosystem migration:
+  seven repositories (this library, five Python consumers, one Angular UI) move onto the
+  public API and release together. This repository's own share is the descriptor's public
+  path, the deprecated-surface removal and the migration guide. Suite baseline re-measured
+  2026-09-03: **2573 passed, 96 skipped, 2 xfailed in 53.34 s = 20.73 ms/test**.
 
 ## Recent Changes
 
