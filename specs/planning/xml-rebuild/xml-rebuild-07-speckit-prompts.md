@@ -31,7 +31,7 @@ and outside Part 3's original scope (§7) — the same review-ability rule still
 | `006-public-object-api` | 5, 7 | Yes (API + `initial_template`) | 005 |
 | `007-node-model-migration` | 6 | **Yes** — `node_type` → `node_role`, a hard cutover across three repos | 006 + `feat/nodeconf-reenable` landing |
 | `008-rebuild-extension` | — (new; not one of Part 3's original eight) | **Yes** — see §7. Lands in **two gated phases** (D30) | 007 |
-| `009-consumer-migration` | 9 | Cross-repo | 006, 007, 008 |
+| `009-consumer-migration` | 9 | Cross-repo — **six** consumer repos plus one cuems-utils task (D32/D34); per-repo prompts in [`009-consumer-prompts/`](009-consumer-prompts/README.md) | 006, 007, 008 |
 
 Run them in order. Do not start the next until the previous is merged and green.
 
@@ -78,7 +78,7 @@ Read `.specify/memory/constitution.md` before starting. Two clauses bind this wo
   each spec MUST enumerate every change explicitly. The prompts below do that; do not drop
   those sections.
 - **Principle IV — Performance Budgets Are Requirements:** every plan MUST carry measurable
-  targets **before** implementation. Baseline: `hatch test` = **2393 passed, 94 skipped, 2 xfailed in 59.33 s** (measured 2026-08-24, after feature 007 — `specs/007-node-model-migration/baseline.md`). Compare **per test** — **24.79 ms** — not wall time: the suite has grown with every feature, so a wall-time budget reads growth as regression. (This line carried 006's 2222 / ~27 ms until 2026-08-25, and "557 passed in ~7.4 s" before that; re-measure it after each feature rather than inheriting it.) Plus
+  targets **before** implementation. Baseline for feature 009: `hatch test` = **2562 passed, 96 skipped, 2 xfailed in 53.24 s** (measured 2026-09-03 on `feat/xml-refactor` @ `7c5896c`, after 008 and the three commits that followed it). Compare **per test** — **20.8 ms** — not wall time: the suite has grown with every feature, so a wall-time budget reads growth as regression. Do **not** inherit 008's recorded 22.06 ms/test: 40 tests landed after that measurement. (This line carried 007's 2393 / 24.79 ms until 2026-09-03, 006's 2222 / ~27 ms before that, and "557 passed in ~7.4 s" before that; re-measure it after each feature rather than inheriting it.) Plus
   `tests/integration/test_mediacue_fade_performance.py`.
 
 **No amendment is needed.** If you disagree after reading, run:
@@ -108,6 +108,9 @@ CONTEXT — read these before writing anything:
   specs/planning/xml-rebuild/xml-rebuild-06-target-design.md      THE TARGET DESIGN — authoritative
   specs/planning/xml-rebuild/xml-rebuild-08-extension-audit.md    feature 008 evidence (E1-E26) — read for 008/009 prompts only
                                                                   (REVISED 2026-08-25; read its revision table first)
+  specs/planning/xml-rebuild/xml-rebuild-09-consumer-audit.md     feature 009 evidence (C1-C11) — read for the 009 prompt only
+                                                                  (measured 2026-09-03, AFTER 008 landed; it corrects and
+                                                                   extends §8, which was written from 008's PLAN)
 
 SETTLED — do not reopen, do not propose alternatives:
   D1  free hand on API; coordinated bump across consumers
@@ -207,12 +210,48 @@ SETTLED — do not reopen, do not propose alternatives:
       /speckit.tasks -- see §7.2. The plan covers all five items as one dependency chain;
       the stop is where that plan is cut into two phases and the gate between them is
       written down. Do not let /speckit.tasks emit one undifferentiated task list.
+  D32 cuems-wsclient is a SIXTH consumer repository, in 009's scope in full. It parses
+      /etc/cuems/network_map.xml with its own ElementTree reader and filters on the string
+      "NodeType.slave" -- silently selecting nothing since 007 (C1). Its private reader is
+      REPLACED by the library's public path, not merely re-spelled to node_role: a second
+      reader for a schema cuemsutils owns is the F15 failure the rebuild exists to end.
+      It also carries 5 of the ecosystem's node_type occurrences, so "zero, counted"
+      cannot pass without it.
+  D33 the Avahi TXT-record vocabulary (node_type=master|slave|firstrun) is renamed in BOTH
+      cuems-common AND cuems-nodeconf, inside 009, as ONE coordinated cutover -- including
+      the two template FILENAMES and the debian/install entries that place them, the
+      publisher (CuemsSettings.py), the consumer (CuemsAvahiListener.py) and
+      _AVAHI_NODE_TYPE_TO_ROLE. It cannot be half-renamed: a listener reading node_role
+      against a publisher writing node_type discovers nothing (C6). The "deferred to
+      feature 008" comments in AvahiTool.py and CuemsAvahiListener.py point at a closed
+      feature and are corrected by this work.
+  D34 SchemaDescriptor is exposed to consumers THROUGH ConfigManager -- the existing public
+      config object (D15) -- covering ALL SIX schemas, script included. This deliberately
+      widens ConfigManager's role beyond the config domain; the alternative is two public
+      paths for one mechanism. Q14 ("xml/ is internal") therefore stands, and
+      cuems-nodeconf's existing cuemsutils.xml.mapper / cuemsutils.xml.settings imports
+      move onto public equivalents in the same feature rather than being grandfathered (C4).
+  D35 the cuems-frontend port is PRECEDED by characterization tests of the three files it
+      rewrites (projects.service.ts, project-edit/sequence/sequence.component.ts,
+      settings.component.ts) -- mirroring exactly what 008 did for cuems-nodeconf row 5
+      (E23). 112 .ts files carry 5 .spec.ts, none covering those three, so "each consumer
+      PR carries its own green suite" currently costs nothing there (C8). These are also
+      the tests that prove E25's domain untangling preserved behaviour.
   Q11 -> (c) derive structure from schema; hand-write facade and behaviour
   Q14 -> (i) xml/ is internal machinery
 
-HARD CONSTRAINT (Part 2d): cuems-editor's project_load payload must stay byte-identical,
-because it is transmitted verbatim to the Angular UI. Verified: the UI reads booleans as
+HARD CONSTRAINT (Part 2d), AS AMENDED BY 006 AND 008 (C3): cuems-editor's project_load
+payload is transmitted verbatim to the Angular UI, so it stays byte-identical EXCEPT for
+exactly two already-landed, deliberate changes:
+  (a) schemaLocation is absent -- to_wire() drops it (006, xml/__init__.py's _READ_NOTE);
+  (b) Media.duration is {"CTimecode": "HH:MM:SS.mmm"}, not a bare string (008, D17/D18b).
+Everything else -- every other key, the ordering, and the STRING boolean form -- is
+unchanged. Verified: the UI reads booleans as
 `cueData.enabled === true || cueData.enabled === 'True'` and writes back the STRING form.
+doc_version is NOT a third change: it is excluded from every wire projection and the
+frontend never sees it. Do NOT paste the pre-2026-09-03 wording ("must stay
+byte-identical", full stop) -- it contradicts two of this rebuild's own decisions and
+would put that contradiction into the spec.
 ```
 
 ---
@@ -1119,8 +1158,33 @@ there is no working partially-deployed state between them. 008 then changes beha
 (`Media.duration`'s type **and wire shape**, `load()`'s strictness) that existing consumers assume
 differently today, without itself editing any consumer repository (§0). **Nothing in the ecosystem
 ships until this feature lands** (007 FR-030c/FR-030d, extended through 008 — see §0's
-release-gate note). Read `specs/007-node-model-migration/migration-guide.md` **and**
-`xml-rebuild-08-extension-audit.md` first; both are this feature's input, not context.
+release-gate note). Read `specs/007-node-model-migration/migration-guide.md`,
+`specs/008-rebuild-extension/migration-guide.md` **and** `xml-rebuild-08-extension-audit.md`
+first; all three are this feature's input, not context.
+
+**This section is the cross-repo plan. The runnable prompts are
+[`009-consumer-prompts/`](009-consumer-prompts/README.md)** — one self-contained file per
+repository, each carrying its own branch-and-bootstrap step, its own constitution step
+(five of the seven repositories have no spec-kit and no constitution), its own CONTEXT block
+with sibling-absolute paths, and its own exit criteria. Read this section for the shape of
+the work; run those files. They are derived from this section plus Part 6, and this section
+stays authoritative if the two ever disagree.
+
+**Updated a third time, 2026-09-03, from a pass over the live code in every consuming
+repository — run after 008 actually landed rather than from its plan.**
+[Part 6 — feature 009 consumer audit](xml-rebuild-09-consumer-audit.md) records that pass
+(findings `C1`–`C11`) and is this section's evidence the way Part 5 is §7's. **Read it
+before running any prompt below.** Everything §8 already named was re-verified and still
+holds at the stated lines; what Part 6 adds is a sixth repository nobody had listed
+(`cuems-wsclient`, silently broken since 007 — C1), an import that already fails outright
+(`cuems-editor`'s `create_script`, deleted by 008 with no shim — C2), a constraint in §2
+that 006 and 008 have both since contradicted (C3), the descriptor's missing public path
+(C4), an undercounted frontend inventory with a third value-reading call site (C5), the
+Avahi vocabulary's second owner (C6), a release gate with one enforced edge out of five
+(C7), a frontend with no tests where this feature works hardest (C8), three stale documents
+that are this feature's own inputs (C9), post-008 branch work in no plan (C10), and a third
+document-distribution surface for the conversion (C11). Decisions D32–D35 in §2 settle the
+four that were open.
 
 **One thing 008 hands here that has no 007 analogue: a wire change to every project file on
 disk.** `<duration>TC</duration>` becomes `<duration><CTimecode>TC</CTimecode></duration>`
@@ -1226,16 +1290,50 @@ WHAT MUST BE TRUE WHEN DONE:
   adopts NetworkMap.partition_by_adoption in place of its inline workaround for the
   mutating get_nodes_by_adoption. CONTROLLER_NETWORK_FLAG = "NodeType.master" becomes
   NodeRole.controller at all three sites (the constant and its two comparisons).
+- cuems-editor STARTS AT ALL. CuemsWsServer.py:24 imports `create_script, new_uuid` from
+  cuemsutils.create_script, which 008 DELETED with no deprecation shim (unlike the six
+  entry points 006 retired, which still resolve and warn at 0.1.0rc15). That is an
+  ImportError at module import, so the editor process does not start against the current
+  library and nothing else in that repository can be tested until it is fixed. Re-source
+  new_uuid from cuemsutils.helpers (where this repo already imports it at four other
+  sites); the create_script call at :84 and the initial_template payload at :501-503 are
+  the template cutover proper. THIS IS THE FIRST cuems-editor TASK, not a consequence of
+  the template decision (C2).
 - cuems-editor uses CuemsScript.load/save and from_json, and its project load path returns
-  script.to_wire() so the payload sent to the UI is byte-identical to today's. Its node
-  field list at CuemsWsServer.py:425 and the reload_network_map_nodes reads follow the
-  node_role rename and the retyping: node_role is a NodeRole, adopted/online are bool,
-  uuid is a Uuid.
-- cuems-common's Avahi discovery surface follows the role vocabulary: the node_type TXT
+  script.to_wire(). The payload stays byte-identical to today's EXCEPT for the two changes
+  §2's amended HARD CONSTRAINT enumerates -- schemaLocation absent (006) and Media.duration
+  wrapped (008). Do not restate it as unconditionally byte-identical: that was true when
+  this section was written and has not been true since 008 landed (C3). While here:
+  projects.service.ts:120 declares a required `schemaLocation: string` that nothing reads
+  -- delete it. Its node field list at CuemsWsServer.py:425 and the
+  reload_network_map_nodes reads (the call is at :470) follow the node_role rename and the
+  retyping: node_role is a NodeRole, adopted/online are bool, uuid is a Uuid.
+- cuems-wsclient -- THE SIXTH CONSUMER, in no previous list (D32/C1). Its
+  src/cuemswsclient/network_map.py parses /etc/cuems/network_map.xml with a private
+  ElementTree reader carrying `node_type: str | None` (:33), `_text(el, "node_type")` (:93)
+  and `if n.node_type != "NodeType.slave": continue` (:108) -- the gate on the bridge's
+  shutdown fan-out over adopted nodes. Post-007 that element is <node_role>node</node_role>,
+  so the field is None for every node, the != is true for every node, and every node is
+  skipped, silently. This is FR-030a-ii's class in its purest form. Replace the private
+  reader with the library's public path rather than re-spelling the string, and fix the
+  pyproject/debian floors (>=0.1.0rc5, optional) at the same time.
+- the Avahi discovery surface follows the role vocabulary, IN BOTH REPOSITORIES THAT OWN
+  IT, as ONE cutover (D33/C6) -- the TXT key is the wire between two daemons and cannot be
+  half-renamed. cuems-common's half: the node_type TXT
   record in etc/avahi/services/cuems.service and usr/share/cuems/cuems.service.{master,
   slave,firstrun}. In the last two the retired word is in the FILENAME, so the change
-  reaches debian/install and anything resolving a template by name. Feature 007
-  inventoried these and deliberately left them (its Assumption 10, and they are the named
+  reaches debian/install and anything resolving a template by name. cuems-nodeconf's half,
+  which no previous plan assigned and which is LARGER (30 node_type occurrences against
+  cuems-common's 27): its own copies of cuems.service.{firstrun,master,slave} at repo root
+  (:12 and :19 in each); the PUBLISHER, CuemsSettings.py:27
+  (`settings_dict['properties'] = {'node_type': 'slave'}`); the CONSUMER,
+  CuemsAvahiListener.py:96-155 (two blocks, add_service and update_service, both keying on
+  b'node_type' through _AVAHI_NODE_TYPE_TO_ROLE, which retires with them); and the
+  installer, CuemsNodeConf._install_master_service_template plus the inline slave-template
+  copy in set_node_role. AvahiTool.py:12 and CuemsAvahiListener.py:19-24 both defer this
+  "to feature 008" -- a closed, cuems-utils-only feature; correct those comments here.
+  Feature 007
+  inventoried cuems-common's files and deliberately left them (its Assumption 10, and they are the named
   exclusion in its SC-004a count) because discovery is out of its scope — out of scope
   there is not exempt.
 - cuems-common's postinst ordering is settled: the network-map conversion and
@@ -1251,13 +1349,42 @@ WHAT MUST BE TRUE WHEN DONE:
   API. `engine_callback`'s `nodelist_modify` dispatch (E14) is the caller to migrate against,
   and cuems-frontend's settings.component.ts is the UI at the far end of it that must keep
   working. `cleanup()`'s dead `self.cm` reference (E13) is fixed or deleted while the file is
-  open for this anyway.
+  open for this anyway. Two more cuems-nodeconf items, neither in any earlier plan: its
+  `from cuemsutils.timeoutloop import Timeoutloop` (CuemsNodeConf.py:26, used at :309, :617,
+  :629) moves to `cuemsutils.tools.TimeoutLoop.TimeoutLoop` — the class was relocated after
+  008 closed and the old path is now a warning shim (C10); and its two INTERNAL imports,
+  `cuemsutils.xml.mapper` and `cuemsutils.xml.settings` (CuemsNodeConf.py:22-23), move onto
+  public equivalents (D34/C4) so Q14's "xml/ is internal" stops being decorative.
+- **The schema descriptor gets a public path before anything consumes it** (D34/C4).
+  `SchemaDescriptor` lives in `cuemsutils.xml.descriptor`, and `cuemsutils.xml.__all__` is
+  `[]`. Expose it THROUGH `ConfigManager`, covering all six schemas including `script` —
+  a deliberate widening of a config-domain object's role, stated as such in the spec, taken
+  because the alternative is two public paths for one mechanism. This is a cuems-utils
+  change inside a consumer-migration feature, permitted by D16, and it is a PRECONDITION of
+  the editor's descriptor-serving WS work.
 - cuems-frontend's `=== true || === 'True'` dual-check simplification is still optional, a
-  follow-up not a blocker. Its **template-cloning surface is not optional**: the ~7 call
-  sites in `project-create.handler.ts` and `project-edit/sequence/sequence.component.ts`
-  move off cloning `initial_template` onto the schema descriptor (008 ITEM D) — including the
-  two that read concrete values (master_vol at :688, dmx_channels at :727), which migrate onto
-  the descriptor's defaults. **Config-domain UI is a PORT, not a new build**: a network_map
+  follow-up not a blocker. Its **template-cloning surface is not optional**, and the earlier
+  count of it was low (C5): `projectTemplate()` is consumed in **four** files, not two —
+  `projects.service.ts` (:150 definition, :159/:162/:243 the localStorage round trip,
+  :395/:420 internal reads), `project-create.handler.ts` (:37/:41/:53), 
+  `project-edit.component.ts:141`, and `project-edit/sequence/sequence.component.ts` at
+  **five** sites (:687, :716, :850, :909, :1571). They move off cloning `initial_template`
+  onto the schema descriptor (008 ITEM D). **THREE of them read concrete values, not two**:
+  master_vol at :688 (whose `|| 20` fallback already diverges from the schema's own default
+  of 100), dmx_channels at :726-727, and — listed by no earlier pass —
+  `getTemplateOutputStructure()` at :1570-1600, which deep-clones the example cue's first
+  `AudioCueOutput`/`VideoCueOutput` as the structure for a new cue's outputs. That third one
+  is not a field default at all, so decide explicitly whether the descriptor emits a
+  constructible empty instance per complex type or whether this component keeps a
+  hand-authored seed. Also concrete, and previously named only in the abstract: the
+  media-duration display at `project-show/sequence/sequence.component.ts:194`
+  (`cueData?.Media?.duration || '-'`), which renders `[object Object]` post-008 — copy the
+  unwrapping the fade path already does at `project-edit/sequence/sequence.component.ts:506`
+  and `:980`. **Characterization tests come first** (D35/C8): 112 `.ts` files carry 5
+  `.spec.ts`, none covering `projects.service.ts` (640 lines),
+  `sequence.component.ts` (1662) or `settings.component.ts` — the three files this port
+  rewrites. Pin today's behaviour before moving it, exactly as 008 did for
+  cuems-nodeconf row 5. **Config-domain UI is a PORT, not a new build**: a network_map
   editing UI already exists (settings.component.ts, nodelist_modify adopt/unadopt) and
   project_mappings already has read consumers (audio-mixer, video-mixer). Move them onto a
   generic schema-form-renderer with their logic preserved, untangle the
@@ -1280,9 +1407,37 @@ WHAT MUST BE TRUE WHEN DONE:
   prevent, and cuemsutils cannot do this half itself.
 - Deprecated entry points are removed from cuemsutils only after all consumers are on the
   new API.
+- **The release gate acquires the four edges it is missing** (C7). Today exactly ONE is
+  mechanically enforced: cuems-common's `Breaks: cuems-nodeconf (<< 0.1.0-8)` alongside
+  `cuems-utils (>= 0.1.0rc15)`. Every other consumer declares only a `>=` FLOOR — engine
+  `>=0.1.0rc10` (and a stale `rc4` in its own debian/control, six release candidates behind
+  its pyproject), editor `>=0.1.0rc10`, wsclient `>=0.1.0rc5` — and a floor cannot express
+  "must refuse a library that has moved past me", which is what the gate says. Supply the
+  missing bounds, reconcile engine's two disagreeing floors, and RUN 007's deferred
+  mechanical demonstration (its T054b/§13: install an out-of-order combination and watch
+  dpkg refuse it), which was deferred here precisely because no releasable .deb existed
+  before this feature.
+- **A converted library is distributed, not only installed** (C11). cuems-engine's
+  CuemsDeploy rsyncs `/projects/<project>/script.xml` from controller to node
+  (CuemsDeploy.py:329, :649; NodeEngine.py:730, :805). A controller whose library has been
+  converted to script version 2 therefore pushes v2 documents to every node it deploys to,
+  and a node on an older cuemsutils fails at SHOW-LOAD time, not upgrade time — an ordering
+  constraint no package manager mediates, alongside 007's postinst-vs-service-restart
+  question. The reverse order (nodes upgraded first) is safe, because ITEM E converts v1 in
+  memory.
+- **The three stale documents that are this feature's own inputs are corrected** (C9):
+  cuems-utils' CLAUDE.md still says cuems-common is "not yet updated for the rename" (its
+  local 007-node-model-migration branch has carried the mirror, conversion, postinst wiring,
+  versioned deps and docs since 2026-08-24 — unmerged, but not "not started");
+  cuems-common's CLAUDE.md:88 says CONTROLLER_NETWORK_FLAG is "migrated in feature 008"
+  (the renumbering makes that 009); and cuems-nodeconf's AvahiTool.py:12 /
+  CuemsAvahiListener.py:19-24 defer the TXT key "to feature 008" (a closed feature).
 - Zero occurrences of node_type or the NodeType. prefix remain anywhere in the ecosystem,
   counted rather than reviewed — including the four files 007 excluded from its own count
-  and handed here.
+  and handed here, cuems-wsclient's five (C1), and cuems-nodeconf's thirty (C6). DECIDE
+  EXPLICITLY whether non-shipped dev fixtures count — cuems-engine's dev/network_map.xml,
+  dev/test_xml_files/network_map.xml, dev/CuemsEngine_old.py and cuems-nodeconf's
+  test_run_nodeconfig.py all carry the old spelling, and 007 counted src/ only.
 - All 008 items with consumer impact are verified against each live call site 008's migration
   guide named, the same discipline 007 required of this feature for the node-model rename:
   `Media.duration`'s type AND wire change (cuems-engine's `CTimecode(cue.media.duration)`,
@@ -1308,10 +1463,20 @@ and renders in the UI unchanged, plus a cluster upgrade — controller and at le
 
 Follow specs/planning/xml-rebuild/xml-rebuild-06-target-design.md section 12.
 
-Per-repo scope:
+Per-repo scope. SIX repositories, not five (D32/C1), and cuems-utils itself takes one
+task under D16 (D34/C4: the descriptor's public path through ConfigManager, plus public
+equivalents for the two internal xml/ imports cuems-nodeconf makes today) -- that task is a
+PRECONDITION of the editor's and frontend's descriptor work and is sequenced first.
 - cuems-engine: core/BaseEngine.py:509; ControllerEngine network-map access; adopt
-  NetworkMap.partition_by_adoption; CONTROLLER_NETWORK_FLAG and its two comparison sites.
-- cuems-editor: CuemsDBProject.load_xml / save_xml / all FOUR CuemsParser call sites in that
+  NetworkMap.partition_by_adoption; CONTROLLER_NETWORK_FLAG and its two comparison sites
+  (:33, :410, :440) plus the online == "True" string comparison at :443 that 007's guide
+  added; the CuemsDeploy script.xml distribution path (C11) as a rollout-ordering input,
+  not a code change; and the now-unreachable _handle_fade_in/_handle_fade_out handlers,
+  their _ACTION_HANDLERS entries and SUPPORTED_CUE_ACTIONS members (008's FR-053b).
+- cuems-editor: FIRST, the create_script import at CuemsWsServer.py:24 that stops the
+  process from starting at all (C2) -- new_uuid re-sourced from cuemsutils.helpers, the
+  create_script call at :84 and the initial_template payload at :501-503 handled with the
+  template cutover. Then CuemsDBProject.load_xml / save_xml / all FOUR CuemsParser call sites in that
   file (update:356, new:489, duplicate:571, update_projects_existed_media:808 — E18) PLUS the
   fifth in repair_durations.py:230 (E21, missed by the first audit pass); DBProject.load must
   return script.to_wire(); the node field list at CuemsWsServer.py:425 and the
@@ -1326,17 +1491,35 @@ Per-repo scope:
   that 008 adds a SECOND conversion to that ordering problem — the script-document duration
   conversion — with different timing characteristics: it runs over the whole project library,
   not one config file, so postinst may not be the right place for it at all.
+- cuems-wsclient (C1/D32): src/cuemswsclient/network_map.py's private ElementTree reader
+  replaced by the library's public network-map path -- the dataclass field at :33, the
+  _text(el, "node_type") read at :93 and the "NodeType.slave" filter at :108 that currently
+  selects nothing; its optional cuemsutils dependency (pyproject.toml:33-40) and debian
+  floor become real and correctly bounded.
 - cuems-nodeconf: node model/serializers — nothing, done in 007, verify rather than repeat.
   Network-map config-object calls (adopt_node, unadopt_node, merge_discovered_nodes,
   refresh_network_map, write_network_map, _map_signature) swapped for 008's cuems-utils API,
   with 008's characterization tests as the equivalence yardstick; engine_callback updated to
-  match; the self.cm dead-code bug in cleanup() fixed or removed.
-- cuems-frontend: template-cloning call sites in project-create.handler.ts and
-  project-edit/sequence/sequence.component.ts moved onto the schema descriptor (the two
-  value-reading sites onto its defaults); the EXISTING config-domain UI — settings.component.ts
+  match; the self.cm dead-code bug in cleanup() fixed or removed; the Timeoutloop import at
+  :26 (used :309, :617, :629) moved to cuemsutils.tools.TimeoutLoop.TimeoutLoop (C10); the
+  two internal cuemsutils.xml imports at :22-23 moved onto public equivalents (D34); and
+  its half of the Avahi TXT-record cutover (D33/C6) -- its three service templates, the
+  CuemsSettings.py:27 publisher, the CuemsAvahiListener.py:96-155 consumer and
+  _AVAHI_NODE_TYPE_TO_ROLE.
+- cuems-frontend: characterization tests for projects.service.ts,
+  project-edit/sequence/sequence.component.ts and settings.component.ts BEFORE any port
+  (D35/C8 -- 5 .spec.ts across 112 .ts files, none covering these three); template-cloning
+  call sites across FOUR files (projects.service.ts, project-create.handler.ts,
+  project-edit.component.ts:141, sequence.component.ts at :687/:716/:850/:909/:1571) moved
+  onto the schema descriptor, with THREE value-reading sites onto its defaults --
+  master_vol :688, dmx_channels :726-727, and getTemplateOutputStructure at :1570-1600,
+  which needs a per-type constructible instance rather than a field default (C5); the
+  EXISTING config-domain UI — settings.component.ts
   (network_map adopt/unadopt), audio-mixer and video-mixer (initial_mappings) — ported onto the
   form-renderer with its logic preserved, not rebuilt; media-duration display updated for the
-  {"CTimecode": ...} wrapper; repair-report rendering; optional === true || === 'True'
+  {"CTimecode": ...} wrapper at project-show/sequence/sequence.component.ts:194 (C5), copying
+  the unwrapping project-edit/sequence/sequence.component.ts:506 and :980 already do for
+  fades; the unread required schemaLocation field at projects.service.ts:120 deleted; repair-report rendering; optional === true || === 'True'
   dual-check cleanup as a follow-up, not a blocker.
 
 Sequencing: this is where the 007 release gate opens, extended through 008 (§0). Nothing
@@ -1357,7 +1540,10 @@ Constitution check:
   Each one needs a test that fails against the old value.
 - III: the migration guide is the UX deliverable. Features 007's AND 008's guides are its
   input.
-- IV: no regression in engine project-load time — and note that 008 added T1+T2 validation to
+- IV: the cuems-utils baseline is 2562 passed / 96 skipped / 2 xfailed in 53.24 s =
+  20.8 ms/test, measured 2026-09-03 on feat/xml-refactor @ 7c5896c -- NOT 008's recorded
+  22.06 ms/test, which predates 40 tests that landed after it closed. No regression in
+  engine project-load time — and note that 008 added T1+T2 validation to
   that path, so measure against 008's post-landing figure, not 007's baseline, or the budget
   charges this feature for 008's decision. Network-map load stays within 007's recorded budget.
 ```
@@ -1389,9 +1575,27 @@ it exists to repair; every project document converted to the new duration shape,
 sampled, with backups accounted for; the ported config-domain UI proven to still adopt and
 unadopt nodes end to end; and the descriptor-driven forms checked against every enumeration
 AND every default the six schemas actually declare, not a hand-picked subset.
+Plus, from Part 6's consumer audit (C1-C11): "UI payload byte-equality" checked against §2's
+AMENDED constraint, i.e. the two enumerated deltas are present and nothing else moved, not
+against an unconditional byte-equality that has not held since 008; cuems-wsclient's private
+network-map reader gone rather than re-spelled, with its silent all-nodes-skipped filter
+proven fixed by a test that fails against the old string; cuems-editor proven to START (its
+create_script import is an ImportError today, so "the suite is green" says nothing until it
+does); "version pins aligned" upgraded to the release gate's four MISSING package edges
+present AND mechanically demonstrated by an out-of-order install dpkg actually refuses (007's
+deferred T054b); the Avahi TXT-record cutover verified END TO END across both owning
+repositories -- a node published by the new CuemsSettings discovered by the new
+CuemsAvahiListener, with no half-renamed intermediate state shipped; the frontend's
+characterization tests written BEFORE the port and still green after it;
+getTemplateOutputStructure's per-type instance decided rather than left to fall through; and
+the script.xml deploy path's version exposure (C11) settled in the rollout plan, not only
+postinst's.
 ```
 
-**Exit criteria:** all consumers migrated and green; end-to-end save→load→render verified;
+**Exit criteria:** all **six** consumer repositories migrated and green (`cuems-engine`,
+`cuems-editor`, `cuems-common`, `cuems-nodeconf`, `cuems-frontend`, `cuems-wsclient`) plus the
+one `cuems-utils` precondition task (D34); `cuems-editor` starts against the current library;
+end-to-end save→load→render verified;
 a controller-plus-node cluster upgrade comes back with its topology intact; zero `node_type`
 occurrences ecosystem-wide, counted; the FR-030a-ii caller class closed with per-caller tests;
 deprecated surface removable; `cuems-nodeconf` consumes the 008 network-map config object with
@@ -1399,8 +1603,11 @@ deprecated surface removable; `cuems-nodeconf` consumes the 008 network-map conf
 favour of the schema descriptor for the script domain; the existing config-domain UI ported to
 descriptor-driven forms with adopt/unadopt still working end to end, and the remaining three
 config domains newly editable through the same renderer; every project document in a real
-library converted to the new duration shape with its backup retained; and a repaired document
-produces a notification the user actually sees.
+library converted to the new duration shape with its backup retained; a repaired document
+produces a notification the user actually sees; the release gate enforced by packaging rather
+than by prose and demonstrated against a real out-of-order install; and the Avahi discovery
+vocabulary renamed across both owning repositories with a publisher and a listener proven to
+still find each other.
 
 ---
 
