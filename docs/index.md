@@ -165,7 +165,7 @@ output entry as a custom slot that the editor lists alongside monitor aliases an
 a default rect when the user places a cue. `canvas_region` in `script.xsd`
 (`VideoCueOutput`) is the **per-cue instance** rect the user drew. The two elements share
 the same `CanvasRegionType` XSD definition but have distinct semantics; see
-[Canvas Region](canvas_region.md) for the full specification.
+[Canvas Region](../specs/agreements/canvas_region.md) for the full specification.
 
 ### XSD as authoritative contract
 
@@ -184,4 +184,6 @@ Each module's public API is generated directly from docstrings:
 - [Tools](tools.md) — `CTimecode`, `CTimecodeTimer`, `FadeCalculator`, `ConfigManager`, `CommunicatorServices`, `HubServices`, `SignalEngine`, `TimeoutLoop`, `Uuid`
 - [XML](xml.md) — `XmlReaderWriter`, `XmlBuilder`, `Settings`, `CMLCuemsConverter`, `Parsers`
 - [API (root modules)](api.md) — `helpers`, `log`
-- [Canvas Region](canvas_region.md) — coordinate model, validation rules, V1 caps, and deferred work
+- [Canvas Region](../specs/agreements/canvas_region.md) — coordinate model, validation rules, V1
+  caps, and deferred work (an agreed cross-repo convention, not generated API reference — stored in
+  `specs/agreements/`, linked here for discoverability)

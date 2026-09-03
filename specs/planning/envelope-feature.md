@@ -16,7 +16,7 @@ on its own terms rather than inheriting this document's "identity conversion" co
 (`specs/008-rebuild-extension/spec.md`, FR-007a — FR-007c, Clarifications session (d)). This document
 is what stops that deletion from losing the design thinking embedded in the deleted code.
 
-**Read first:** `specs/planning/schema-evolution-convention.md` — the rules that make reintroducing a
+**Read first:** `specs/agreements/schema-evolution-convention.md` — the rules that make reintroducing a
 type cheap, and the ones that make it expensive.
 
 ---

@@ -21,9 +21,33 @@ hatch build                            # build
 
 Env vars: `CUEMS_LOG_LEVEL`, `CUEMS_CONF_PATH`.
 
-## specs/planning — canonical home for non-code artifacts
+## specs/planning and specs/agreements — canonical homes for non-code artifacts
 
-All planning docs, implementation plans, agent prompts / reusable AI prompt templates, cross-feature/repo specs, contributor-workflow docs, future-development/deferred-work/roadmap notes MUST be stored in `specs/planning/` and looked for there first. Do NOT put them in `docs/`, the repo root, or feature spec dirs. Feature-specific specs (`specs/NNN-feature/`) stay in their own numbered dir. `specs/planning/documentation-prompt.md` is the unified prompt for generating README/CHANGELOG/docs across CueMS / StageLab sibling repos.
+Two folders, two different lifecycles — do not conflate them:
+
+- **`specs/planning/`** — in-progress and exploratory material: planning docs, implementation
+  plans, agent prompts / reusable AI prompt templates, defect records, contributor-workflow docs,
+  future-development/deferred-work/roadmap notes. MUST be looked for here first; do NOT put them in
+  `docs/`, the repo root, or feature spec dirs.
+- **`specs/agreements/`** — settled, binding conventions and cross-repo decisions the team has
+  actually agreed on (e.g. `schema-evolution-convention.md`, `canvas_region.md`,
+  `documentation-prompt.md` — the last is the unified prompt for generating README/CHANGELOG/docs
+  across CueMS / StageLab sibling repos). Unlike `specs/planning/`, these are **living, binding
+  references** that current and future work is expected to actually follow and link to — keep
+  their paths accurate, since active docs (including this file) point at them.
+
+**Deletion policy, not just addition policy**: a `specs/planning/` document whose content has been
+fully implemented — and whose resolution is captured elsewhere (the landed feature's own
+`specs/NNN-feature/` dir, this file's "Recent Changes", or promoted into `specs/agreements/` if it
+turns out to be a durable, binding convention) — MUST be **deleted**, not left behind as stale,
+redundant history. Git history preserves it; a planning doc's job ends when the decision it was
+tracking is made and acted on. (Example: `dmx-universe-channel-conversion-defect.md` was deleted
+2026-09-03 once `specs/009-fix-dmx-channel-conversion/` landed the fix it was written to prompt.)
+
+Feature-specific specs (`specs/NNN-feature/`) stay in their own numbered dir regardless, and — once
+landed — are treated as frozen historical record: their cross-references to a `specs/planning/` or
+`specs/agreements/` file as it was named/located *at the time* are not retroactively rewritten when
+that file later moves, any more than a past git commit message would be.
 
 ## Field notes / gotchas
 
@@ -232,7 +256,9 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     listed in `migration-guide.md`. All six retired entry points still resolve and warn in
     `v0.1.0`; they are gone in `v0.1.1`. No frontend change is required — see
     `frontend-note.md`.
-  - `specs/planning/schema-evolution-convention.md` is adopted: an element added to an
+  - `specs/agreements/schema-evolution-convention.md` (written to `specs/planning/` at the time,
+    relocated 2026-09-03 once promoted to a binding cross-repo convention) is adopted: an element
+    added to an
     existing complex type is optional and carries a model-layer default. X13
     (`gradient_osc_port`, added as required, invalidating every older settings file) is
     recorded there as **scheduled work**; no `.xsd` is edited by this feature.

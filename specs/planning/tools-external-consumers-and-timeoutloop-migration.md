@@ -3,8 +3,8 @@
 Corrects three "dead code" claims made in an informal coverage-gap analysis earlier in this
 project's history (chat only, never committed) and lays out a work plan for what those corrections
 actually call for. Written as the record for a future feature, per this repo's `specs/planning/`
-convention (`nodeconf-atomization.md`, `dmx-universe-channel-conversion-defect.md`) — no code ships
-with this document except where noted.
+convention (`nodeconf-atomization.md` — see also `specs/agreements/` for conventions promoted to
+binding once settled) — no code ships with this document except where noted.
 
 ## The mistake, stated plainly
 
