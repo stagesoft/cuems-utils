@@ -121,3 +121,33 @@ would have produced a green tick against a wrong implementation:
 The nested-CueList case **constructs** its fixture rather than skipping when the shared one is flat
 (it is: AudioCue, DmxCue, VideoCue, ActionCue, FadeCue). A skip there would have let SC-010a's
 recursion requirement disappear the moment the fixture changed.
+
+
+---
+
+## Wave 0 — measured on landing (T010–T012, 2026-09-04)
+
+| | |
+|---|---|
+| Suite | **2638 passed, 100 skipped, 2 xfailed in 55.89 s = 21.18 ms/test** (cap 22.80) |
+| Remaining red | 4, all `test_dangling_reference_rule.py`, awaiting T015a |
+| Descriptor publication | internal **121.4 ms**, public **120.7 ms** across all six schemas — **ratio 0.99**, cap 1.10 |
+| Schemas built | **6 either way** — the public path adds none |
+
+**The budget was breached once, during this work, and fixed rather than recorded as accepted.**
+The first version of `test_descriptor_laziness` spawned **12 subprocesses** — one per (path,
+schema) — each paying ~300 ms to import the library. That pushed the suite to **23.3 ms/test**,
+through FR-PERF-001's own 22.80 cap. A performance test that breaks the performance budget is not a
+trade worth making, and the freshness it needs is per *process*, not per *case*: two subprocesses
+now measure all six schemas each, and the file runs in 1.44 s instead of 7.3 s.
+
+**Two measurement traps found here, both worth knowing before trusting a number in this repository:**
+
+1. **In-process comparison is confounded.** `_repairability_cache` is a module-level global that
+   `get_schema.cache_clear()` does not reset, so whichever path ran second measured a warm cache
+   and looked ~4× faster. Every figure above comes from a fresh interpreter.
+2. **Five of the six per-schema measurements are noise.** The **first** schema touched pays the
+   whole ~120 ms global join (008's repairability map spans all six); every subsequent one costs
+   0.08–1.0 ms, where a 110% band is microseconds. The ratio is therefore asserted on the **total**,
+   with per-schema checks skipped below a 1.0 ms floor — an earlier per-schema version passed alone
+   and failed in a loaded suite, which is the signature of measuring the scheduler.

@@ -185,23 +185,43 @@ from every wire projection (FR-012). Two versions on one link, confused, would b
 
 ---
 
-## R8 — the descriptor accessor must stay lazy
+## R8 — the descriptor accessor costs what the internal path costs
 
-Constitution IV's budget for wave 0 is "no measurable cost", and the failure mode is specific
-rather than general: the internal descriptor path builds **one** schema's descriptor on demand. A
-public accessor that eagerly builds all six would put five unnecessary schema constructions on the
-path of any consumer wanting one — and feature 005 already measured what that costs
-(`coercion._resolve` calling `all_registries()` is the entire 36.3 → 49.6 ms cold delta it
-recorded).
+**CORRECTED 2026-09-04, after measurement.** This finding originally read "the descriptor accessor
+must stay lazy", on the premise that the internal descriptor path builds **one** schema's descriptor
+on demand, so a public accessor building all six would be a regression. **That premise was wrong.**
 
-**Decision**: the accessor is lazy per schema, and the SC-003 equality test — which must cover all
-six — must not be the thing that hides the cost by building all six anyway.
-**Rationale**: this is a design constraint expressed as a budget, and the plan says so: eager
-construction here is a **design error, not an overrun to accept**. **Alternatives considered**:
-building all six once and caching — rejected as the same cost moved, not removed, and it makes the
-first consumer pay for five schemas it will never ask about.
+`descriptor._class_type_keys` and `descriptor._repairability_map` are documented **global joins over
+every schema** — 008 built them that way because the repairability fact *is* global: a rule targets
+a model class name, `TypeDescriptor.key` carries an XSD type name, and the join between the two
+name spaces spans all six schemas. The internal path therefore builds six as well.
 
----
+Measured, one **fresh process per path** (an in-process comparison is confounded:
+`_repairability_cache` is a module-level global that `get_schema.cache_clear()` does not reset, so
+whichever path ran second measured a warm cache and looked ~4× faster than it is):
+
+| Path | Elapsed | Schemas built |
+|---|---|---|
+| `SchemaDescriptor().types("script")` | 309.6 ms | 6 |
+| `get_schema_descriptor(SchemaName.SCRIPT)` | 319.0 ms | 6 |
+
+**Decision**: the requirement is *publishing costs nothing measurable* — the public path within
+**110%** of the internal one for the same schema (ratio measured 1.03) — and the accessor must add
+no schema builds beyond what the internal path already performs. Both are asserted per schema in
+`tests/contract/test_descriptor_laziness.py`, with import cost excluded from the measurement: the
+public path pulls a heavier module tree, and timing that would charge the accessor for an import
+the caller pays once per process and would have paid anyway.
+
+**Rationale for not making it lazy**: FR-027 forbids changing what the descriptor computes. Making
+repairability per-schema is a redesign of 008's global join, not a fix to this feature's accessor,
+and it would belong to a feature that owns that decision. **Alternatives considered**: asserting
+`currsize == 1` (rejected — neither path satisfies it, so the test would encode a false premise and
+fail correct code); relaxing the budget to wall-clock only (rejected — a ratio measures the design,
+a clock measures the machine, which is the distinction 008's SC-PERF-002 already draws).
+
+**What survives from the original finding**: eager construction *added by the accessor* would still
+be a design error rather than a budget overrun to accept. That is now the second assertion, stated
+as "adds no schema builds" rather than as an absolute count.
 
 ## R9 — `dev/` exemptions and detection code are two different exemptions
 

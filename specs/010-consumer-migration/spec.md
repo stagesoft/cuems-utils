@@ -1077,11 +1077,13 @@ repositories on disk and show the count is zero; then delete and run the suite.
     figure — **not** from 008's recorded 22.06 ms/test, nor from the 20.8 ms/test measured earlier
     the same day at `7c5896c` before two commits landed.
   - Publishing the descriptor MUST cost nothing measurable, **quantified**: the public path's
-    per-schema cost MUST be within **110%** of the internal path's for the same schema, measured on
-    the same run. If the public accessor eagerly builds all six descriptors where the internal path
-    built one lazily, that is a **design error**, not a budget overrun to accept — and it would
-    exceed this threshold roughly sixfold, which is why the threshold is expressed per schema
-    rather than per call.
+    per-schema cost MUST be within **110%** of the internal path's for the same schema, and the
+    accessor MUST add **no schema builds** beyond what the internal path already performs. Measured
+    2026-09-04: 319.0 ms against 309.6 ms, ratio **1.03**, six schemas built either way. The
+    internal path is **not** lazy per schema — 008's repairability fact is a global join across all
+    six by construction — so "the accessor must not build all six" was a false premise (research
+    R8, corrected). Eager construction *added by the accessor* would still be a design error rather
+    than a budget overrun to accept; that is what the second clause asserts.
   - Removing the deprecated surface SHOULD make the suite faster (22 contract tests retire). If it
     does not, something else changed and MUST be explained.
   - The engine's project-load time MUST NOT regress **against 008's post-landing figure**, not
@@ -1129,18 +1131,22 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **SC-003**: The descriptor is reachable from the public surface for **6 of 6** schemas, and for
   each one the public result equals the internal result — verified per schema, not sampled. Every
   complex type across those six schemas yields a constructible empty instance — **100% of types,
-  counted**, not the one type the UI happened to need — and **every** instance is validated
-  **standalone**, against its own type, through a **single** resolver:
-  - a **named global type** (50 of 58, measured 2026-09-04) is in the schema's type table;
-  - an **anonymous, path-bound type** (8 of 58 — the document roots and their immediate anonymous
-    children) is reached by walking its element path.
+  counted**, not the one type the UI happened to need — and each instance is **nested**: a complex
+  field expands into its own instance, and a repeated complex field carries **one exemplar**, which
+  is what makes it a replacement for deep-cloning an example document rather than a restatement of
+  the field list.
 
-  Both are `Xsd11ComplexType` and both carry `validate`, so the criterion needs no per-kind
-  branching at the call site, no wrapper documents and no schema edit.
+  **The instance is a seed, and is not required to be schema-valid.** Measured 2026-09-04, **12 of
+  the 58** complex types have a required field with no usable default, so a defaults-only instance
+  cannot validate for them; the consumer fills a seed before it becomes a document. An earlier
+  reading of this criterion required every instance to validate standalone, which the data cannot
+  support — recorded here rather than quietly dropped, because the requirement was widened and then
+  narrowed across three passes and the final position should be legible.
 
-  The split is **named versus anonymous**, not root versus non-root: a named type nested five
-  levels deep validates standalone perfectly well. An earlier reading of this criterion had that
-  wrong and would have narrowed it to document roots — 8 of 58 rather than 58 of 58.
+  Callable defaults (`new_uuid`, `new_datetime`) and class defaults (`CueList`, `CTimecode`) appear
+  as `None` in the instance and remain visible on the field's own `default`. They are **not
+  invoked**: derivation is cached, so calling a factory once would freeze a single "fresh"
+  identifier and hand the same one to every caller thereafter.
 - **SC-004**: The internal XML package still exports nothing after this feature, and the count of
   consumer imports reaching into internal library modules is **zero** (currently two, in one
   repository, unrecorded by any feature until now).

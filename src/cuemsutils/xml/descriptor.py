@@ -25,7 +25,7 @@ default to" — a question two of whose three inputs are not the schema at all.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -61,6 +61,37 @@ class TypeDescriptor:
 
     key: TypeKey
     fields: tuple[FieldDescriptor, ...]
+    instance: dict = field(default_factory=dict)
+    """A constructible empty instance of this type (FR-022a).
+
+    The **sixth** emitted fact, and the one capability feature 010 adds to the
+    descriptor. It exists because a nested object is not a field default:
+    ``getTemplateOutputStructure`` in the UI needs the *shape* of a cue's
+    output — geometry, region, mapping — which no combination of the five
+    per-field facts supplies.
+
+    **Nested, not flat.** A complex field expands into its own instance, which
+    is what makes this a replacement for deep-cloning an example document
+    rather than a restatement of ``fields``.
+
+    **A repeated complex field carries one exemplar**, not an empty list. The
+    call site this exists for clones element ``[0]`` of an example's outputs;
+    an empty list would hand it nothing to clone.
+
+    **Callable defaults are not called** — they appear as ``None``. Two
+    reasons, and the first is decisive: ``derive`` is cached, so calling
+    ``new_uuid()`` once would freeze a single "fresh" identifier and hand the
+    same one to every caller thereafter. Second, this object is served over a
+    websocket to the UI, and a function is not serialisable. The callable
+    itself remains visible on ``FieldDescriptor.default`` for a caller that
+    wants to invoke it.
+
+    **Not required to be schema-valid.** 12 of the 58 complex types have a
+    required field with no usable default, so a defaults-only instance cannot
+    validate for them (measured 2026-09-04). This is a *seed the consumer
+    fills*, and SC-003 says so rather than asserting a validity the data
+    cannot support.
+    """
 
 
 class RepairabilityTargetError(RuntimeError):
@@ -184,6 +215,41 @@ def _repairability(key: TypeKey, field_name: str, default: Any) -> Repairability
     return Repairability.REPAIRABLE
 
 
+def _instance_for(key: TypeKey, seen: frozenset = frozenset()) -> dict:
+    """A nested, constructible empty instance for ``key`` (FR-022a).
+
+    ``seen`` carries the keys already open on the current branch. The content
+    models really are cyclic — ``CueListType`` → ``CueListContentsType`` →
+    ``CueListType`` is the documented example — so a revisit yields ``None``
+    rather than recursing. Bounding by *branch* rather than by a global visited
+    set matters: a type reached twice down two different branches must expand
+    both times, or the second consumer receives a hole.
+    """
+    if key in seen:
+        return {}
+    spec = derive(key)
+    defaults = _defaults_for(key)
+    branch = seen | {key}
+
+    instance: dict = {}
+    for field_spec in spec.fields:
+        if field_spec.is_wildcard:
+            continue
+        if field_spec.child is not None:
+            nested = _instance_for(field_spec.child, branch)
+            value = [nested] if field_spec.repeated else nested
+        else:
+            value = defaults.get(field_spec.name, None)
+            if value is Unset or callable(value):
+                # Unset has no value to seed with; a callable must not be
+                # invoked here — see TypeDescriptor.instance.
+                value = None
+            if field_spec.repeated and value is None:
+                value = []
+        instance[field_spec.name] = value
+    return instance
+
+
 class SchemaDescriptor:
     """One descriptor over all six schemas — data-model.md §3."""
 
@@ -220,7 +286,7 @@ class SchemaDescriptor:
             )
             for field in spec.fields
         )
-        return TypeDescriptor(key=key, fields=fields)
+        return TypeDescriptor(key=key, fields=fields, instance=_instance_for(key))
 
 
 def clear_cache() -> None:
