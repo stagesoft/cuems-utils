@@ -301,28 +301,6 @@ def _resolve(key: TypeKey, schema):
     return element.type
 
 
-def xsd_type_for(key: TypeKey):
-    """The ``XsdComplexType`` a :class:`TypeKey` names, for **either** kind.
-
-    A named global type is looked up in the schema's type table; an anonymous,
-    path-bound type is reached by walking its element path. Both are
-    ``Xsd11ComplexType`` and both carry ``validate``/``is_valid``, so a caller
-    holding the resolved type can validate any complex type **standalone** —
-    against the type itself, with no document wrapped around it.
-
-    That matters because the two kinds are not "root versus nested": 50 of the
-    58 complex types across the six schemas are named, including deeply nested
-    ones, and only 8 are path-bound (the document roots and their immediate
-    anonymous children). Resolving through the element is what makes those 8
-    validatable too, rather than leaving them to be checked only in place.
-
-    Delegates to :func:`_resolve` rather than repeating its walk. A second path
-    walker beside the first is the duplication (F15) this rebuild exists to end,
-    and the two would drift the first time the schema shape changed.
-    """
-    return _resolve(key, get_schema(key.schema))
-
-
 def derive_named(schema_name: str, type_name: str) -> TypeSpec:
     return derive(TypeKey(schema_name, type_name))
 
