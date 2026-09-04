@@ -14,6 +14,26 @@ had recorded until C4.
 The descriptor is reached **through the existing public configuration façade** (D34/D15), not
 through a new public module. `cuemsutils.xml.__all__` stays `[]` (FR-024).
 
+**Decided 2026-09-04.** The accessor is **`get_schema_descriptor`**, and it takes a **public
+enumeration of schema names**, not a string.
+
+```
+from cuemsutils.tools.ConfigManager import ConfigManager, <SchemaNameEnum>
+
+ConfigManager(...).get_schema_descriptor(<SchemaNameEnum>.SCRIPT)
+```
+
+`get_schema_descriptor` follows `ConfigManager`'s existing split: bare-noun properties for held
+state (`network_map`, `mappings`), `get_*` for parameterised lookups (`get_video_output_id`,
+`get_audio_output_id`). A descriptor lookup takes an argument, so it is the second kind.
+
+The enum sits **in the same module as the accessor**, so one import gives a consumer both. That is
+a deliberate departure from `NodeRole`, which earns its own module (`tools/NodeList.py`) by
+carrying a domain vocabulary; this enum is the argument vocabulary of one accessor and nothing
+else. Its members are **asserted against the library's schema registry**, never hand-copied — the
+same anti-drift contract `NodeRole` holds against `NodeRoleType`'s facets — and the name must not
+read as the loaded-schema object that the internal `get_schema` returns.
+
 **Obligations**
 
 | # | Obligation | Requirement |

@@ -228,10 +228,14 @@ without per-entry reasons — rejected as the same loss in slower motion.
 
 ## Open, carried to `/speckit.tasks` rather than resolved here
 
-- **The exact name of the public descriptor accessor.** FR-028 makes it part of the deliverable —
-  "the name five other repositories will import for years" — and naming it in a research document
-  nobody reviews for naming would be the wrong place to settle it. It is a wave-0 task with the
-  contract in `contracts/descriptor-access.md`.
-- **Whether `cuems-editor` acquires a `debian/` directory** (R2). It has none, so it holds no
-  package edge either; FR-091 counts four edges across the packaged consumers. Wave 4 decides
-  whether the editor is packaged elsewhere or is a fifth gap like the frontend's.
+Both items recorded here as open were settled on 2026-09-04 and are kept, struck through, so the
+reason each was deferred survives its answer:
+
+- ~~**The exact name of the public descriptor accessor.**~~ **Settled: `get_schema_descriptor`**,
+  taking a public schema-name **enum** rather than a string (FR-028, FR-028a). Deferred out of this
+  document on the grounds that "naming it in a research document nobody reviews for naming would be
+  the wrong place to settle it" — that reasoning held: it was settled as a reviewed decision, with
+  the contract in `contracts/descriptor-access.md`.
+- ~~**Whether `cuems-editor` acquires a `debian/` directory** (R2).~~ **Settled: it does**
+  (FR-090a). It has none today, so it could hold no package edge, and FR-091's four edges presume
+  one. Not "wave 4 decides" any more — the decision is made and wave 4 executes it.

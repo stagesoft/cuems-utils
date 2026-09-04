@@ -665,7 +665,28 @@ repositories on disk and show the count is zero; then delete and run the suite.
   recomputed — and MUST NOT change any of the six schemas. FR-022a **adds** an emitted fact; it
   MUST NOT alter, reinterpret or re-derive the five that already exist.
 - **FR-028**: The public accessor's **name** is part of the deliverable, not an implementation
-  detail: it is the name five other repositories will import for years.
+  detail: it is the name five other repositories will import for years. **Decided 2026-09-04:
+  `get_schema_descriptor`**, matching `ConfigManager`'s existing convention for parameterised
+  lookups (`get_video_output_id`, `get_audio_output_id`) rather than its bare-noun properties for
+  held state (`network_map`, `mappings`).
+- **FR-028a**: The accessor MUST take a **public enumeration of schema names**, not a string, so a
+  consumer naming a schema that does not exist fails at the call rather than returning nothing
+  useful. Requirements on it:
+  - **Placement**: beside the accessor, in the same module, so one import gives a consumer both.
+    It is not a domain model — unlike `NodeRole`, which earns its own module by carrying the node
+    vocabulary — it is the argument vocabulary of one accessor, and splitting it across modules
+    would make the public surface larger than the thing it describes.
+  - **Derivation**: its members MUST be **asserted against the library's own schema registry**, not
+    hand-copied — the same contract `NodeRole` holds against `NodeRoleType`'s facets. A test MUST
+    fail if the enum and the registry disagree in either direction. Six schemas exist today
+    (`script`, `settings`, `network_map`, `project_mappings`, `project_settings`, `outputs`); a
+    seventh added later must not be able to appear in one place and not the other.
+  - **Naming**: it MUST NOT collide with the existing internal `get_schema`, which returns a
+    *loaded schema object* rather than a name. An enum called `Schema` would read as that object at
+    every call site; the name chosen must keep the two distinguishable.
+  - **Strictness**: the public accessor accepts the enum. Accepting a bare string as well would
+    reintroduce exactly the stringly-typed surface this requirement removes, and D12's "public
+    surface returns objects" applies to what it *takes* as much as to what it returns.
 - **FR-029**: The deprecated surface MUST be removed only after a **measured** count of live
   imports across all six consumer repositories on disk returns zero. "The consumer flows are
   merged" is a different claim.
