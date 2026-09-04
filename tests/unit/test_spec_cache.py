@@ -25,9 +25,47 @@ from tests.support.corpus import by_relpath
 SCRIPT = "cuems-editor/script_minimal.xml"
 COMPLEX = "cuems-engine/projects/complex_test/script.xml"
 
-#: 56 complex types across all six schemas (research R9). Derivation can never
-#: exceed this, however many documents or objects pass through.
-TOTAL_COMPLEX_TYPES = 56
+def _total_complex_types() -> int:
+    """Every ``TypeKey`` derivation could reach, across all six schemas.
+
+    **Computed, not written down.** It used to be the literal ``56``, carried
+    from feature 004's plan ("6 schemas, 56 complex types") and never updated —
+    008's plan had already hedged it to "~56". Measured 2026-09-04 the real
+    figure is **58** (50 named types + 8 path-bound), so the constant had been
+    two low for some time.
+
+    That staleness was invisible because every assertion using it is ``<=``, and
+    the two fixture documents never derive the whole set. It was still a trap: a
+    document reaching 57 or 58 types would have failed these tests as a
+    *performance regression* when the behaviour was correct.
+
+    Deriving it removes the trap without weakening SC-PERF-002. The bound was
+    only ever a sanity check; the requirement — "derivation does not grow with
+    object count" — is carried by
+    :func:`test_derivation_does_not_grow_with_object_count` and
+    :func:`test_a_thousand_cues_derive_no_more_than_one`, which compare counts
+    against each other rather than against a ceiling.
+    """
+    from cuemsutils.xml.registry import get_registry
+
+    return sum(
+        len(get_registry(name).bound_type_names) + len(get_registry(name).bound_path_names)
+        for name in SCHEMA_NAMES
+    )
+
+
+TOTAL_COMPLEX_TYPES = _total_complex_types()
+
+
+def test_the_ceiling_is_not_vacuous():
+    """Guards the computation above.
+
+    A derived bound that silently became huge — or zero — would make every
+    ``<=`` assertion in this file pass while measuring nothing. The floor is the
+    count at the time of writing; the ceiling catches a registry that started
+    reporting nonsense.
+    """
+    assert 50 <= TOTAL_COMPLEX_TYPES <= 200, TOTAL_COMPLEX_TYPES
 
 
 def _load(relpath):

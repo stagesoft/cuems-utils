@@ -15,7 +15,7 @@ classes it exported. Now:
   release** and warn on use (FR-019a). That is deliberately *not* asserted
   away: the deprecation shims resolve through those same paths, so emptying
   ``__all__`` and making the names unreachable are different changes. Genuine
-  lockdown is feature 009's.
+  lockdown is feature 010's (renumbered from 009 on 2026-08-25).
 
 The golden update is T065, one of exactly two permitted in this feature
 (standing rule 1). Its justification and the enumerated diff are in
@@ -194,6 +194,31 @@ def _public_methods(cls):
             continue
 
 
+#: SC-004's one recorded exception, added by feature 010 (FR-028b).
+#:
+#: SC-004 exists to stop a consumer naming a schema to do **domain** work —
+#: loading a document, reading a value. Feature 006 replaced
+#: ``manager.load("network_map")`` with ``manager.network_map`` for exactly that
+#: reason, and that replacement stands untouched.
+#:
+#: Describing a schema is **meta**, not domain, and is inherently parameterised
+#: by schema: there is no version of "describe this schema" that does not name
+#: one. The alternative designs were considered and rejected on 2026-09-04 —
+#: six per-schema properties (loses iteration, which is what the frontend's
+#: generic form renderer actually does), and classmethods on the owning model
+#: classes (``outputs`` has no class at all, and three of five ``ConfigManager``
+#: accessors raise or return a bare ``dict`` before a document is loaded, which
+#: is precisely when the editor needs the descriptor).
+#:
+#: The parameter is a :class:`SchemaName` **enum member**, never a string, so
+#: SC-004's deeper intent — no stringly-typed schema naming on the public
+#: surface — is preserved rather than merely worked around.
+SCHEMA_PARAMETER_EXCEPTIONS = frozenset({
+    "ConfigManager.get_schema_descriptor",
+    "ConfigManager.generate_example",
+})
+
+
 @pytest.mark.parametrize("label", sorted(PUBLIC_CLASSES))
 def test_no_public_signature_accepts_a_schema_name(label):
     import importlib
@@ -203,9 +228,47 @@ def test_no_public_signature_accepts_a_schema_name(label):
     offenders = [
         f"{label}.{name}{signature}"
         for name, signature in _public_methods(cls)
-        if "schema_name" in signature.parameters or "schema" in signature.parameters
+        if ("schema_name" in signature.parameters or "schema" in signature.parameters)
+        and f"{label}.{name}" not in SCHEMA_PARAMETER_EXCEPTIONS
     ]
     assert not offenders, offenders
+
+
+def test_the_schema_parameter_exceptions_all_exist():
+    """An exception list is a place stale entries hide.
+
+    If an exempted method is renamed or removed, the entry silently starts
+    exempting nothing — and the next method to acquire a schema parameter by
+    accident inherits a weakened check.
+    """
+    import importlib
+
+    for entry in SCHEMA_PARAMETER_EXCEPTIONS:
+        label, name = entry.split(".", 1)
+        module_name, attribute = PUBLIC_CLASSES[label]
+        cls = getattr(importlib.import_module(module_name), attribute)
+        assert hasattr(cls, name), f"{entry} is exempted and does not exist"
+
+
+def test_the_exceptions_take_the_enum_not_a_string():
+    """FR-028b — the exception is granted *because* the parameter is typed.
+
+    An exempted method that took a bare ``str`` would be the thing SC-004
+    forbids, wearing the exemption granted to the thing it does not do.
+    """
+    import importlib
+
+    from cuemsutils.tools.ConfigManager import SchemaName
+
+    for entry in SCHEMA_PARAMETER_EXCEPTIONS:
+        label, name = entry.split(".", 1)
+        module_name, attribute = PUBLIC_CLASSES[label]
+        cls = getattr(importlib.import_module(module_name), attribute)
+        parameter = inspect.signature(getattr(cls, name)).parameters["schema"]
+        assert parameter.annotation is SchemaName, (
+            f"{entry} is exempted from SC-004 on the grounds that it takes "
+            f"SchemaName, but its annotation is {parameter.annotation!r}"
+        )
 
 
 def test_the_six_methods_are_on_the_script_class():

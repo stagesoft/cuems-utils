@@ -687,6 +687,18 @@ repositories on disk and show the count is zero; then delete and run the suite.
   - **Strictness**: the public accessor accepts the enum. Accepting a bare string as well would
     reintroduce exactly the stringly-typed surface this requirement removes, and D12's "public
     surface returns objects" applies to what it *takes* as much as to what it returns.
+- **FR-028b**: The two descriptor accessors take a schema as a parameter, which feature 006's
+  **SC-004** ("no public signature takes a schema name") forbids. This MUST be recorded as SC-004's
+  one **exception**, in the contract test that asserts it and in this spec, never worked around by
+  renaming the parameter. The grounds: SC-004 exists to stop a consumer naming a schema to do
+  **domain** work — 006 replaced `manager.load("network_map")` with `manager.network_map` for that
+  reason, and that replacement stands untouched — whereas describing a schema is **meta** and
+  inherently parameterised by schema. The exemption is granted *because* the parameter is a
+  `SchemaName` enum member rather than a string, so a test MUST assert the exempted methods
+  actually take the enum; otherwise a method taking a bare `str` could inherit an exemption granted
+  to something it does not do. The exception list MUST also be checked for stale entries, since an
+  exempted name that no longer exists silently weakens the check for the next method that acquires
+  a schema parameter by accident.
 - **FR-029**: The deprecated surface MUST be removed only after a **measured** count of live
   imports across all six consumer repositories on disk returns zero. "The consumer flows are
   merged" is a different claim.
