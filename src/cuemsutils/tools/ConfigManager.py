@@ -1,12 +1,50 @@
+from enum import Enum
 from os import path
 from typing import Any
 
 from .ConfigBase import ConfigBase, load_config_document
 from ..log import Logger, logged
+from ..xml.descriptor import (
+    SchemaDescriptor,
+    generate_script_example,
+    generate_settings_example,
+)
 # The concrete module, not the package root — see ConfigBase.
 from ..xml.settings import NetworkMap, ProjectMappings, ProjectSettings
 
 CUEMS_CONF_PATH = '/etc/cuems/'
+
+
+class SchemaName(Enum):
+    """The six schemas this library owns, as an object rather than a string.
+
+    The argument type of :meth:`ConfigManager.get_schema_descriptor` (FR-028a).
+    A consumer naming a schema that does not exist fails at the call, rather
+    than receiving nothing useful and discovering why later.
+
+    **Declared, not generated.** Building this from ``SCHEMA_NAMES`` at import
+    time would leave it with no static members, and five repositories will
+    import these names — a consumer's editor and type-checker should both know
+    ``SchemaName.SCRIPT`` exists. The drift a hand-copied list would allow is
+    closed by assertion instead: ``tests/contract/test_schema_name_enum.py``
+    checks the members against the registry **in both directions**, so a seventh
+    schema cannot come to exist in one place and not the other. This is the
+    contract ``NodeRole`` already holds against ``NodeRoleType``'s XSD facets.
+
+    **Named ``SchemaName``, not ``Schema``**, deliberately: ``xml.schema``'s
+    ``get_schema`` returns a loaded ``XMLSchema`` object, and an enum called
+    ``Schema`` would be misread as that object at every call site.
+
+    Member *values* are exactly the registry's own strings, which is what lets a
+    caller cross between the two with ``SchemaName(name)`` and ``member.value``.
+    """
+
+    SCRIPT = 'script'
+    SETTINGS = 'settings'
+    NETWORK_MAP = 'network_map'
+    PROJECT_MAPPINGS = 'project_mappings'
+    PROJECT_SETTINGS = 'project_settings'
+    OUTPUTS = 'outputs'
 
 #: The three device sections a node can carry, in ``NodeType``'s schema order.
 #:
@@ -459,6 +497,73 @@ class ConfigManager(ConfigBase):
         self.project_mappings.save(
             path or self.project_path(project_uname, 'mappings.xml')
         )
+
+    def get_schema_descriptor(self, schema: SchemaName):
+        """Every complex type this schema declares, described (FR-020/FR-022).
+
+        **Why a configuration object serves the *show* schema.** ``ConfigManager``
+        is otherwise a configuration-domain object, and ``script`` is not
+        configuration — so finding it here is surprising, and the reason belongs
+        beside the code rather than only in the spec (FR-021, D34). The
+        alternative was two public paths for one mechanism: a config accessor and
+        a separate show accessor. That splits the surface **against** the
+        consumer rather than with it — the component serving configuration forms
+        is the same one serving the show template, and it would have had to learn
+        two imports, two names and two versioning stories for one idea.
+
+        Takes :class:`SchemaName`, never a bare string (FR-028a): accepting both
+        would reintroduce the stringly-typed surface the enum exists to remove.
+
+        **Lazy per schema.** Asking for one schema builds one schema. Building all
+        six here would put five unnecessary schema constructions on the path of
+        every consumer that wanted one — feature 005 measured that cost
+        (``coercion._resolve`` calling ``all_registries()`` is the whole
+        36.3 → 49.6 ms cold delta it recorded), which is why eager construction
+        here is a design error rather than a budget overrun to accept.
+
+        Args:
+            schema: which of the six, as a :class:`SchemaName` member.
+
+        Returns:
+            tuple: a ``TypeDescriptor`` per complex type, in declared order.
+
+        Raises:
+            TypeError: if given anything but a :class:`SchemaName`.
+        """
+        if not isinstance(schema, SchemaName):
+            raise TypeError(
+                f"get_schema_descriptor takes a SchemaName, not {type(schema).__name__}. "
+                f"Use SchemaName({schema!r}) if you are holding the string form."
+            )
+        return SchemaDescriptor().types(schema.value)
+
+    def generate_example(self, schema: SchemaName):
+        """A generated example document for ``schema`` (FR-023).
+
+        Reachable from the same public path as the descriptor because retiring
+        ``initial_template``-as-a-concrete-instance is what the editor and the UI
+        actually *do* with it — a consumer that can describe a schema but not
+        produce an example of one still needs the hand-maintained template this
+        feature deletes.
+
+        Raises rather than returning ``None`` for a schema with no generator:
+        a silent ``None`` is the failure mode this feature exists to end, and a
+        caller would discover it as an ``AttributeError`` somewhere else.
+        """
+        if not isinstance(schema, SchemaName):
+            raise TypeError(
+                f"generate_example takes a SchemaName, not {type(schema).__name__}."
+            )
+        generators = {
+            SchemaName.SCRIPT: generate_script_example,
+            SchemaName.SETTINGS: generate_settings_example,
+        }
+        if schema not in generators:
+            raise NotImplementedError(
+                f"no example generator for {schema.value!r}; "
+                f"generators exist for {sorted(s.value for s in generators)}"
+            )
+        return generators[schema]()
 
     def get_video_output_id(self, mapping_name: str):
         """

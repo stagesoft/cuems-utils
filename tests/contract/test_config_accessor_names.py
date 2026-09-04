@@ -108,3 +108,26 @@ def test_no_scalar_accessor_moved():
                     f"{class_name}.{name} was a scalar and is now a "
                     f"{LIVE[class_name][name].get('return')}"
                 )
+
+
+def test_the_new_public_descriptor_accessor_is_named_as_decided():
+    """T010 / FR-028 — the name is part of the deliverable, so it is pinned.
+
+    Asserted **beside** the golden rather than by regenerating it. The golden was
+    captured before any US3 change precisely so it could not be edited to match
+    what the code now does; re-cutting it to include this accessor would destroy
+    the only property that makes it evidence. An addition is not a violation of
+    contract C2 — "every name that exists today is present after" — so the
+    golden stays as it was and this assertion carries the new name.
+
+    ``get_schema_descriptor`` follows ``ConfigManager``'s existing split:
+    bare-noun properties for held state (``network_map``, ``mappings``),
+    ``get_*`` for parameterised lookups (``get_video_output_id``,
+    ``get_audio_output_id``). A descriptor lookup takes an argument.
+    """
+    from cuemsutils.tools.ConfigManager import ConfigManager
+
+    assert hasattr(ConfigManager, "get_schema_descriptor")
+    assert "get_schema_descriptor" not in GOLDEN.get("ConfigManager", {}), (
+        "the golden predates this accessor and must not be re-cut to include it"
+    )
