@@ -1116,8 +1116,19 @@ repositories on disk and show the count is zero; then delete and run the suite.
   reaches its listening state", the precondition every other editor criterion depends on.
 - **SC-003**: The descriptor is reachable from the public surface for **6 of 6** schemas, and for
   each one the public result equals the internal result — verified per schema, not sampled. Every
-  complex type across those six schemas yields a constructible empty instance that validates
-  against its own schema — 100% of types, counted, not the one type the UI happened to need.
+  complex type across those six schemas yields a constructible empty instance — **100% of types,
+  counted**, not the one type the UI happened to need — and each instance is validated by the route
+  its type admits, both of which exist today:
+  - a **named global type** (50 of 58, measured 2026-09-04) is validated **standalone**, against
+    the type itself. `xmlschema` 3.4.3 exposes `validate`/`is_valid` on `XsdComplexType`, so this
+    needs no machinery this feature would have to build;
+  - an **anonymous, path-bound type** (8 of 58 — one or two per schema, the document roots and
+    their immediate anonymous children) has no entry in the schema's type table to validate
+    against, so it is validated **in place**, at its path in the enclosing document.
+
+  The split is **named versus anonymous**, not root versus non-root: a named type nested five
+  levels deep validates standalone perfectly well. An earlier reading of this criterion had that
+  wrong and would have narrowed it to document roots — 8 of 58 rather than 58 of 58.
 - **SC-004**: The internal XML package still exports nothing after this feature, and the count of
   consumer imports reaching into internal library modules is **zero** (currently two, in one
   repository, unrecorded by any feature until now).
