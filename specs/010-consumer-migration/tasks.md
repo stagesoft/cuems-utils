@@ -46,9 +46,9 @@ absolute path under `/disk/Projects/StageLab/` where a verification task must re
 
 **Purpose**: the measurement and document scaffolding every later phase writes into.
 
-- [ ] T001 Record the measured suite baseline (`hatch test --show`; expect ~2573 passed / 96 skipped / 2 xfailed ≈ 20.73 ms/test) in `specs/010-consumer-migration/baseline.md`
-- [ ] T002 [P] Create `specs/010-consumer-migration/migration-guide.md` with the section skeleton — it accumulates across the whole feature rather than being written at the end (FR-UX-001)
-- [ ] T003 [P] Create `specs/010-consumer-migration/import-census.md` carrying the census command and **today's non-zero** result, so the wave-5 gate has a starting measurement to move from (FR-029)
+- [X] T001 Record the measured suite baseline (`hatch test --show`; expect ~2573 passed / 96 skipped / 2 xfailed ≈ 20.73 ms/test) in `specs/010-consumer-migration/baseline.md`
+- [X] T002 [P] Create `specs/010-consumer-migration/migration-guide.md` with the section skeleton — it accumulates across the whole feature rather than being written at the end (FR-UX-001)
+- [X] T003 [P] Create `specs/010-consumer-migration/import-census.md` carrying the census command and **today's non-zero** result, so the wave-5 gate has a starting measurement to move from (FR-029)
 
 ---
 
@@ -59,8 +59,8 @@ absolute path under `/disk/Projects/StageLab/` where a verification task must re
 **⚠️ CRITICAL**: Assumption 3 of the spec says everything else this feature asks of the library
 already landed in 007 and 008. That is a claim to verify once, here — not per story.
 
-- [ ] T004 Confirm — do **not** rebuild — the inherited surfaces, recording each with its location in `specs/010-consumer-migration/baseline.md`: `NetworkMap.partition_by_adoption` (`src/cuemsutils/xml/settings.py:209`), the `cuems-convert-documents` entry point (`src/cuemsutils/xml/convert_documents.py` + `pyproject.toml` `[project.scripts]`), the public report types in `src/cuemsutils/errors.py` (`LoadReport`/`Outcome`/`RepairRecord`/`ConversionRecord`), and the strict load path's three outcomes
-- [ ] T005 [P] Record the six consumer repositories' measured starting state (branch, spec-kit presence, test runner, packaging) in `specs/010-consumer-migration/baseline.md` — five have no spec-kit, two have no `tests/`, two have no `debian/`
+- [X] T004 Confirm — do **not** rebuild — the inherited surfaces, recording each with its location in `specs/010-consumer-migration/baseline.md`: `NetworkMap.partition_by_adoption` (`src/cuemsutils/xml/settings.py:209`), the `cuems-convert-documents` entry point (`src/cuemsutils/xml/convert_documents.py` + `pyproject.toml` `[project.scripts]`), the public report types in `src/cuemsutils/errors.py` (`LoadReport`/`Outcome`/`RepairRecord`/`ConversionRecord`), and the strict load path's three outcomes
+- [X] T005 [P] Record the six consumer repositories' measured starting state (branch, spec-kit presence, test runner, packaging) in `specs/010-consumer-migration/baseline.md` — five have no spec-kit, two have no `tests/`, two have no `debian/`
 
 **Checkpoint**: the inherited surface is confirmed; US3 can begin.
 
@@ -80,14 +80,14 @@ complex type yields a constructible instance that validates; `cuemsutils.xml.__a
 
 > Write these first and confirm they FAIL before implementation.
 
-- [ ] T006 [P] [US3] Contract test: the public descriptor equals the internal descriptor for **each of the six schemas** — six assertions, not a sample — in `tests/contract/test_public_descriptor.py` (SC-003)
-- [ ] T007 [P] [US3] Contract test: every complex type across the six schemas yields a constructible empty instance that **validates against its own schema**, 100% of types counted, in `tests/contract/test_descriptor_instances.py` (FR-022a, SC-003)
-- [ ] T008 [P] [US3] Contract test: asking for one schema's descriptor does **not** construct the other five, in `tests/contract/test_descriptor_laziness.py` — and this test must not be defeated by T006 building all six first (research R8)
-- [ ] T009 [P] [US3] Extend the public-surface contract test so `cuemsutils.xml.__all__` staying `[]` is asserted alongside the new accessor, in `tests/contract/test_public_surface.py` (FR-024)
+- [X] T006 [P] [US3] Contract test: the public descriptor equals the internal descriptor for **each of the six schemas** — six assertions, not a sample — in `tests/contract/test_public_descriptor.py` (SC-003)
+- [X] T007 [P] [US3] Contract test: every complex type across the six schemas yields a constructible empty instance that **validates against its own schema**, 100% of types counted, in `tests/contract/test_descriptor_instances.py` (FR-022a, SC-003)
+- [X] T008 [P] [US3] Contract test: asking for one schema's descriptor does **not** construct the other five, in `tests/contract/test_descriptor_laziness.py` — and this test must not be defeated by T006 building all six first (research R8)
+- [X] T009 [P] [US3] Extend the public-surface contract test so `cuemsutils.xml.__all__` staying `[]` is asserted alongside the new accessor, in `tests/contract/test_public_surface.py` (FR-024)
 
 ### Implementation for User Story 3
 
-- [ ] T009a [P] [US3] Contract test: a show document carrying a dangling `target` or `action_target` loads with the reference cleared and named in the report, and **100% of the cases the editor's current implementation catches** are caught — case by case, not a sample — in `tests/contract/test_dangling_reference_rule.py` (FR-043a, FR-043c, SC-010a)
+- [X] T009a [P] [US3] Contract test: a show document carrying a dangling `target` or `action_target` loads with the reference cleared and named in the report, and **100% of the cases the editor's current implementation catches** are caught — case by case, not a sample — in `tests/contract/test_dangling_reference_rule.py` (FR-043a, FR-043c, SC-010a)
 - [ ] T010 [US3] Pin the public accessor's name — **`get_schema_descriptor`** (decided 2026-09-04, matching `ConfigManager`'s `get_*` convention for parameterised lookups) — in `tests/contract/test_config_accessor_names.py` alongside the existing accessor names, and record it in `specs/010-consumer-migration/contracts/descriptor-access.md` (FR-028)
 - [ ] T010a [P] [US3] Contract test: the public schema-name enum's members and the library's schema registry agree **in both directions** — no registry entry missing from the enum, no enum member absent from the registry — in `tests/contract/test_schema_name_enum.py`. This is the anti-drift contract `NodeRole` already holds against its XSD facets, and it is what stops a seventh schema existing in one place and not the other (FR-028a)
 - [ ] T010b [US3] Add the public schema-name enum to `src/cuemsutils/tools/ConfigManager.py`, beside the accessor, with members **derived from or asserted against** the schema registry rather than hand-copied, and a name that does not read as the loaded-schema object `get_schema` returns (FR-028a)
