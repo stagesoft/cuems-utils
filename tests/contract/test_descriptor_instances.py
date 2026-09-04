@@ -8,17 +8,16 @@ which no combination of the five per-field facts supplies.
 **Scope, measured 2026-09-04.** SC-003 requires every complex type's instance to
 validate against its schema, and every one can — by the route its type admits:
 
-* a **named global type** (50 of 58) validates **standalone**. `xmlschema` 3.4.3
-  exposes ``validate``/``is_valid`` on ``XsdComplexType``, so a fragment is
-  checked against the type directly, with no document around it;
+* a **named global type** (50 of 58) is in the schema's type table;
 * an **anonymous, path-bound type** (8 of 58 — the document roots and their
-  immediate anonymous children) has no entry in the schema's type table, so it
-  is validated **in place**, at its path in the enclosing document.
+  immediate anonymous children) is reached by walking its element path.
 
-The split is **named versus anonymous**, not root versus non-root: a named type
-nested five levels deep validates standalone perfectly well. An earlier draft of
-this file asserted the latter and would have narrowed the criterion to 8 types
-of 58.
+Both are ``Xsd11ComplexType`` and both carry ``validate``, so ``spec.xsd_type_for``
+resolves either and **every one of the 58 validates standalone** — one route, no
+branching here. The split is **named versus anonymous**, not root versus
+non-root: a named type nested five levels deep validates standalone perfectly
+well. An earlier draft of this file asserted the latter and would have narrowed
+the criterion to 8 types of 58.
 """
 
 from __future__ import annotations
@@ -26,7 +25,8 @@ from __future__ import annotations
 import pytest
 
 from cuemsutils.xml.descriptor import SchemaDescriptor
-from cuemsutils.xml.schema import SCHEMA_NAMES, get_schema
+from cuemsutils.xml.schema import SCHEMA_NAMES
+from cuemsutils.xml.spec import xsd_type_for
 
 
 def _types(schema_name: str):
@@ -83,18 +83,13 @@ def test_every_instance_carries_the_declared_defaults(manager, schema_name):
 
 
 @pytest.mark.parametrize("schema_name", SCHEMA_NAMES)
-def test_every_instance_validates_by_the_route_its_type_admits(manager, schema_name):
-    """SC-003 in full — 58 of 58, not 8 of 58."""
-    _, SchemaName = _public()
-    member = SchemaName(schema_name)
-    schema = get_schema(schema_name)
+def test_every_instance_validates_standalone(manager, schema_name):
+    """SC-003 in full — **58 of 58, one route**.
 
+    No per-kind branching at the call site: ``xsd_type_for`` resolves a named
+    type and an anonymous path-bound one alike, and both carry ``validate``. The
+    earlier draft of this test branched on whether the type had a qname; the
+    resolver removed the need."""
     for type_descriptor in _types(schema_name):
         element = manager.build_instance_element(type_descriptor.key)
-        qname = type_descriptor.key.qualified_name
-        if qname in schema.types:
-            # Named global type: validated standalone, against the type itself.
-            schema.types[qname].validate(element)
-        else:
-            # Anonymous, path-bound: validated in place, at its path.
-            manager.validate_document(member, manager.build_instance_document(member))
+        xsd_type_for(type_descriptor.key).validate(element)
