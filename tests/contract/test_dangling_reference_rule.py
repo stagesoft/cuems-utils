@@ -51,9 +51,12 @@ def test_a_dangling_target_is_cleared_and_reported(tmp_path):
 
     assert report.outcome is Outcome.REPAIRED
     assert _first_cue(loaded)["target"] is None
-    assert any(r.field == "target" for r in report.repairs), (
+    assert any(r.rule_name == "target_resolves" for r in report.repairs), (
         "the repair must be named in the report, not applied silently"
     )
+    record = next(r for r in report.repairs if r.rule_name == "target_resolves")
+    assert record.previous_value == DANGLING
+    assert record.substituted_value is None
 
 
 def test_a_dangling_action_target_is_cleared_and_reported(tmp_path):
@@ -69,7 +72,7 @@ def test_a_dangling_action_target_is_cleared_and_reported(tmp_path):
     loaded, report = CuemsScript.load_with_report(path)
 
     assert report.outcome is Outcome.REPAIRED
-    assert any(r.field == "action_target" for r in report.repairs)
+    assert any("action_target" in r.field_path for r in report.repairs)
 
 
 def test_a_reference_that_resolves_is_left_alone(tmp_path):
@@ -100,14 +103,14 @@ def test_the_rule_reaches_references_nested_inside_a_cuelist(tmp_path):
     script = broken.valid_script()
     inner = script.cuelist.contents[0]
     dict.__setitem__(inner, "target", DANGLING)
-    nested = CueList([inner])
+    nested = CueList({"contents": [inner]})
     dict.__setitem__(script.cuelist, "contents", [nested] + list(script.cuelist.contents[1:]))
     path = _write(script, tmp_path / "dangling_nested.xml")
 
     loaded, report = CuemsScript.load_with_report(path)
 
     assert report.outcome is Outcome.REPAIRED
-    assert any(r.field == "target" for r in report.repairs)
+    assert any(r.rule_name == "target_resolves" for r in report.repairs)
 
 
 def test_the_rule_is_registered_and_repairable():

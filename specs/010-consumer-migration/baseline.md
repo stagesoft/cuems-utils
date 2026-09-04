@@ -151,3 +151,25 @@ now measure all six schemas each, and the file runs in 1.44 s instead of 7.3 s.
    0.08–1.0 ms, where a 110% band is microseconds. The ratio is therefore asserted on the **total**,
    with per-schema checks skipped below a 1.0 ms floor — an earlier per-schema version passed alone
    and failed in a loaded suite, which is the signature of measuring the scheduler.
+
+
+## T015–T017 — the remaining wave-0 measurements (2026-09-04)
+
+**FR-025's "two internal imports" is really one live usage and two dead ones.** Measured across the
+whole `cuems-nodeconf` checkout:
+
+| Internal import | Occurrences there | Migration target |
+|---|---|---|
+| `cuemsutils.xml.settings.NetworkMap` | import + **1 call site** (`CuemsNodeConf.py:567`) | `ConfigManager.load_network_map()` + `.network_map` |
+| `cuemsutils.xml.mapper.Mapper` | **import line only** | delete the import |
+| `cuemsutils.xml.mapper.read_config_document` | **import line only** | delete the import |
+
+The equivalence is asserted as **equality of result**, not merely that both run: internal reader and
+public path return the same 548-byte dict over the same 2-node fixture. A test that only checked
+both executed would pass against a public path that read a different file.
+
+**T015a's rule is document-scoped, which the rule machinery could not express.** `_walk` hands a
+rule `(value, enclosing_cue)`, and a cue cannot see its siblings, so "does this id resolve" was
+undecidable at that signature. `Rule` gains `document_scoped`, and `_iter_t2_findings` collects
+every cue id **once** before the reporting walk — per-node collection would be quadratic on a real
+show file.

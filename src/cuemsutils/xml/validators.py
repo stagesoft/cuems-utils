@@ -157,17 +157,40 @@ class Rule:
     #: is ``None``, the exact value the rule rejects).
     repairable: bool
 
+    #: Whether the check needs the **whole document**, not just the field and
+    #: its enclosing object. Almost no rule does: a T2 rule is about a value,
+    #: and a value is usually decidable where it sits. A *reference* is the
+    #: exception — "does this id resolve" cannot be answered by the cue holding
+    #: it, because a cue cannot see its siblings.
+    #:
+    #: A document-scoped rule receives a third argument carrying that context.
+    #: It must tolerate ``None`` there: :func:`enforce` (the setter call site)
+    #: has no document, and a rule that cannot decide must pass rather than
+    #: guess.
+    document_scoped: bool = False
+
     def fields_for(self, class_names: frozenset[str]) -> tuple[str, ...]:
         return tuple(
             field for cls, field in self.applies_to if cls in class_names
         )
 
 
+@dataclass(frozen=True)
+class _DocumentContext:
+    """What a document-scoped rule needs that its enclosing object cannot give.
+
+    One field today. It is a type rather than a bare set so that adding a second
+    kind of document-wide fact later does not change every rule's signature.
+    """
+
+    cue_ids: frozenset[str]
+
+
 #: Every registered rule, by name. **The tier's inventory**, and the only one.
 RULES: dict[str, Rule] = {}
 
 
-def register(name: str, applies_to, *, repairable: bool):
+def register(name: str, applies_to, *, repairable: bool, document_scoped: bool = False):
     """Register a rule under ``name``, bound to ``(type, field)`` pairs.
 
     Returns the undecorated function, so the setter that used to hold the body
@@ -183,7 +206,7 @@ def register(name: str, applies_to, *, repairable: bool):
     def decorator(fn):
         if name in RULES:
             raise ValueError(f"rule {name!r} is already registered")
-        RULES[name] = Rule(name, tuple(applies_to), fn, repairable)
+        RULES[name] = Rule(name, tuple(applies_to), fn, repairable, document_scoped)
         return fn
 
     return decorator
@@ -368,6 +391,15 @@ def _iter_t2_findings(obj):
     """
     from ..cues.Cue import Cue
 
+    # Collected once, before the walk that reports. A document-scoped rule
+    # (``Rule.document_scoped``) needs every cue id in the document, and
+    # gathering them per node would be quadratic on a real show file.
+    context = _DocumentContext(
+        cue_ids=frozenset(
+            cue_id for cue_id, _node in _walk(obj, Cue) if cue_id is not None
+        )
+    )
+
     for cue_id, node in _walk(obj, Cue):
         class_names = frozenset(cls.__name__ for cls in type(node).__mro__)
         for rule in RULES.values():
@@ -375,7 +407,10 @@ def _iter_t2_findings(obj):
                 if field not in node:
                     continue
                 try:
-                    rule.check(node[field], node)
+                    if rule.document_scoped:
+                        rule.check(node[field], node, context)
+                    else:
+                        rule.check(node[field], node)
                 except (ValueError, TypeError) as exc:
                     # ``TypeError`` is here for one rule: ``media_duration``
                     # rejects a wrong *type* with a ``TypeError`` because that
@@ -482,6 +517,37 @@ def _action_target_required(value, obj=None) -> None:
     """An action cue must name what it acts on."""
     if value is None:
         raise ValueError("action_target is required")
+
+
+@register(
+    "target_resolves",
+    [("Cue", "target")],
+    # ``Cue.REQ_ITEMS['target']`` is ``None``, and no rule forbids ``None``
+    # there — an unset target is a legitimate state for a cue. So clearing a
+    # dangling one *is* the repair, and it reproduces what
+    # ``CuemsDBProject._nullify_dangling_refs`` has been doing in the editor.
+    repairable=True,
+    document_scoped=True,
+)
+def _target_resolves(value, obj=None, context=None) -> None:
+    """A cue's ``target`` must name a cue present in the same document.
+
+    Moved in from ``cuems-editor``, where it ran as a raw-dict walk *before*
+    parsing (FR-043a). The correction needs nothing but the document, so under
+    FR-043's responsibility test it is the library's: a repair the document
+    alone determines belongs where repair lives.
+
+    ``context is None`` means the caller had no document to check against —
+    :func:`enforce`, the setter call site, is the case. A rule that cannot
+    decide passes rather than guessing, which keeps programmatic assignment
+    working exactly as it did.
+    """
+    if value is None or context is None:
+        return
+    if value not in context.cue_ids:
+        raise ValueError(
+            f"target {value} does not resolve to a cue in this document"
+        )
 
 
 @register(
