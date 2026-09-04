@@ -653,7 +653,9 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **FR-025**: Each of the two internal library imports `cuems-nodeconf` makes today MUST have a
   **named, tested public equivalent**. Where a public equivalent already exists, the guide names
   it rather than the library adding a synonym — the deliverable is a stated migration target per
-  import, not necessarily new code.
+  import, not necessarily new code. **"Tested" means**: a test asserts the public equivalent returns
+  a result equal to the internal import's for the same input, so an equivalent that merely resolves
+  is distinguishable from one that preserves behaviour.
 - **FR-026**: The library MUST NOT grow new descriptor capability in this feature **beyond
   FR-022a's constructible instance**, which Q2 sanctions explicitly. Any further gap a consumer
   discovers is **recorded**, not quietly absorbed — the rule this feature follows is that
@@ -667,6 +669,10 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **FR-029**: The deprecated surface MUST be removed only after a **measured** count of live
   imports across all six consumer repositories on disk returns zero. "The consumer flows are
   merged" is a different claim.
+- **FR-029e**: The census MUST be **re-run immediately before the deletions**, not once at the
+  close of the preceding wave. A consumer can regress between merge and removal — reintroducing a
+  deprecated import in a later commit — and a census dated before that commit certifies nothing.
+  The census MUST record its own date and the last consumer merge it postdates.
 - **FR-029a**: Removal MUST cover all five shim modules, the aliases in the XML package's
   namespace, and every remaining deprecated-symbol site.
 - **FR-029b**: The contract tests pinning the shims MUST be retired **deliberately**, with the
@@ -694,6 +700,10 @@ repositories on disk and show the count is zero; then delete and run the suite.
   by 008's enumeration narrowing MUST be removed, not left resolving.
 - **FR-036**: The engine's show-distribution path MUST be treated as a **rollout-ordering input**,
   not a code change: a converted controller pushes converted documents to every node it deploys to.
+  **Pass criterion**: the rollout plan names this path as one of its three ordering constraints
+  (alongside FR-094's and FR-096's), states which upgrade order avoids it, and a deploy from a
+  converted controller to an upgraded node is exercised during the cluster verification — so the
+  constraint is demonstrated rather than only written down.
 
 #### `cuems-editor`
 
@@ -737,7 +747,9 @@ repositories on disk and show the count is zero; then delete and run the suite.
   boolean adoption and online flags, and the typed identifier.
 - **FR-047**: The editor MUST serve the schema descriptor over its websocket, and MUST accept
   configuration-domain saves, generalising the existing serve-plus-mutate message pair rather
-  than inventing an unrelated one.
+  than inventing an unrelated one. **"Generalising" is checkable**: after the change the editor
+  MUST have exactly **one** message-dispatch mechanism, and the new per-domain messages MUST travel
+  it. A second dispatch path appearing beside the existing one is the failure this forbids.
 - **FR-048**: The editor MUST forward the library's repair report to the client as a message. A
   repair the user never sees is the outcome the three-outcome design exists to prevent, and the
   library cannot do this half itself.
@@ -767,6 +779,12 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **FR-049b**: The editor MUST NOT fall back to a permissive read for a document the strict path
   rejects. A second reader for exactly the documents the first one refuses is the duplication this
   rebuild exists to end, and 008 removed that path deliberately.
+- **FR-049d**: An **operator recovery action** MUST be specified for an unrepairable document, not
+  only its existence recorded. At minimum the message MUST name the document and the failing field
+  (FR-049), and the guide MUST state the routes available: restore the document from a conversion
+  backup where one exists (FR-102), correct the named field by hand, or remove the document from
+  the library. A failure that says only "this will not open" leaves an operator with a broken
+  project and no next step.
 - **FR-049c**: The migration guide MUST record that this outcome is **new user-visible behaviour**
   introduced by 008's strictness reversal: a project that opened before this release can refuse to
   open after it. An operator meeting that for the first time needs it documented, not diagnosed.
@@ -813,17 +831,40 @@ repositories on disk and show the count is zero; then delete and run the suite.
 #### The ecosystem-wide count
 
 - **FR-070**: Zero occurrences of the retired element name or the retired type prefix MUST remain
-  anywhere in the ecosystem, **counted rather than reviewed** — including the four files 007
-  excluded from its own count, `cuems-wsclient`'s five, and `cuems-nodeconf`'s thirty.
+  anywhere in the ecosystem, **counted rather than reviewed** — including **the four discovery
+  files 007 excluded** from its own count and handed here (`cuems-common`'s
+  `etc/avahi/services/cuems.service` and `usr/share/cuems/cuems.service.{firstrun,master,slave}`),
+  `cuems-wsclient`'s five, and `cuems-nodeconf`'s thirty.
+- **FR-070a**: The spec names **two different groups of four**, and each MUST be labelled wherever
+  it appears so a reader cannot substitute one for the other: FR-070's **discovery four** are
+  **in scope and counted**; FR-073's **non-shipped four** are **exempt**. Conflating them either
+  counts files that are exempt or exempts files that must be fixed.
+- **FR-070b**: The counting **method MUST be recorded with the count** — the exact command and the
+  paths it covers — so that two people counting independently reach the same number. "Counted
+  rather than reviewed" is an instruction not to exercise judgement, and it is unfollowable while
+  the method is left to the counter.
 - **FR-071**: The count MUST carry an **enumerated exempt set**, listed site by site rather than
   described by category. Code whose *purpose* is detecting or converting the retired spelling has
   to contain it, and a criterion that flags such code instructs the reader to delete a working
   migration diagnostic to make a number reach zero.
-- **FR-072**: This repository's own sixteen occurrences are exempt in full and MUST survive: the
-  role mapping and the unconverted-document diagnostic in the errors module, the three sites in
-  the configuration base that wire that diagnostic into the load path, the prose in the
-  network-map configuration module, and the schema comment recording 007's change. The sibling
-  repository's conversion command and its tests are exempt on the same grounds.
+- **FR-072**: This repository's own **sixteen** occurrences are exempt in full and MUST survive,
+  enumerated as `<path>:<start_line>[-<end_line>]` per FR-071 — **re-measured 2026-09-04, because
+  the inherited audit numbers (`errors.py:106-110`, `:120-135`) are stale**:
+  - `src/cuemsutils/errors.py:136-142` — the comment recording why the generic schema-error wrap
+    is upgraded for `network_map`'s two known failure modes
+  - `src/cuemsutils/errors.py:150-154` — `_NETWORK_MAP_LEGACY_ROLE_VALUES`, the retired-spelling →
+    role mapping
+  - `src/cuemsutils/errors.py:164-179` — `network_map_node_type_message`, the diagnostic that tells
+    an operator their document is unconverted instead of failing with a bare schema error
+  - `src/cuemsutils/tools/ConfigBase.py:6`, `:46`, `:76` — the import, the docstring and the
+    dispatch that wire that diagnostic into the config load path
+  - `src/cuemsutils/config/network_map.py:26`, `:32` — prose recording the rename and the string
+    `cuems-engine` used to compare against
+  - `src/cuemsutils/xml/schemas/network_map.xsd:55` — the schema comment recording 007's change
+
+  `cuems-common`'s `usr/bin/cuems-migrate-network-map` and its tests are exempt on the same
+  grounds and MUST be enumerated in the same form. Line numbers MUST be **re-measured at the time
+  the count is run**, not copied from this list — they move.
 - **FR-073**: The count MUST cover **shipped sources only**, continuing 007's precedent (Q1).
   The four known non-shipped occurrences MUST be named individually in the exempt set —
   `cuems-engine`'s `dev/network_map.xml`, `dev/test_xml_files/network_map.xml` and
@@ -875,6 +916,13 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **FR-088d**: The required response field nothing reads MUST be deleted.
 - **FR-088e**: The dual boolean check's simplification is an **optional follow-up**, not a
   blocker for this feature.
+- **FR-088f**: The descriptor-driven forms MUST be checked against **every restricted enumeration
+  and every model-layer default the six schemas declare** — not a hand-picked subset, and not only
+  the three value-reading sites FR-086 names. A form that renders the right shape while offering
+  the wrong legal values, or seeding the wrong default, is wrong in the way the template cutover
+  exists to prevent. This is the **consumer half** of the obligation; SC-003 covers the library
+  half (the descriptor emitting those facts correctly for all six schemas), and neither half
+  substitutes for the other.
 
 #### Sequencing and the release gate
 
@@ -883,7 +931,14 @@ repositories on disk and show the count is zero; then delete and run the suite.
   deprecated-surface removal is unrunnable until the measured import count is zero. A task list
   that permits the removal to start early is a task list that can break six repositories at once,
   and that possibility must not exist in the file rather than being avoided by care.
-- **FR-091**: The release gate MUST acquire the **four package edges it is missing**. A lower
+- **FR-090a**: `cuems-editor` MUST acquire Debian packaging in this feature. It has **no
+  `debian/` directory** today (measured 2026-09-03), so it can declare no package relation and
+  cannot hold a gate edge — yet it is a first-class consumer with an import that fails outright.
+  This is a precondition of FR-091's count, not a follow-up.
+- **FR-091**: The release gate MUST acquire the **four package edges it is missing**, and the four
+  are named rather than counted: `cuems-engine`, `cuems-editor` (per FR-090a), `cuems-nodeconf`
+  and `cuems-wsclient`. `cuems-common` already holds the only enforced edge; `cuems-frontend` is
+  not packaged and is covered by FR-105's runtime handshake instead. A lower
   bound cannot express "must refuse a library that has moved past me", which is what the gate
   says; only an upper bound or a break relation can.
 - **FR-092**: The one repository declaring two disagreeing floors MUST be reconciled.
@@ -898,6 +953,11 @@ repositories on disk and show the count is zero; then delete and run the suite.
   it runs over every document in every library, so the plan MUST still state what happens to a
   library mid-conversion, how backups are retained and reclaimed, and what an operator sees while
   it works.
+- **FR-102a**: The conversion's **storage cost** MUST be stated as a requirement, not left to a
+  measurement note: backups are written beside each document and never reclaimed automatically, so
+  a converted library approximately **doubles** its own on-disk size until an operator reclaims
+  them. The rollout plan MUST state this before the conversion runs, because a library that fills
+  its volume mid-conversion is a failure the retention rule (FR-102) causes.
 - **FR-095a**: Because FR-095 leaves a library unconverted until an operator acts, the library's
   **convert-on-read** path — not the batch command — is what guarantees an unconverted document
   still opens. This MUST be verified rather than assumed, and stated in the rollout plan as the
@@ -931,7 +991,8 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **FR-107**: The payload version MUST change when this feature's two enumerated payload deltas
   land (FR-010), because those are exactly the changes a stale UI mis-renders.
 - **FR-108**: FR-105 exists because `cuems-frontend` carries no packaging and therefore **cannot**
-  hold a release-gate edge — FR-091 covers four packaged consumers and the UI is not among them.
+  hold a release-gate edge — FR-091 covers four packaged consumers (`cuems-editor` among them
+  only because FR-090a packages it) and the UI is not among them, nor made so by this feature.
   The spec records that asymmetry rather than leaving the UI as the one unguarded surface, and it
   is the surface a user actually looks at. A cached browser bundle is the concrete failure this
   catches and a deploy-together convention does not.
@@ -940,6 +1001,11 @@ repositories on disk and show the count is zero; then delete and run the suite.
 
 - **FR-100**: The rollback plan MUST be **stated**, as two distinct procedures separated by an
   explicit boundary: whether the operator has run the show-document conversion (FR-095).
+- **FR-100a**: The rollback **trigger** MUST be specified, not only the procedures: who decides a
+  rollback is needed, and on what signal. At minimum the plan MUST name the decision owner and the
+  observable conditions that qualify — a node that does not return from upgrade, a cluster that
+  loses topology, or a show that will not load from a converted library. A procedure with no
+  trigger is one nobody starts.
 - **FR-101**: **Before** the conversion, rollback MUST be a package downgrade and nothing else.
   The documents are still at the previous version and the previous library reads them unchanged,
   so no data operation is required or performed.
@@ -977,15 +1043,24 @@ repositories on disk and show the count is zero; then delete and run the suite.
     53.34 s, measured 2026-09-03 on `feat/xml-refactor` @ `7a1893f`). Budgets derive from that
     figure — **not** from 008's recorded 22.06 ms/test, nor from the 20.8 ms/test measured earlier
     the same day at `7c5896c` before two commits landed.
-  - Publishing the descriptor MUST cost nothing measurable. If the public accessor eagerly builds
-    all six descriptors where the internal path built one lazily, that is a **design error**, not
-    a budget overrun to accept.
+  - Publishing the descriptor MUST cost nothing measurable, **quantified**: the public path's
+    per-schema cost MUST be within **110%** of the internal path's for the same schema, measured on
+    the same run. If the public accessor eagerly builds all six descriptors where the internal path
+    built one lazily, that is a **design error**, not a budget overrun to accept — and it would
+    exceed this threshold roughly sixfold, which is why the threshold is expressed per schema
+    rather than per call.
   - Removing the deprecated surface SHOULD make the suite faster (22 contract tests retire). If it
     does not, something else changed and MUST be explained.
   - The engine's project-load time MUST NOT regress **against 008's post-landing figure**, not
     007's — 008 added validation to that path, and measuring against the older baseline charges
     this feature for 008's decision.
-  - Network-map load MUST stay within 007's recorded budget.
+  - Network-map load MUST be measured against **008's post-landing figure (10.14–10.49 ms across
+    three trials)**, **not** 007's ≤10.20 ms cap. 008 recorded that cap as **exceeded-or-marginal
+    rather than restated as passing**, with the mechanism identified (the version probe routes
+    decode through a pre-parsed tree). This feature therefore **inherits an already-marginal
+    measurement** and MUST record it as inherited: restating 007's cap would mandate a budget that
+    is already unmet, charge this feature for 008's deliberate decision, and hide a known overrun
+    behind a pass.
 
 ### Key Entities
 
@@ -1033,7 +1108,11 @@ repositories on disk and show the count is zero; then delete and run the suite.
   enumerated site by site, with this repository's sixteen intact.
 - **SC-007**: Every caller in the "keeps resolving but becomes wrong" class carries a test that
   **fails against the pre-migration value** — the count of such callers found and the count of such
-  tests added are equal, and both are stated.
+  tests added are equal, and both are stated. **The denominator is defined, not discovered**: it is
+  every call site named in feature 007's and feature 008's migration guides, **plus** anything a
+  fresh ecosystem-wide search adds, and the search's method and date are recorded alongside the
+  counts. Without a named inventory the criterion is satisfiable by finding one caller and writing
+  one test.
 - **SC-008**: **100%** of 008's characterization tests for the node daemon's network-map behaviour
   pass unchanged against the library's object after the swap.
 - **SC-009**: All **five** show-parsing call sites in the editor are migrated (four in the project
@@ -1102,9 +1181,10 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **SC-PERF-001**: This repository's suite stays within budget derived from **20.73 ms/test**;
   the descriptor's publication costs nothing measurable; the deprecated-surface removal does not
   make the suite slower; the engine's project-load time does not regress against **008's**
-  post-landing figure; and network-map load stays within 007's recorded budget. Each is measured
-  and recorded, including any that is exceeded — recorded as exceeded rather than restated as
-  passing.
+  post-landing figure; and network-map load is measured against **008's** post-landing
+  10.14–10.49 ms rather than 007's ≤10.20 ms cap, which 008 already recorded as
+  exceeded-or-marginal. Each is measured and recorded, including any that is exceeded — recorded
+  as exceeded rather than restated as passing.
 
 ---
 
@@ -1183,3 +1263,8 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - New descriptor capability beyond FR-022a's constructible instance (FR-026).
 - Any node-model re-implementation or re-testing in a consumer repository (FR-003).
 - A reverse (v2→v1) document conversion (FR-104).
+- **A rollback path for the migration failing mid-flight.** A wave that fails partway is **fixed
+  forward** — patched and continued until ready — not reverted. This is a deliberate decision
+  (2026-09-04), and it is distinct from FR-100–FR-104, which cover a defect found *after* the
+  release: those stay. The distinction is that an unfinished migration has not been released, so
+  there is nothing to roll back to; a released one has.

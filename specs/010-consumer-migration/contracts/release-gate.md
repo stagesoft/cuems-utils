@@ -49,7 +49,7 @@ no way to answer that is not a procedure.
 
 **Retention** (FR-102): backups are retained **indefinitely**; the conversion never reclaims them.
 Reclamation is an explicit operator action, recommended no earlier than after the post-upgrade
-verification has passed *and* one full show cycle has run (research R5).
+verification has passed *and* at least one show has been loaded from the converted library and run to completion on the cluster (research R5).
 
 **No reverse conversion** (FR-104): the conversion registry is forward-only by construction, one
 transformation drops a block and is not reversible, and building one would be new library

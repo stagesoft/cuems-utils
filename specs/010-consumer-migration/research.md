@@ -119,8 +119,10 @@ reclaimed. The plan owes a number; the honest answer is that a number is the wro
 
 **Decision**: backups are retained **indefinitely** — the conversion never reclaims them
 automatically. Reclamation is a separate explicit operator action, and the guide's recommended
-earliest moment is *after* the post-upgrade verification has passed **and** one full show cycle has
-run against the converted library.
+earliest moment is *after* the post-upgrade verification has passed **and** an observable condition
+has been met: at least one show loaded from the converted library and run to completion on the
+cluster. ("One full show cycle" was the original phrasing; replaced 2026-09-04 because it is not
+checkable by a reader outside the domain.)
 
 **Rationale**: the window in which a defect surfaces in this domain is a rehearsal-to-performance
 cycle, not a number of days. A timer that expires before that window makes FR-102's

@@ -63,7 +63,7 @@ verification.
 |---|---|---|---|---|
 | `cuems-utils` | `010-consumer-migration` (from `feat/xml-refactor`) | yes | `hatch test` | yes |
 | `cuems-engine` | `rc_1` | yes | `tests/` | yes |
-| `cuems-editor` | `rc1` | no | `tests/` | **no** `debian/` |
+| `cuems-editor` | `rc1` | no | `tests/` | **no** `debian/` — **acquired in this feature** (FR-090a) |
 | `cuems-common` | `007-node-model-migration` | no | `tests/` | yes |
 | `cuems-nodeconf` | `feat/xml-refactor` | no | `tests/` | yes |
 | `cuems-frontend` | `main` | no | **no** `tests/` (5 `.spec.ts` in 112 `.ts`) | **no** `debian/` |
@@ -417,7 +417,10 @@ that same style rather than a second reporting idiom (Constitution III).
 **Retention (FR-102 — the number this plan owes)**: backups are retained **indefinitely; the
 conversion never reclaims them automatically.** Reclamation is a separate, explicit operator
 action, and the guide's recommended earliest moment is after the post-upgrade verification has
-passed *and* one full show cycle has run on the converted library. An automatic retention window
+passed *and* an **observable condition** has been met: at least one show has been loaded from the
+converted library and run to completion on the cluster. ("One full show cycle" was the original
+wording; it is replaced because it is not checkable by a reader outside the domain.) An automatic
+retention window
 was rejected: the window in which a defect surfaces here is a rehearsal-to-performance cycle, not a
 number of days, and a timer that expires before it makes FR-102's rollback unperformable.
 
@@ -471,11 +474,11 @@ construction rather than by sampling.
 | 1b — `cuems-editor` start-up | FR-040 |
 | 1c — `cuems-engine` | FR-030, FR-031, FR-032, FR-033, FR-034, FR-035 |
 | 1d — Avahi cutover (both repos) | FR-060, FR-061, FR-062, FR-063 |
-| 2a — `cuems-editor` | FR-010, FR-011, FR-012, FR-013, FR-013a, FR-013b, FR-041, FR-042, FR-043, FR-043b, FR-043c, FR-043d, FR-044, FR-045, FR-046, FR-047, FR-048, FR-048a, FR-048b, FR-048c, FR-049, FR-049a, FR-049b, FR-049c, FR-105, FR-106, FR-107 |
+| 2a — `cuems-editor` | FR-010, FR-011, FR-012, FR-013, FR-013a, FR-013b, FR-041, FR-042, FR-043, FR-043b, FR-043c, FR-043d, FR-044, FR-045, FR-046, FR-047, FR-048, FR-048a, FR-048b, FR-048c, FR-049, FR-049a, FR-049b, FR-049c, **FR-049d**, FR-105, FR-106, FR-107 |
 | 2b — `cuems-nodeconf` | FR-064, FR-065, FR-066, FR-067, FR-068, FR-069 |
-| 3 — `cuems-frontend` | FR-084, FR-085, FR-086, FR-087, FR-088, FR-088a, FR-088b, FR-088c, FR-088d, FR-088e, FR-105 (UI half), FR-108 |
-| **4 — rollout, gate, data migration** | FR-036, FR-091, FR-092, FR-093, FR-094, FR-095, FR-095a, FR-095b, FR-095c, FR-095d, FR-096, FR-097, FR-100, FR-101, FR-102, FR-103, FR-104 |
-| **5 — removal and the guide** | FR-029, FR-029a, FR-029b, FR-029c, FR-029d, FR-070, FR-071, FR-072, FR-073, FR-073a, FR-UX-001, FR-UX-002, FR-UX-003, FR-UX-004 |
+| 3 — `cuems-frontend` | FR-084, FR-085, FR-086, FR-087, FR-088, FR-088a, FR-088b, FR-088c, FR-088d, FR-088e, **FR-088f**, FR-105 (UI half), FR-108 |
+| **4 — rollout, gate, data migration** | FR-036, **FR-090a**, **FR-100a**, **FR-102a**, FR-091, FR-092, FR-093, FR-094, FR-095, FR-095a, FR-095b, FR-095c, FR-095d, FR-096, FR-097, FR-100, FR-101, FR-102, FR-103, FR-104 |
+| **5 — removal and the guide** | FR-029, **FR-029e**, **FR-070a**, **FR-070b**, FR-029a, FR-029b, FR-029c, FR-029d, FR-070, FR-071, FR-072, FR-073, FR-073a, FR-UX-001, FR-UX-002, FR-UX-003, FR-UX-004 |
 | **Spanning (every wave)** | FR-001, FR-002, FR-003, FR-004, FR-005, FR-080, FR-081, FR-082, FR-083, FR-090, FR-PERF-001 |
 
 **Notes on the rows that are not a single wave's work:**
