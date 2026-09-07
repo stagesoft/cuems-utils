@@ -448,6 +448,25 @@ def generate_script_example():
     leaf_names = _assert_every_choice_member_has_a_builder(builders)
     cues = [builders[name]() for name in leaf_names]
 
+    # Point every action reference at a cue that is actually here (T015a).
+    #
+    # ``build_action_cue`` and ``build_fade_cue`` cannot do this themselves:
+    # they run *before* the list exists, so the only id available to them was a
+    # placeholder shared with a DMX output name. That placeholder resolved to
+    # nothing, which made this example — the document D25 has consumers clone
+    # in place of a hand-maintained template — one the library's own strict load
+    # path rejects, and would have handed every new project an unloadable
+    # reference.
+    #
+    # Undetectable until ``action_target_resolves`` existed, because nothing
+    # checked that a *non-null* action target named a real cue.
+    referent = next(
+        (cue["id"] for cue in cues if "action_target" not in cue), cues[0]["id"]
+    )
+    for cue in cues:
+        if "action_target" in cue:
+            cue["action_target"] = referent
+
     script = CuemsScript({
         "name": "Example Script",
         "description": "Descriptor-generated example (feature 008, ITEM D)",

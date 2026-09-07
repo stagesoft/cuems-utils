@@ -27,7 +27,7 @@
             <prewait>
                 <CTimecode>00:00:00.000</CTimecode>
             </prewait>
-            <target>00000000-0000-4000-8000-000000000000</target>
+            <target />
             <timecode>True</timecode>
             <ui_properties>
                 <timeline_position>

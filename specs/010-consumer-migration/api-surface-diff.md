@@ -69,3 +69,63 @@ Two alternative designs were considered on 2026-09-04 and rejected on measured g
 instead from `tests/contract/test_schema_name_enum.py`, which asserts the members against the
 registry in both directions. Whether the API golden should also pin public *enums* is a question
 this feature raises and does not settle.
+
+---
+
+# Golden events — feature 010
+
+Standing rule 1 permits a golden update when its diff is **enumerated and justified**. Four files
+moved, in two unrelated groups. Both are recorded here so neither reads as a regeneration.
+
+## Group 1 — a non-conformant fixture, corrected at the input
+
+`tests/data/corpus/cuems-engine/projects/empty_test/script.xml` carried
+`<target>00000000-0000-4000-8000-000000000000</target>`, a placeholder naming no cue. `script.xsd`
+says `<!-- target uuid or none -->`, so the document was simply **wrong**, and `target_resolves`
+found it — a real instance of the defect the rule exists for, in this repository's own corpus.
+
+Corrected at the **input** (`<target />`, the schema's "none") rather than by re-cutting the output
+to show the repaired value. A document with an empty `<contents />` has no cue to target, so "none"
+is the truthful state; pointing it at the CueList's own id would have been a self-reference,
+resolvable and meaningless.
+
+| File | Change |
+|---|---|
+| `tests/data/corpus/…/empty_test/script.xml` | `<target>0000…0000</target>` → `<target />` |
+| `tests/golden/xml/cuems-engine__projects__empty_test__script.xml` | same, following the input |
+| `tests/golden/dict/cuems-engine__projects__empty_test__script.reader.json` | `"target": "0000…0000"` → `"target": null` |
+
+**The `pre-008` twin is deliberately left alone.** It carries the same value, but it is read only by
+the conversion tests, which do not load strictly, and it exists to represent a *real old-shape
+document*. Editing it would rewrite the historical record the conversion path is tested against.
+
+## Group 2 — the generated example was not loadable
+
+`generate_script_example` gave `ActionCue` and `FadeCue` an `action_target` of `target_uuid`, a
+freshly minted placeholder **also used as a DMX output name** — so it never resolved. Undetectable
+until `action_target_resolves` existed, because nothing checked that a non-`None` action target
+named a real cue.
+
+| File | Changed leaves |
+|---|---|
+| `tests/golden/generated/example_script.xml` | `action_target` on `ActionCue` and `FadeCue`: `…000004` → `…000002` (the AudioCue's id). Nothing else |
+| `tests/golden/generated/example_script.reader.json` | **exactly 2** changed leaves, both `action_target` |
+
+## A capture-script defect found while doing this — NOT fixed here
+
+`python -m tests.support.capture_goldens --force` replaced **8** goldens, not the 2 intended, and
+its output for the config-dict goldens is **wrong**:
+
+```
+-"adopted": true,  "online": true,  … "schemaLocation": "…"
++"adopted": "True","online": "True"   (schemaLocation dropped)
+```
+
+That contradicts feature 007's single-schema typing exception (`network_map` decodes
+`adopted`/`online` to `bool`). The capture path has drifted from the library, so **`--force` cannot
+currently be trusted to regenerate config goldens**. All eight were reverted and the four files
+above were applied surgically, with `MANIFEST.sha256` updated for exactly those four entries.
+
+This is a pre-existing defect in test tooling, unrelated to feature 010's scope. Recorded rather
+than fixed, because fixing it means deciding which side is right — the capture script or the
+committed goldens — and that is 008's decision to revisit, not this feature's.

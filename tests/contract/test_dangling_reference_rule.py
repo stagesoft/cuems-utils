@@ -59,8 +59,23 @@ def test_a_dangling_target_is_cleared_and_reported(tmp_path):
     assert record.substituted_value is None
 
 
-def test_a_dangling_action_target_is_cleared_and_reported(tmp_path):
+def test_a_dangling_action_target_raises_rather_than_repairing(tmp_path):
+    """The asymmetry with ``target``, and why it is not an inconsistency.
+
+    Repair means *substitute the field's declared default*, and
+    ``ActionCue.REQ_ITEMS['action_target']`` is ``None`` — which
+    ``action_target_required`` rejects. Repairing would produce a document
+    violating the very rule that fired. **A required reference has no valid
+    default by construction**, so ``action_target_resolves`` is
+    ``repairable=False`` and the load raises.
+
+    ``cuems-editor`` cleared these to ``None`` before parsing, which is why it
+    never met the contradiction: it produced documents this tier rejects, and
+    that would have failed at show time regardless. The outcome differs from the
+    editor's; the *detection* does not, which is what FR-043c asks for.
+    """
     from cuemsutils.cues.ActionCue import ActionCue
+    from cuemsutils.errors import ValidationError
 
     script = broken.valid_script()
     action = next(
@@ -69,10 +84,29 @@ def test_a_dangling_action_target_is_cleared_and_reported(tmp_path):
     dict.__setitem__(action, "action_target", DANGLING)
     path = _write(script, tmp_path / "dangling_action_target.xml")
 
-    loaded, report = CuemsScript.load_with_report(path)
+    with pytest.raises(ValidationError) as raised:
+        CuemsScript.load(path)
 
-    assert report.outcome is Outcome.REPAIRED
-    assert any("action_target" in r.field_path for r in report.repairs)
+    assert "action_target" in str(raised.value)
+
+
+def test_the_dangling_action_target_message_names_the_value(tmp_path):
+    """FR-049d — an operator meeting this needs to know *which* reference, or
+    they cannot correct the field by hand or choose a backup to restore."""
+    from cuemsutils.cues.ActionCue import ActionCue
+    from cuemsutils.errors import ValidationError
+
+    script = broken.valid_script()
+    action = next(
+        c for c in script.cuelist.contents if isinstance(c, ActionCue)
+    )
+    dict.__setitem__(action, "action_target", DANGLING)
+    path = _write(script, tmp_path / "named.xml")
+
+    with pytest.raises(ValidationError) as raised:
+        CuemsScript.load(path)
+
+    assert DANGLING in str(raised.value)
 
 
 def test_a_reference_that_resolves_is_left_alone(tmp_path):
@@ -113,26 +147,41 @@ def test_the_rule_reaches_references_nested_inside_a_cuelist(tmp_path):
     assert any(r.rule_name == "target_resolves" for r in report.repairs)
 
 
-def test_the_rule_is_registered_and_repairable():
-    """FR-043a — repairable, so a dangling reference degrades a document rather
-    than rejecting it, matching the editor's behaviour today."""
+def test_both_reference_rules_are_registered_with_the_right_repairability():
+    """``target`` repairs; ``action_target`` cannot. The asymmetry is the
+    contract, so it is asserted rather than left to whichever test happens to
+    exercise it.
+
+    Matched by what a rule *covers* (``applies_to``), not by its name: a name
+    heuristic false-positives on the pre-existing ``action_target_required``
+    (``repairable=False``) and ``fade_target_value_range`` (whose field is
+    ``target_value``).
+    """
     from cuemsutils.xml.validators import RULES
 
-    # Matched by what a rule *covers*, not by what it is called: T015a has not
-    # named it yet, and a name heuristic would false-positive on the existing
-    # ``action_target_required`` (repairable=False) and ``fade_target_value_range``
-    # (whose field is ``target_value``). Asserting on ``applies_to`` pins the
-    # contract without over-constraining the name.
-    repairable_fields = {
-        field
-        for rule in RULES.values()
-        if rule.repairable
-        for _type, field in rule.applies_to
-    }
-    assert "target" in repairable_fields, (
-        f"no repairable rule covers 'target'; repairable fields = {sorted(repairable_fields)}"
+    def covers(field: str):
+        return {r for r in RULES.values() if any(f == field for _t, f in r.applies_to)}
+
+    target_rules = covers("target")
+    action_rules = covers("action_target")
+
+    assert any(r.repairable for r in target_rules), (
+        f"no repairable rule covers 'target'; found {sorted(r.name for r in target_rules)}"
     )
-    assert "action_target" in repairable_fields, (
-        f"no repairable rule covers 'action_target'; "
-        f"repairable fields = {sorted(repairable_fields)}"
+    assert action_rules, "no rule covers 'action_target'"
+    assert not any(r.repairable for r in action_rules), (
+        "action_target must not be repairable: its declared default is None, "
+        "which action_target_required rejects — repairing would restate the "
+        f"violation. Found {sorted(r.name for r in action_rules if r.repairable)}"
     )
+
+
+def test_the_two_action_target_rules_report_different_faults():
+    """One says *there must be a reference*, the other *the reference must
+    resolve*. Both can fire, and an operator needs them told apart."""
+    from cuemsutils.xml.validators import RULES
+
+    assert "action_target_required" in RULES
+    assert "action_target_resolves" in RULES
+    assert RULES["action_target_resolves"].document_scoped
+    assert not RULES["action_target_required"].document_scoped

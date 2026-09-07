@@ -753,11 +753,33 @@ repositories on disk and show the count is zero; then delete and run the suite.
   document itself: a repair the document alone determines belongs to the library, which owns
   repair (D21); a correction requiring the editor's database belongs to the editor, which owns the
   database. Neither may remain a dict edit ahead of a now-strict read.
-- **FR-043a**: **Dangling-reference nulling moves into the library** as a registered semantic rule
-  — every `target` and `action_target` MUST resolve to a cue present in the same document, and a
-  reference that does not MUST be **repairable**, cleared to the field's default and named in the
-  load report. It needs only the document, so under FR-043's rule it is the library's. The editor's
+- **FR-043a**: **Dangling-reference detection moves into the library** as registered semantic
+  rules — every `target` and `action_target` MUST resolve to a cue present in the same document.
+  It needs only the document, so under FR-043's rule it is the library's, and the editor's
   implementation is **deleted, not ported**; two implementations of one repair is how they drift.
+  **The two fields resolve differently, and the asymmetry is required rather than tolerated**:
+  - `target` is **repairable** — cleared to its declared default (`None`) and named in the load
+    report. No rule forbids `None` there; an unset target is a legitimate state.
+  - `action_target` is **unrepairable** — the load **raises**, naming the document, the field and
+    the unresolved value (FR-049/FR-049d). Repair means *substitute the declared default*, and
+    `ActionCue`'s default is `None`, which `action_target_required` rejects: repairing would
+    produce a document violating the rule that fired. **A required reference has no valid default
+    by construction.** Fabricating a UUID would be worse, because it would look resolvable.
+  `cuems-editor` cleared both to `None` before parsing, which is why it never met this
+  contradiction — it produced documents this tier rejects and that would have failed at show time.
+  FR-043c's "still detect what it detects today" is satisfied by both: detection is preserved, and
+  for `action_target` it is **gained** — a dangling non-`None` value was accepted before this
+  feature, so the library had no check at all.
+- **FR-043a-i**: `action_target_required` MUST NOT be relaxed, re-defaulted, or made repairable to
+  accommodate FR-043a. It is correct: the repair model substitutes defaults, and this field has no
+  valid one. The new rule sits **beside** it — one says *there must be a reference*, the other *the
+  reference must resolve* — and they fail for different reasons an operator needs told apart.
+- **FR-043a-ii**: The library's own generated example MUST load under these rules. Measured
+  2026-09-07, it did not: `generate_script_example` gave `ActionCue` and `FadeCue` an
+  `action_target` placeholder shared with a DMX output name, resolving to nothing. Since D25 makes
+  that example the thing consumers clone in place of a hand-maintained template, it would have
+  handed every new project an unloadable reference. The generator now points action references at a
+  cue that is actually present.
 - **FR-043b**: **Duration-from-database correction stays in the editor.** It overwrites a cue's
   media duration from the project database, and the library has no database and MUST NOT gain one.
   It MUST become an **object-level operation** on the loaded show object rather than a dict walk,

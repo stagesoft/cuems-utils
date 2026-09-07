@@ -551,6 +551,49 @@ def _target_resolves(value, obj=None, context=None) -> None:
 
 
 @register(
+    "action_target_resolves",
+    [("ActionCue", "action_target")],
+    # UNREPAIRABLE, and not for want of trying. Repair means *substitute the
+    # field's declared default*, and ``ActionCue.REQ_ITEMS['action_target']`` is
+    # ``None`` — which ``action_target_required`` rejects. Repairing would
+    # produce a document violating the very rule that fired, so the flag is a
+    # statement about the repair *model*, not a gap in it: a **required
+    # reference has no valid default by construction**. Fabricating a uuid would
+    # be worse than the dangling one, because it would look resolvable.
+    #
+    # ``cuems-editor`` cleared these to ``None`` before parsing, which is why it
+    # never saw the contradiction: it produced documents that this tier rejects
+    # and that would have failed at show time anyway.
+    repairable=False,
+    document_scoped=True,
+)
+def _action_target_resolves(value, obj=None, context=None) -> None:
+    """An action cue's ``action_target`` must name a cue in the same document.
+
+    **New detection, not a stricter reading of an old rule.** Measured
+    2026-09-04: a dangling *non-``None``* ``action_target`` was accepted —
+    ``action_target_required`` only rejects ``None``, so an ActionCue pointing at
+    a deleted cue passed. The editor's raw-dict walk was the only thing catching
+    it, and it is being deleted (FR-043a).
+
+    Sits **beside** ``action_target_required`` rather than replacing it: one
+    says *there must be a reference*, this says *the reference must resolve*.
+    Both can fire, and they fail for different reasons an operator needs told
+    apart.
+    """
+    if value is None or context is None:
+        # ``None`` is ``action_target_required``'s business, not this rule's —
+        # two rules reporting one fault would double-count it. A ``None``
+        # context means the caller had no document (``enforce``), and a rule
+        # that cannot decide passes rather than guessing.
+        return
+    if value not in context.cue_ids:
+        raise ValueError(
+            f"action_target {value} does not resolve to a cue in this document"
+        )
+
+
+@register(
     "fade_action_type",
     [("FadeCue", "action_type")],
     # ``FadeCue.REQ_ITEMS['action_type']`` is ``'fade_action'`` — the one
