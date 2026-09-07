@@ -27,6 +27,15 @@ library source.)*
 
 ## 2. The public descriptor path *(wave 0)*
 
+**Requires `cuemsutils >= 0.1.0rc16`.** The surface below landed *after* `0.1.0rc15`, which is what
+every consumer currently pins, so `rc15` cannot express "I need the descriptor". The library was
+bumped to `0.1.0rc16` on 2026-09-07 for exactly this reason: an API nobody can name a version for
+is an API nobody can depend on, and wave 0 is not usable until its consumers can pin it.
+
+Note this is a **floor**, and FR-091 requires the gate to acquire an upper bound or a `Breaks:` as
+well — a floor cannot express "must refuse a library that has moved past me", which is what the
+release gate says. That is wave 4's work; the floor is what unblocks flows 02 and 05 now.
+
 Landed 2026-09-04. Written at call-site granularity so flows 02 (`cuems-editor`) and 05
 (`cuems-frontend`) can be built against it without reading library source.
 
