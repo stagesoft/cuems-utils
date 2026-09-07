@@ -2,6 +2,8 @@
 
 from os import path
 
+import sys
+
 import pytest
 
 from cuemsutils.cues import CueList, CuemsScript
@@ -163,6 +165,33 @@ def test_boundary_target_value_100_accepted():
     assert fc.target_value == 100
 
 
+def _coverage_is_measuring() -> bool:
+    """Whether a coverage collector is **active**, not merely importable.
+
+    ``"coverage" in sys.modules`` is the wrong signal: ``pytest-cov`` is an
+    installed dependency, so the module is present on every run and the guard
+    would skip this test permanently — silently retiring it instead of
+    protecting it.
+    """
+    try:
+        import coverage
+
+        return coverage.Coverage.current() is not None
+    except Exception:  # noqa: BLE001 - absence or any API drift means "not measuring"
+        return False
+
+
+@pytest.mark.skipif(
+    _coverage_is_measuring(),
+    reason=(
+        "wall-clock budget, and coverage instrumentation invalidates it: "
+        "measured 2.217s against a 2.0s limit under --cover, ~1.4s without. "
+        "A clock measures the machine; instrumenting the machine measures the "
+        "instrument. Skipped rather than loosened, because raising the limit "
+        "to accommodate a traced interpreter would stop it detecting the "
+        "regression it exists for."
+    ),
+)
 def test_fade_cue_construction_performance():
     """T036: Constructing 10 000 FadeCue instances completes in under 2 seconds (FR-PERF-001)."""
     import time

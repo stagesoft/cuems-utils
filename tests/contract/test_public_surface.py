@@ -53,3 +53,35 @@ def test_the_accessor_takes_the_enum_and_not_a_bare_string():
     manager = ConfigManager(load_all=False)
     with pytest.raises((TypeError, ValueError)):
         manager.get_schema_descriptor("script")
+
+
+def test_generate_example_also_rejects_a_bare_string():
+    """FR-028a applies to both accessors, not only the descriptor one.
+
+    An exemption granted because a parameter is typed has to hold everywhere the
+    parameter appears, or the surface is typed by accident rather than by rule.
+    """
+    ConfigManager, _ = _public()
+    with pytest.raises(TypeError):
+        ConfigManager(load_all=False).generate_example("script")
+
+
+def test_generate_example_raises_for_a_schema_with_no_generator():
+    """FR-023 — raises rather than returning ``None``.
+
+    Four of the six schemas have no example generator. A silent ``None`` is the
+    failure mode this feature exists to end: the caller would meet it later as an
+    ``AttributeError`` somewhere unrelated, with nothing naming the cause.
+    """
+    ConfigManager, SchemaName = _public()
+    manager = ConfigManager(load_all=False)
+
+    with pytest.raises(NotImplementedError) as raised:
+        manager.generate_example(SchemaName.NETWORK_MAP)
+
+    message = str(raised.value)
+    assert "network_map" in message
+    assert "script" in message and "settings" in message, (
+        "the message must name the generators that do exist, or the caller "
+        "learns only that theirs does not"
+    )

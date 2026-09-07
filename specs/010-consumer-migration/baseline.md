@@ -173,3 +173,59 @@ rule `(value, enclosing_cue)`, and a cue cannot see its siblings, so "does this 
 undecidable at that signature. `Rule` gains `document_scoped`, and `_iter_t2_findings` collects
 every cue id **once** before the reporting walk — per-node collection would be quadratic on a real
 show file.
+
+
+## Wave 0 close-out — green, and measured (2026-09-07)
+
+| | |
+|---|---|
+| Suite | **2641 passed, 100 skipped, 2 xfailed, 0 failed** |
+| Under coverage | **2641 passed, 0 failed** — see the guard below |
+| Coverage, whole project | **91%** (14 875 statements, 2 440 branches) |
+| Coverage, `src/cuemsutils` | **85%** |
+
+Wave-0 modules:
+
+| Module | Coverage |
+|---|---|
+| `xml/spec.py` | **99%** (one missed line, a pre-existing `__str__`) |
+| `xml/descriptor.py` | **95%** |
+| `xml/validators.py` | **82%** |
+| `tools/ConfigManager.py` | **77%** |
+
+**Every miss in those four is pre-existing code, not this feature's.** Checked line by line rather
+than inferred from the percentage: `ConfigManager`'s gaps are `get_video_output_id` /
+`get_audio_output_id` (572-595, 641-647); `validators`' are `_unwrap_single` and neighbours
+(784-808). `SchemaName`, `get_schema_descriptor`, `generate_example`, `_instance_for`,
+`_DocumentContext`, `target_resolves` and `action_target_resolves` are all covered.
+
+Three branches of the **new** code were uncovered when first measured, and all three were
+behaviours this feature had specified rather than incidental paths — so tests were added rather
+than the numbers accepted:
+
+- `generate_example`'s `TypeError` on a bare string (FR-028a applies to both accessors, not just
+  the descriptor one);
+- `generate_example`'s `NotImplementedError` for a schema with no generator (FR-023's "raises
+  rather than returning `None`");
+- the reference rules' `context is None` path — no document, no opinion, which is what keeps
+  programmatic cue-by-cue construction working.
+
+### The suite could not be run with coverage at all
+
+`tests/test_fade_cue.py::test_fade_cue_construction_performance` asserts 10 000 constructions in
+under 2.0 s. Under `--cover` it measured **2.217 s** and failed — a **pre-existing** wall-clock test
+that instrumentation invalidates by construction. It is now skipped when a collector is active.
+
+Two details worth keeping:
+
+- **Skipped, not loosened.** Raising the limit to accommodate a traced interpreter would stop it
+  detecting the regression it exists for.
+- **`"coverage" in sys.modules` is the wrong signal.** `pytest-cov` is an installed dependency, so
+  the module is present on every run and that guard skipped the test *permanently* — silently
+  retiring it. The check is `coverage.Coverage.current() is not None`: measuring, not merely
+  importable.
+
+The 100 skips and 2 xfails were reviewed and are all structural: negative-corpus documents that do
+not reach the object layer, fields `Unset` by design, four sub-millisecond perf comparisons below
+their noise floor, and 005's two recorded `strict=True` xfails for SC-001's residual type
+differences. None is stale.

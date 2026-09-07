@@ -185,3 +185,31 @@ def test_the_two_action_target_rules_report_different_faults():
     assert "action_target_resolves" in RULES
     assert RULES["action_target_resolves"].document_scoped
     assert not RULES["action_target_required"].document_scoped
+
+
+def test_the_reference_rules_pass_when_they_cannot_decide():
+    """No document, no opinion.
+
+    ``enforce`` — the setter call site — has no document to resolve against, so
+    a document-scoped rule receives ``context=None``. It must **pass**: a rule
+    that guessed would make programmatic assignment fail on a reference that is
+    perfectly valid in a document it cannot see, which would break every caller
+    that builds a script cue by cue.
+    """
+    from cuemsutils.xml.validators import RULES
+
+    for name in ("target_resolves", "action_target_resolves"):
+        RULES[name].check(DANGLING, None, None)  # no context — must not raise
+
+
+def test_a_null_action_target_is_left_to_the_rule_that_owns_it():
+    """``action_target_required`` reports a missing reference; this rule reports
+    an unresolvable one. If both fired on ``None`` the operator would see one
+    fault counted twice."""
+    from cuemsutils.xml.validators import RULES
+
+    context = type("Ctx", (), {"cue_ids": frozenset()})()
+    RULES["action_target_resolves"].check(None, None, context)  # must not raise
+
+    with pytest.raises(ValueError):
+        RULES["action_target_required"].check(None, None)
