@@ -174,7 +174,18 @@ class NodeIndex(dict):
         return False
 
     def set_controller_always_adopted(self) -> None:
-        """The controller is always adopted; on a first run, nothing else is."""
+        """Mark every controller adopted. Nothing else is touched.
+
+        There is deliberately **no first-run behaviour** here, and no parameter
+        that could carry one. The daemon this was ported from also cleared every
+        non-controller's ``adopted`` flag on a first run; ``cuems-nodeconf``
+        deleted that branch in its feature 001 rather than asking for the
+        parameter back, having measured it to have no reachable correct effect
+        and one reachable harmful one — the flag was computed once and never
+        reset, so on a resident daemon an operator's adoption was silently
+        cleared by the next refresh tick, after the UI had been told it
+        succeeded.
+        """
         for n in self.values():
             if n.get("node_role") is NodeRole.controller:
                 n["adopted"] = True

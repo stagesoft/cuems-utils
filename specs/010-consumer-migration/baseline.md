@@ -482,3 +482,67 @@ through the pre-feature call path verbatim. It affects **every** `save_document`
 only the node daemon.
 
 Scheduled as **T080–T082**.
+
+## T080–T084 — the upstream findings, closed (2026-09-17)
+
+### T080/T081 — `write_tree` preserves the target's mode
+
+The reporter's own measurement, re-run against the fix:
+
+```
+                     before T080      after T080
+fresh save             0o600            0o664     (0o666 & ~umask, umask 0o002 here)
+existing file 0o644    0o600            0o644
+```
+
+**Fixed at the choke point, not per domain.** `src/cuemsutils/xml/documents.py`'s `write_tree` is
+the single writer for every document this package produces — all four configuration domains through
+`config.base.save_document`, `CuemsScript.save`, and `xml/convert_documents.py` — so one change
+covers them all. `_mode_for(target)` stats the target and copies its mode; with no target it falls
+back to `0o666 & ~umask`.
+
+**Reading the umask is itself a write**, since `os.umask` only returns the old value by setting a
+new one. The probe is `0o077`, not the conventional `0`: if another thread creates a file inside the
+window it comes out *more* restrictive than it asked for, never world-writable. This package runs
+inside threaded daemons — `cuems-nodeconf`'s resident worker loop among them — so "the window is
+short" is not on its own a reason to fail open in it.
+
+**T081 was written failing first**, as the constitution requires: 6 of its 10 assertions failed
+against the pre-fix library, 10/10 pass now. The four that passed before are the ones that *should*
+have — `0o600` preserved trivially, the umask case (`0o600` is never other-readable), and the two
+contracts the fix must not break.
+
+The test file is `tests/contract/test_save_permissions.py`. Three things in it are deliberate:
+
+- the existing-target case is parametrised over `0o644`/`0o664`/`0o600`/`0o640`, so a fix that
+  hard-codes the mode `cuems-common` happens to ship **fails** rather than passes;
+- `test_every_public_save_path_preserves_the_mode` runs `network_map` *and* `script`, so a fix
+  applied inside one domain's `save` would pass the rest of the file and fail there;
+- atomicity and non-mutation are re-asserted, including that a **failed** write leaves the target's
+  mode alone — a save that fails but still relaxes a mode is a quieter version of the same bug.
+
+| | |
+|---|---|
+| Suite | **2651 passed**, 100 skipped, 2 xfailed, 0 failed (2641 + the 10 new) |
+| `cuems-nodeconf` against the fixed library | **110 passed** — yardstick still byte-identical |
+
+### T082 — the two stale docstrings, corrected
+
+`tools/NodeList.py`'s `set_controller_always_adopted` no longer claims first-run behaviour it does
+not have, and now records *why* there is none. `config/network_map.py`'s `refresh` no longer calls
+feature 008's "not ported" item open — it is closed, and closed in this library's favour.
+Documentation only; the yardstick is unaffected and was re-diffed to confirm.
+
+### T083 — the spelling that caused the misreading
+
+`ConfigManager.load_network_map`'s `netmap.get_dict()` now states what it actually returns, and the
+`network_map` setter's annotation no longer contradicts its own getter three lines above. No
+behaviour change. Both exist so the next reader reaches the right conclusion without measuring —
+which is what neither of the first two readers could do.
+
+### T084 — no public alias, by decision
+
+Recorded in [migration-guide.md §4a](migration-guide.md). FR-025 says *name the existing equivalent
+rather than adding a synonym*; `ConfigManager.network_map` **is** the equivalent, so a re-export
+would be the synonym FR-025 forbids. The consumer-side migration is prompted at
+`specs/planning/xml-rebuild/010-consumer-prompts/04a-cuems-nodeconf-public-path.md`.

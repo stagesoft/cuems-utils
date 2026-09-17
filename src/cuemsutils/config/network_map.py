@@ -153,13 +153,16 @@ class CuemsNetworkMapType(ConfigDict):
         :meth:`~cuemsutils.tools.NodeList.NodeIndex.missing_adopted`
         separately, on the same ``discovered`` argument.
 
-        **Not ported**: the daemon additionally clears every non-controller
-        node's ``adopted`` flag on a first run (``CuemsNodeConf.
-        set_master_always_adopted``'s ``self.is_first_run`` branch).
-        ``set_controller_always_adopted()``'s declared shape
-        (data-model.md §5) carries no such parameter, so that behaviour is
-        not reproduced here — recorded as an open item in
-        ``migration-guide.md`` rather than added silently.
+        **Deliberately not reproduced**: the daemon used to additionally clear
+        every non-controller node's ``adopted`` flag on a first run.
+        ``set_controller_always_adopted()`` carries no such parameter
+        (data-model.md §5), which feature 008 recorded as an open item. It is
+        **closed**, and closed in this library's favour: ``cuems-nodeconf``
+        deleted that branch outright in its feature 001 rather than asking for
+        the parameter, so the omission was correct rather than an oversight
+        awaiting reconciliation. See
+        :meth:`~cuemsutils.tools.NodeList.NodeIndex.set_controller_always_adopted`
+        for why the branch was harmful.
 
         Args:
             discovered: freshly-discovered nodes, keyed however the caller's

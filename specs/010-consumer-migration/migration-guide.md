@@ -281,12 +281,29 @@ as a conffile (`debian/install:204`), and `cuems-nodeconf` `Depends: cuems-commo
 any packaged host the file exists, so `is_first_run` is false and the branch is dead. It is
 reachable only on a dev checkout or a host where the file was deleted by hand.
 
-**Recommendation**: the migration belongs in `cuems-nodeconf` (its T015-equivalent), not here. This
-library should add **no** public synonym for `CuemsNetworkMapType` — FR-025's own instruction is
-*name the existing equivalent rather than adding a synonym*, and the equivalent exists. What this
-repository owes instead is the **docstring correction** on `ConfigManager.network_map`'s setter and
-`load_network_map`, whose `get_dict()` spelling is what made a returned object look like a returned
-dict to two readers in a row.
+**Decided (T084): this library adds no public alias.** FR-025's own instruction is *name the
+existing equivalent rather than adding a synonym*, and the equivalent exists — so a new
+`cuemsutils.tools` re-export of `CuemsNetworkMapType` would be the synonym FR-025 forbids, not the
+fix. The migration belongs in `cuems-nodeconf`; the prompt for it is
+[`specs/planning/xml-rebuild/010-consumer-prompts/04a-cuems-nodeconf-public-path.md`](../planning/xml-rebuild/010-consumer-prompts/04a-cuems-nodeconf-public-path.md).
+
+**What this repository owed instead has landed (T083)**, because the misreading was the library's
+fault and not the consumer's:
+
+| Site | Was | Now |
+|---|---|---|
+| `ConfigManager.load_network_map` | `self.network_map = netmap.get_dict()`, unexplained | the same line, with what `get_dict()` actually returns stated at the assignment |
+| `ConfigManager.network_map` setter | annotated `value: dict[str, Any]`, contradicting its own getter three lines above | `CuemsNetworkMapType \| dict[str, Any]` — `dict` kept only because `__init__` seeds `{}` before any load |
+
+Neither changes behaviour. Both exist so the next reader reaches the correct conclusion without
+measuring, which is what neither of the first two could do.
+
+**One thing stays out of scope permanently.** `cuems-nodeconf`'s vendored yardstick
+(`specs/planning/yardstick/test_nodeindex_characterization.py`) imports
+`cuemsutils.config.network_map` too, and **must not be changed**: it is byte-identical to
+`tests/contract/test_nodeindex_characterization.py` by design, and that identity is what feature
+001's equivalence claim rests on. It is an enumerated exemption with that reason, not a site to
+fix.
 
 ### An 008 open item closed from the consumer side
 

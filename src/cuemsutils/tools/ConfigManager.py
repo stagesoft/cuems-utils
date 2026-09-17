@@ -1,6 +1,9 @@
 from enum import Enum
 from os import path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:  # annotation only — no runtime import, so no cycle with xml/
+    from ..config.network_map import CuemsNetworkMapType
 
 from .ConfigBase import ConfigBase, load_config_document
 from ..log import Logger, logged
@@ -172,7 +175,14 @@ class ConfigManager(ConfigBase):
         return self._network_map
 
     @network_map.setter
-    def network_map(self, value: dict[str, Any]):
+    def network_map(self, value: "CuemsNetworkMapType | dict[str, Any]"):
+        # The annotation used to read ``dict[str, Any]``, contradicting the
+        # getter three lines above and costing two readers the same wrong
+        # conclusion (feature 010, T083): that this property hands back a plain
+        # dict and that reaching ``CuemsNetworkMapType`` therefore needs an
+        # import. It does not — ``load_network_map`` assigns the bound object.
+        # ``dict`` stays in the union only because ``__init__`` seeds ``{}``
+        # before any load has run.
         self._network_map = value
 
     @property
@@ -278,6 +288,13 @@ class ConfigManager(ConfigBase):
         netmap = load_config_document(
             NetworkMap, self.conf_path('network_map.xml'), 'network_map'
         )
+        # ``get_dict()`` reads as "give me a plain dict" and does not do that:
+        # it returns the value under the document's ``main_key``, which for
+        # ``network_map`` is the bound ``CuemsNetworkMapType`` itself —
+        # ``.save`` and ``.refresh`` included. :meth:`save_network_map` depends
+        # on that, so it is load-bearing rather than incidental. Spelled out
+        # because the name misled two readers into believing a consumer needed
+        # to import ``CuemsNetworkMapType`` to reach one (feature 010, T083).
         self.network_map = netmap.get_dict()
         self.node_network_map = netmap
 
