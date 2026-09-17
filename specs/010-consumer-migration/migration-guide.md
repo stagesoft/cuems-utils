@@ -110,6 +110,7 @@ no single view of the whole; this is that view.)*
 | `cuems-nodeconf` | network-map object swap · relocated timing helper · Avahi vocabulary (its half) · packaging bounds | **all three stories landed** 2026-09-17 (`8ce7552`), **unmerged** — holds a merge gate with `cuems-common` |
 | `cuems-frontend` | | not started |
 | **`cuems-wsclient`** | | not started |
+| *(`cuems-power-bridge`)* | **not in D32's six** — found carrying the retired vocabulary in shipped code; see [§5](#️-the-denominator-is-wrong-a-seventh-consumer-carries-the-retired-vocabulary) | **unscheduled** |
 
 **`cuems-wsclient` is listed deliberately** (FR-UX-002). It was absent from 007's guide, 008's
 guide and the cross-repo plan's repository list, and that absence is why a silently broken shutdown
@@ -451,6 +452,62 @@ Named individually rather than covered by a `dev/` wildcard:
 
 Group 1 is `cuems-common`'s and is **done**. Group 2 is exempt and always was. Neither substitutes
 for the other.
+
+### ⚠️ The denominator is wrong: a **seventh** consumer carries the retired vocabulary
+
+FR-070's scope is "the ecosystem", and D32 fixes that at **six** consumer repositories. Measured
+2026-09-17, `/disk/Projects/StageLab/cuems-power-bridge` (branch `main` @ `c201405`) is a seventh,
+and it is **shipped** — `rc1_packages/cuems-power-bridge_0.3.0-5_all.deb`:
+
+```
+src/cuemspowerbridge/network_map.py:33   node_type: str | None  # "NodeType.master" | "NodeType.slave"
+src/cuemspowerbridge/network_map.py:94   node_type=_text(el, "node_type"),
+src/cuemspowerbridge/network_map.py:110  if n.node_type != "NodeType.slave":
+```
+
+It parses `<node_type>` and filters on `"NodeType.slave"` — against maps that
+`cuems-migrate-network-map` has already converted to `<node_role>controller|node</node_role>`. On
+every converted host `slave_avahi_names()` therefore returns an **empty list**.
+
+**This is a live failure, not a latent one.** `cuems-cluster-poweroff` selects nodes through this
+parser, so an orderly cluster power-off reports success having powered off nothing — the nodes stay
+up while mains is cut on the controller. `cuems-common`'s own `README.md:212` records it as a known
+issue since 1.3.0-23, so it is already observed in the field; what is new here is that it is a
+**count and scope** finding, not only a bug.
+
+**This is `cuems-wsclient`'s failure mode repeating** (FR-UX-002): a repository absent from the
+list produces work nobody schedules, and the defect survives the feature that was supposed to
+catch it. The lesson FR-UX-002 draws — *the next sweep must reach it by construction, not by
+memory* — is not satisfied by adding `cuems-power-bridge` to a list by hand either. T062's counting
+method (FR-070b) must therefore enumerate its paths as **"every repository under
+`/disk/Projects/StageLab/` that reads `network_map.xml`"**, discovered by the command, rather than
+as a fixed list of six or seven checkouts.
+
+**Now scheduled, as US11** (added to [tasks.md](tasks.md) 2026-09-17, T070–T079). The bridge's own
+findings document
+(`/disk/Projects/StageLab/cuems-power-bridge/dev/planning/cuems-power-bridge-node-role-findings.md`,
+untracked) opened it from `cuems-common`'s side; verifying it against the bridge's source turned up
+three things that document could not see, and they widen the defect rather than narrow it:
+
+1. **Three sites, not one.** `cuems-common`'s `usr/bin/cuems-cluster-poweroff:275` is the one the
+   document names. The bridge's own parser carries two more — `network_map.py:110`
+   (`slave_avahi_names`) and `:141` (`slave_ips`).
+2. **Two independent features, not one.** `slave_ips()` is not on the poweroff path at all: it
+   feeds the autoload / NNG-hub readiness gate. A converted map therefore breaks **show-playback
+   readiness** as well as orderly power-off.
+3. **The silent branch is measured, not assumed.** `parse()` reads the element through
+   `_text(el, "node_type")`, which returns `None` instead of raising. Every node is skipped, the
+   target list is empty, and the run reports success — the document's §2 first row, its worse one.
+
+The suite does not catch any of this because the fixtures at
+`tests/test_network_map_ips.py:13-19` are themselves written in the retired vocabulary: the tests
+are green *because* they certify the defect. That is what US11's T073 exists to fix, and why a
+passing suite is not evidence there.
+
+**The root cause is not the vocabulary.** The bridge holds a fourth copy of the node-identity model
+(`role_id → alias → hostname → uuid`), parsed with bare `ElementTree` against no schema — so a
+vocabulary change cannot fail loudly there by construction. 007 FR-030a-i already says the node
+model lives in `cuemsutils` only; this is what violating it costs.
 
 ## 6. Rollout, rollback and the release gate
 
