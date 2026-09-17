@@ -46,3 +46,4 @@ neither is assumed.
 | Date | Result | Postdates merge | Notes |
 |---|---|---|---|
 | 2026-09-04 | **9** | — | baseline, no consumer flow has run |
+| 2026-09-17 | **8** | `cuems-nodeconf` @ `aab9b48` (not merged to `main`) | `cuems-nodeconf`'s single entry — `cuemsutils.timeoutloop.Timeoutloop` at `CuemsNodeConf.py:26` — is **gone**, replaced by `cuemsutils.tools.TimeoutLoop.TimeoutLoop`. That repository now carries **zero**. The remaining 8 are `cuems-editor` (5) and `cuems-engine` (3), neither flow started. **Not a gate clearance** — the required value is 0, and T050 additionally requires a census dated after the last consumer *merge*; this one postdates a branch commit, not a merge |

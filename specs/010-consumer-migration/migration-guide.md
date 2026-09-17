@@ -23,6 +23,8 @@ library source.)*
 | `cuemsutils.xml.settings.NetworkMap` (internal) | `ConfigManager.load_network_map()` + `.network_map` — returns an equal dict, asserted in `tests/contract/test_public_equivalents.py` | wave 0 |
 | `cuemsutils.xml.mapper.Mapper` (internal) | **nothing — delete the import.** Measured 2026-09-04: `cuems-nodeconf` imports it and never calls it; the import line is its only occurrence in that repository | wave 0 |
 | `cuemsutils.xml.mapper.read_config_document` (internal) | **nothing — delete the import**, same measurement | wave 0 |
+| `cuemsutils.timeoutloop.Timeoutloop` (deprecated) | `cuemsutils.tools.TimeoutLoop.TimeoutLoop` — note the class also changes spelling, `Timeoutloop` → `TimeoutLoop` | wave 3 |
+| `cuemsutils.config.network_map.CuemsNetworkMapType` (internal, **no public equivalent today**) | none — see [§4a's finding](#️-one-finding-the-gate-caught-a-third-internal-import). `ConfigManager.load_network_map()`/`save_network_map()` read and write one; nothing constructs one | **open** |
 | _(accumulates)_ | | |
 
 ## 2. The public descriptor path *(wave 0)*
@@ -129,6 +131,186 @@ The editor's own implementation is **deleted, not ported**: two implementations 
 how they drift.
 
 *(FR-049c and the `action_target` half are recorded here as they land.)*
+
+## 4a. `cuems-nodeconf` — the network-map swap *(wave 3, landed 2026-09-17)*
+
+*(T029, FR-064–FR-068. Landed in `cuems-nodeconf` on `feat/xml-refactor` as its feature
+`specs/001-network-map-object-adoption` US1, verified at **`8ce7552`** — by which point that
+repository's US2 (the Avahi cutover, §4b) and US3 (packaging) had landed too. Line numbers below
+are `8ce7552`'s.)*
+
+### The nine ad hoc methods (FR-064)
+
+`CuemsNodeConf.py` was 756 lines at the flow's measured start (`7abc01f`); it is 723 now. Row 5's
+nine methods did **not** all disappear — five were deleted outright and four survive as thin
+delegating wrappers that exist only to shape the daemon's own RPC answer. Stating it as "nine
+deleted" would be wrong, and the distinction is the point: what moved is the *logic*, not the
+*seam*.
+
+| Was (`7abc01f`) | Now (`aab9b48`) | Library entry point |
+|---|---|---|
+| `merge_discovered_nodes` :440 | **deleted** | `CuemsNetworkMapType.refresh(discovered, path)` |
+| `set_master_always_adopted` :490 | **deleted** | `NodeIndex.set_controller_always_adopted` (via `refresh`) |
+| `check_missing_adopted_nodes` :501 | **deleted** | `NodeIndex.missing_adopted` (via `refresh`) |
+| `_map_signature` :281 | **deleted** | `NodeIndex.signature` |
+| `write_network_map` :413 | **deleted** | `CuemsNetworkMapType.save(path)` |
+| `refresh_network_map` :229 | **retained, delegating** (:250) | its four-step body is one `document.refresh(...)` call |
+| `adopt_node` :516 | **retained, delegating** (:476) | `NodeIndex.adopt` |
+| `unadopt_node` :537 | **retained, delegating** (:499) | `NodeIndex.unadopt` |
+| `read_network_map` :562 | **retained, delegating** (:521) | `ConfigManager(...).load_network_map()` + `.network_map` |
+
+### The RPC answer had to be reconstructed (FR-066)
+
+`NodeIndex.adopt`/`.unadopt` return a **bare bool** and do not persist. The daemon's
+`engine_callback` contract with the Angular UI is `{'OK': bool, 'error'?: str}`, so the wrappers
+rebuild the three error strings 008's guide (T052) named. The reconstruction is not a re-coding of
+the adoption rule:
+
+```python
+# after — cuemsnodeconf/CuemsNodeConf.py:476
+before = self.network_map.signature()
+if not self.network_map.adopt(node_uuid):
+    # a False is two-way ambiguous — absent or offline — told apart by a lookup,
+    # never by re-deciding adoptability here
+    if self._find_node(node_uuid) is None:
+        return {'OK': False, 'error': f'Node {node_uuid} not found'}
+    return {'OK': False, 'error': f'Cannot adopt node {node_uuid}: node is offline'}
+if self.network_map.signature() == before:
+    return {'OK': True, 'message': 'Node already adopted'}   # detected by signature, not by rule
+self._save_network_map()
+return {'OK': True}
+```
+
+"Already adopted" is detected by **the signature not moving**. That matters: the alternative — an
+`if node['adopted']` check in the daemon — would be a second copy of the adoption rule, which is
+what D22 exists to prevent.
+
+### The relocated timing helper (FR-067)
+
+| Before | After |
+|---|---|
+| `from cuemsutils.timeoutloop import Timeoutloop` (`CuemsNodeConf.py:26`) | `from cuemsutils.tools.TimeoutLoop import TimeoutLoop` (`:25`) |
+
+Three call sites follow the class's new spelling (`:350`, `:584`, `:596`). This was the **only**
+deprecated-path import `cuems-nodeconf` carried; the repository's census entry is now zero (see
+[import-census.md](import-census.md)).
+
+### The two internal imports (FR-025, FR-068)
+
+| Before | After |
+|---|---|
+| `from cuemsutils.xml.mapper import Mapper, read_config_document` (`:22`) | **gone** — the import was its only occurrence, as measured |
+| `from cuemsutils.xml.settings import NetworkMap as _NetworkMapReader` (`:23`) | `ConfigManager(config_dir=…, load_all=False).load_network_map()` then `.network_map` (`:521`) |
+| `cleanup()` reading the never-assigned `self.cm` (`:579-581`) | **method deleted** — nothing called it (`8926f49`) |
+
+`read_network_map` also acquired a case 008 did not anticipate: `load_network_map` ends by
+resolving *this node's own* entry and raises `ValueError` when the map does not list it yet, which
+is every freshly provisioned node. The daemon is what writes a node into the map, so it must be
+able to read a map that omits it — it catches that `ValueError` and distinguishes it from a broken
+document by checking `hasattr(manager, 'network_map')`, since a malformed document raises
+`SchemaError` (not a `ValueError`).
+
+### ⚠️ One finding the gate caught: a *third* internal import
+
+The swap removed two `cuemsutils.xml` internal imports and introduced one `cuemsutils.config` one:
+
+```
+cuemsnodeconf/CuemsNodeConf.py:21  from cuemsutils.config.network_map import CuemsNetworkMapType
+```
+
+plus six of its test files and the vendored yardstick. `cuemsutils.config.__all__` is `[]`, and
+`cuemsutils/tools/NodeList.py`'s own docstring is explicit about it: *"a consumer imports `node`
+from here, never from `cuemsutils.config.network_map`"*. Feature 007 re-exported `node` for exactly
+this reason but not `CuemsNetworkMapType`, because at the time no consumer needed to **construct** a
+document — only to read one. The daemon now does, in `_network_map_document()`:
+
+```python
+return CuemsNetworkMapType(node_list=[{"node": n} for n in self.network_map.values()])
+```
+
+There is no public name for that class today. `ConfigManager.load_network_map()` **returns** one and
+`save_network_map()` writes one, but neither lets a caller build one from an index it holds in
+memory. So this is a real gap in wave 0's surface against D34, not a consumer mistake.
+
+**It is invisible to the import census by construction** — the census counts *deprecated* paths, not
+*internal* ones — which is the second thing worth recording: a zero census is not the same claim as
+"reaches the library through public paths only".
+
+**Answered 2026-09-17 by measurement, and the answer is: `cuems-nodeconf` can close this alone,
+with no library change.** The earlier framing here — that closing it required widening this
+library's public surface — was wrong, and wrong in a way worth recording, because it was inferred
+from a docstring rather than measured.
+
+**`ConfigManager.network_map` already returns a live `CuemsNetworkMapType`**, `.save` and
+`.refresh` included. `load_network_map` assigns `netmap.get_dict()`, which reads as "a dict" and is
+why this was missed; but `get_dict()` returns the value under the document's `main_key`, and for
+`network_map` that value *is* the bound object:
+
+```
+ConfigManager.network_map -> cuemsutils.config.network_map.CuemsNetworkMapType
+  is CuemsNetworkMapType : True     has .save : True     has .refresh : True
+```
+
+So the daemon never needs to name the class. It needs to stop **constructing** a document and start
+**refilling** the one it already holds — which preserves its own "the index is the single in-memory
+source of truth" design exactly, since `node_list` is overwritten wholesale either way:
+
+```python
+# before — names an internal symbol
+from cuemsutils.config.network_map import CuemsNetworkMapType
+def _network_map_document(self):
+    return CuemsNetworkMapType(node_list=[{"node": n} for n in self.network_map.values()])
+
+# after — no import; the document comes from the public façade and is refilled
+def _network_map_document(self):
+    self._document["node_list"] = [{"node": n} for n in self.network_map.values()]
+    return self._document          # retained from ConfigManager.load_network_map()
+```
+
+Verified end to end against `0.1.0rc16`, importing **only** `cuemsutils.tools.*`: load through
+`ConfigManager`, refill `node_list`, then `document.save(path)`, `document.refresh(discovered, path)`
+and `ConfigManager.save_network_map(path)` — all three succeed.
+
+**One path is not covered, and it is unreachable in deployment.** On a first run with *no* map file,
+`load_network_map` raises `FileNotFoundError` and `ConfigManager.network_map` is the bare `{}` that
+`__init__` set — no `.save`. Nothing public constructs an empty network-map document; the
+descriptor's constructible instance (T011) is a plain `dict`, deliberately, so it does not serve
+here either. But `cuems-common` **ships** `/etc/cuems/network_map.xml` with an empty `<node_list/>`
+as a conffile (`debian/install:204`), and `cuems-nodeconf` `Depends: cuems-common (>= 1.0.0)`. On
+any packaged host the file exists, so `is_first_run` is false and the branch is dead. It is
+reachable only on a dev checkout or a host where the file was deleted by hand.
+
+**Recommendation**: the migration belongs in `cuems-nodeconf` (its T015-equivalent), not here. This
+library should add **no** public synonym for `CuemsNetworkMapType` — FR-025's own instruction is
+*name the existing equivalent rather than adding a synonym*, and the equivalent exists. What this
+repository owes instead is the **docstring correction** on `ConfigManager.network_map`'s setter and
+`load_network_map`, whose `get_dict()` spelling is what made a returned object look like a returned
+dict to two readers in a row.
+
+### An 008 open item closed from the consumer side
+
+008 recorded `NodeIndex.set_controller_always_adopted` as carrying no first-run parameter, with the
+daemon's `self.is_first_run` branch **"not ported … left for 009 to reconcile"**. There is nothing
+to reconcile: `cuems-nodeconf` **deleted** that branch (`91047f4`, 2026-09-07) rather than asking
+for it back, on the finding that it had no reachable correct effect and one reachable harmful one —
+`is_first_run` is computed once and never reset, but the daemon became resident in the Phase-1
+re-enable, so on a first-boot controller an operator's adoption was silently cleared by the next
+30-second worker tick, after the UI had already been told it succeeded. The library's omission was
+correct.
+
+**Two docstrings in this library now describe that retired behaviour** and should be corrected (a
+documentation fix, not a behaviour change — the yardstick tests behaviour and is unaffected):
+
+- `src/cuemsutils/tools/NodeList.py` — `set_controller_always_adopted`'s summary still reads
+  *"…on a first run, nothing else is"*, which the method body does not do.
+- `src/cuemsutils/config/network_map.py` — `refresh`'s **"Not ported"** paragraph still describes
+  the first-run branch as an open item awaiting reconciliation.
+
+`cuems-nodeconf` raised these as *report, do not patch* (its own T049), since the yardstick's
+guarantee depends on that file not being edited from the consumer side. Patching from **this** side
+is the correct route.
+
+**Re-checked at `8ce7552`**: both docstrings are still stale (`tools/NodeList.py:177`, `config/network_map.py:156`), and `cuems-nodeconf`'s T049 is still open on its side — the report has been received here by inspection rather than delivered.
 
 ## 4b. The discovery vocabulary cutover *(wave 1, both halves landed 2026-09-17)*
 

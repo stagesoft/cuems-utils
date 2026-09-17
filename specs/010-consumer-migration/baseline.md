@@ -230,6 +230,84 @@ not reach the object layer, fields `Unset` by design, four sub-millisecond perf 
 their noise floor, and 005's two recorded `strict=True` xfails for SC-001's residual type
 differences. None is stale.
 
+## T030 — `cuems-nodeconf`'s yardstick, run unchanged (2026-09-17)
+
+**FR-065/SC-008 require 100% of 008's characterization tests to pass against the library's object,
+*unedited*.** Both halves are measured here, because "they pass" is worthless if the file moved to
+meet the API.
+
+### Unchanged — measured, not asserted
+
+```bash
+diff -u cuems-utils/tests/contract/test_nodeindex_characterization.py \
+        cuems-nodeconf/specs/planning/yardstick/test_nodeindex_characterization.py
+# → no output: byte-identical
+```
+
+The vendored yardstick is byte-identical to this repository's copy. `cuems-nodeconf`'s own task
+list keeps it out of `testpaths` and runs it as a separate invocation for exactly this reason — so
+it cannot be quietly adjusted along with the local tests.
+
+### The run
+
+| | |
+|---|---|
+| Library under test | `/disk/Projects/StageLab/cuems-utils/src` working tree, `0.1.0rc16`, branch `feat/xml-refactor` @ `d0340fc` |
+| Consumer under test | `/disk/Projects/StageLab/cuems-nodeconf` branch `feat/xml-refactor` @ **`8ce7552`** (2026-09-17, pulled from `origin` mid-pass — see the re-run note) |
+| Yardstick | **15 passed**, 0 failed |
+| `cuems-nodeconf`'s whole suite | **95 passed**, 0 failed |
+| Both together, at `8ce7552` | **110 passed**, 0 failed, 26.99 s |
+
+The 95-test run is recorded alongside because SC-008 is about the characterization tests, but a
+yardstick that passes while the daemon's own suite fails would be a green light over a broken swap.
+
+**Environment note, stated because it qualifies the result**: `cuems-nodeconf` has no virtualenv on
+this machine and its runtime dependencies (`zeroconf`, `netifaces`, `Deprecated`, `timecode`,
+`json_fix`) are absent from the system interpreter, so the run used a throwaway 3.11.9 venv with
+`PYTHONPATH=/disk/Projects/StageLab/cuems-utils/src`. `python3-dbus` and `python3-systemd` were
+**not** installed — the suite's `conftest.py` stubs `systemd.daemon`, and `dbus` is reached only on
+paths the tests do not exercise. This is the working tree, not an installed `.deb`; the packaged
+combination is T039/T046's subject, not this task's.
+
+### FR-064–FR-068, verified site by site
+
+| FR | Claim | Result |
+|---|---|---|
+| FR-064 | the ad hoc network-map methods are replaced by calls into the library | **5 deleted, 4 retained as delegating wrappers** — `_map_signature`, `write_network_map`, `merge_discovered_nodes`, `set_master_always_adopted`, `check_missing_adopted_nodes` are gone; `refresh_network_map`, `adopt_node`, `unadopt_node`, `read_network_map` survive as answer-shaping seams. `CuemsNodeConf.py` 756 → 723 lines |
+| FR-065 | equivalence measured by 008's characterization tests | **met** — 15/15, file byte-identical |
+| FR-066 | the node-modification dispatch migrated, `{'OK': bool, 'error'?: str}` preserved | **met** — `engine_callback` unchanged in shape; the three error strings reconstructed in the wrappers, "already adopted" detected by signature rather than by re-coding the rule |
+| FR-067 | the relocated timing helper imported from its current path | **met** — `cuemsutils.tools.TimeoutLoop.TimeoutLoop` at `:25`, three call sites |
+| FR-068 | the dead reference in the cleanup path fixed or removed | **met** — `cleanup()` deleted entirely (`8926f49`); `self.cm` no longer appears anywhere in `cuemsnodeconf/` |
+
+### Two findings this gate produced
+
+1. **A third internal import replaced the two it removed.** `CuemsNodeConf.py:21` imports
+   `CuemsNetworkMapType` from `cuemsutils.config.network_map`, whose `__all__` is `[]` and whose
+   sibling `tools/NodeList.py` docstring says a consumer must never import from it. There is no
+   public name for that class; wave 0 published no way to *construct* a network-map document, only
+   to load and save one. Recorded in
+   [migration-guide.md §4a](migration-guide.md) as **open**; closing it widens this library's public
+   surface and is an API decision, not a gate observation.
+2. **The import census cannot see finding 1.** It greps deprecated paths, not internal ones, so a
+   zero census does not carry the claim "reaches the library through public paths only". T049/T050
+   should not be read as covering D34.
+
+### Re-run note — the branch moved during this pass
+
+This gate was first measured at `aab9b48`, where `cuems-nodeconf`'s US2 (Avahi) and US3
+(packaging) had **not** landed. `origin/feat/xml-refactor` was then pulled and carried six further
+commits through `8ce7552`, landing both. Every number above is the **re-measurement at `8ce7552`**;
+FR-064–FR-068 were re-verified site by site at that commit and are unchanged, and the yardstick is
+still byte-identical. The first measurement is not preserved here because it described a tree that
+no longer exists — this file records the state, not the session.
+
+Two things the re-analysis settled that the first pass had recorded as blocked:
+
+- **T063's `cuems-nodeconf` half is done, by that repository.** `AvahiTool.py:10` and
+  `CuemsAvahiListener.py:18` now read "feature 001 (D33)"; the stale "deferred to feature 008"
+  comments are gone.
+- **US5's cutover has landed on both sides** — see the T023a/T024/T025 sections below.
+
 ## T023a / T024 / T025 — the discovery cutover (2026-09-17)
 
 Both owning repositories landed their halves during this pass. **Neither is merged**, each holding
@@ -336,3 +414,71 @@ remainder in that checkout is historical or excluded: `debian/changelog` (releas
 `"NodeType.slave"` against maps already converted to `<node_role>`. Recorded in full in
 [migration-guide.md §5](migration-guide.md), including why it is `cuems-wsclient`'s failure mode
 repeating and what it implies for T062's counting method. It is **not** scheduled by this feature.
+
+## Upstream report received, and T025's gap closed (2026-09-17, `cuems-nodeconf` @ `b3f5bb0`)
+
+`cuems-nodeconf` moved again (three commits past `8ce7552`) and now files its findings formally at
+`specs/001-network-map-object-adoption/upstream-report.md`. Re-verified here: yardstick still
+byte-identical, **110 passed** at `b3f5bb0`, FR-064–FR-068 unchanged.
+
+### T025(b) — no half-renamed combination is shippable: now **OBSERVED**, not computed
+
+The earlier gap is closed. `cuems-nodeconf` generated its own demonstration
+(`specs/001-network-map-object-adoption/evidence/out-of-order-refusal.txt`, 2026-09-17T17:19:48Z,
+`mmdebstrap` 1.3.5) with **real packages on both sides** — not the equivs stubs whose missing
+`Breaks:` produced `cuems-common`'s ACCEPTED case C1:
+
+| Case | Combination | Expected | Observed |
+|---|---|---|---|
+| N1 | nodeconf 0.1.0-8 + common 1.3.0-22 (un-renamed) | REFUSED | **REFUSED** |
+| N2 | common 1.3.0-23 + nodeconf 0.1.0-7 (un-renamed) | REFUSED | **REFUSED** |
+| N5 | on a baseline host, upgrade **only** nodeconf | REFUSED | **REFUSED** |
+| N6 | on a baseline host, upgrade **only** common | REFUSED | **REFUSED** |
+| N7 | upgrade **both** in one `apt-get` call | ACCEPTED | **ACCEPTED** |
+| N8 | `dpkg -i` the old nodeconf over the upgraded host | BREAKS-UNCONFIGURED | **as expected** |
+
+N1 and N2 are the two half-renamed directions; N5/N6 are how an operator would actually reach
+them. `cuems-common`'s C1 is **superseded**, not contradicted — it measured a stub that lacked the
+guard, and said so.
+
+**T025 still does not clear**, on clause (a) alone: the over-the-wire publisher→listener check needs
+two hosts. `cuems-nodeconf`'s T050 and T051 are both marked **NOT PERFORMED** for that reason, in
+its own file, which is the honest form.
+
+### Three findings reported upstream — into *this* repository
+
+`cuems-nodeconf`'s T049 is discharged as a **report** (its own constitution forbids patching the
+library from a consumer branch, since the yardstick's guarantee depends on that file being stable
+from that side). All three verified here against `d0340fc`:
+
+| # | Finding | Verified |
+|---|---|---|
+| 1 | `save_document` leaves the target `0600` | **confirmed by measurement** — see below |
+| 2 | `set_controller_always_adopted`'s docstring (`tools/NodeList.py:177`) claims first-run behaviour the method does not have | confirmed, still present |
+| 3 | `refresh`'s docstring (`config/network_map.py:156-162`) calls a closed item open | confirmed, still present |
+
+#### Finding 1 is a real permissions defect, and it is this repository's
+
+`src/cuemsutils/xml/documents.py:189-195` writes through `tempfile.mkstemp`, which creates `0600`
+by construction, then `os.replace`s it onto the target — carrying the **temporary's** mode, not the
+target's. Measured directly:
+
+```
+fresh save      : 0o600
+after chmod 644 : 0o644
+after re-save   : 0o600     <-- the target's mode is discarded
+```
+
+**Why it matters, and it is not cosmetic.** `cuems-nodeconf` runs as **root**;
+`cuems-controller-engine` and `cuems-node-engine` run as **`User=cuems`**; and `cuems-common` ships
+`/etc/cuems/network_map.xml` mode `0644` (`debian/install:204`) precisely so the non-root engine can
+read it. The first map write on any node therefore makes the cluster's topology root-only, silently.
+That is the same failure shape as the `/tmp/nodeconf.ipc` crash-loop in `cuems-nodeconf`'s CLAUDE.md
+— a root process creating something a non-root service must read.
+
+It is **long-standing library behaviour**, not a feature-001 regression: the reporter measured it
+through the pre-feature call path verbatim. It affects **every** `save_document` consumer
+(`network_map`, `settings`, `project_settings`, `project_mappings`, and `CuemsScript.save`), not
+only the node daemon.
+
+Scheduled as **T080–T082**.
