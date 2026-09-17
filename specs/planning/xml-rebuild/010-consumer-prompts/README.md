@@ -43,6 +43,7 @@ parallel.
 | 02 | [02-cuems-editor.md](02-cuems-editor.md) | `cuems-editor` | 00 | Starts by fixing an import that stops the process today (C2), then the five parser sites, then serves the descriptor 00 published. |
 | 03 | [03-cuems-common.md](03-cuems-common.md) | `cuems-common` | pairs with 04 | Postinst ordering, packaging gate edges, and **half** of the Avahi cutover. |
 | 04 | [04-cuems-nodeconf.md](04-cuems-nodeconf.md) | `cuems-nodeconf` | pairs with 03 | The network-map object swap, and the **other half** of the Avahi cutover. |
+| 04a | [04a-cuems-nodeconf-public-path.md](04a-cuems-nodeconf-public-path.md) | `cuems-nodeconf` | after 04 | **Follow-up, not a flow.** Closes the one internal import 04 introduced while removing two: `CuemsNetworkMapType` has a public path (`ConfigManager.network_map` already returns one) that both sides missed. Added 2026-09-17 by `cuems-utils`' wave-1 gate. |
 | 05 | [05-cuems-frontend.md](05-cuems-frontend.md) | `cuems-frontend` | 00, 02 | Characterization tests first (D35), then the template and config-domain ports. The largest single port. |
 | 06 | [06-cuems-wsclient.md](06-cuems-wsclient.md) | `cuems-wsclient` | — | The sixth consumer nobody had listed (C1). Fully independent — **last by dependency, first by severity**; see below. |
 
