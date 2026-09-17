@@ -16,6 +16,7 @@ sites rather than of a flag threaded through here.
 from __future__ import annotations
 
 import os
+import stat
 import tempfile
 from os import PathLike
 from pathlib import Path
@@ -170,6 +171,44 @@ def iter_schema_errors(schema_name: str, tree: ElementTree):
     return schema_object(schema_name).iter_errors(tree)
 
 
+#: What a document should be created as when there is no target to copy from —
+#: before the umask narrows it. ``0666`` and not ``0777``: a serialized document
+#: is data, and nothing in this package should ever write an executable file.
+_NEW_DOCUMENT_MODE = 0o666
+
+
+def _current_umask() -> int:
+    """This process's umask, read without widening it even momentarily.
+
+    ``os.umask`` only *returns* the old value by setting a new one, so reading
+    it is unavoidably a write. The probe value is therefore ``0o077`` rather
+    than the conventional ``0``: if another thread creates a file inside the
+    (microseconds-long) window, it comes out **more** restrictive than it asked
+    for, never world-writable. This package runs inside threaded daemons —
+    ``cuems-nodeconf``'s resident worker loop among them — so "the window is
+    short" is not on its own a reason to fail open in it.
+    """
+    probe = os.umask(0o077)
+    os.umask(probe)
+    return probe
+
+
+def _mode_for(target: Path) -> int:
+    """The mode the written document should end up with.
+
+    An existing target keeps its own: whoever set it — the operator, or
+    ``cuems-common``'s ``debian/install`` — made a decision this package does
+    not get to overrule by rewriting the file. Only when there is nothing to
+    copy from does it fall back to the umask-narrowed default.
+    """
+    try:
+        return stat.S_IMODE(os.stat(target).st_mode)
+    except OSError:
+        # Absent (the ordinary first-write case), or vanished between the stat
+        # and now. Either way there is no prior decision to honour.
+        return _NEW_DOCUMENT_MODE & ~_current_umask()
+
+
 def write_tree(tree: ElementTree, target: str | PathLike) -> None:
     """Write ``tree`` to ``target`` atomically (FR-003, FR-036a).
 
@@ -184,6 +223,15 @@ def write_tree(tree: ElementTree, target: str | PathLike) -> None:
     atomic rewrite could silently introduce the package's first
     locale-dependent path, and the failure would be invisible on a UTF-8
     developer machine and fatal on a node booted with ``LANG=C`` (C6).
+
+    The target's **mode is preserved** across the replace (feature 010, T080).
+    ``os.replace`` carries the *temporary's* permissions onto the target, and
+    ``mkstemp`` creates ``0600`` by construction, so without this every save
+    silently narrowed the document to its author. That is an outage, not an
+    untidiness: ``cuems-nodeconf`` writes ``network_map.xml`` as **root** while
+    the engines read it as ``User=cuems``, and ``cuems-common`` ships the file
+    ``0644`` exactly so they can. Reported from ``cuems-nodeconf``'s feature 001
+    after measuring ``0644`` in and ``0600`` out.
     """
     target = Path(os.fspath(target))
     handle, temporary = tempfile.mkstemp(
@@ -191,6 +239,7 @@ def write_tree(tree: ElementTree, target: str | PathLike) -> None:
     )
     os.close(handle)
     try:
+        os.chmod(temporary, _mode_for(target))
         tree.write(temporary, encoding="utf-8", xml_declaration=True)
         os.replace(temporary, target)
     except BaseException:
