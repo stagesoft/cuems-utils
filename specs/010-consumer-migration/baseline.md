@@ -229,3 +229,110 @@ The 100 skips and 2 xfails were reviewed and are all structural: negative-corpus
 not reach the object layer, fields `Unset` by design, four sub-millisecond perf comparisons below
 their noise floor, and 005's two recorded `strict=True` xfails for SC-001's residual type
 differences. None is stale.
+
+## T023a / T024 / T025 — the discovery cutover (2026-09-17)
+
+Both owning repositories landed their halves during this pass. **Neither is merged**, each holding
+a merge gate on the other (`cuems-common` T019, `cuems-nodeconf` T042) — which is D33 working, not
+a delay.
+
+| Repository | Branch @ commit | Feature | Tasks |
+|---|---|---|---|
+| `cuems-common` | `feat/xml-refactor` @ `1a00159` | `001-node-role-and-conversion-ordering` | 46 done / 2 open |
+| `cuems-nodeconf` | `feat/xml-refactor` @ `8ce7552` | `001-network-map-object-adoption` | 45 done / 9 open |
+
+### T023a — the two groups of four, labelled ✅
+
+Recorded in [migration-guide.md §5](migration-guide.md). The discovery four are **counted and
+fixed**; the non-shipped four are **exempt**. Neither substitutes for the other.
+
+### T024 — the cutover recorded ✅
+
+Recorded in [migration-guide.md §4b](migration-guide.md), covering the key, the three values, the
+two renamed template filenames, every site that resolves a template by name, the publisher, the
+consumer's two handling blocks, both copies of the retired translation table, the live file no
+package owns, and the packaging entries.
+
+### T025 — **NOT cleared.** Two of its three clauses verified, one not
+
+SC-012 asks for two things. They are recorded separately because only one of them is measurable
+from these checkouts.
+
+**(a) No half-renamed combination is shippable — verified mechanically, partially.**
+
+The guard is bidirectional in source:
+
+| Package | Relation | Site |
+|---|---|---|
+| `cuems-nodeconf` 0.1.0-8 | `Breaks: cuems-common (<< 1.3.0-23~)` | `debian/control:28` |
+| `cuems-common` 1.3.0-23 | `Breaks: cuems-nodeconf (<< 0.1.0-8)` | `debian/control:51` |
+
+Arithmetic checked with `dpkg --compare-versions`, not read:
+
+```
+cuems-common 1.3.0-22          -> BROKEN (refused)     cuems-nodeconf 0.1.0-7 -> BROKEN (refused)
+cuems-common 1.3.0-23~gatedemo1 -> allowed             cuems-nodeconf 0.1.0-8 -> allowed
+cuems-common 1.3.0-23           -> allowed             cuems-nodeconf 0.1.0-9 -> allowed
+```
+
+The `~` in `1.3.0-23~` is load-bearing and correct: it keeps a prerelease or demo build of
+1.3.0-23 satisfying the guard, which is what lets the demonstration below be re-run against a
+`+gatedemo` build.
+
+**⚠️ But the observed demonstration predates the guard, and its one gap is the half-rename.**
+`cuems-common` has a real, generated refusal record —
+`specs/001-node-role-and-conversion-ordering/evidence/out-of-order-refusal.txt`, produced by
+`tests/packaging/release-gate-demo.sh` under `mmdebstrap` 1.3.5, seven cases, all matching
+expectation. **Case C1 is the half-renamed combination and it was ACCEPTED**:
+
+```
+=== C1 — previous cuems-common (un-renamed) together with cuems-nodeconf 0.1.0-8 — the reverse-edge GAP
+expected: ACCEPTED
+… exit: 0 — observed: ACCEPTED
+```
+
+That is not a contradiction of the guard — it is a **timing artifact**, and the timestamps settle
+it:
+
+| Event | Time (UTC, 2026-09-17) |
+|---|---|
+| `cuems-nodeconf` adds the reverse guard (`31da8a7`) | 16:16:25 |
+| `cuems-common` generates the demonstration (`4819b11`) | **16:22:12** |
+| `cuems-nodeconf` corrects it to `1.3.0-23~` (`8ce7552`) | 16:38:35 |
+
+The demo's `cuems-nodeconf` 0.1.0-8 was an **equivs stub carrying `Depends: cuems-common (>= 1.0.0)`
+only** — which its own header states was "as the real package", true when it ran. It is no longer
+true. C1 would now be REFUSED by the real package's `Breaks`.
+
+**So the gap is closed in source and open in evidence.** The demonstration must be re-run against a
+`cuems-nodeconf` 0.1.0-8 stub carrying the `Breaks:` line before T025 can be cleared. **Not
+performable here**: `mmdebstrap` and `equivs-build` are both absent from this machine, and
+`cuems-nodeconf`'s own T047 records the same blocker from its side (`dh-virtualenv` absent, no
+`cuems-common` `.deb` to install against). This is the same blocker as T039.
+
+**(b) A node published by the migrated publisher is discovered by its migrated listener — NOT
+verified end to end.**
+
+What *is* verified is in-process, and it is not the same claim: `cuems-nodeconf`'s suite passes at
+`8ce7552` (110 tests including the yardstick), with `tests/test_avahi_listener.py`'s TXT fixtures
+rewritten to the new key and `tests/test_service_discovery.py` green. That exercises the listener
+against fixtures, not against a publisher over the wire.
+
+The over-the-wire check is `cuems-nodeconf`'s T051 (walk `quickstart.md` §4 with both halves
+present, including the deliberate half-renamed check) and `cuems-common`'s T035 (the controller +
+node upgrade procedure). **Both are open in their own repositories**, and both need two real hosts.
+T025 stays open until they are recorded.
+
+### Vocabulary sweep, measured
+
+`cuems-nodeconf` shipped code (`cuemsnodeconf/`) carries **zero** `node_type` occurrences. The
+remainder in that checkout is historical or excluded: `debian/changelog` (release history),
+`BUGFIX_COMPLETE.md` / `BUGFIX_NETWORK_MAP.md` / `STARTUP_ANALYSIS.md` (non-shipped notes), and
+`specs/` (excluded by its own SC-004 command).
+
+### Finding: the count's denominator is wrong
+
+`cuems-power-bridge` is a **seventh** consumer, shipped, parsing `<node_type>` and filtering on
+`"NodeType.slave"` against maps already converted to `<node_role>`. Recorded in full in
+[migration-guide.md §5](migration-guide.md), including why it is `cuems-wsclient`'s failure mode
+repeating and what it implies for T062's counting method. It is **not** scheduled by this feature.

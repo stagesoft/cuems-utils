@@ -104,8 +104,8 @@ no single view of the whole; this is that view.)*
 | `cuems-utils` | descriptor path · deprecated-surface removal · this guide | **wave 0 landed** 2026-09-04 |
 | `cuems-engine` | | not started |
 | `cuems-editor` | | not started |
-| `cuems-common` | | not started |
-| `cuems-nodeconf` | | not started |
+| `cuems-common` | Avahi templates and their filenames · the live-file migration tool · conversion ordering · release-gate demonstration | **landed** 2026-09-17 (`1a00159`), **unmerged** — holds a merge gate with `cuems-nodeconf` |
+| `cuems-nodeconf` | network-map object swap · relocated timing helper · Avahi vocabulary (its half) · packaging bounds | **all three stories landed** 2026-09-17 (`8ce7552`), **unmerged** — holds a merge gate with `cuems-common` |
 | `cuems-frontend` | | not started |
 | **`cuems-wsclient`** | | not started |
 
@@ -130,12 +130,145 @@ how they drift.
 
 *(FR-049c and the `action_target` half are recorded here as they land.)*
 
+## 4b. The discovery vocabulary cutover *(wave 1, both halves landed 2026-09-17)*
+
+*(T024, FR-060–FR-063. **Two repositories, one cutover** — D33. It cannot be half-renamed: a
+listener reading `node_role` against a publisher writing `node_type` discovers nothing, and the
+failure is silent — no error, no exception, nodes simply never appear.)*
+
+| | |
+|---|---|
+| `cuems-common` | `feat/xml-refactor` @ `1a00159`, feature `specs/001-node-role-and-conversion-ordering`, 46/48 tasks |
+| `cuems-nodeconf` | `feat/xml-refactor` @ `8ce7552`, feature `specs/001-network-map-object-adoption` US2/US3 |
+
+Both halves are **implemented and unmerged**, each holding a merge gate on the other
+(`cuems-common` T019, `cuems-nodeconf` T042). Neither merges alone; that is the design, not a delay.
+
+### The key and the values
+
+| | Before | After |
+|---|---|---|
+| TXT key | `node_type` | **`node_role`** |
+| Controller | `master` | **`controller`** |
+| Non-controller | `slave` | **`node`** |
+| Unassigned | `firstrun` | `firstrun` *(unchanged)* |
+
+### The two template filenames (FR-061)
+
+The retired words were in the **filenames**, not only the file contents, so the rename is a
+`git mv` plus every site that resolves a template by name:
+
+| Before | After |
+|---|---|
+| `usr/share/cuems/cuems.service.master` | **`usr/share/cuems/cuems.service.controller`** |
+| `usr/share/cuems/cuems.service.slave` | **`usr/share/cuems/cuems.service.node`** |
+| `usr/share/cuems/cuems.service.firstrun` | unchanged in name; its TXT record changed |
+
+`cuems-nodeconf` shipped **unshipped duplicates** of all three at its repository root
+(`cuems.service.{firstrun,master,slave}`). They are deleted rather than renamed — `cuems-common`
+installs the real ones, and a second copy of a file that must not disagree is a half-rename waiting
+to happen.
+
+### Everything that resolves a template by name (FR-061)
+
+| Repository | Site | Change |
+|---|---|---|
+| `cuems-common` | `usr/bin/cuems-config-node:64` | `service_files = ['cuems.service.firstrun', 'cuems.service.controller', 'cuems.service.node']` |
+| `cuems-common` | `etc/sudoers.d/99-cuems-avahi:12-14` | one `NOPASSWD` `cp` rule per template, all three renamed |
+| `cuems-nodeconf` | `CuemsNodeConf.py:404` | `… + '.controller'` (was `'.master'`) |
+| `cuems-nodeconf` | `CuemsNodeConf.py:442` | `… + '.node'` (was `'.slave'`) |
+
+**The sudoers rules moved file, not just text.** `cuems-common` retired `/etc/sudoers.d/99-cuems`
+in favour of a new `99-cuems-avahi`, because a renamed rule inside an *edited* `99-cuems` would
+never have reached that host — dpkg leaves a modified conffile alone, so the operator would keep
+the old rules naming files that no longer exist, and the role flip would fail with a sudo denial.
+
+### The publisher and the consumer (FR-061)
+
+| Repository | Site | Change |
+|---|---|---|
+| `cuems-nodeconf` | `CuemsSettings.py:27` | publishes `{'node_role': 'node'}` |
+| `cuems-nodeconf` | `CuemsAvahiListener.py:91-102`, `:144-155` | both handling blocks read `b'node_role'` and resolve through `NodeRole(raw_role)` directly |
+| `cuems-nodeconf` | `AvahiTool.py:81`, `:93`, `:97` | read `properties[b"node_role"]` **by name** |
+| `cuems-nodeconf` | `CuemsAvahiListener.py`, `AvahiTool.py` | `_AVAHI_NODE_TYPE_TO_ROLE` — **both copies deleted** |
+
+`AvahiTool`'s three sites previously read `properties[list(properties.keys())[0]]` — whichever TXT
+key happened to come first. A key that is never read by name cannot be renamed correctly, so
+reading by name was part of the rename rather than beyond it.
+
+The old-key translation table retired with the key, in both of its copies. The unrecognised-value
+log survives it: it names the offending value and the accepted set
+(`sorted(r.value for r in NodeRole)`), so a stray value is diagnosable rather than silently
+dropped.
+
+### The live file no package owns (FR-061)
+
+`/etc/avahi/services/cuems.service` is created by **copying a template**, so no package ships it
+and no package upgrade can rewrite it. `cuems-common` adds
+**`usr/bin/cuems-migrate-avahi-service`** for it: it rewrites only
+`<txt-record>node_type=VALUE</txt-record>` records, leaves every other byte alone, writes a
+byte-exact `cuems.service.<timestamp>.bak` beside it first (never `*.service`, so avahi does not
+load the backup as a second service group), reloads `avahi-daemon` only if the file actually
+changed, and **refuses a file it cannot map whole**, naming why. `postinst` runs it; on hosts
+deployed by file copy it is run by hand.
+
+### The packaging entries that place them (FR-061)
+
+| Package | Relation | Refuses |
+|---|---|---|
+| `cuems-nodeconf` 0.1.0-8 | `Breaks: cuems-common (<< 1.3.0-23~)` | a renamed daemon beside un-renamed templates |
+| `cuems-common` 1.3.0-23 | `Breaks: cuems-nodeconf (<< 0.1.0-8)` | renamed templates beside an un-renamed daemon |
+
+Both directions are guarded, which is what "no half-renamed state ships" (FR-060) requires
+mechanically rather than by review. The arithmetic is verified in
+[baseline.md](baseline.md)'s T025 section; the `~` in `1.3.0-23~` is deliberate, so that
+`1.3.0-23~anything` (a prerelease or demo build) still satisfies the guard.
+
+### FR-063 — 007's exclusion is not an exemption
+
+Feature 007 excluded these four discovery files from its own count and handed them here. They are
+**in scope and fixed**, not exempt; see the labelling in [§5](#5-the-ecosystem-wide-count).
+
 ## 5. The ecosystem-wide count
 
-*(FR-070–FR-073a, FR-UX-003. Filled by T062. Carries the counting **method** alongside the count,
-and the exempt set enumerated as `<path>:<start_line>[-<end_line>]` with its two distinct
-reasons — "exists to detect or convert the retired spelling" (permanent) and "not shipped"
-(removable at any time) — never merged.)*
+*(FR-070–FR-073a, FR-UX-003. The count itself is T062's and is **not run yet**. What is settled
+here is the labelling T023a owes, and one correction to the count's denominator that the wave-1
+gate turned up.)*
+
+The count carries the counting **method** alongside the number (FR-070b), and the exempt set
+enumerated as `<path>:<start_line>[-<end_line>]` (FR-071/FR-072) with its two distinct reasons —
+"exists to detect or convert the retired spelling" (**permanent**) and "not shipped" (**removable
+at any time**) — never merged. Merging them is how a working migration diagnostic gets deleted by
+the next person to run the count.
+
+### The two groups of four — they are not the same four *(T023a, FR-070a)*
+
+The spec names two different groups of four, and each is labelled wherever it appears so a reader
+cannot substitute one for the other. Conflating them either counts files that are exempt or exempts
+files that must be fixed.
+
+**Group 1 — the "discovery four" (FR-070): in scope, counted, and now FIXED.**
+`cuems-common`'s Avahi files, which feature 007 excluded from its own count and handed here:
+
+| File | Disposition, measured 2026-09-17 at `cuems-common` `1a00159` |
+|---|---|
+| `etc/avahi/services/cuems.service` | **fixed** — carries `node_role`; the *live* per-host copy is migrated by `usr/bin/cuems-migrate-avahi-service` |
+| `usr/share/cuems/cuems.service.firstrun` | **fixed** — `node_role=firstrun` |
+| `usr/share/cuems/cuems.service.master` | **fixed by rename** → `cuems.service.controller`, `node_role=controller` |
+| `usr/share/cuems/cuems.service.slave` | **fixed by rename** → `cuems.service.node`, `node_role=node` |
+
+**Group 2 — the "non-shipped four" (FR-073): exempt, and exempt for the *removable* reason.**
+Named individually rather than covered by a `dev/` wildcard:
+
+| File | Repository |
+|---|---|
+| `dev/network_map.xml` | `cuems-engine` |
+| `dev/test_xml_files/network_map.xml` | `cuems-engine` |
+| `dev/CuemsEngine_old.py` | `cuems-engine` |
+| `test_run_nodeconfig.py` | `cuems-nodeconf` — **note: migrated anyway** by that repository's T037, so it no longer carries the retired spelling even though it was entitled to |
+
+Group 1 is `cuems-common`'s and is **done**. Group 2 is exempt and always was. Neither substitutes
+for the other.
 
 ## 6. Rollout, rollback and the release gate
 
