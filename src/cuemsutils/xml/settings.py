@@ -154,9 +154,28 @@ class NetworkMap(Settings):
         )
 
     def get_node(self, uuid):
+        """This map's node carrying ``uuid``.
+
+        Raises:
+            ValueError: no node in the map carries it — **including** when the
+                map lists no nodes at all, which is the case
+                ``ConfigManager.node_network_map`` documents and the one
+                ``cuems-nodeconf``'s fresh-node path catches.
+        """
         out = None
         network_dict = self.get_dict()
-        nodes_list = network_dict.get('node_list')
+        # ``node_list`` is minOccurs="0", and an empty ``<node_list/>`` decodes
+        # to a key that is *present* with value ``None`` — so a
+        # ``.get('node_list', [])`` default never fires. That is why the
+        # neighbouring code at :187 and :236 is safe by its ``if not
+        # node_list:`` check rather than by its default, and why this is an
+        # ``or []`` (feature 010, T086; reported by cuems-nodeconf against the
+        # empty map cuems-common ships to every node).
+        #
+        # "No nodes at all" is the same answer as "no node with this uuid":
+        # ValueError, below, with its message unchanged — consumers log it and
+        # a consumer test pins it (FR-2).
+        nodes_list = network_dict.get('node_list') or []
         for node_item in nodes_list:
             node = node_item.get('node')
             if node.get('uuid') == uuid:
