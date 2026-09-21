@@ -546,3 +546,88 @@ Recorded in [migration-guide.md §4a](migration-guide.md). FR-025 says *name the
 rather than adding a synonym*; `ConfigManager.network_map` **is** the equivalent, so a re-export
 would be the synonym FR-025 forbids. The consumer-side migration is prompted at
 `specs/planning/xml-rebuild/010-consumer-prompts/04a-cuems-nodeconf-public-path.md`.
+
+## T085–T090 — the second upstream report, closed (2026-09-21)
+
+`cuems-nodeconf`'s feature `002-public-network-map-path`, measured against `cuems-utils` `6fd85fc`
+(`0.1.0rc16`), `../cuems-common` `f2fc0f5`, `../cuems-nodeconf` `3e526e1`. Report:
+[empty-node-list-report.md](empty-node-list-report.md); checklist
+[empty-node-list-tasks.md](empty-node-list-tasks.md); recorded in
+[migration-guide.md §4a-ii](migration-guide.md).
+
+### T085/T086 — `get_node` answers `ValueError` for a map with no nodes
+
+The reporter's reproduction, re-run here before and after:
+
+```
+                                  before T086                         after T086
+empty <node_list/>                TypeError: 'NoneType' ...           ValueError: Node with uuid ... not found
+no <node_list> element            TypeError: 'NoneType' ...           ValueError: Node with uuid ... not found
+ConfigManager.load_network_map()  TypeError: 'NoneType' ...           ValueError: Node with uuid ... not found
+```
+
+**One line, and the trap is why it is that line.** `nodes_list = network_dict.get('node_list') or []`
+— *not* `.get('node_list', [])`, which does not fix it: `node_list` is `minOccurs="0"` and an empty
+`<node_list/>` decodes to a key that is **present with value `None`**, so the default never fires.
+The neighbouring guards at `settings.py:187`/`:236` are safe by their `if not node_list:` check
+rather than by their defaults; `config/network_map.py:181` already used `or []`. The message is
+unchanged, because `cuems-nodeconf` logs it and pins it (FR-2).
+
+**T085 was written failing first**, as the constitution requires: **5 of its 9 tests failed** against
+the pre-fix library, 9/9 pass now. The four that passed before are the ones that should have — the
+round-trip, `refresh`, and the two found-case tests — and their passing is the evidence that
+`get_node` was the *only* unguarded path, not merely the first one found.
+
+Three things in `tests/contract/test_empty_node_list.py` are deliberate:
+
+- both `minOccurs="0"` shapes are parametrised (empty `<node_list/>` *and* no element at all), so a
+  guard that handles one would fail rather than pass half the file;
+- the fresh-node boot sequence is a test, not a claim — load the shipped empty map, refill, `save`,
+  re-read and find the node — which is what makes the fix *sufficient* rather than merely quieter;
+- the found case is asserted both ways (a present uuid still resolves, an absent one still raises),
+  so the guard is shown not to have widened anything.
+
+| | |
+|---|---|
+| Suite | **2660 passed**, 100 skipped, 2 xfailed, 0 failed (2651 + the 9 new) |
+
+### T087 — no sibling path is unguarded, re-measured rather than assumed
+
+All four paths the report names, driven against both shapes after T086:
+
+| Site | Empty `<node_list/>` | Verdict |
+|---|---|---|
+| `xml/settings.py:159` `get_node` | `ValueError: Node with uuid ... not found` | ✅ **fixed here** |
+| `xml/settings.py:187` `get_nodes_by_adoption` | `ValueError: No node list found ...` | ✅ already guarded |
+| `xml/settings.py:236` `partition_by_adoption` | `ValueError: No node list found ...` | ✅ already guarded |
+| `config/network_map.py:181` `refresh` | `False` (no discovery) / `True` (one node, written) | ✅ already guarded |
+| `config/base.py` `save` on an empty document | wrote, no error | ✅ |
+
+The fresh-node sequence completes end to end: empty map → `refresh` with one discovered node →
+re-read → the node is found. **No `TypeError` anywhere.**
+
+**One adjacent finding, measured and deliberately not fixed.** A document whose root is *entirely*
+empty (`<CuemsNetworkMap/>`, no `node_list` element) decodes to `None`, so `get_dict()` returns a
+plain `{}` and `refresh`/`save` raise `AttributeError` on it. That is a decode-layer behaviour
+predating this fix — the diff touches only `get_node` — it concerns the whole document rather than
+`node_list`, and **nothing ships that shape**: `cuems-common` ships `<node_list/>`. `get_node`
+answers it correctly either way. Recorded rather than fixed, because widening it would touch the
+decode path for all six schemas, which this report does not license.
+
+### T090 — the release decision: inside `0.1.0rc16`, no bump
+
+`src/cuemsutils/__init__.py` stays at `__version__ = "0.1.0rc16"`, verified unchanged. Sound rather
+than convenient: **rc16 has never been released** — this repository's tags stop at `v0.1.0rc14`, it
+carries no `debian/` directory, and consumers build the wheel from a checkout. Precedent: the
+previous report's `save_document` fix landed inside rc16 the same way (`6fe2d3f`).
+
+Consequences are all absence of work — consumers' pins stay exactly as they are
+(`cuems-utils (>= 0.1.0rc16), (<< 0.1.1~)` plus the matching `pyproject.toml` floor, FR-091
+satisfied untouched), and **the merge candidate is not re-cut**: `xml-refactor-merge-candidate`
+moves only for packaged content, and none changed.
+
+**The caveat, stated because packaging cannot state it**: inside rc16 the version string cannot
+distinguish a build made before this fix from one made after — `>= 0.1.0rc16` matches both. So the
+discipline is operational: rebuild or reinstall `cuemsutils` from the fixed commit in every
+development venv and packaging run, with `tests/contract/test_empty_node_list.py` as the
+discriminator. If it fails, the installed build predates the fix.

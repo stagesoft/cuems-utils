@@ -330,6 +330,67 @@ is the correct route.
 
 **Re-checked at `8ce7552`**: both docstrings are still stale (`tools/NodeList.py:177`, `config/network_map.py:156`), and `cuems-nodeconf`'s T049 is still open on its side — the report has been received here by inspection rather than delivered.
 
+## 4a-ii. The shipped map lists no nodes — and `get_node` used to raise `TypeError` *(T085–T088, landed 2026-09-21)*
+
+*(Second upstream report from `cuems-nodeconf`'s feature `002-public-network-map-path`; the first —
+`save_document`'s `0600` and two docstrings — was closed by `6fe2d3f` / `9e5e79f`. Full record:
+[`empty-node-list-report.md`](empty-node-list-report.md), checklist
+[`empty-node-list-tasks.md`](empty-node-list-tasks.md).)*
+
+`NetworkMap.get_node` iterated `network_dict.get('node_list')` unguarded, so a map listing no nodes
+raised **`TypeError: 'NoneType' object is not iterable`** instead of the `ValueError` that
+`ConfigManager.node_network_map` documents. It now raises `ValueError`, message unchanged
+(`Node with uuid <uuid> not found`), for all three shapes: an empty `<node_list/>`, no `node_list`
+element at all, and a `None` value.
+
+**The failing case was the default case.** `cuems-common` has shipped `/etc/cuems/network_map.xml`
+with an empty `<node_list/>` since its `f78c876` (feature 001, T040), which removed a placeholder
+controller that misrouted chrony and the log collector — correctly. So every fresh install, and
+every upgrade where the operator takes the maintainer's conffile, read a map that made
+`load_network_map()` throw an uncatchable-by-contract exception. `cuems-nodeconf` caught
+`ValueError` only (deliberately narrowly, so `SchemaError` still fails loudly), so it failed
+start-up, and with `Restart=on-failure`/`RestartSec=10` it retried every ten seconds forever —
+unbreakable, because **only `cuems-nodeconf` writes a node into the map** and it never got that
+far. `cuems-engine`'s `load_config()` calls the same method and was exposed identically.
+
+**The trap, recorded because the obvious repair is wrong**: `.get('node_list', [])` does *not* fix
+this. `node_list` is `minOccurs="0"`, and an empty `<node_list/>` decodes to a key that is
+**present with value `None`**, so the default never fires. The neighbouring code at
+`settings.py:187`/`:236` was safe by its `if not node_list:` check, not by its default. The fix is
+`or []`, matching `config/network_map.py:181`'s existing guard.
+
+**Why three test suites missed it** — the reusable lesson, and the reason this subsection exists
+rather than just a changelog line:
+
+| Repository | Why it did not catch this |
+|---|---|
+| `cuems-common` | T040 validated the empty map against the **XSD** only; it never loaded it through `ConfigManager` |
+| `cuems-utils` | no test loaded an empty `node_list` through `ConfigManager` or `get_node` |
+| `cuems-nodeconf` | every fixture map in `tests/fixtures/` contains nodes |
+
+Each suite was internally consistent and collectively blind: schema-validity was checked where the
+document was authored, and loading was checked only against documents that happened to be
+populated. `tests/contract/test_empty_node_list.py` closes it here, and pins the fresh-node boot
+sequence (load → refill → `save` → re-read) so the shipped shape stays exercised end to end.
+
+**No pins move.** The fix ships inside `0.1.0rc16` — `__version__` unchanged, no re-cut of
+`xml-refactor-merge-candidate`, consumers' `>= 0.1.0rc16, << 0.1.1~` untouched, and
+`cuems-nodeconf`'s `except ValueError` needs no change. The caveat that follows from that: within
+rc16 the version string cannot distinguish a build made before this fix from one made after, so
+**rebuild or reinstall `cuemsutils` from the fixed commit** in every development venv and packaging
+run, with `test_empty_node_list.py` as the discriminator.
+
+**One adjacent finding, measured and deliberately left alone (T087).** Re-measuring every
+`node_list` consumer against both shapes confirmed the four the report names are safe — `get_node`
+now raises `ValueError`, `get_nodes_by_adoption` and `partition_by_adoption` raise their own
+`ValueError`, and `refresh`/`save` complete on an empty document. But a document whose **root is
+entirely empty** (`<CuemsNetworkMap/>`, no `node_list` element) decodes to `None`, so `get_dict()`
+returns a plain `{}` and `refresh`/`save` raise `AttributeError` on it. That is a decode-layer
+behaviour predating this fix, it affects the whole document rather than `node_list`, and **it is
+not a shape anything ships** — `cuems-common` ships `<node_list/>`. `get_node` answers it correctly
+either way. Recorded here rather than fixed, because widening it would touch the decode path for
+all six schemas, which this report does not license.
+
 ## 4b. The discovery vocabulary cutover *(wave 1, both halves landed 2026-09-17)*
 
 *(T024, FR-060–FR-063. **Two repositories, one cutover** — D33. It cannot be half-renamed: a
