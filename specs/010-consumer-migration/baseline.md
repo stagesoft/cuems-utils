@@ -631,3 +631,81 @@ distinguish a build made before this fix from one made after — `>= 0.1.0rc16` 
 discipline is operational: rebuild or reinstall `cuemsutils` from the fixed commit in every
 development venv and packaging run, with `tests/contract/test_empty_node_list.py` as the
 discriminator. If it fails, the installed build predates the fix.
+
+## Sibling pull and re-review (2026-09-21)
+
+`cuems-common` and `cuems-nodeconf` pulled; `cuems-power-bridge` fetched. Three pending items move,
+one of them to closed.
+
+| Repository | Was | Now |
+|---|---|---|
+| `cuems-common` | `1a00159` | **`11fab0e`**, tag `xml-refactor-merge-candidate` at `f2fc0f5` |
+| `cuems-nodeconf` | `a62ff40` | **`be45dda`**, tag `xml-refactor-merge-candidate` at `6c0cca7` |
+| `cuems-power-bridge` | `main` @ `c201405` | **`feat/xml-refactor` @ `d7fed47`** |
+
+### T070a — CLOSED
+
+`cuems-power-bridge` now tracks both documents (`d7fed47`), on a feature branch, working tree
+clean:
+
+```
+specs/planning/cuems-power-bridge-node-role-findings.md
+specs/planning/cuems-utils-xml-refactor-consumer-migration.md
+```
+
+The findings document was **kept, not consumed** — it is the dated 2026-09-15 primary record and the
+vendored bundle cites it, which is what T070a asked for.
+
+### The `CuemsNetworkMapType` internal import — CLOSED by the consumer
+
+`cuems-nodeconf` feature `002-public-network-map-path`, 18/18 tasks, merge candidate `6c0cca7`.
+Verified here, not taken on report:
+
+| | |
+|---|---|
+| `grep -rn "from cuemsutils\.\(xml\|config\)" cuemsnodeconf/` | **no matches** |
+| Its suite + yardstick against this working tree | **129 passed**, 0 failed (was 110) |
+| Yardstick vs `tests/contract/test_nodeindex_characterization.py` | **byte-identical** |
+
+It took flow 04a's shape exactly, and answered both of the prompt's open decisions explicitly: the
+first-run branch took **option A** (`_seed_empty_map()` writes a minimal map with stdlib, then loads
+it back through the public path, so nothing constructs a document anywhere), and the test imports
+were **kept and labelled** `# test-only (FR-007)`. It then added an anti-regression test the prompt
+did not ask for — `tests/test_public_surface.py`, failing any *shipped* module that imports
+`cuemsutils.config`/`cuemsutils.xml`, with a guard so a package rename cannot turn it silently
+green. Recorded in [migration-guide.md §4a](migration-guide.md).
+
+### T025 clause (b) — now demonstrated independently from **both** sides
+
+`cuems-common` closed its own C1 gap (`f2fc0f5`, 2026-09-18) by rebuilding its stubs from
+`cuems-nodeconf`'s **real** `debian/control` at both versions, rather than from the old floors-only
+approximation that produced the ACCEPTED reading this baseline recorded on 2026-09-17:
+
+| Case | Direction | Observed |
+|---|---|---|
+| B1 | renamed `cuems-common` + pre-cutover `cuems-nodeconf` 0.1.0-7 | **REFUSED** |
+| C1 | renamed `cuems-nodeconf` 0.1.0-8 + un-renamed `cuems-common` 1.3.0-22 | **REFUSED** |
+| E1 / F1 | upgrade only one half of the pair | **REFUSED** both ways |
+| D1 / G1 | the matched pre-cutover pair / both halves together | **ACCEPTED** |
+
+Two independent demonstrations now agree — `cuems-nodeconf`'s with real packages on both sides, and
+this one with stubs mirroring the real control files. **Clause (a) is still the only thing holding
+T025**, and it now has a named home rather than two scattered ones: `cuems-nodeconf`'s
+`specs/002-public-network-map-path/checklists/hardware-verification.md` consolidates the hardware
+debt of both its features, including feature 001's T050 (the operator chain) and T051 (the
+over-the-wire discovery check T025 needs).
+
+### US11 — unchanged, and still the live one
+
+`cuems-power-bridge`'s migration has **not** started: only the docs commit landed. All three sites
+still carry the retired vocabulary at `d7fed47`:
+
+```
+src/cuemspowerbridge/network_map.py:94   node_type=_text(el, "node_type"),
+src/cuemspowerbridge/network_map.py:110  if n.node_type != "NodeType.slave":
+src/cuemspowerbridge/network_map.py:141  if n.node_type != "NodeType.slave":
+```
+
+T071–T079 remain open. This is now the **only** consumer defect in the ecosystem that is both live
+and silent, and both of its broken features (orderly power-off, and the autoload readiness gate)
+are still broken.

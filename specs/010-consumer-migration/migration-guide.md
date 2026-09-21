@@ -24,7 +24,7 @@ library source.)*
 | `cuemsutils.xml.mapper.Mapper` (internal) | **nothing — delete the import.** Measured 2026-09-04: `cuems-nodeconf` imports it and never calls it; the import line is its only occurrence in that repository | wave 0 |
 | `cuemsutils.xml.mapper.read_config_document` (internal) | **nothing — delete the import**, same measurement | wave 0 |
 | `cuemsutils.timeoutloop.Timeoutloop` (deprecated) | `cuemsutils.tools.TimeoutLoop.TimeoutLoop` — note the class also changes spelling, `Timeoutloop` → `TimeoutLoop` | wave 3 |
-| `cuemsutils.config.network_map.CuemsNetworkMapType` (internal, **no public equivalent today**) | none — see [§4a's finding](#️-one-finding-the-gate-caught-a-third-internal-import). `ConfigManager.load_network_map()`/`save_network_map()` read and write one; nothing constructs one | **open** |
+| `cuemsutils.config.network_map.CuemsNetworkMapType` (internal) | **`ConfigManager.network_map`** — it already returns a live one, `.save`/`.refresh` included. Retain the document that `load_network_map()` returns and refill its `node_list`; do not construct one. See [§4a](#️-one-finding-the-gate-caught-a-third-internal-import) | **closed** 2026-09-21 by `cuems-nodeconf` feature 002 |
 | _(accumulates)_ | | |
 
 ## 2. The public descriptor path *(wave 0)*
@@ -229,9 +229,12 @@ document — only to read one. The daemon now does, in `_network_map_document()`
 return CuemsNetworkMapType(node_list=[{"node": n} for n in self.network_map.values()])
 ```
 
-There is no public name for that class today. `ConfigManager.load_network_map()` **returns** one and
-`save_network_map()` writes one, but neither lets a caller build one from an index it holds in
-memory. So this is a real gap in wave 0's surface against D34, not a consumer mistake.
+That framing was **wrong, and is kept here because being wrong twice in the same way is the
+finding**. "There is no public name for that class" was inferred from `load_network_map`'s
+`get_dict()` spelling rather than measured; `ConfigManager.network_map` already returned a live
+`CuemsNetworkMapType`. It was not a gap in wave 0's surface, and it was not a consumer mistake
+either — it was a mis-spelled accessor that misled the consumer *and* the gate reading it (T083
+corrected the spelling; see the measured answer below).
 
 **It is invisible to the import census by construction** — the census counts *deprecated* paths, not
 *internal* ones — which is the second thing worth recording: a zero census is not the same claim as
@@ -305,6 +308,37 @@ measuring, which is what neither of the first two could do.
 001's equivalence claim rests on. It is an enumerated exemption with that reason, not a site to
 fix.
 
+#### Closed by the consumer, 2026-09-21
+
+`cuems-nodeconf`'s feature `002-public-network-map-path` landed it (18/18 tasks, merge candidate
+`6c0cca7`). Verified here rather than taken on report:
+
+| | |
+|---|---|
+| Internal imports in **shipped** code (`cuemsnodeconf/`) | **zero** |
+| Its suite against this working tree | **129 passed** (was 110) |
+| Vendored yardstick | still **byte-identical** |
+
+It took the shape [flow 04a](../planning/xml-rebuild/010-consumer-prompts/04a-cuems-nodeconf-public-path.md)
+described: `self._document = manager.network_map` retains what `load_network_map()` already
+returned, and `_network_map_document()` refills its `node_list` instead of constructing a document.
+Both of the prompt's open decisions were taken and stated rather than left implicit:
+
+- **The first-run branch** took option A — `_seed_empty_map()` writes a minimal empty map with
+  stdlib, then loads it back through the public path. So there is no construction anywhere, not even
+  on the branch that is dead in deployment.
+- **The test imports were kept**, labelled `# test-only (FR-007)` at each site — the answer this
+  guide asked for, given explicitly rather than by silence. They then went further than the prompt
+  asked and added `tests/test_public_surface.py`, which fails any *shipped* module that imports
+  `cuemsutils.config` or `cuemsutils.xml`, with a guard test so a package rename cannot turn it
+  silently green.
+
+**What this demonstrates is worth more than the import.** The defect was a library accessor whose
+name said "dict" while returning an object; it cost two independent readers the same wrong
+conclusion, and the wrong conclusion was "the library must grow a new public symbol". The fix was to
+correct the spelling (T083) and let the consumer use what already existed. A synonym added on the
+first reading would have shipped, and would now be permanent.
+
 ### An 008 open item closed from the consumer side
 
 008 recorded `NodeIndex.set_controller_always_adopted` as carrying no first-run parameter, with the
@@ -328,7 +362,7 @@ documentation fix, not a behaviour change — the yardstick tests behaviour and 
 guarantee depends on that file not being edited from the consumer side. Patching from **this** side
 is the correct route.
 
-**Re-checked at `8ce7552`**: both docstrings are still stale (`tools/NodeList.py:177`, `config/network_map.py:156`), and `cuems-nodeconf`'s T049 is still open on its side — the report has been received here by inspection rather than delivered.
+**Closed 2026-09-17** (T082): both docstrings were rewritten in `9e5e79f`, and `cuems-nodeconf` recorded the resolution on its own report. The yardstick is unaffected and was re-diffed to confirm.
 
 ## 4a-ii. The shipped map lists no nodes — and `get_node` used to raise `TypeError` *(T085–T088, landed 2026-09-21)*
 
