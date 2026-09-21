@@ -1,12 +1,37 @@
 # Feature 010 — consumer migration: the per-repository prompt set
 
 **Status:** ready to run
-**Date:** 2026-09-03
+**Date:** 2026-09-03 · **amended 2026-09-17** (flow 04a) · **amended 2026-09-18**
+(the repository-identity correction below, and flow 07)
 **Parent:** [Part 4 §8](../xml-rebuild-07-speckit-prompts.md) is the cross-repo
 prompt; [Part 6](../xml-rebuild-09-consumer-audit.md) (`C1`–`C12`) is its
 call-site evidence. This directory is those two, **cut per repository**, so each
 consumer can run its own spec-kit flow from its own checkout without reading the
 other six.
+
+## ⚠️ The repository list has been wrong three times — read this before counting anything
+
+1. **`cuems-wsclient` was missing entirely** (FR-UX-002, finding C1). Found
+   2026-09-03, after two features had shipped past it.
+2. **`cuems-power-bridge` was missing** (US11). Found 2026-09-17 by the wave-1
+   gate, not by the list.
+3. **They are the same repository** (2026-09-18). `cuems-wsclient` was renamed
+   `cuems-power-bridge` in 2026-06 (`83d4f5d`); `f78bea6` — the commit flow 06
+   audits — is an ancestor of `cuems-power-bridge/main`, 30 commits back, and
+   `/disk/Projects/StageLab/cuems-wsclient` is a **stale checkout** still
+   pointing at the pre-rename remote.
+
+So the count is **seven repositories**, as it always was — briefly eight, and
+briefly right for the wrong reason. **US1 and US11 are one story about one
+file.** [06-cuems-wsclient.md](06-cuems-wsclient.md) is superseded by
+[07-cuems-power-bridge.md](07-cuems-power-bridge.md).
+
+The durable lesson is the **discovery method, not the number**: all three errors
+came from a hand-maintained list, and each was found by a gate that read the
+filesystem. An ecosystem-wide count (010/T062) must therefore discover its own
+denominator — *every repository under `/disk/Projects/StageLab/` that reads
+`network_map.xml`* — and de-duplicate **by git remote, not by directory name**,
+which is the only enumeration that would have caught all three.
 
 ## Why one file per repository
 
@@ -45,7 +70,8 @@ parallel.
 | 04 | [04-cuems-nodeconf.md](04-cuems-nodeconf.md) | `cuems-nodeconf` | pairs with 03 | The network-map object swap, and the **other half** of the Avahi cutover. |
 | 04a | [04a-cuems-nodeconf-public-path.md](04a-cuems-nodeconf-public-path.md) | `cuems-nodeconf` | after 04 | **Follow-up, not a flow.** Closes the one internal import 04 introduced while removing two: `CuemsNetworkMapType` has a public path (`ConfigManager.network_map` already returns one) that both sides missed. Added 2026-09-17 by `cuems-utils`' wave-1 gate. |
 | 05 | [05-cuems-frontend.md](05-cuems-frontend.md) | `cuems-frontend` | 00, 02 | Characterization tests first (D35), then the template and config-domain ports. The largest single port. |
-| 06 | [06-cuems-wsclient.md](06-cuems-wsclient.md) | `cuems-wsclient` | — | The sixth consumer nobody had listed (C1). Fully independent — **last by dependency, first by severity**; see below. |
+| ~~06~~ | [~~06-cuems-wsclient.md~~](06-cuems-wsclient.md) | ~~`cuems-wsclient`~~ | — | **⛔ SUPERSEDED 2026-09-18 by 07 — same repository, renamed.** Kept as the frozen 2026-09-03 audit of `f78bea6`, not as an instruction. |
+| 07 | [07-cuems-power-bridge.md](07-cuems-power-bridge.md) | `cuems-power-bridge` | — | The consumer nobody had listed (C1), now measured against the live tree. **US1 and US11 merged.** Fully independent — **last by dependency, first by severity**; see below. |
 
 **03 and 04 are one cutover, not two features that happen to be adjacent.** The
 Avahi TXT record is the wire between a publisher in `cuems-nodeconf` and a
@@ -61,16 +87,30 @@ and twelve live imports across `cuems-engine`, `cuems-editor` and
 `cuems-nodeconf` still route through those paths today. The deprecated surface
 comes out when that count is measured at zero, and the release follows.
 
-**Run 06 first anyway.** It is last in the dependency order because nothing waits
+**Run 07 first anyway.** It is last in the dependency order because nothing waits
 on it, but tracing `slave_avahi_names` into its only caller turned C1 from "a
-silently wrong filter" into something sharper: `cuems-wsclient`'s power bridge
-resolves its shutdown targets through that filter, so post-007 it resolves
-**zero** nodes, skips the reachability poll entirely (`if resolved:`), and then
-arms the Shelly relay that cuts mains power — to a cluster of machines nothing
-ever told to shut down. It logs `"0 nodes to power off: (none)"` at INFO. No test
-could have caught it: that repository has no `tests/` directory at all, while its
-`pyproject.toml` configures one. It is the cheapest flow here and the one whose
-current state is worst.
+silently wrong filter" into something sharper: `cuems-power-bridge` resolves its
+shutdown targets through that filter, so post-007 it resolves **zero** nodes,
+skips the reachability poll entirely (`if resolved:`), and then arms the Shelly
+relay that cuts mains power — to a cluster of machines nothing ever told to shut
+down. It logs `"0 nodes to power off: (none)"` at INFO.
+
+Two facts were added on 2026-09-18, by measuring the live tree rather than the
+stale checkout flow 06 read:
+
+- **A second, independent feature is broken.** `slave_ips()` is not on the
+  poweroff path — it feeds the autoload / NNG-hub readiness gate. An empty result
+  sends it down `bridge.py:652`'s *single-controller cluster* branch, so the show
+  loads **before** the node-engines join the bus. That is the exact regression
+  `0.3.0-5` was released to fix. The two features fail and recover
+  independently.
+- **The suite certifies the defect.** `tests/` does exist now (flow 06's "no
+  tests" was true at `f78bea6` only), and its sole network-map fixture is written
+  in the retired vocabulary — so green means nothing here. It is also red today
+  for an unrelated reason: `6 failed, 133 passed`.
+
+It is still the flow whose current state is worst, and the only one whose failure
+is both silent and physical.
 
 ## Bootstrap: five of seven have no spec-kit
 
@@ -84,7 +124,7 @@ Measured 2026-09-03:
 | `cuems-common` | **no** | **no** | **no** | `specify init` + `/speckit.constitution` |
 | `cuems-nodeconf` | **no** | **no** | **no** | `specify init` + `/speckit.constitution` |
 | `cuems-frontend` | **no** | **no** | **no** | `specify init` + `/speckit.constitution` |
-| `cuems-wsclient` | **no** | **no** | **no** | `specify init` + `/speckit.constitution` |
+| `cuems-power-bridge` | **no** | **no** | **no** | `specify init` + `/speckit.constitution` |
 
 Where spec-kit is absent it is **added on the first run**, and that file
 therefore carries a `/speckit.constitution` prompt grounded in what that
@@ -110,7 +150,7 @@ Spec-kit numbers features per repository, so this one work item gets a
 | `cuems-common` | none | `001-node-role-and-conversion-ordering` |
 | `cuems-nodeconf` | none | `001-network-map-object-adoption` |
 | `cuems-frontend` | none | `001-schema-descriptor-migration` |
-| `cuems-wsclient` | none | `001-node-role-reader` |
+| `cuems-power-bridge` | none | `001-node-role-parser` |
 
 The **branch** is `feat/xml-refactor` everywhere regardless; only the `specs/`
 directory name follows the local numbering. Where spec-kit's sequential branch
@@ -144,7 +184,9 @@ Two more apply *because* this is the consumer side, and both come from 007:
   a distinct and more dangerous class than callers that stop resolving. Nothing
   fails, the suite stays green, and the answer is silently wrong. They are
   **searched for**, and each one gets a test that fails against the old value.
-  `cuems-wsclient` (C1) is what this class looks like when nobody searches.
+  `cuems-power-bridge` (C1) is what this class looks like when nobody searches — and
+  the repository-identity correction above is what it looks like when the list of places
+  to search is maintained by hand.
 - **The node model lives in `cuemsutils` exclusively** (FR-030a-i). No consumer
   re-implements or re-tests it. A node-model test appearing in a consumer
   repository during this migration is a regression, not coverage.

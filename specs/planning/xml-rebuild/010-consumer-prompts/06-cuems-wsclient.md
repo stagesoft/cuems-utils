@@ -1,8 +1,33 @@
 # Feature 010 — `cuems-wsclient`: the sixth consumer, silently broken
 
-**Status:** ready to run — **independent; start immediately**
+> ## ⛔ SUPERSEDED 2026-09-18 by [07-cuems-power-bridge.md](07-cuems-power-bridge.md)
+>
+> **Do not run this file.** `cuems-wsclient` and `cuems-power-bridge` are **one
+> repository**, renamed in 2026-06 (`83d4f5d refactor: rename package
+> cuems-wsclient -> cuems-power-bridge (v0.2.6)`). Measured 2026-09-18:
+> `f78bea6` — the commit §0 below audits — **is an ancestor of
+> `cuems-power-bridge/main`**, 30 commits back, and
+> `/disk/Projects/StageLab/cuems-wsclient` is a stale checkout still pointing at
+> the pre-rename remote `git@github.com:stagesoft/cuems-wsclient.git`.
+>
+> So **US1 and US11 are one story about one file**, and feature 010 spans
+> **seven** repositories, not eight. Flow 07 is this flow's substance — the
+> private parser still goes (D32) — measured against the live tree, merged with
+> US11's additions: the second broken feature, the discriminating fixtures, the
+> empty-selection invariant, and the `cuems-common` half of the cutover.
+>
+> **This file is kept as the frozen 2026-09-03 audit of `f78bea6`, not as an
+> instruction.** Three of its facts are stale at the live HEAD and are corrected
+> in flow 07 §0: `tests/` now exists (15 files, and the suite is red for an
+> unrelated reason); the import package is `cuemspowerbridge`, not
+> `cuemswsclient`; and every line number in §3 has moved. Its reading of
+> `pyproject.toml:36` and `debian/control:18` was and remains **correct** — which
+> is how T076's "no `cuems-utils` relation at all" was caught.
+
+**Status:** ~~ready to run~~ **superseded** — see the box above
 **Date:** 2026-09-03
-**Repository:** `/disk/Projects/StageLab/cuems-wsclient`
+**Repository:** `/disk/Projects/StageLab/cuems-wsclient` — **a stale checkout of
+`/disk/Projects/StageLab/cuems-power-bridge`**
 **Run order:** 06 of 06 by dependency, but **first by severity**. See the
 [index](README.md).
 
