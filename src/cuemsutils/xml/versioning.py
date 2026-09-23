@@ -36,7 +36,7 @@ CURRENT_VERSION: dict[str, int] = {
     "network_map": 1,
     "project_mappings": 1,
     "project_settings": 1,
-    "outputs": 1,
+    "hardware_outputs": 1,
 }
 
 

@@ -27,7 +27,7 @@ SCHEMAS = (
     "network_map",
     "project_mappings",
     "project_settings",
-    "outputs",
+    "hardware_outputs",
 )
 
 #: Config classes in ``cuemsutils.xml.Settings``, by schema. These read with a
@@ -81,14 +81,14 @@ DOCUMENTS: tuple[CorpusDoc, ...] = (
     CorpusDoc("cuems-utils/network_map.xml", "network_map"),
     CorpusDoc("cuems-utils/project_mappings.xml", "project_mappings"),
     CorpusDoc("cuems-utils/default_mappings.xml", "project_mappings"),
-    CorpusDoc("cuems-utils/outputs.xml", "outputs"),
+    CorpusDoc("cuems-utils/outputs.xml", "hardware_outputs"),
     # -- cuems-engine --------------------------------------------------------
     CorpusDoc("cuems-engine/settings.xml", "settings"),
     CorpusDoc("cuems-engine/network_map.xml", "network_map"),
     CorpusDoc("cuems-engine/project_mappings.xml", "project_mappings"),
     CorpusDoc("cuems-engine/default_mappings.xml", "project_mappings"),
     CorpusDoc("cuems-engine/project_settings.xml", "project_settings"),
-    CorpusDoc("cuems-engine/outputs.xml", "outputs"),
+    CorpusDoc("cuems-engine/outputs.xml", "hardware_outputs"),
     CorpusDoc("cuems-engine/projects/complex_test/script.xml", "script"),
     CorpusDoc("cuems-engine/projects/complex_test/project_mappings.xml", "project_mappings"),
     CorpusDoc("cuems-engine/projects/empty_test/script.xml", "script"),

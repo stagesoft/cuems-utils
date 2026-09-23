@@ -39,7 +39,7 @@ XML_ROOT_TAG = {
     "network_map": "CuemsNetworkMap",
     "project_mappings": "CuemsProjectMappings",
     "project_settings": "CuemsProjectSettings",
-    "outputs": "CuemsOutputs",
+    "hardware_outputs": "CuemsOutputs",
 }
 
 #: Reader configuration **A** (FR-013): what ``XmlReaderWriter.read`` uses, and

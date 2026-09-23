@@ -280,7 +280,7 @@ def test_derivation_count_is_bounded_by_distinct_types_not_calls():
 
 @pytest.mark.parametrize(
     "schema",
-    ["settings", "network_map", "project_mappings", "project_settings", "outputs"],
+    ["settings", "network_map", "project_mappings", "project_settings", "hardware_outputs"],
 )
 def test_every_schema_root_derives(schema):
     spec = derive_root(schema)
@@ -295,6 +295,6 @@ def test_outputs_type_differs_between_schemas():
     schema the other's fields.
     """
     script_outputs = derive_named("script", "OutputsType")
-    outputs_outputs = derive_named("outputs", "OutputsType")
+    outputs_outputs = derive_named("hardware_outputs", "OutputsType")
     assert script_outputs.field_names != outputs_outputs.field_names
     assert outputs_outputs.field_names == ("output",)

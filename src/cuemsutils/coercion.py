@@ -48,7 +48,7 @@ class AmbiguousBindingError(RuntimeError):
     """A model class is bound in more than one schema registry.
 
     Registries are **per schema** on purpose (research R4): ``script.xsd`` and
-    ``outputs.xsd`` both declare ``OutputsType`` with different content. So
+    ``hardware_outputs.xsd`` both declare ``OutputsType`` with different content. So
     "which adapters does this class use?" has a well-defined answer only while a
     class is bound in exactly one registry.
 

@@ -61,7 +61,7 @@ def test_exactly_seven_elements_are_typed_ctimecodetype():
     ]
     assert len(ctimecode_fields) == 7, ctimecode_fields
 
-    for schema_name in ("settings", "network_map", "project_mappings", "project_settings", "outputs"):
+    for schema_name in ("settings", "network_map", "project_mappings", "project_settings", "hardware_outputs"):
         schema = get_schema(schema_name)
         assert "CTimecodeType" not in schema.types, (
             f"{schema_name}.xsd declares its own CTimecodeType"

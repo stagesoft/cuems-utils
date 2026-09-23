@@ -95,21 +95,21 @@ engine:  xmlns:cms="https://stagelab.coop/cuems"      <- no trailing slash
 schema:  targetNamespace="https://stagelab.coop/cuems/"
 ```
 
-The engine's `outputs.xml` — the only `outputs.xsd` instance that exists anywhere across
+The engine's `outputs.xml` — the only `hardware_outputs.xsd` instance that exists anywhere across
 the four repositories — therefore **does not load**:
 
 ```
 XMLSchemaKeyError: "the namespace 'https://stagelab.coop/cuems' is not loaded"
 ```
 
-Without a corrected copy, `outputs.xsd` would have **zero** loadable instances and SC-009
+Without a corrected copy, `hardware_outputs.xsd` would have **zero** loadable instances and SC-009
 ("at least one real instance document for each of the six schemas") would be unmeetable —
 byte-identity for the outputs path would be asserted against nothing. The original stays
 vendored, unmodified, with its rejection pinned by T018; this copy is what gives the sixth
 schema an accepted document.
 
 **New finding, recorded for T066.** This is not the `OutputsType` collision of research R4
-— that one explains why `outputs.xsd` is never *loaded alongside* `script.xsd`. This is a
+— that one explains why `hardware_outputs.xsd` is never *loaded alongside* `script.xsd`. This is a
 second, independent reason nothing has ever validated against it: the only instance in
 existence has a namespace typo. Both point the same way — the outputs path has never run.
 

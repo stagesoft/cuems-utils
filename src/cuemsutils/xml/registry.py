@@ -18,7 +18,7 @@ Two rules make that unrepeatable:
    forbids. `generic-bindings.md` is the measured list.
 
 One registry per schema, mandatorily (research R4): ``script.xsd`` and
-``outputs.xsd`` both declare ``{https://stagelab.coop/cuems/}OutputsType`` with
+``hardware_outputs.xsd`` both declare ``{https://stagelab.coop/cuems/}OutputsType`` with
 different content, so a shared registry would hand one schema the other's
 binding. There is no public registration API (D11 + Q14) — nothing external
 owns a model.
@@ -225,7 +225,7 @@ def _build_script_registry() -> SchemaRegistry:
     registry.bind("RegionType", Region)
 
     # Outputs. ``OutputsType`` here is *script.xsd's* — a different type from
-    # the identically-named one in outputs.xsd, which is why registries are per
+    # the identically-named one in hardware_outputs.xsd, which is why registries are per
     # schema (R4).
     registry.bind("AudioCueOutputsType", AudioCueOutput)
     registry.bind("VideoCueOutputsType", VideoCueOutput)
@@ -347,7 +347,7 @@ def _build_config_registry(schema_name: str) -> SchemaRegistry:
     ``GENERIC`` remains for two things, and both are deliberate rather than
     left over:
 
-    * the ``outputs`` schema, which is not a configuration document (see
+    * the ``hardware_outputs`` schema, which is not a configuration document (see
       ``_config_models``);
     * anonymous inline types with no name to bind by — ``PutType.mappings``'s
       wrapper is one — which stay generic and decode to plain dicts, exactly

@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased — `outputs.xsd` renamed to `hardware_outputs.xsd`
+
+The sixth schema is renamed as the first step of making it the node's **hardware capability
+descriptor** — what its name always implied — rather than the stub it has been since it was
+imported from `cuems-engine`.
+
+**Nothing on disk is invalidated.** No `CuemsOutputs` document has ever existed in production
+(both audited machines carry `/etc/cuems/outputs.xsd` and no instance), nothing anywhere loads
+one, and the only instances are four test fixtures. The file's *content* is unchanged by this
+commit.
+
+What moved, and why the key had to move with the file: `schema_path()` builds the filename
+from the schema key, so `"outputs"` -> `"hardware_outputs"` in `SCHEMA_NAMES`, `SCHEMA_ROOTS`,
+the version registry, the document-root map and the corpus manifest. `SchemaName.OUTPUTS`
+keeps its **member** name and takes the new **value**; the member rename is deferred so it is
+settled once rather than twice.
+
+Still **reserved, not usable**. Two independent blockers remain, both re-measured:
+
+- its `OutputsType` collides by name, in the same namespace, with `script.xsd:142`'s
+  (audit X14) — a list of strings against a choice of `AudioCueOutput`/`VideoCueOutput`/
+  `DmxCueOutput`;
+- the only instance outside this repository carries a namespace typo, `…/cuems` against a
+  `targetNamespace` of `…/cuems/` (X15).
+
+The root element `CuemsOutputs` and the type name `OutputsType` are unchanged; renaming them is
+part of the structure work, not of this step.
+
 ## Unreleased — schema-derived XML serialization core (feature 004)
 
 Replaces four independent implementations of the same mapping rules with one engine driven

@@ -628,3 +628,93 @@ done here; logged so the next schema pass can weigh it rather than re-deriving i
 Note the contrast with `videoplayer.path`/`args`, which are *also* unread today but are
 **retained deliberately** (D15): they are scheduled to become the videocomposer systemd unit's
 SSOT. Unread is not the same as dead.
+
+---
+
+## 7. The sixth schema — `hardware_outputs` (was `outputs`)
+
+**Investigated and renamed 2026-09-23.** This section supersedes OPEN-6's framing: the two
+unread count fields are not an isolated wart, they are one symptom of a missing layer.
+
+### 7.1 It was never usable, for three independent reasons
+
+Nothing anywhere loads a `CuemsOutputs` document — every `outputs` hit in engine, editor,
+frontend, nodeconf and bridge is `cue.outputs`, the script schema's per-cue list, a different
+concept. Three blockers, all re-measured 2026-09-23:
+
+| | Blocker |
+|---|---|
+| X14 | `OutputsType` collides by name in the same namespace with `script.xsd:142`'s — a list of strings against a choice of `AudioCueOutput`/`VideoCueOutput`/`DmxCueOutput` |
+| X15 | the only instance outside this repo, `../cuems-engine/dev/test_xml_files/outputs.xml`, declares `https://stagelab.coop/cuems` against a `targetNamespace` of `https://stagelab.coop/cuems/` |
+| — | no registry bindings: `_config_models` has no branch for it, falls through to `{}, {}`, binds `GENERIC` |
+
+`git log` shows three commits ever: the import from `cuems-engine`, a test commit, and 008's
+mechanical `doc_version` marker. **It has never been developed.** Yet it *is* deployed —
+`/etc/cuems/outputs.xsd` exists on both audited machines with no instance beside it.
+
+**The fossil.** `ConfigManager.get_video_output_id('default')` returns
+`self.node_conf['default_video_output']`, and `get_audio_output_id` the audio counterpart.
+**`settings.xsd`'s `NodeConfType` declares neither field** — they are declared in exactly two
+schemas, `hardware_outputs.xsd` and `project_mappings.xsd`. Someone wired `ConfigManager` to
+read this schema's pair out of `node_conf`, expecting a merge that never happened. Both methods
+have **zero callers**. So the schema is not unused but *half-wired*, which is worse: it reads
+as intentional.
+
+### 7.2 Four representations of "what can this node output"
+
+| Layer | Holds | Read by | Status |
+|---|---|---|---|
+| `project_mappings` → `nodes/node/{audio,video,dmx}/outputs/output/{id,name,mappings/mapped_to}` | the real per-port inventory | engine (`node_hw_outputs`, `node_mappings`), frontend | **authoritative** |
+| `project_mappings` root → `default_{audio,video,dmx}_output` | the three defaults | frontend (`sequence.component.ts:379,449,682`) | **live** |
+| `/run/cuems/display.conf` (tmpfs, `cuems-generate-display-conf` as videocomposer's `ExecStartPre`) | canvas size + per-output regions | engine **and** videocomposer | **authoritative for geometry** — the engine ignores XML `canvas_region` by design |
+| `settings.xml` → `videoplayer.outputs`, `audioplayer.audio_cards`, `dmxplayer.universes` | bare counts | **nothing** | degenerate |
+| `hardware_outputs.xsd` | flat video+audio lists + 2 defaults, **no DMX** | **nothing** | never loadable |
+
+Three cross-responsibility problems: the counts restate `len(outputs)` in a second document
+with nothing reconciling them; the schema predates DMX and never caught up; and physical
+geometry escaped XML entirely into a tmpfs file no schema describes.
+
+### 7.3 The target: a node hardware capability descriptor
+
+The system lacks a split between **hardware** (per node, discovered, stable across projects,
+not human-authored) and **mappings** (per project, authored, referencing hardware). Today they
+are fused inside `project_mappings`, which is why a *project* document carries a node's
+physical port inventory and why `default_mappings.xml` exists as the node-scoped fallback of a
+project-scoped schema.
+
+`hardware_outputs` becomes that missing layer, reached through a public
+`ConfigManager` accessor.
+
+| Supersedes | How |
+|---|---|
+| `settings.xml`'s three counts | derived (`len(video_outputs)`) — the OPEN-6 fields **retire** rather than becoming optional |
+| `project_mappings`' `node/{audio,video,dmx}/outputs` inventory | mappings keep *assignment* and reference output **ids**; they stop restating the inventory |
+| `ConfigManager.get_{video,audio}_output_id` | the dead pair gets a real backing document — §7.1's assumed merge becomes real |
+| — `network_map` | **no overlap.** The map says which nodes exist and are adopted; this says what each node can do. `uuid` is the join key |
+| — `script.xsd` | **no overlap**, but requires the X14 rename. Cue outputs are *intent*; hardware outputs are *capability* |
+
+**Scope: per node, aggregated by discovery** (decided 2026-09-23). `/etc/cuems/hardware_outputs.xml`
+on each node describes only that node; the controller obtains other nodes' capabilities the way
+it already learns topology. The node that owns the hardware describes it.
+
+**`display.conf` is transcribed in, not replaced** (decided 2026-09-23). It is generated
+outside the main start-up path — videocomposer's `ExecStartPre`, into tmpfs — and that
+ownership stands. Transcribing its contents into the XML is **`cuems-nodeconf`'s**
+responsibility: nodeconf is already the per-node agent that runs discovery and writes node
+identity, so it is the one process positioned to read the generated geometry and record it.
+This keeps videocomposer's generation authoritative at run time while giving the authoring side
+a durable, schema-described copy.
+
+Its natural writer is already named in this library's own schema comments: **`cuems-hardware-discovery`**
+(`settings.xsd:16`, `xml-rebuild-08` §444, `../cuems-common/docs/latency-tuning.md:15`), which
+has no checkout yet. `hardware_outputs.xml` is the document it was always going to write.
+
+### 7.4 Done in rc16, and what is not
+
+**Done**: the file is `hardware_outputs.xsd`; the schema key moved with it (`schema_path()`
+builds the filename from the key); `SchemaName.OUTPUTS` takes the new value and keeps its member
+name pending the final spelling. Suite green — 2660 passed, 100 skipped, 2 xfailed.
+
+**Not done, deliberately**: the root element `CuemsOutputs`, the colliding `OutputsType`, the
+missing DMX section, and the `id`/`name`/`mapped_to` structure. Those are the structure pass;
+X14's rename is its precondition, not a detail.

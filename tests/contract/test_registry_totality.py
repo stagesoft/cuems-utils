@@ -87,13 +87,13 @@ def test_the_colliding_outputs_type_is_bound_separately_per_schema():
     the failure would surface as wrong output rather than as an error.
     """
     script_binding = get_registry("script").binding_for("OutputsType")
-    outputs_binding = get_registry("outputs").binding_for("OutputsType")
+    outputs_binding = get_registry("hardware_outputs").binding_for("OutputsType")
 
     assert script_binding is not None
     assert outputs_binding is not None
     assert script_binding.key != outputs_binding.key
     assert script_binding.key.schema == "script"
-    assert outputs_binding.key.schema == "outputs"
+    assert outputs_binding.key.schema == "hardware_outputs"
 
 
 def test_anonymous_root_types_are_bound_by_path():

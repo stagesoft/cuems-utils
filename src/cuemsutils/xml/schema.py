@@ -4,10 +4,10 @@ The six bundled XSDs, each loaded **once per process** as its own
 ``XMLSchema11`` object.
 
 Per-schema isolation is mandatory, not stylistic (research R4). ``script.xsd``
-and ``outputs.xsd`` both declare ``{https://stagelab.coop/cuems/}OutputsType``
+and ``hardware_outputs.xsd`` both declare ``{https://stagelab.coop/cuems/}OutputsType``
 in the same namespace with **different content** — ``AudioCueOutput,
 VideoCueOutput, DmxCueOutput`` in one, ``output`` in the other. The two cannot
-coexist in a single namespace-aware schema object, which is why ``outputs.xsd``
+coexist in a single namespace-aware schema object, which is why ``hardware_outputs.xsd``
 has never been loaded alongside the others (X11). Keeping them separate routes
 around the collision without editing a ``.xsd``, which D3 forbids.
 
@@ -29,7 +29,7 @@ SCHEMA_NAMES = (
     "network_map",
     "project_mappings",
     "project_settings",
-    "outputs",
+    "hardware_outputs",
 )
 
 #: Root element per schema. Needed because the registry binds anonymous root
@@ -40,7 +40,7 @@ SCHEMA_ROOTS = {
     "network_map": "CuemsNetworkMap",
     "project_mappings": "CuemsProjectMappings",
     "project_settings": "CuemsProjectSettings",
-    "outputs": "CuemsOutputs",
+    "hardware_outputs": "CuemsOutputs",
 }
 
 SCHEMAS_DIR = path.join(path.dirname(__file__), "schemas")
