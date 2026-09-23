@@ -50,7 +50,7 @@ def test_the_shape_is_declared_once_per_level(manager):
     it by iteration at every level.
     """
     node = manager.node_mappings
-    assert type(node) is models.NodeType
+    assert type(node) is models.NodeMappingType
 
     groups = node["audio"]
     assert isinstance(groups, list), type(groups).__name__

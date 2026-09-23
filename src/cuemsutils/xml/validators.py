@@ -767,7 +767,7 @@ def _cuelist_shape(value, obj=None) -> None:
 
 @register(
     "one_custom_template_per_node",
-    [("NodeType", "video")],
+    [("NodeMappingType", "video")],
     # No default (``Unset``), and a count violation has no single substitute
     # value that would decide which duplicate template to keep.
     repairable=False,
@@ -777,7 +777,7 @@ def _one_custom_template_per_node(value, obj=None) -> None:
 
     A **V1 product constraint**, not a structural one, and document-scoped over
     *project mappings* rather than over a script. Registered against the
-    mappings ``NodeType`` so ``run_rules`` reaches it if a config object is
+    mappings ``NodeMappingType`` so ``run_rules`` reaches it if a config object is
     ever validated; the live call site remains ``validate_custom_templates``,
     which ``ProjectMappings`` runs on read.
     """

@@ -23,17 +23,17 @@
 
     <xs:complexType name="NewNodesType">
         <xs:sequence>
-            <xs:element name="node" minOccurs="0" maxOccurs="unbounded" type="cms:NodeType" />
+            <xs:element name="node" minOccurs="0" maxOccurs="unbounded" type="cms:NodeMappingType" />
         </xs:sequence>
     </xs:complexType>
 
     <xs:complexType name="NodesType">
         <xs:sequence>
-            <xs:element name="node" minOccurs="1" maxOccurs="unbounded" type="cms:NodeType" />
+            <xs:element name="node" minOccurs="1" maxOccurs="unbounded" type="cms:NodeMappingType" />
         </xs:sequence>
     </xs:complexType>
 
-    <xs:complexType name="NodeType">
+    <xs:complexType name="NodeMappingType">
         <xs:sequence>
             <xs:element name="uuid" minOccurs="1" maxOccurs="1" type="xs:string" />
             <xs:element name="mac" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString" />

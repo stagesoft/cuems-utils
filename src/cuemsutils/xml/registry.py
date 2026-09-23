@@ -313,7 +313,7 @@ def _config_models(schema_name: str) -> tuple[dict[str, type], dict[str, type]]:
             {
                 "NewNodesType": m.NewNodesType,
                 "NodesType": m.NodesType,
-                "NodeType": m.NodeType,
+                "NodeMappingType": m.NodeMappingType,
                 "DeviceType": m.DeviceType,
                 "PutGroupType": m.PutGroupType,
                 "PutType": m.PutType,

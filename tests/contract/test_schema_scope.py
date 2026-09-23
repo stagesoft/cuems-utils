@@ -67,19 +67,33 @@ ALL_SCHEMA_NAMES = {*UNTOUCHED_BY_PHASE_1_HASHES, *PRE_008_CHANGED_BY_PHASE_1_HA
 #: attribute line subtracted back out (see ``_without_doc_version_attribute``).
 #: Computed once from the landed Phase 2 schemas, 2026-09-02.
 #:
-#: **``hardware_outputs.xsd`` is deliberately absent** (rc16). It no longer
-#: carries Phase-1-end content: it was renamed from ``outputs.xsd`` and its root
-#: element and type renamed with it (``CuemsHardwareOutputs``,
-#: ``HardwareOutputsType``), which is a recorded decision of its own rather than
-#: a Phase-2 scope breach. Re-pinning it to a freshly computed hash would be
-#: worse than dropping it: the dict's stated meaning is *Phase-1-end content*,
-#: and a recomputed value would silently re-baseline the attestation while
-#: looking like it still held. It stays in ``ALL_SCHEMA_NAMES`` (built from the
-#: two pre-008 dicts), so both the doc_version check and the
-#: exactly-six-schemas check still cover it.
+#: **Two schemas are deliberately absent** (rc16), each by a recorded decision
+#: rather than a Phase-2 scope breach:
+#:
+#: * ``hardware_outputs.xsd`` — renamed from ``outputs.xsd``, with its root
+#:   element and type renamed too (``CuemsHardwareOutputs``,
+#:   ``HardwareOutputsType``);
+#: * ``project_mappings.xsd`` — its ``NodeType`` renamed ``NodeMappingType``,
+#:   resolving the X14 collision with ``network_map.xsd``'s that
+#:   ``test_schema_name_overlap.py`` recorded. Invisible to every document on
+#:   disk: type names are schema-internal and nothing uses ``xsi:type``.
+#:
+#: Re-pinning either to a freshly computed hash would be worse than dropping it:
+#: this dict's stated meaning is *Phase-1-end content*, and a recomputed value
+#: would silently re-baseline the attestation while looking like it still held.
+#: Both stay in ``ALL_SCHEMA_NAMES`` (built from the two pre-008 dicts), so the
+#: doc_version and exactly-six-schemas checks still cover them.
+#:
+#: **This dict is due to be revisited, not extended again.** It was written to
+#: catch *unsanctioned* schema edits during feature 008, when the schemas were
+#: meant to hold still. The current work's whole purpose is to leave them in a
+#: clean, durable state, so sanctioned edits are now the norm and a third
+#: exclusion would leave this pinning half the schemas against a baseline none
+#: of them is expected to keep. The replacement should pin *current* content as
+#: the new standard, with its own stated meaning — see
+#: ``specs/planning/etc-cuems-first-install.md`` §11.
 PHASE_1_END_HASHES_SANS_DOC_VERSION = {
     "network_map.xsd": "f9638502bdf022d882f30ff2a03ecc8c486fb6453537fa3ab7467c1f0ca5c02a",
-    "project_mappings.xsd": "ac260afc8206c8ca09d98b7643d9eb50f5020c0bf40fbfa04656f0861b217fc8",
     "project_settings.xsd": "715b6c5d3b8d8b62d3be109fe30b9b59ece5727972365ba2e202bb80c2527452",
     "script.xsd": "bc4a89967e003d891c587c169198752c517e587c24132ebf562e8112ee1dec76",
     "settings.xsd": "5f86a1d2b185379d4402535176f7dfc42d9010a3a4a08df7d8084289764b7e37",

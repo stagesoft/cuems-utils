@@ -76,7 +76,7 @@ def test_project_load(config_manager):
     assert config_manager.project_name == 'test_project'
     # Objects rather than raw dicts (FR-014); see test_network_map above.
     from cuemsutils.config.mappings import CuemsProjectMappingsType
-    from cuemsutils.config.mappings import NodeType as MappingsNodeType
+    from cuemsutils.config.mappings import NodeMappingType as MappingsNodeType
 
     assert type(config_manager.project_mappings) is CuemsProjectMappingsType
     assert type(config_manager.project_node_mappings) is MappingsNodeType

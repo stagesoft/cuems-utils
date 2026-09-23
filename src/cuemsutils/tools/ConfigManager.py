@@ -60,7 +60,7 @@ class SchemaName(Enum):
     #: answers for it, with two unbound types.
     HARDWARE_OUTPUTS = 'hardware_outputs'
 
-#: The three device sections a node can carry, in ``NodeType``'s schema order.
+#: The three device sections a node can carry, in ``NodeMappingType``'s schema order.
 #:
 #: Named rather than discovered, and that is the point of T051: the walk that
 #: built ``node_hw_outputs`` used to iterate every key of the node mapping and
@@ -252,10 +252,11 @@ class ConfigManager(ConfigBase):
         """**This** node's hardware mappings, resolved by uuid.
 
         Returns:
-            cuemsutils.config.mappings.NodeType: audio, video and dmx sections,
-            each a list of port groups. Distinct from
+            cuemsutils.config.mappings.NodeMappingType: audio, video and dmx
+            sections, each a list of port groups. Distinct from
             ``network_map``'s ``NodeType``, which describes node *identity*
-            rather than node *mappings* — two schemas, two types, two classes.
+            rather than node *mappings* — two schemas, two types, two classes,
+            and since rc16 two names.
 
         Raises:
             AttributeError: before :meth:`load_config` has run.

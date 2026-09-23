@@ -113,12 +113,18 @@ class VideoDeviceType(ConfigDict):
     }
 
 
-class NodeType(ConfigDict):
+class NodeMappingType(ConfigDict):
     """One node's device mappings — what ``ConfigManager.node_mappings`` holds.
 
     Distinct from ``network_map.xsd``'s ``NodeType``, which describes node
     *identity* rather than node *mappings*. Two schemas, two types, two
     classes; sharing one would be the F15 failure in miniature.
+
+    **Named ``NodeMappingType``, not ``NodeType``** (rc16): both schemas used to
+    declare ``NodeType`` in the same namespace with different content, which is
+    the X14 pattern that ``tests/contract/test_schema_name_overlap.py`` exists
+    to stop. ``network_map``'s keeps the plain name -- identity is the older and
+    broader meaning -- and this one takes the narrower one it always had.
     """
 
     DECLARED_DEFAULTS = {

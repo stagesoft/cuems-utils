@@ -116,16 +116,23 @@ def test_every_config_schema_is_covered():
 
 
 def test_the_two_node_types_are_different_classes():
-    """``NodeType`` exists in two schemas and means two different things.
+    """The two node types mean two different things, and now say so.
 
-    ``network_map.xsd``'s describes node **identity**; ``project_mappings.xsd``'s
-    describes node **mappings**. Binding one class to both would make its
-    coercion table ambiguous by construction (registries are per schema,
-    research R4) — and would be F15's failure in miniature, one type standing
-    for two shapes.
+    ``network_map.xsd``'s ``NodeType`` describes node **identity**;
+    ``project_mappings.xsd``'s describes node **mappings**. Binding one class to
+    both would make its coercion table ambiguous by construction (registries are
+    per schema, research R4) — F15's failure in miniature, one type standing for
+    two shapes.
+
+    **Until rc16 they also shared the name**, and this test pinned the distinct
+    bindings while accepting the collision. The mappings type is now
+    ``NodeMappingType`` (X14 resolved, ``test_schema_name_overlap.py``), so the
+    ambiguity is gone from the schemas as well as from the bindings. The test
+    stays: distinct names do not by themselves guarantee distinct classes, and
+    that guarantee is what this file is for.
     """
     identity = get_registry("network_map").model_for("NodeType")
-    mapping = get_registry("project_mappings").model_for("NodeType")
+    mapping = get_registry("project_mappings").model_for("NodeMappingType")
     assert identity is not None and mapping is not None
     assert identity is not mapping
     assert set(identity.declared_fields()) != set(mapping.declared_fields())

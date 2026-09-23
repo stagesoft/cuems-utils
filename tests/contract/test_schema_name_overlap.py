@@ -12,9 +12,11 @@ in rc16.
 
 **This file is that reading, made mechanical.** It is a ratchet, not a clean
 sheet: the overlaps that exist today are enumerated below with a verdict each,
-and anything *new* fails. Two of the enumerated ones are live X14-class defects
-found when this check was first run (2026-09-23) — they are recorded as debt
-rather than silently blessed.
+and anything *new* fails. Its first run (2026-09-23) turned up two live
+X14-class defects. ``NodeType`` was resolved the same day — ``project_mappings``'
+became ``NodeMappingType`` — and its entry left this file, which is how a fix is
+completed here. ``UuidType`` remains, recorded as debt rather than blessed,
+because resolving it invalidates every node identity in the field (§9).
 
 **Declarations are read as authored**, by regex over the source, rather than
 through a loaded schema object. Two reasons: most element declarations here are
@@ -88,17 +90,6 @@ KNOWN_IDENTICAL_DUPLICATES = {
 #: Removing an entry here is how a fix is *completed*: while a name is listed,
 #: :func:`test_the_allowlist_has_no_stale_entries` requires it to still collide.
 KNOWN_DIVERGENT_DECLARATIONS = {
-    "NodeType": {
-        "schemas": ("network_map", "project_mappings"),
-        "verdict": (
-            "network_map's NodeType is the node's identity (uuid, mac, name, "
-            "node_role, ip, adopted, online, role_id, alias, hostname); "
-            "project_mappings' is uuid/mac plus the three device sections. Two "
-            "meanings, one name, one namespace. Only the per-schema registry "
-            "split stops one binding reaching the other. Resolution: rename the "
-            "project_mappings one, which carries the newer and narrower meaning."
-        ),
-    },
     "UuidType": {
         "schemas": ("network_map", "script"),
         "verdict": (

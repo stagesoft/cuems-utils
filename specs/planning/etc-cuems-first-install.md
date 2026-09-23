@@ -885,8 +885,17 @@ being made.
    allowlist cannot end up certifying a defect that is already fixed. Proven to bite in all
    three directions (new overlap, a benign duplicate drifting, a recorded divergence resolved).
    It found a **second** live X14 the section above had not: `UuidType`.
-2. **`NodeType`** — resolve the live collision it found (rename the `project_mappings` one; it is
-   the newer, narrower meaning).
+2. **`NodeType`** — ✅ **landed 2026-09-23**. `project_mappings.xsd`'s became
+   **`NodeMappingType`**; `network_map.xsd` keeps the plain name, identity being the older and
+   broader meaning. Invisible to every document on disk — type names are schema-internal and
+   nothing uses `xsi:type` — so no version step and no conversion, and zero references in any
+   sibling repository. Eight sites, one more than the pre-change statement predicted
+   (`test_mappings_shape.py:53`'s `models.NodeType`, which the impact grep missed).
+   Its entry left F2's allowlist, which is how a fix is completed there.
+   It also produced `tests/contract/test_rule_targets_resolve.py`: the T2 rule
+   `one_custom_template_per_node` is keyed on a class **name**, matched by string, so a missed
+   rename leaves it registered and silently never firing — the only site in the change that no
+   existing test would have caught.
 3. **F3/F4** — retire the derived counts and move `hardware_outputs`' `default_*` pair out.
 4. **F6** — the `class`-attribute reshape, which is the file-format migration proper and needs a
    version step under `specs/agreements/schema-evolution-convention.md` rule 4.
@@ -1136,3 +1145,52 @@ service lifecycle; and it must be idempotent and resumable across a partial fail
 wrong shape for all four. The conversion tool's role here is the one §9.4 assigns it: **detect
 and report** a non-uuid4 identity, so an operator knows the procedure is needed, and change
 nothing.
+
+---
+
+## 11. `test_schema_scope` is due for replacement, not a third exclusion
+
+**Raised 2026-09-23**, after `project_mappings.xsd` became its second exclusion.
+
+`tests/contract/test_schema_scope.py` pins each schema's **Phase-1-end content** and asserts
+that ITEM E's `doc_version` attribute is the only textual difference since. It was written for
+feature 008, when the schemas were meant to hold still, and it did its job: it catches an
+*unsanctioned* schema edit.
+
+The current work inverts its premise. Leaving the XML in a clean, durable state is the whole
+point, so sanctioned schema edits are now the norm rather than the exception. Two have landed
+already — `hardware_outputs.xsd`'s rename and `project_mappings.xsd`'s `NodeMappingType` — and
+each was handled by dropping the schema from the asserted dict with the reason recorded, because
+re-pinning to a recomputed hash would silently re-baseline an attestation whose stated meaning
+is *Phase-1-end content*.
+
+That treatment does not scale past where it now is:
+
+| | asserted | excluded |
+|---|---|---|
+| after feature 008 | 6 | 0 |
+| after `hardware_outputs` rename | 5 | 1 |
+| after `NodeMappingType` | **4** | **2** |
+
+A third exclusion leaves the test pinning half the schemas against a baseline none of them is
+expected to keep — at which point it reads as a tripwire while guarding almost nothing.
+
+**The replacement should pin *current* content as the new standard**, with its own stated
+meaning: *these are the schemas as the rebuild left them, and a change to any of them is a
+deliberate act that updates this file in the same commit*. That is the same contract, re-based
+on the state the feature exists to produce rather than on the state it started from — and it is
+what makes the goldens hold true **after** the modifications, as the base for whatever comes
+next.
+
+Two things to preserve when it is rewritten, because they are the parts that have actually
+caught things:
+
+- `test_every_schema_declares_doc_version_exactly_once` — independent of any baseline, and worth
+  keeping as-is;
+- `test_only_six_schemas_are_bundled` — the check that a seventh schema cannot appear unnoticed.
+  It survives on `ALL_SCHEMA_NAMES`, which is why both excluded schemas were kept in that set
+  rather than removed outright.
+
+The production audit (§2.6) is the argument for doing this properly rather than loosening it:
+every `.xsd` on both machines is stale, and the two machines disagree with each other. A
+baseline that no longer describes anything is how that state is reached.
