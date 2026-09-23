@@ -9,6 +9,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 **Measured**: 2026-09-21, against `feat/xml-refactor`, `debian/bookworm`, and the two
 production machines `10.16.10.2` / `10.16.10.3` (§2.6)
 **Decisions taken**: 2026-09-21, seventeen of them, recorded in §3 with their reasoning
+**Extended**: 2026-09-23 — §7 (the sixth schema, renamed) and §8 (the splitting basis,
+writer responsibilities and duplication flags)
 **Applies to**: `cuems-utils` (owner), `cuems-common` (hands over two paths, gains one contract)
 
 Paths are relative to this repository's root; `../<repo>` is a sibling checkout.
@@ -725,3 +727,161 @@ the workaround. Suite green: 2660 passed, 100 skipped, 2 xfailed.
 **Not done, deliberately**: the missing DMX section and the `id`/`name`/`mapped_to` structure —
 the structure pass proper. **X15 still stands** (the external instance's namespace typo), and
 the schema still has no model bindings, so it remains reserved rather than usable.
+
+---
+
+## 8. The splitting basis, writer responsibilities, and duplication flags
+
+Written 2026-09-23, after §7's rename. §7 says *what* `hardware_outputs` should become; this
+section says on what basis the split is made, who may write what, and which flags keep the split
+from re-fusing as new hardware classes arrive.
+
+### 8.1 The basis: two axes, and one cell per fact
+
+Every fact this ecosystem stores has a **scope** (how far it is true) and a **provenance** (how
+it came to be known). A document is the container for one cell. Where a document straddles two
+cells, that is the defect.
+
+| | **discovered** (machine-probed) | **authored** (human intent) | **derived** (computable) | **runtime** (regenerated at start) |
+|---|---|---|---|---|
+| **node** | `hardware_outputs.xml` | `settings.xml` | *never stored* | `/run/cuems/display.conf` |
+| **cluster** | `network_map.xml` | adoption flags, in the same file | *never stored* | — |
+| **project** | — | `mappings.xml` | — | — |
+| **show** | — | `script.xml` | — | — |
+
+Three violations are live, all measured:
+
+1. **`project_mappings` straddles node-discovered and project-authored.** It carries each node's
+   physical port inventory (`nodes/node/{audio,video,dmx}/outputs`) *and* the project's
+   assignment of cues to them. `default_mappings.xml` exists only because of that fusion — it is
+   the node-scoped fallback of a project-scoped schema, which is the smell naming itself.
+2. **`settings.xml` stores derived facts.** `audioplayer.audio_cards` and `dmxplayer.universes`
+   are `len(inventory)` restated in a second document, read by nothing (OPEN-6).
+3. **`hardware_outputs.xsd` mixes provenance within itself.** Its `default_video_output` /
+   `default_audio_output` are *choices*, not capabilities — authored intent sitting in a
+   discovered document, and already declared in `project_mappings`. §8.3's F2 catches this
+   mechanically.
+
+### 8.2 Writers and consumers
+
+**Exactly one writer per document.** Anything else has no arbiter, and the loser is whichever
+process wrote first.
+
+| Document | Sole writer | Readers |
+|---|---|---|
+| `settings.xml` | `cuems-init-node` | engine, power-bridge, `cuems-common` tools, editor |
+| `hardware_outputs.xml` | `cuems-hardware-discovery` (probe) · `cuems-nodeconf` (transcribes `display.conf`) | editor (authoring), engine (validation) |
+| `network_map.xml` | `cuems-nodeconf` | engine, power-bridge, `cuems-common`, editor |
+| `mappings.xml` | `cuems-editor` | engine, frontend |
+| `script.xml` | `cuems-editor` | engine |
+| `/run/cuems/display.conf` | `cuems-videocomposer` (`ExecStartPre`) | engine, videocomposer |
+
+Two entries need their seams stated, because both look like two writers:
+
+**`hardware_outputs.xml`** has one writer per *section*: discovery owns the probed port
+inventory, nodeconf owns the transcribed geometry. They never write the same element, so F1
+holds at element granularity. `display.conf` keeps its videocomposer ownership at run time —
+it is generated outside the main start-up path and that is correct; nodeconf transcribes its
+*contents* so the authoring side has a durable, schema-described copy, and records the
+provenance rather than claiming authorship.
+
+**`output_latency_ms` is the one field with two legitimate provenances** — a *measured* hardware
+property and an *operator override*. Splitting it by document resolves that without a second
+writer: the measured value belongs in `hardware_outputs.xml` (discovered), the override stays in
+`settings.xml` (authored), and a reader prefers override → measured → `"auto"`. That is the same
+layering shape as D9's `defaults.d` overlay, and it keeps `cuems-init-node` the sole writer of
+`settings.xml`.
+
+### 8.3 The duplication-avoidance flags
+
+Rules stated so they can be **checked**, not just intended. Each names what it catches today.
+
+**F1 — One writer per document, declared in the schema's annotation.** A document whose writer
+is not named is a document with no arbiter. *Catches*: the `settings.xml` two-writer conflict
+above, resolved before it lands.
+
+**F2 — A fact is declared in exactly one schema; everywhere else it is referenced by key.** The
+join keys are the node `uuid` and the port `id`. **Checkable mechanically** by reporting element
+and type names declared in more than one schema, against a curated allowlist of legitimate
+references and coincidental generics. Run 2026-09-23, it finds:
+
+| Overlap | Verdict |
+|---|---|
+| `NodeType` — `network_map` **and** `project_mappings` | **Live X14-class defect.** Same name, same namespace, **different content**: 10 identity fields against `uuid`/`mac` + three device sections. Never audited; only the per-schema registry split stops it misbinding |
+| `CanvasRegionType` — `project_mappings` **and** `script` | Identical content today (`x`/`y`/`width`/`height`). Benign now, an X14 the moment one side gains a field, with nothing checking |
+| `default_audio_output`, `default_video_output` — `hardware_outputs` **and** `project_mappings` | §8.1's violation 3 — authored intent duplicated into a discovered document |
+| `uuid`, `mac`, `node`, `id`, `output` | **Legitimate**: references by join key, which is what F2 prescribes |
+| `name`, `value`, `x`, `y`, `width`, `height` | Coincidental generics — same word, different meaning. Allowlisted |
+
+That the check finds a **live, previously unknown defect** on its first run is the argument for
+making it a test rather than a habit.
+
+**F3 — Derived facts are computed, never stored.** If a value is a function of another
+document's content, it has no declaration site. *Catches*: `audio_cards`, `universes`, and any
+future per-class count. Checkable as a list of known-derived facts asserted absent from the
+schemas.
+
+**F4 — One provenance per document.** A discovered document carries no choices; an authored one
+carries no probe results. *Catches*: `hardware_outputs`' `default_*` pair; keeps
+`output_latency_ms`'s two halves apart.
+
+**F5 — References point from volatile to stable.** show → project → node → cluster, never the
+reverse. *Checkable*: `hardware_outputs.xsd` must never name a project or a cue;
+`network_map.xsd` must never name an output. A back-reference is how a node document starts
+needing a rewrite every time a project changes.
+
+**F6 — A new device class is data, not schema.** See §8.4.
+
+### 8.4 Surviving expansion — the new-hardware-class test
+
+The test a split must pass: *what does adding a fourth device class cost?* Measured today, a new
+class touches **four schemas and the code that enumerates them**:
+
+| Site | Cost |
+|---|---|
+| `settings.xsd` | a player section element + a `PlayerType` extension |
+| `project_mappings.xsd` | `default_X_input`/`_output` at the root + an `<X>` element in `NodeType` |
+| `script.xsd` | `XCueType` + `XCueOutputsType` + a member in the `OutputsType` choice |
+| `hardware_outputs.xsd` | `X_outputs` + `default_X_output` |
+| `ConfigManager.py:69` | `_DEVICE_SECTIONS = ('audio', 'video', 'dmx')` — a hardcoded triple |
+| `ConfigManager.py:160,283` | the six-key `node_hw_outputs` dict becomes eight |
+| `cuems-frontend` | four cue-type unions in `sequence.component.ts` |
+
+Roughly twenty sites, in four repositories, for one new class — and every one of them is a place
+the classes can fall out of step.
+
+**The mechanism: XSD 1.1 conditional type assignment**, which this library can already use —
+`xmlschema==3.4.3` is pinned and XSD 1.1 is already required by `script.xsd`'s `xs:assert`.
+A device becomes `<device class="…">` with `xs:alternative` selecting a type per class:
+
+```xml
+<xs:element name="device" minOccurs="0" maxOccurs="unbounded" type="cms:DeviceType">
+  <xs:alternative test="@class='video'" type="cms:VideoDeviceType"/>
+  <xs:alternative type="cms:DeviceType"/>
+</xs:element>
+```
+
+**Proven under the pinned version, 2026-09-23**: a document carrying
+`<device class="lighting">` validates with **no schema change**, while
+`<canvas_region>` on a non-video device is still rejected. So a class needing no special fields
+costs *nothing*; one that does costs a single `xs:alternative` line instead of an element in
+four schemas.
+
+`_DEVICE_SECTIONS` then derives from the document rather than being declared, and
+`node_hw_outputs`' fixed six keys become per-class — which is the same "named rather than
+discovered" reasoning T051 already applied, extended one level up.
+
+### 8.5 Sequencing
+
+The flags are worth landing **before** the structure work, not after: F2's overlap report is a
+test, it already found a live defect, and it is what stops the split from re-fusing while it is
+being made.
+
+1. **F2 as a test** — the overlap report with its allowlist. Cheap, and it guards everything below.
+2. **`NodeType`** — resolve the live collision it found (rename the `project_mappings` one; it is
+   the newer, narrower meaning).
+3. **F3/F4** — retire the derived counts and move `hardware_outputs`' `default_*` pair out.
+4. **F6** — the `class`-attribute reshape, which is the file-format migration proper and needs a
+   version step under `specs/agreements/schema-evolution-convention.md` rule 4.
+5. Only then the inventory move out of `project_mappings`, which is what finally retires
+   `default_mappings.xml`.
