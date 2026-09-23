@@ -6,8 +6,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
 # `/etc/cuems` first install — schemas, system defaults, and node identity
 
 **Status**: design settled, implementation not started
-**Measured**: 2026-09-21, against `feat/xml-refactor` and `debian/bookworm`
-**Decisions taken**: 2026-09-21, fourteen of them, recorded in §3 with their reasoning
+**Measured**: 2026-09-21, against `feat/xml-refactor`, `debian/bookworm`, and the two
+production machines `10.16.10.2` / `10.16.10.3` (§2.6)
+**Decisions taken**: 2026-09-21, seventeen of them, recorded in §3 with their reasoning
 **Applies to**: `cuems-utils` (owner), `cuems-common` (hands over two paths, gains one contract)
 
 Paths are relative to this repository's root; `../<repo>` is a sibling checkout.
@@ -101,6 +102,52 @@ package half-configured and **every dependent package fails to configure**. One 
 blocks the install of every CUEMS component.
 
 Everything in §3 that touches `postinst` is weighed against that.
+
+### 2.6 Production audit — two machines, 2026-09-21
+
+Read-only inspection of `10.16.10.2` and `10.16.10.3` (both `cuems-admin@`, both Debian 12,
+both reporting hostname `controller` — two separate installs, not a controller/node pair).
+Both are **due for the xml-refactor**, so their files are evidence of *improper* values, not an
+authority to copy.
+
+| | host `.2` | host `.3` |
+|---|---|---|
+| `cuems-utils` | `0.1.0rc14` | `0.1.0rc12` (current is rc16) |
+| `cuems-common` | `1.3.0-17` | `1.3.0-21` (neither ≥ `-22`, so `cuems-migrate-network-map` has never run) |
+| cluster shape | single node | **two nodes** (`number_of_nodes` 2) |
+| `cuems-nodeconf` | **masked** | **active/running** |
+| video connectors | `DP-2`, `HDMI-A-2` connected | only `HDMI-A-1` connected |
+
+**Every `.xsd` on both machines is stale, and the two disagree with each other** — the drift D4
+exists to end, measured in the field:
+
+| schema | canonical | `.2` | `.3` |
+|---|---|---|---|
+| `network_map.xsd` | 3652 | **2471** | **3119** |
+| `project_mappings.xsd` | 7701 | **5800** | **7301** |
+| `script.xsd` | 19408 | **15464** | **15986** |
+| `settings.xsd` | 8717 | **6195** | **6195** |
+
+`.2` also carries `network_map.xsd.dpkg-dist`: the conffile prompt fired, the admin kept the
+older copy, dpkg parked the new one beside it. **D5's argument, already having happened.**
+
+Validated against the canonical schemas:
+
+```
+.2/.3  settings.xml           VALID
+.2/.3  default_mappings.xml   VALID
+.2/.3  network_map.xml        INVALID -- both still carry <node_type>NodeType.master|slave
+```
+
+**Sequencing consequence for feature 010**: the `cuems-power-bridge` defect (US11) is *not yet
+live* on these machines, because their maps still carry the retired vocabulary. **The
+conversion is what triggers it.**
+
+Two smaller findings: `.3`'s `master.ip` reads `169.254.9.194`, which is **`.2`'s** controller
+address (both files dated Sep 2025, never updated); and node identity is not uuid4 — the two
+controllers' uuids differ *only* in the MAC-derived node field (`a3811d78-099f-11f0-a075-<mac>`,
+a uuid1 cloned and hand-edited), while `.3`'s `node01` is a uuid5. **Three conventions in
+production, none of them uuid4** — which D13 assumes. See OPEN-5.
 
 ---
 
@@ -324,6 +371,86 @@ This is the one part of the identity invariant that fails *silently* — a misma
 add a second "self" that never merges (`../cuems-nodeconf/specs/planning/09-self-node-seeding.md`
 §4). It needs recording in `../cuems-common/docs/node-identity-contract.md`.
 
+### D15 — The seed values are corrected against production, by *consumption*, not by copying
+
+The audit's job was to find **improper** values, not to transcribe a machine. Each field was
+classified by who actually reads it (engine source, live `ps` output, `systemctl show`):
+
+| Key | Was | Now | Why |
+|---|---|---|---|
+| `("SettingsType","editor_url")` | `editor.local` | **`formitgo.local`** | the brand hostname — CueMS is the internal machinery, this is the user-facing entry point |
+| `("VideoPlayerType","path")` | `/usr/bin/cuems-player` | **`/usr/bin/cuems-videocomposer`** | see below |
+| `("VideoPlayerType","args")` | `""` | `""` (kept) | operator flags live in `videocomposer-flags.env` (`OPERATOR_FLAGS=--verbose` on `.3`) |
+| `("AudioPlayerType","path")` | `/usr/bin/cuems-player` | **`/usr/bin/cuems-audioplayer`** | engine-spawned, `NodeEngine.py:514-518` |
+| `("AudioPlayerType","args")` | `""` | **`-w -1`** | live, identical on both hosts |
+| `("AudioMixerType","path")` | `/usr/bin/cuems-player` | **`/usr/bin/jack-volume`** | engine-spawned, `NodeEngine.py:456-457`; observed running as `jack-volume -c 0_mixer -p 9555 -n 4` |
+| `("DmxPlayerType","path")` | `/usr/bin/cuems-player` | **`/usr/bin/cuems-dmxplayer`** | engine-spawned, `NodeEngine.py:628-636` |
+| `("DmxPlayerType","args")` | `""` | `""` (kept) | `.2` carries `--mtcfollow`; it is now the binary's own default, so `.2` is the stale one |
+| `("SettingsType","controller_url")` | `controller.local` | kept | `.3`'s hardcoded `169.254.9.204` is improper as a default |
+
+**`/usr/bin/cuems-player` never existed** — absent on both machines. It reached all four player
+sections through the base-class fallback (D16), which is how one fiction stayed invisible in
+four places.
+
+**`xjadeo` is equally improper.** It is installed on both machines and has **zero journal
+mentions in 30 days**; the real video application is `cuems-videocomposer`, running as a
+systemd service. The engine never reads `videoplayer.path`/`args` at all —
+`NodeEngine.set_video_players()` takes only `osc_port` and speaks OSC to the already-running
+process. Those two fields are nonetheless **kept and corrected rather than retired**: they are
+scheduled to become the SSOT for the videocomposer systemd unit, so `path` naming the real
+binary is what that future unit will consume.
+
+Everything else matched both hosts exactly — all eleven `SettingsType` paths, all twelve
+`NodeConfType` ports and timeouts, `outputs: 2`, `audio_cards: 1`, `universes: 1`,
+`gradient_osc_port: 7100`.
+
+**Two fields are read by nothing** in engine, editor, frontend or `cuems-common` —
+`audioplayer.audio_cards` and `dmxplayer.universes` appear only in this library's own model and
+values table. Both are XSD-required, so a valid document must carry invented values. Making
+them optional is a rule-4 file-format change; logged as OPEN-6, not done here.
+
+### D16 — `PlayerType` keeps its class hierarchy and loses its values fallback
+
+Investigated 2026-09-21. `PlayerType` is an **abstract base no element uses** (`videoplayer` →
+`VideoPlayerType`, `audioplayer` → `AudioPlayerType`, `audiomixer` → `AudioMixerType`,
+`dmxplayer` → `DmxPlayerType`). The Python hierarchy mirroring the XSD's `xs:extension` —
+`PlayerType(ConfigDict)` with MRO-accumulating `DECLARED_DEFAULTS` — is **correct and stays**;
+its registry binding is correct and T007 is unaffected. Two defects sit in the values layer:
+
+**Defect A — the mixer section derives from the wrong type.** `descriptor.py:586` passes
+`"PlayerType"` as both the lookup name and the `TypeKey` while handing it the `AudioMixerType`
+model. It works only because that extension is currently empty. Proven by patching each schema
+with a new required field:
+
+| Type patched | Result |
+|---|---|
+| `DmxPlayerType` (own `TypeKey`) | `RuntimeError: settings.xsd's DmxPlayerType.dmx_probe_field has no example value in descriptor._SETTINGS_EXAMPLE_VALUES — add one` |
+| `AudioMixerType` (via `PlayerType`) | documented mechanism **silent**; later `SchemaError: Tag 'mixer_channels' expected` |
+
+So FR-034's *"caught here, at generation time"* has a hole at one of the four sections. The net
+holds — T1 still refuses to save an incomplete document — but the error arrives later and names
+neither the values table nor the fix. Correction: `"AudioMixerType"` /
+`TypeKey("settings","AudioMixerType")`.
+
+**Defect B — the base-class fallback.** `_settings_example_value` falls back to
+`("PlayerType", field_name)`, which is precisely how one wrong `path` served four players.
+**Drop the fallback**; each concrete type declares its own `path`/`args`, and the
+`("PlayerType", …)` entries leave the table. Safe: nothing else consults it — `_instance_for`
+seeds from model defaults, not from this table.
+
+Both are fixed in the same pass that lands the corrected table, with a regression test each,
+because the table change is what makes the fallback actively wrong.
+
+### D17 — The shipped document carries optional fields **explicitly**
+
+`required_fields()` filters to `f.required`, so the generator emits no optional field today and
+the table's `osc_port`/`output_latency_ms` entries are unreachable. Production splits on this:
+`.2` omits them, `.3` writes them out. Functionally identical — the engine treats `"auto"` and
+absent alike — but an operator opening `settings.xml` should see every knob that exists.
+
+The generator widens past `f.required` for the player sections, and the four optional entries
+become reachable.
+
 ---
 
 ## 4. The design, end to end
@@ -434,12 +561,27 @@ is that provisioning step** — this design and that research describe one mecha
 
 ### OPEN-1 — `default_mappings.xml` needs its own values table
 
-`system-defaults.toml` covers `settings.xsd`. `project_mappings.xsd` additionally requires seven
-scalars (`number_of_nodes`, `default_audio_input`/`_output`, `default_video_input`/`_output`,
-`default_dmx_input`/`_output`) plus the node entry of §5. The same completeness guarantee should
-apply. Existing corpus documents (`tests/data/default_mappings.xml`,
-`tests/data/corpus/*/default_mappings.xml`) are the obvious source to transcribe from, as
-`_SETTINGS_EXAMPLE_VALUES` was transcribed from the retired settings template.
+`system-defaults.toml` covers `settings.xsd` (D15 corrected it against production).
+`project_mappings.xsd` additionally requires seven scalars (`number_of_nodes`,
+`default_audio_input`/`_output`, `default_video_input`/`_output`, `default_dmx_input`/`_output`)
+plus the node entry of §5, and the same completeness guarantee should apply.
+
+**Do not transcribe the in-repo corpus.** The 2026-09-21 audit found production mappings that
+the corpus does not resemble, and *neither* production file is copyable as-is:
+
+- both hosts' documents are **schema-valid** against the canonical `project_mappings.xsd`;
+- `.2` is single-node with four audio outputs (`USB analog L/R`, `Alesis iO|2 L/R`) and two
+  video outputs mapped to `DP-2` / `HDMI-A-2`, both of which are **connected**;
+- `.3` is the richer specimen — two nodes, eight audio outputs, a populated `<dmx>` section —
+  but its second video output maps to `DP-2`, which is **disconnected**, and its
+  `default_audio_output` uses an output *name* (`…_DP-1 Left`) where `.2` uses an *id*
+  (`…_0`). One of those two spellings is wrong and it is not yet established which;
+- `.3` also carries eight `default_mappings.xml.bak-*` files, i.e. the live document is the
+  product of repeated hand-repair.
+
+So the values table needs a decision per field about what a *fresh, unconfigured* node should
+claim, not a copy of what either venue happens to run. The node entry must carry the sentinel
+identity (D3) and stay consistent with `settings.xml` (§5).
 
 ### OPEN-2 — Does the editor need the XSDs?
 
@@ -458,3 +600,31 @@ Naturally `cuems-utils` (it owns the schemas, the models and the generator). But
 `cuems-common` has historically owned, and it is invoked from `cuems-utils`' `postinst`. The entry
 point goes in `[project.scripts]` beside `cuems-convert-documents`; the cross-repo ownership note
 belongs in `../cuems-common/docs/node-identity-contract.md` alongside D14's.
+
+### OPEN-5 — D13 mints a uuid4; production uses neither uuid4 nor one convention
+
+Measured 2026-09-21 (§2.6). The two controllers carry
+`a3811d78-099f-11f0-a075-<mac>` — identical in every group but the MAC-derived node field, i.e.
+a **uuid1 cloned and hand-edited** across machines. `.3`'s `node01` is `07131798-…-a039c6a7d18f`,
+a **uuid5**. Three conventions, none of them uuid4.
+
+`network_map.xsd`'s `UuidType` constrains shape only (canonical 8-4-4-4-12 hex), so all three
+validate. But D13 says `postinst` mints a uuid4, and provisioning evidently does something else
+— possibly deliberately, since a MAC-derived uuid is reproducible if a node is reimaged. Settle
+what `cuems-init-node` should mint before implementing D13: uuid4, uuid1-with-MAC, or uuid5 over
+a stable name.
+
+### OPEN-6 — Two XSD-required fields nothing reads
+
+`audioplayer.audio_cards` and `dmxplayer.universes` appear nowhere in `cuems-engine`,
+`cuems-editor`, `cuems-frontend` or `cuems-common` — only in this library's own model and values
+table. Both are required by `settings.xsd`, so every document in existence carries a value
+nobody consumes and the defaults table has to invent one.
+
+Making them `minOccurs="0"` is a rule-4 file-format change under
+`specs/agreements/schema-evolution-convention.md`, needing a version step and a conversion. Not
+done here; logged so the next schema pass can weigh it rather than re-deriving it.
+
+Note the contrast with `videoplayer.path`/`args`, which are *also* unread today but are
+**retained deliberately** (D15): they are scheduled to become the videocomposer systemd unit's
+SSOT. Unread is not the same as dead.
