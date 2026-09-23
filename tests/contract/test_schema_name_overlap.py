@@ -107,9 +107,13 @@ KNOWN_DIVERGENT_DECLARATIONS = {
             "requires uuid4 specifically (version nibble 4, variant [89ab]), "
             "lowercase, exactly 36 characters. The divergence is semantic, not "
             "cosmetic: production node identities are uuid1 (MAC-derived) and "
-            "uuid5, which the first accepts and the second would reject. See "
-            "OPEN-5 -- the two must be reconciled with whatever cuems-init-node "
-            "is settled to mint."
+            "uuid5, which the first accepts and the second would reject. "
+            "RESOLUTION DECIDED 2026-09-23: uuid4 project-wide, so script's is "
+            "the surviving definition and network_map's narrows to match. That "
+            "narrowing invalidates every node identity in the field, so it is a "
+            "rule-4 file-format migration and CANNOT land before cuems-init-node "
+            "exists to perform the cross-document re-mint -- see planning "
+            "section 9. This entry stays until it does."
         ),
     },
 }

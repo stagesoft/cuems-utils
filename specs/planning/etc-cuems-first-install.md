@@ -603,7 +603,7 @@ Naturally `cuems-utils` (it owns the schemas, the models and the generator). But
 point goes in `[project.scripts]` beside `cuems-convert-documents`; the cross-repo ownership note
 belongs in `../cuems-common/docs/node-identity-contract.md` alongside D14's.
 
-### OPEN-5 — D13 mints a uuid4; production uses neither uuid4 nor one convention
+### OPEN-5 — ✅ CLOSED 2026-09-23 — uuid4 project-wide (see §9)
 
 Measured 2026-09-21 (§2.6). The two controllers carry
 `a3811d78-099f-11f0-a075-<mac>` — identical in every group but the MAC-derived node field, i.e.
@@ -892,3 +892,95 @@ being made.
    version step under `specs/agreements/schema-evolution-convention.md` rule 4.
 5. Only then the inventory move out of `project_mappings`, which is what finally retires
    `default_mappings.xml`.
+
+---
+
+## 9. uuid4 project-wide — the convergence, and why it waits for `cuems-init-node`
+
+**Decided 2026-09-23**, resolving the `UuidType` collision F2 found (§8.3) and closing **OPEN-5**:
+
+1. **uuid4 everywhere**, from here on.
+2. **Minting goes through the machinery this library wraps** — `cuemsutils.tools.Uuid` (which
+   mints `uuid4()` and *raises* on anything else) and `helpers.new_uuid`.
+3. **Non-uuid4 values are updated by the upgrade machinery already in place.**
+4. A frontend→editor `get_new_uuid` endpoint **if** the frontend cannot mint uuid4 itself.
+
+### 9.1 Point 4 does not apply — measured
+
+`cuems-frontend` already depends on `uuid@^11.1.0` and mints uuid4 in four places, including
+`project-create.handler.ts:23,51` and `sequence.component.ts:1095`. The conditional is not met,
+so **no new endpoint is required on capability grounds**. What remains is a *policy* question —
+see §9.5.
+
+The compound `<uuid>_<output_id>` form survives the change: `projects.service.ts:553` parses it
+with `^([a-f0-9]{8}-…-[a-f0-9]{12})_(.+)$`, which is version-agnostic and already lowercase-only,
+so uuid1, uuid5 and uuid4 all parse. (Three mixer components use `split('_')` instead, which
+mis-splits `system:playback_1` — a pre-existing defect, unrelated to this change, recorded here
+because the next reader will find it while looking at the same strings.)
+
+### 9.2 `script.xsd`'s definition survives; `network_map.xsd`'s narrows to it
+
+| | pattern | accepts |
+|---|---|---|
+| `script.xsd` | `[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}`, `length = 36` | uuid4 only, lowercase |
+| `network_map.xsd` | `[0-9a-fA-F]{8}-…-[0-9a-fA-F]{12}` | any version, either case |
+
+`script.xsd`'s is already exactly `Uuid.UUID4_REGEX`, so convergence is on the definition the
+code already enforces. Note `script.xsd` carries three **commented-out** `node_uuid` elements
+(`:252`, `:290`, `:360`, in the three cue-output types); if they are ever restored they would put
+node identities under the strict pattern, which is a second reason the two must agree.
+
+### 9.3 **Narrowing invalidates every node identity in the field**
+
+Measured on both production machines (§2.6): the controllers carry
+`a3811d78-099f-11f0-a075-<mac>` — a **uuid1**, cloned and hand-edited — and `node01` carries a
+**uuid5**. None is a uuid4. Tightening the schema makes every deployed `network_map.xml` invalid.
+
+So this is a rule-4 file-format migration under
+`specs/agreements/schema-evolution-convention.md`: a version step plus a conversion path.
+
+### 9.4 But the re-mint is **not a document conversion**, and that is the sequencing constraint
+
+`convert()` walks **one document at a time** and has no cross-document view. A node's uuid is a
+cross-document identity (§5) that also appears **inside compound strings**:
+
+```
+settings.xml          Settings/node/uuid
+network_map.xml       node_list/node/uuid
+default_mappings.xml  nodes/node/uuid
+                      default_audio_output   a3811d78-…-00e04c01b7e3_DP-1 Left   <- embedded
+                      default_video_output   07131798-…-a039c6a7d18f_0           <- embedded
+                      default_dmx_output     a3811d78-…-00e04c01b7e3             <- embedded
+/etc/avahi/services/cuems.service   TXT uuid=
+```
+
+Converting `network_map.xml` alone leaves `settings.xml` disagreeing, and
+`ConfigManager(load_all=True)` raises `Node with uuid … not found` — the failure §2.2 already
+measures. A per-document conversion **cannot** perform this safely.
+
+**The division of labour**, therefore:
+
+| Does what | Who |
+|---|---|
+| detect a non-uuid4 identity, report it by document and path, change nothing | the conversion registry / `cuems-convert-documents --check` |
+| perform the re-mint across all of §5's locations, atomically | **`cuems-init-node`** (D12) — it already owns the cross-document write and the preserve-identity rule |
+| rewrite the Avahi TXT from the new `settings.xml` value | `cuems-common` (D14's contract) |
+
+**Consequence: the schema tightening cannot land before `cuems-init-node` exists.** Landing it
+first would invalidate both production maps with no tool able to repair them — shipping a brick.
+The `UuidType` entry therefore stays in F2's `KNOWN_DIVERGENT_DECLARATIONS` until then, with the
+decided resolution recorded in its verdict.
+
+### 9.5 One property is lost, and it should be lost knowingly
+
+A MAC-derived uuid1 is **reproducible across a reimage**: rebuild a node from scratch and it
+regenerates the same identity. A uuid4 does not. After this change, **reimaging a node produces a
+new identity and the node must be re-adopted**.
+
+That is defensible — adoption is a deliberate operator act, and identity that silently survives a
+rebuild is arguably the bug — but it is a real change in field behaviour and belongs in the
+migration guide rather than being discovered at a venue.
+
+It also sharpens D13: `postinst` mints **if and only if** there is no identity, and purge is the
+only thing that discards one. With uuid4, a lost `/etc/cuems/settings.xml` is a lost node
+identity, permanently.
