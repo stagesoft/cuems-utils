@@ -909,8 +909,9 @@ being made.
 
 `cuems-frontend` already depends on `uuid@^11.1.0` and mints uuid4 in four places, including
 `project-create.handler.ts:23,51` and `sequence.component.ts:1095`. The conditional is not met,
-so **no new endpoint is required on capability grounds**. What remains is a *policy* question —
-see §9.5.
+so **no new endpoint is created**. Settled 2026-09-23: the frontend's existing minting stands,
+its output is already validated on the way in, and decision 2's "common machinery" binds the
+Python side rather than requiring a round trip for every cue the operator creates.
 
 The compound `<uuid>_<output_id>` form survives the change: `projects.service.ts:553` parses it
 with `^([a-f0-9]{8}-…-[a-f0-9]{12})_(.+)$`, which is version-agnostic and already lowercase-only,
@@ -984,3 +985,154 @@ migration guide rather than being discovered at a venue.
 It also sharpens D13: `postinst` mints **if and only if** there is no identity, and purge is the
 only thing that discards one. With uuid4, a lost `/etc/cuems/settings.xml` is a lost node
 identity, permanently.
+
+---
+
+## 10. Re-minting node identities across a machine — the procedure
+
+§9 establishes *that* every node identity must become a uuid4 and that `convert()` cannot do it.
+This section is the procedure that can, written to be executable rather than summarised.
+
+**Verification status.** The file layout below is derived from code — `ConfigBase.project_path`,
+`ConfigManager.load_net_and_node_mappings`, the editor's settings dict — and from the corpus.
+The two production machines were reachable on 2026-09-21 but **not on 2026-09-23**, so the live
+library layout, the configured script filename and the `trash/` shape are **unconfirmed on
+hardware**. Confirm them (§10.7) before a first real run.
+
+### 10.1 Everywhere a node uuid lands
+
+| Path | Occurrence | Form |
+|---|---|---|
+| `/etc/cuems/settings.xml` | `Settings/node/uuid` | bare — **this node only** |
+| `/etc/cuems/network_map.xml` | `node_list/node/uuid` | bare — **every** node |
+| `/etc/cuems/default_mappings.xml` | `nodes/node/uuid` | bare |
+| " | `default_audio_output`, `default_video_output`, `default_dmx_output` | **compound** `<uuid>` or `<uuid>_<output_id>` |
+| `<library>/projects/<project>/mappings.xml` | `nodes/node/uuid` | bare |
+| " | the three `default_*_output` | **compound** |
+| `<library>/projects/<project>/<script_file>` | every `<output_name>` | **compound** `<uuid>_<output_id>`, incl. `<uuid>_custom_<n>` |
+| `<library>/trash/...` | the same, in deleted projects | see §10.5 |
+| `/etc/avahi/services/cuems.service` | TXT `uuid=` | bare |
+
+**Confirmed NOT to need rewriting**, so the procedure does not touch them:
+
+- **the editor database** (`project-manager.db`) — `db.py:20,35` store *project* and *media*
+  uuids as primary keys, both editor-minted uuid4 already. No node uuid is stored;
+- media, waveforms and thumbnails — keyed by media uuid;
+- anything under `/run` — regenerated at service start.
+
+### 10.2 The trap: structural rewriting silently misses most of it
+
+The majority of occurrences are **inside compound strings**, not in elements of their own:
+
+```xml
+<output_name>0367f391-ebf4-48b2-9f26-000000000001_2</output_name>
+<default_audio_output>a3811d78-099f-11f0-a075-00e04c01b7e3_DP-1 Left</default_audio_output>
+```
+
+A rewrite that walks the XML and replaces `uuid` elements handles `settings.xml` and
+`network_map.xml` and **leaves every script in the library wrong** — and wrong in the way that
+does not raise, because `output_name` is a `NameStringType`, so a stale prefix is still
+schema-valid. It fails later as an output that resolves to nothing.
+
+**Therefore: rewrite by literal text substitution of the 36-character token**, per old uuid,
+across whole files. Three reasons:
+
+1. it catches bare and compound occurrences in one pass, which is exactly the distinction a
+   structural rewrite gets wrong;
+2. a uuid is an opaque 36-char token with no meaningful substring, so an anchored literal
+   replacement cannot partially match;
+3. it leaves every other byte untouched — no reformatting of documents an operator has hand-
+   edited, and no reserialisation diff across the whole library.
+
+The safety this gives up — that a replacement lands somewhere unintended — is bounded by
+building the substitution table from **node uuids only** (§10.3), and recovered by validating
+every touched document afterwards (§10.6).
+
+### 10.3 Step 1 — build the substitution table, once, on the controller
+
+```
+for each node in network_map.xml:
+    old = node/uuid
+    new = str(cuemsutils.tools.Uuid())        # mints uuid4; raises on anything else
+    table[old] = new
+```
+
+Rules:
+
+- **Minted through `cuemsutils.tools.Uuid`** (decision 2) — it mints `uuid4()` and refuses any
+  other shape, so the table cannot contain a value the tightened schema will reject.
+- **Persist the table before writing anything.** It is the only record linking old identity to
+  new; a run that dies mid-way and re-mints produces a second new identity for a node already
+  half-rewritten.
+- **A node already carrying a valid uuid4 is left alone** — `old == new`, no substitution. The
+  procedure is re-runnable and must be idempotent (§10.6).
+- The table is built **once, on the controller**, and distributed. Each node minting its own
+  would give the controller's map and the node's settings different answers.
+
+### 10.4 Step 2 — stop the services that cache identity
+
+`cuems-node-engine`, `cuems-controller-engine`, `cuems-editor`, `cuems-nodeconf` and
+`cuems-power-bridge` all read these documents at start and hold the result. Rewriting underneath
+a running engine gives a process whose in-memory identity no longer matches disk.
+
+`cuems-nodeconf` matters most: it **writes** `network_map.xml`, so a discovery pass mid-rewrite
+can reintroduce an old uuid.
+
+### 10.5 Step 3 — apply, in this order
+
+**Per node** — `/etc/cuems/settings.xml`, `network_map.xml`, `default_mappings.xml`: substitute
+every table entry in each file. The map carries *all* nodes, so every entry applies; settings
+carries only its own.
+
+**Controller only** — the project library. For every project directory under
+`<library_path>/projects/`:
+
+- `mappings.xml`
+- the script, whose filename is **configuration, not a constant** — the editor's
+  `script_file_name` is `script.xml` in `cli.py:40` and `cue_script.xml` in
+  `CuemsProjectManager.py:38`. **Discover it; do not hardcode it.** A procedure that assumes
+  `script.xml` skips a library configured the other way, silently and completely.
+
+**`trash/` is included by default.** `set_dir_hierarchy` creates `trash/projects` beside
+`projects`, and a project restored from trash after the re-mint would reintroduce stale
+identities into a live library. Excluding it is defensible only if restoring from trash is
+accepted as requiring a re-run — which is a decision to record, not to assume.
+
+**Backups are not rewritten, and that is the hazard to state plainly.** `.bak-*` files (eight of
+them on one audited machine), conversion backups, and the pre-flight backup of §10.4 all contain
+old identities by design. Restoring any of them after the re-mint reintroduces a stale identity.
+The migration guide must say so; the alternative — rewriting backups — destroys their purpose.
+
+**Finally** the Avahi TXT `uuid=`, derived from the *new* `settings.xml` under D14's contract,
+which is `cuems-common`'s to perform.
+
+### 10.6 Step 4 — verify, by measurement rather than by the absence of errors
+
+1. **Zero old uuids remain.** For every `old` in the table, a recursive search of `/etc/cuems`
+   and the whole library returns nothing. This is the check that catches a missed compound
+   string, and it is the one that would have caught a hardcoded script filename.
+2. **Every touched document validates** against its schema — with the tightened `UuidType`, so
+   this is also the proof that the narrowing is safe to land.
+3. **`ConfigManager(load_all=True)` succeeds on each node.** That exercises §5's two eager
+   lookups together: this node's uuid resolves in both `network_map.xml` and the mappings.
+4. **Adoption state is preserved** — `adopted`/`online` unchanged per node, since only the uuid
+   moved.
+5. **Idempotence**: a second run substitutes nothing and changes no file.
+
+### 10.7 Unconfirmed, to check on hardware before a first run
+
+- the live library layout under `<library_path>/projects/`, and whether `trash/` mirrors it;
+- the configured `script_file_name` on each machine;
+- whether any project carries a `mappings.xml` at all, or relies on `default_mappings.xml`;
+- whether any *other* file in a project directory embeds an output name (the corpus shows only
+  the script, but the corpus is not the field).
+
+### 10.8 Why this is not `cuems-convert-documents`
+
+It is a **cluster-wide, cross-document re-identification**, not a per-document version step:
+one substitution table spans every node and every project; the operation is ordered against
+service lifecycle; and it must be idempotent and resumable across a partial failure.
+`convert()`'s contract — walk one document's version steps, mutate its root in place — is the
+wrong shape for all four. The conversion tool's role here is the one §9.4 assigns it: **detect
+and report** a non-uuid4 identity, so an operator knows the procedure is needed, and change
+nothing.
