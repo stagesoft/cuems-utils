@@ -715,6 +715,13 @@ has no checkout yet. `hardware_outputs.xml` is the document it was always going 
 builds the filename from the key); `SchemaName.OUTPUTS` takes the new value and keeps its member
 name pending the final spelling. Suite green — 2660 passed, 100 skipped, 2 xfailed.
 
-**Not done, deliberately**: the root element `CuemsOutputs`, the colliding `OutputsType`, the
-missing DMX section, and the `id`/`name`/`mapped_to` structure. Those are the structure pass;
-X14's rename is its precondition, not a detail.
+The transcription was then completed literally, in the same release: root element
+`CuemsOutputs` → **`CuemsHardwareOutputs`**, type `OutputsType` → **`HardwareOutputsType`**,
+enum member `SchemaName.OUTPUTS` → **`SchemaName.HARDWARE_OUTPUTS`**. **X14 is resolved** —
+`script.xsd` keeps its own `OutputsType`, now the only declaration of that name. The per-schema
+registry split it forced stays, and two tests were rewritten to pin the resolution rather than
+the workaround. Suite green: 2660 passed, 100 skipped, 2 xfailed.
+
+**Not done, deliberately**: the missing DMX section and the `id`/`name`/`mapped_to` structure —
+the structure pass proper. **X15 still stands** (the external instance's namespace typo), and
+the schema still has no model bindings, so it remains reserved rather than usable.

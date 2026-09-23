@@ -79,21 +79,31 @@ def test_binding_count_matches_the_schema(schema_name):
     assert registry.bound_type_names == complex_names
 
 
-def test_the_colliding_outputs_type_is_bound_separately_per_schema():
-    """R4 — the collision that makes per-schema registries mandatory.
+def test_the_outputs_type_collision_stays_resolved():
+    """R4/X14 — the collision that made per-schema registries mandatory, and its
+    resolution.
 
-    Both schemas declare ``OutputsType`` in the same namespace with different
-    content. A shared registry would give one of them the other's binding, and
-    the failure would surface as wrong output rather than as an error.
+    Both schemas used to declare ``OutputsType`` in the same namespace with
+    different content, so a shared registry would have given one of them the
+    other's binding and the failure would have surfaced as wrong output rather
+    than as an error. rc16 renamed the second to ``HardwareOutputsType``.
+
+    This now guards the resolution rather than the workaround: reintroducing the
+    name in ``hardware_outputs.xsd`` fails here, and the per-schema split it
+    forced is still asserted by the distinct binding keys below.
     """
     script_binding = get_registry("script").binding_for("OutputsType")
-    outputs_binding = get_registry("hardware_outputs").binding_for("OutputsType")
+    hardware_binding = get_registry("hardware_outputs").binding_for("HardwareOutputsType")
 
     assert script_binding is not None
-    assert outputs_binding is not None
-    assert script_binding.key != outputs_binding.key
+    assert hardware_binding is not None
+    assert script_binding.key != hardware_binding.key
     assert script_binding.key.schema == "script"
-    assert outputs_binding.key.schema == "hardware_outputs"
+    assert hardware_binding.key.schema == "hardware_outputs"
+
+    # The collision itself is gone: the hardware schema no longer answers to the
+    # script schema's type name.
+    assert get_registry("hardware_outputs").binding_for("OutputsType") is None
 
 
 def test_anonymous_root_types_are_bound_by_path():

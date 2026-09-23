@@ -39,10 +39,13 @@ SCHEMAS_DIR = REPO_ROOT / "src" / "cuemsutils" / "xml" / "schemas"
 #: The three schemas Phase 1 (ITEMs A-D) did not touch, and their pre-008 hash.
 #:
 #: ``hardware_outputs.xsd`` was called ``outputs.xsd`` when these were recorded
-#: (renamed rc16). Only the **key** moved: a rename does not change file
-#: content, so both attestations below still hold against the same bytes. The
-#: key is updated rather than the hash, so the dict keeps addressing a file that
-#: exists — a stale key would make this test skip silently rather than fail.
+#: (renamed rc16). The key is updated rather than the hash so the dict keeps
+#: addressing a file that exists — a stale key would make the checks below skip
+#: it silently rather than fail. The hash is a **historical** record of that
+#: file's pre-008 bytes and is not asserted anywhere: rc16 also renamed the
+#: root element and type inside it, so its current content no longer matches.
+#: See ``PHASE_1_END_HASHES_SANS_DOC_VERSION`` below, which is asserted and
+#: from which it is therefore excluded.
 UNTOUCHED_BY_PHASE_1_HASHES = {
     "hardware_outputs.xsd": "5672e27d837bb41c194a5bef6932ec7293caa91724511fdc300ff0dde544713e",
     "project_mappings.xsd": "c075137e74cfc41d2d0a853d12cc9c87bfb6899fae3a8d31b97c5f976265234a",
@@ -63,9 +66,19 @@ ALL_SCHEMA_NAMES = {*UNTOUCHED_BY_PHASE_1_HASHES, *PRE_008_CHANGED_BY_PHASE_1_HA
 #: Each schema's Phase-1-end content, hashed with ITEM E's ``doc_version``
 #: attribute line subtracted back out (see ``_without_doc_version_attribute``).
 #: Computed once from the landed Phase 2 schemas, 2026-09-02.
+#:
+#: **``hardware_outputs.xsd`` is deliberately absent** (rc16). It no longer
+#: carries Phase-1-end content: it was renamed from ``outputs.xsd`` and its root
+#: element and type renamed with it (``CuemsHardwareOutputs``,
+#: ``HardwareOutputsType``), which is a recorded decision of its own rather than
+#: a Phase-2 scope breach. Re-pinning it to a freshly computed hash would be
+#: worse than dropping it: the dict's stated meaning is *Phase-1-end content*,
+#: and a recomputed value would silently re-baseline the attestation while
+#: looking like it still held. It stays in ``ALL_SCHEMA_NAMES`` (built from the
+#: two pre-008 dicts), so both the doc_version check and the
+#: exactly-six-schemas check still cover it.
 PHASE_1_END_HASHES_SANS_DOC_VERSION = {
     "network_map.xsd": "f9638502bdf022d882f30ff2a03ecc8c486fb6453537fa3ab7467c1f0ca5c02a",
-    "hardware_outputs.xsd": "255e64fe3c15757ea23c6289b3a69820788e2a0d2aa001c680695430be903991",
     "project_mappings.xsd": "ac260afc8206c8ca09d98b7643d9eb50f5020c0bf40fbfa04656f0861b217fc8",
     "project_settings.xsd": "715b6c5d3b8d8b62d3be109fe30b9b59ece5727972365ba2e202bb80c2527452",
     "script.xsd": "bc4a89967e003d891c587c169198752c517e587c24132ebf562e8112ee1dec76",

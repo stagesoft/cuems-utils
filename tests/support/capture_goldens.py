@@ -57,7 +57,7 @@ XML_ROOT_TAG = {
     "network_map": "CuemsNetworkMap",
     "project_mappings": "CuemsProjectMappings",
     "project_settings": "CuemsProjectSettings",
-    "hardware_outputs": "CuemsOutputs",
+    "hardware_outputs": "CuemsHardwareOutputs",
 }
 
 

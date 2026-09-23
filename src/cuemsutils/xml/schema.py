@@ -3,13 +3,21 @@
 The six bundled XSDs, each loaded **once per process** as its own
 ``XMLSchema11`` object.
 
-Per-schema isolation is mandatory, not stylistic (research R4). ``script.xsd``
-and ``hardware_outputs.xsd`` both declare ``{https://stagelab.coop/cuems/}OutputsType``
+Per-schema isolation is the established structure (research R4), and until
+rc16 it was also mandatory: ``script.xsd`` and what is now
+``hardware_outputs.xsd`` both declared ``{https://stagelab.coop/cuems/}OutputsType``
 in the same namespace with **different content** — ``AudioCueOutput,
-VideoCueOutput, DmxCueOutput`` in one, ``output`` in the other. The two cannot
-coexist in a single namespace-aware schema object, which is why ``hardware_outputs.xsd``
-has never been loaded alongside the others (X11). Keeping them separate routes
-around the collision without editing a ``.xsd``, which D3 forbids.
+VideoCueOutput, DmxCueOutput`` in one, ``output`` in the other. The two could
+not coexist in a single namespace-aware schema object, which is the structural
+half of why that schema was never loaded alongside the others (X11/X14).
+
+**rc16 resolved the collision** by renaming the second to
+``HardwareOutputsType``; the two names are now distinct and
+``tests/unit/test_spec_derivation.py`` pins that they stay so. Isolation is
+kept regardless: nothing has established that a shared schema object would be
+correct now, and every registry, binding and cached derivation is built per
+schema on top of it. Whether it *could* be relaxed is untested and out of
+scope.
 
 XSD 1.1 is required throughout: ``script.xsd`` uses ``xs:assert`` (X7).
 """
@@ -40,7 +48,7 @@ SCHEMA_ROOTS = {
     "network_map": "CuemsNetworkMap",
     "project_mappings": "CuemsProjectMappings",
     "project_settings": "CuemsProjectSettings",
-    "hardware_outputs": "CuemsOutputs",
+    "hardware_outputs": "CuemsHardwareOutputs",
 }
 
 SCHEMAS_DIR = path.join(path.dirname(__file__), "schemas")

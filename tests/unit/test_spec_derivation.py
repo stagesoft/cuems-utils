@@ -288,13 +288,16 @@ def test_every_schema_root_derives(schema):
 
 
 def test_outputs_type_differs_between_schemas():
-    """R4 — the collision that makes per-schema isolation mandatory.
+    """R4/X14 — the collision that made per-schema isolation mandatory, and its
+    resolution.
 
-    Both schemas declare ``OutputsType`` in the same namespace with different
-    content. Deriving them through one shared object would silently give one
-    schema the other's fields.
+    Both schemas used to declare ``OutputsType`` in the same namespace with
+    different content, so deriving them through one shared object would silently
+    have given one schema the other's fields. rc16 renamed the second to
+    ``HardwareOutputsType``; the two shapes still differ, and now so do the two
+    names.
     """
     script_outputs = derive_named("script", "OutputsType")
-    outputs_outputs = derive_named("hardware_outputs", "OutputsType")
-    assert script_outputs.field_names != outputs_outputs.field_names
-    assert outputs_outputs.field_names == ("output",)
+    hardware_outputs = derive_named("hardware_outputs", "HardwareOutputsType")
+    assert script_outputs.field_names != hardware_outputs.field_names
+    assert hardware_outputs.field_names == ("output",)

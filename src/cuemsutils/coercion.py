@@ -47,8 +47,11 @@ _SCHEMAS: dict[type, str | None] = {}
 class AmbiguousBindingError(RuntimeError):
     """A model class is bound in more than one schema registry.
 
-    Registries are **per schema** on purpose (research R4): ``script.xsd`` and
-    ``hardware_outputs.xsd`` both declare ``OutputsType`` with different content. So
+    Registries are **per schema** on purpose (research R4). Until rc16 the
+    forcing case was a name collision: ``script.xsd`` and what is now
+    ``hardware_outputs.xsd`` both declared ``OutputsType`` with different
+    content. That collision is resolved (the second is now
+    ``HardwareOutputsType``), but the invariant this error guards is unchanged:
     "which adapters does this class use?" has a well-defined answer only while a
     class is bound in exactly one registry.
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — `outputs.xsd` renamed to `hardware_outputs.xsd`
+## Unreleased — `outputs` renamed to `hardware_outputs`, and X14 resolved
 
 The sixth schema is renamed as the first step of making it the node's **hardware capability
 descriptor** — what its name always implied — rather than the stub it has been since it was
@@ -25,8 +25,35 @@ Still **reserved, not usable**. Two independent blockers remain, both re-measure
 - the only instance outside this repository carries a namespace typo, `…/cuems` against a
   `targetNamespace` of `…/cuems/` (X15).
 
-The root element `CuemsOutputs` and the type name `OutputsType` are unchanged; renaming them is
-part of the structure work, not of this step.
+The transcription is literal and complete, so no half-renamed spelling survives:
+
+| Was | Is |
+|---|---|
+| `outputs.xsd` | `hardware_outputs.xsd` |
+| schema key `"outputs"` | `"hardware_outputs"` |
+| `SchemaName.OUTPUTS` | `SchemaName.HARDWARE_OUTPUTS` |
+| root element `CuemsOutputs` | `CuemsHardwareOutputs` |
+| type `OutputsType` | `HardwareOutputsType` |
+
+**The type rename resolves X14.** `script.xsd` keeps its own `OutputsType` — a different type
+that was never the problem — and is now the only declaration of that name, so the two schemas no
+longer collide. The per-schema registry split that the collision forced (research R4) stays:
+every binding and cached derivation is built on it, and nothing has established that a shared
+schema object would now be correct. Two tests were rewritten to pin the **resolution** instead of
+the workaround, including an assertion that the hardware schema no longer answers to the script
+schema's type name.
+
+**X15 still stands**, so the schema remains reserved rather than usable: the only instance outside
+this repository carries a namespace typo. It also still has no model bindings.
+
+Scope note: `tests/contract/test_schema_scope.py` pins each schema's Phase-1-end content, and
+this schema no longer carries it. It is **excluded** from that assertion with the reason recorded,
+rather than re-pinned to a recomputed hash — a fresh hash would silently re-baseline an
+attestation whose stated meaning is *Phase-1-end content*. It stays covered by the
+doc_version and exactly-six-schemas checks.
+
+Corpus: the two live instances are renamed with the schema. `tests/data/corpus/pre-008/` is a
+frozen snapshot the corpus walk excludes, and is left untouched.
 
 ## Unreleased — schema-derived XML serialization core (feature 004)
 

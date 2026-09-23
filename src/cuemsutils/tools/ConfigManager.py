@@ -47,21 +47,18 @@ class SchemaName(Enum):
     NETWORK_MAP = 'network_map'
     PROJECT_MAPPINGS = 'project_mappings'
     PROJECT_SETTINGS = 'project_settings'
-    #: **Member name pending.** The schema was renamed ``outputs`` ->
-    #: ``hardware_outputs`` (rc16) as the first step of making it the node's
-    #: hardware capability descriptor rather than the unfinished stub it has
-    #: been since it was imported from ``cuems-engine``. The *value* had to move
-    #: with the file, because ``schema_path()`` builds the filename from it; the
-    #: *member* keeps its old spelling until the final name is settled, so this
-    #: rename is one decision rather than two.
+    #: The node's hardware capability descriptor. Renamed from ``outputs``
+    #: (rc16) throughout — file, schema key, root element
+    #: (``CuemsHardwareOutputs``) and type (``HardwareOutputsType``) — as the
+    #: first step of making it what its name implies, rather than the unfinished
+    #: stub it has been since it was imported from ``cuems-engine``.
     #:
-    #: It is **reserved**, not usable: the schema still has no model bindings,
-    #: and two independent blockers stand in the way of ever loading a document
-    #: against it — its ``OutputsType`` collides with ``script.xsd``'s by name in
-    #: the same namespace (audit X14), and the only instance in existence carries
-    #: a namespace typo (X15). ``get_schema_descriptor`` answers for it, with two
-    #: unbound types.
-    OUTPUTS = 'hardware_outputs'
+    #: It is **reserved, not yet usable**. The type rename cleared the name
+    #: collision with ``script.xsd``'s ``OutputsType`` (audit X14), but the
+    #: schema still has no model bindings, and the only instance outside this
+    #: repository carries a namespace typo (X15). ``get_schema_descriptor``
+    #: answers for it, with two unbound types.
+    HARDWARE_OUTPUTS = 'hardware_outputs'
 
 #: The three device sections a node can carry, in ``NodeType``'s schema order.
 #:

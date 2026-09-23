@@ -17,11 +17,13 @@ Two rules make that unrepeatable:
    promoting one to a real handler would change the output, which this feature
    forbids. `generic-bindings.md` is the measured list.
 
-One registry per schema, mandatorily (research R4): ``script.xsd`` and
-``hardware_outputs.xsd`` both declare ``{https://stagelab.coop/cuems/}OutputsType`` with
-different content, so a shared registry would hand one schema the other's
-binding. There is no public registration API (D11 + Q14) — nothing external
-owns a model.
+One registry per schema (research R4). Until rc16 this was forced: ``script.xsd``
+and what is now ``hardware_outputs.xsd`` both declared
+``{https://stagelab.coop/cuems/}OutputsType`` with different content, so a shared
+registry would have handed one schema the other's binding. rc16 renamed the
+second to ``HardwareOutputsType``, ending the collision; the per-schema split
+stays, because every binding and cached derivation is built on it. There is no
+public registration API (D11 + Q14) — nothing external owns a model.
 """
 
 from __future__ import annotations
@@ -224,9 +226,10 @@ def _build_script_registry() -> SchemaRegistry:
     registry.bind("MediaType", Media)
     registry.bind("RegionType", Region)
 
-    # Outputs. ``OutputsType`` here is *script.xsd's* — a different type from
-    # the identically-named one in hardware_outputs.xsd, which is why registries are per
-    # schema (R4).
+    # Outputs. ``OutputsType`` here is *script.xsd's*, and since rc16 it is the
+    # only type carrying that name: ``hardware_outputs.xsd``'s counterpart was
+    # renamed ``HardwareOutputsType`` to end the collision (X14). Registries
+    # remain per schema (R4).
     registry.bind("AudioCueOutputsType", AudioCueOutput)
     registry.bind("VideoCueOutputsType", VideoCueOutput)
     registry.bind("DmxCueOutputsType", DmxCueOutput)
