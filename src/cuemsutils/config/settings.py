@@ -42,7 +42,6 @@ class VideoPlayerType(PlayerType):
 
 class AudioPlayerType(PlayerType):
     DECLARED_DEFAULTS = {
-        "audio_cards": Unset,
         "output_latency_ms": Unset,
     }
 
@@ -53,7 +52,6 @@ class AudioMixerType(PlayerType):
 
 class DmxPlayerType(PlayerType):
     DECLARED_DEFAULTS = {
-        "universes": Unset,
         "output_latency_ms": Unset,
     }
 

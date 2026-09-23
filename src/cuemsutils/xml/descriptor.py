@@ -519,9 +519,7 @@ _SETTINGS_EXAMPLE_VALUES = {
     ("PlayerType", "args"): "",
     ("VideoPlayerType", "outputs"): 2,
     ("VideoPlayerType", "output_latency_ms"): "auto",
-    ("AudioPlayerType", "audio_cards"): 1,
     ("AudioPlayerType", "output_latency_ms"): "auto",
-    ("DmxPlayerType", "universes"): 1,
     ("DmxPlayerType", "output_latency_ms"): 35,
 }
 

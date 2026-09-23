@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<cms:CuemsSettings xmlns:cms="https://stagelab.coop/cuems/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://stagelab.coop/cuems/ ../cuems/settings.xsd">
+<cms:CuemsSettings doc_version="2" xmlns:cms="https://stagelab.coop/cuems/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://stagelab.coop/cuems/ ../cuems/settings.xsd">
     <Settings>
         <conf_path>/etc/cuems</conf_path>
         <library_path>/opt/cuems_library</library_path>
@@ -35,7 +35,6 @@
             <audioplayer>
                 <path>/usr/local/bin/cuems-audioplayer</path>
                 <args>-w -1</args>
-                <audio_cards>1</audio_cards>
                 <output_latency_ms>auto</output_latency_ms>
             </audioplayer>
             <audiomixer>
@@ -45,7 +44,6 @@
             <dmxplayer>
                 <path>/usr/bin/cuems-dmxplayer</path>
                 <args>--mtcfollow</args>
-                <universes>1</universes>
                 <!-- NEGATIVE TEST FIXTURE — "auto" on dmxplayer must be
                      rejected by the schema (IntLatencyMsType, no auto
                      measurement path). This file is intentionally

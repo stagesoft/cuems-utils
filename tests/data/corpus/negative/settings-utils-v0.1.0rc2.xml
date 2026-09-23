@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<cms:CuemsSettings xmlns:cms="https://stagelab.coop/cuems/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://stagelab.coop/cuems/ ../cuems/settings.xsd">
+<cms:CuemsSettings doc_version="2" xmlns:cms="https://stagelab.coop/cuems/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://stagelab.coop/cuems/ ../cuems/settings.xsd">
     <Settings>
         <conf_path>/etc/cuems</conf_path>
         <library_path>/opt/cuems_library</library_path>
@@ -33,7 +33,6 @@
             <audioplayer>
                 <path>/usr/local/bin/audioplayer-cuems</path>
                 <args>-w -1</args>
-                <audio_cards>1</audio_cards>
             </audioplayer>
             <audiomixer>
                 <path>/usr/local/bin/jack-volume</path>
@@ -42,7 +41,6 @@
             <dmxplayer>
                 <path>/usr/local/bin/dmxplayer-cuems</path>
                 <args></args>
-                <universes>1</universes>
             </dmxplayer>
         </node>
     </Settings>

@@ -110,12 +110,53 @@ def test_project_load_payload_is_unaffected_by_the_marker_modulo_duration_reshap
 # --- T099a: versions move per schema, not in lockstep ---------------------
 
 
-def test_script_moved_but_the_other_five_schemas_did_not():
-    assert CURRENT_VERSION["script"] == 2
-    for schema_name in SCHEMA_NAMES:
-        if schema_name == "script":
-            continue
-        assert CURRENT_VERSION[schema_name] == 1
+#: Each schema's document version, pinned. **Update an entry in the same commit
+#: as the schema change that moves it**, with a registered conversion beside it.
+#:
+#: Re-based 2026-09-23 (`specs/planning/etc-cuems-first-install.md` §12). This
+#: used to assert *only ``script`` has moved* — feature 008's measured
+#: independence (FR-048b, SC-023b, T099a), true while that feature was the only
+#: one editing schemas. rc16/rc17 moved two more, each dropping elements with a
+#: conversion registered for the step, so the assertion is now *these are the
+#: versions, and a version moves only with its conversion*.
+EXPECTED_VERSIONS = {
+    "script": 2,            # 008 ITEM E: duration reshape, action_type remap, fade_profiles
+    "settings": 2,          # rc17 F3: derived counts dropped
+    "hardware_outputs": 2,  # rc17 F4: authored defaults dropped
+    "network_map": 1,
+    "project_mappings": 1,
+    "project_settings": 1,
+}
+
+
+def test_each_schema_is_at_its_pinned_version():
+    assert CURRENT_VERSION == EXPECTED_VERSIONS
+    assert set(EXPECTED_VERSIONS) == set(SCHEMA_NAMES)
+
+
+def test_every_schema_past_version_1_has_a_conversion_for_every_step():
+    """A version bump without a conversion is a document that cannot be read.
+
+    The registry treats a missing step as *identity* — correct for purely
+    additive growth, wrong for a step that drops elements, where the absence
+    would let an old document reach a strict decode that rejects it. Any schema
+    this project has moved so far drops something, so each of its steps is
+    required to be registered; a future additive-only bump would relax this
+    deliberately, and here.
+    """
+    from cuemsutils.xml.versioning import _CONVERSIONS
+
+    missing = [
+        (name, version)
+        for name, current in CURRENT_VERSION.items()
+        for version in range(1, current)
+        if (name, version) not in _CONVERSIONS
+    ]
+    assert not missing, (
+        f"schema version step(s) with no registered conversion: {missing}. "
+        "An unregistered step is an identity step, which is wrong for any step "
+        "that drops or reshapes an element."
+    )
 
 
 def test_a_config_document_written_by_this_feature_reports_version_1(tmp_path):

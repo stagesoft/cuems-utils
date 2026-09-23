@@ -4,9 +4,7 @@
         <xs:complexType>
             <xs:sequence>
                 <xs:element name="video_outputs" type="cms:HardwareOutputsType" />
-                <xs:element name="default_video_output" type="xs:string" />
                 <xs:element name="audio_outputs" type="cms:HardwareOutputsType" />
-                <xs:element name="default_audio_output" type="xs:string" />
             </xs:sequence>
             <!-- Document-property version marker (feature 008, ITEM E, FR-048a).
                  Not a domain field: excluded from spec._derive_attributes and

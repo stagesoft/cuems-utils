@@ -96,7 +96,6 @@
         <xs:complexContent>
             <xs:extension base="cms:PlayerType">
                 <xs:sequence>
-                    <xs:element name="audio_cards" type="xs:positiveInteger"></xs:element>
                     <xs:element name="output_latency_ms" type="cms:AutoOrIntLatencyMsType" minOccurs="0" />
                 </xs:sequence>
             </xs:extension>
@@ -114,7 +113,6 @@
         <xs:complexContent>
             <xs:extension base="cms:PlayerType">
                 <xs:sequence>
-                    <xs:element name="universes" type="xs:positiveInteger"></xs:element>
                     <xs:element name="output_latency_ms" type="cms:IntLatencyMsType" minOccurs="0" />
                 </xs:sequence>
             </xs:extension>

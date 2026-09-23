@@ -53,6 +53,20 @@ IDS = [d.relpath for d in CONFIG_DOCS]
 #: which is how T005 states the same thing on the show side.
 SCHEMA_LOCATION = "schemaLocation"
 
+#: Document properties the golden records and **no** projection carries.
+#:
+#: ``schemaLocation`` above, plus ``doc_version`` — feature 008 ITEM E's version
+#: marker, which ``spec._derive_attributes`` excludes from every wire projection
+#: by design (research R1): it describes the *document*, not the domain, so a
+#: consumer reading the wire form has no use for it and no field to put it in.
+#:
+#: ``doc_version`` joined this set in rc16, when the settings and
+#: hardware_outputs corpus documents were moved to the v2 shape and started
+#: carrying the marker. Before that no *config* golden held one, so the
+#: exclusion had nothing to exclude — which is why this reads as an addition
+#: rather than as something that was always missing.
+NON_DOMAIN_KEYS = frozenset({SCHEMA_LOCATION, "doc_version"})
+
 
 def _wire_form(value):
     """The golden's decoded value, converted to its ``to_wire()`` form.
@@ -79,7 +93,7 @@ def _expected(doc) -> dict:
     golden = json.loads(
         (GOLDEN_ROOT / "dict" / f"{doc.slug}.config.json").read_text(encoding="utf-8")
     )
-    return {k: _wire_form(v) for k, v in golden.items() if k != SCHEMA_LOCATION}
+    return {k: _wire_form(v) for k, v in golden.items() if k not in NON_DOMAIN_KEYS}
 
 
 def test_the_corpus_actually_covers_all_four_config_schemas():

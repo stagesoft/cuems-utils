@@ -50,15 +50,18 @@ SCHEMAS_DIR = REPO_ROOT / "src" / "cuemsutils" / "xml" / "schemas"
 #:
 #: Recorded 2026-09-23, after: ``outputs.xsd`` -> ``hardware_outputs.xsd`` with
 #: its root element and type renamed (``CuemsHardwareOutputs``,
-#: ``HardwareOutputsType``), and ``project_mappings.xsd``'s ``NodeType`` ->
-#: ``NodeMappingType``.
+#: ``HardwareOutputsType``); ``project_mappings.xsd``'s ``NodeType`` ->
+#: ``NodeMappingType``; and rc17's F3/F4 element drops —
+#: ``settings.xsd`` loses ``audio_cards``/``universes``, ``hardware_outputs.xsd``
+#: loses ``default_video_output``/``default_audio_output``, each with a
+#: conversion registered for its version step.
 CURRENT_SCHEMA_HASHES = {
-    "hardware_outputs.xsd": "7216376f7c76bde048bff9a7b9d887caa4b4e91cc3b5b96bffb9086c24c46322",
+    "hardware_outputs.xsd": "a625957716e99cd25f6cdd39d4feae9c82faf0ee99597166fa0b36e02853f728",
     "network_map.xsd": "4411c7a23f71dc712bdf278c6629c0df9635d857ad62d58f9a378ada51865b67",
     "project_mappings.xsd": "b8446d7f5c21ea511ae2092d608fc1f62aa42a183ffa1a9dc2ec77c29708380d",
     "project_settings.xsd": "26a607758210057e11b79b1b2b023e6bc6086a0e250fb6b53bfb5ffadb897ac9",
     "script.xsd": "3912e37113d2783c610b449881c6ee1931312baaa486f7744d92270dd845e818",
-    "settings.xsd": "ad170fa10982d4a27b76f8a5f57c46432e159ad9d4ff3d76719e4560af06d56e",
+    "settings.xsd": "50f640ff573a7ea60c484c219360f81786efac31d656932dca5db837239ed9a6",
 }
 
 ALL_SCHEMA_NAMES = set(CURRENT_SCHEMA_HASHES)

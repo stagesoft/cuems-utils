@@ -896,7 +896,20 @@ being made.
    `one_custom_template_per_node` is keyed on a class **name**, matched by string, so a missed
    rename leaves it registered and silently never firing — the only site in the change that no
    existing test would have caught.
-3. **F3/F4** — retire the derived counts and move `hardware_outputs`' `default_*` pair out.
+3. **F3/F4** — ✅ **landed 2026-09-23**. `settings.xsd` loses `audio_cards`/`universes`
+   (F3: derived facts are computed, never stored — both read by nothing anywhere);
+   `hardware_outputs.xsd` loses `default_video_output`/`default_audio_output` (F4: one
+   provenance per document — authored choice, already declared in `project_mappings`). Each
+   schema moves to **document version 2** with a registered conversion, so documents in the
+   field convert on read: a real production `settings.xml` carrying both counts loads clean.
+   The **library** version stays `0.1.0rc16` (§12).
+
+   Three things this cost, each recorded where it happened: the golden-capture harness had to
+   be fixed first (it could no longer regenerate, and `--force` would have destroyed nine
+   correct goldens); the current-dir corpus documents moved to the v2 shape while `pre-008/`
+   keeps the v1 shape as the conversions' coverage; and the negative fixtures were moved too,
+   because a retired element left in them made them fail for a *second* reason and the
+   assertion would have passed on the wrong one.
 4. **F6** — the `class`-attribute reshape, which is the file-format migration proper and needs a
    version step under `specs/agreements/schema-evolution-convention.md` rule 4.
 5. Only then the inventory move out of `project_mappings`, which is what finally retires

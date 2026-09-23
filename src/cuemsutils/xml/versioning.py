@@ -32,11 +32,11 @@ DOC_VERSION_ATTR = "doc_version"
 #: rather than assumed (FR-048b, SC-023b, T099a).
 CURRENT_VERSION: dict[str, int] = {
     "script": 2,
-    "settings": 1,
+    "settings": 2,
     "network_map": 1,
     "project_mappings": 1,
     "project_settings": 1,
-    "hardware_outputs": 1,
+    "hardware_outputs": 2,
 }
 
 
@@ -203,5 +203,83 @@ register_conversion(
             "action_type fade_in/fade_out -> play/stop; fade_profiles dropped"
         ),
         apply=_script_1_to_2,
+    ),
+)
+
+
+# --- rc16: the duplication flags (planning §8.3) ----------------------------
+#
+# Two schemas lose elements here, and both steps are **element drops with no
+# replacement** — the documents that carry them stay readable because the drop
+# happens on read, before the decode sees them.
+
+
+def _settings_1_to_2(root: ET.Element) -> list[str]:
+    """F3 — the two derived counts leave ``settings.xsd``.
+
+    ``audioplayer/audio_cards`` and ``dmxplayer/universes`` restate
+    ``len(inventory)`` in a second document with nothing reconciling the two,
+    and were measured (2026-09-23) to be read by **nothing** in this library,
+    ``cuems-engine``, ``cuems-editor``, ``cuems-frontend`` or ``cuems-common``.
+    A stored derived fact is a second source of truth that cannot be wrong
+    loudly, so it is retired rather than made optional.
+
+    Both were **required**, so every settings document in the field carries
+    them and would fail a strict decode against the new schema. This step is
+    what makes that a conversion rather than a breakage.
+    """
+    dropped: list[str] = []
+    node = root.find("Settings/node")
+    if node is None:
+        return dropped
+    for section, field in (("audioplayer", "audio_cards"), ("dmxplayer", "universes")):
+        parent = node.find(section)
+        if parent is None:
+            continue
+        element = parent.find(field)
+        if element is not None:
+            parent.remove(element)
+            dropped.append(f"{section}/{field}")
+    return dropped
+
+
+def _hardware_outputs_1_to_2(root: ET.Element) -> list[str]:
+    """F4 — the authored ``default_*`` pair leaves the discovered document.
+
+    ``default_video_output`` and ``default_audio_output`` are *choices*, not
+    capabilities: authored intent sitting in a document whose provenance is
+    machine discovery, and already declared in ``project_mappings.xsd``, which
+    is where the frontend reads them from. One provenance per document (F4),
+    and one declaration site per fact (F2).
+
+    No such document exists in the field — both audited machines carry the
+    schema and no instance — so this step exists for the corpus fixtures and
+    for symmetry with ``settings``: a schema that drops an element registers
+    the step, whether or not anyone is known to hold the old shape.
+    """
+    dropped: list[str] = []
+    for field in ("default_video_output", "default_audio_output"):
+        element = root.find(field)
+        if element is not None:
+            root.remove(element)
+            dropped.append(field)
+    return dropped
+
+
+register_conversion(
+    "settings",
+    1,
+    Conversion(
+        description="derived counts dropped (audioplayer/audio_cards, dmxplayer/universes)",
+        apply=_settings_1_to_2,
+    ),
+)
+
+register_conversion(
+    "hardware_outputs",
+    1,
+    Conversion(
+        description="authored defaults dropped (default_video_output, default_audio_output)",
+        apply=_hardware_outputs_1_to_2,
     ),
 )
