@@ -1148,7 +1148,7 @@ nothing.
 
 ---
 
-## 11. `test_schema_scope` is due for replacement, not a third exclusion
+## 11. `test_schema_scope`, re-based rather than excluded a third time — ✅ done 2026-09-23
 
 **Raised 2026-09-23**, after `project_mappings.xsd` became its second exclusion.
 
@@ -1175,8 +1175,8 @@ That treatment does not scale past where it now is:
 A third exclusion leaves the test pinning half the schemas against a baseline none of them is
 expected to keep — at which point it reads as a tripwire while guarding almost nothing.
 
-**The replacement should pin *current* content as the new standard**, with its own stated
-meaning: *these are the schemas as the rebuild left them, and a change to any of them is a
+**The replacement pins *current* content as the new standard** (landed 2026-09-23, before F3
+forced the third exclusion), with its own stated meaning: *these are the schemas as the rebuild left them, and a change to any of them is a
 deliberate act that updates this file in the same commit*. That is the same contract, re-based
 on the state the feature exists to produce rather than on the state it started from — and it is
 what makes the goldens hold true **after** the modifications, as the base for whatever comes
@@ -1194,3 +1194,48 @@ caught things:
 The production audit (§2.6) is the argument for doing this properly rather than loosening it:
 every `.xsd` on both machines is stale, and the two machines disagree with each other. A
 baseline that no longer describes anything is how that state is reached.
+
+---
+
+## 12. The version this work merges under — `0.1.0rc16`
+
+**Decided 2026-09-23.** The library version **stays at `0.1.0rc16`** through the whole
+xml-refactor. It is the version the coordinated merge deploys, and the final state is tagged
+`xml-refactor-merge-candidate`.
+
+Schema changes do **not** move it. They are signalled where the architecture already signals
+them: the per-schema **`doc_version`**, with a registered conversion for every step. The library
+version answers *what API do you get*; `doc_version` answers *what shape is this file*. Keeping
+the two apart is what lets a schema change ship inside an rc line without lying about the API.
+
+### 12.1 Why not `0.1.1`
+
+`0.1.1` is **already spoken for**, and taking it would break two things at once:
+
+- **`_deprecation.REMOVAL_RELEASE = "v0.1.1"`.** Every deprecation warning this library has
+  emitted since feature 006 promises the deprecated surface is *gone* in v0.1.1. Releasing it
+  with `Settings.py`, `XmlReaderWriter.py`, `Parsers.py`, `CMLCuemsConverter.py`,
+  `timeoutloop.py` and the seven aliases still present makes all of them false — which is
+  exactly what feature 010's T060 is written to prevent. That removal is gated on T049/T050's
+  **measured zero** import census, which is not met.
+- **Three consumers would refuse it outright**, by package relation rather than by convention:
+  `cuems-common/debian/control:13` (`<< 0.1.1~`), `cuems-nodeconf` (`<0.1.1` and `<< 0.1.1~`),
+  and `cuems-power-bridge/pyproject.toml:38` (`<0.1.1`). `cuems-common`'s own rationale, at
+  `debian/control:60`, is that the ceiling exists so *"a library that has moved on is refused
+  rather than merely documented"*. A `0.2.0` is refused by the same bound.
+
+### 12.2 Why not `rc17` either
+
+An rc bump would pass every consumer ceiling, but it would say nothing true: the API does not
+change here, and the ecosystem merges this work as one coordinated deployment rather than as a
+sequence of library releases. `rc16` is what the consumers already pin
+(`cuems-nodeconf`, `cuems-power-bridge`: `>=0.1.0rc16`), so the merge lands on the version they
+were written against.
+
+### 12.3 The gap this leaves, stated
+
+`cuems-common/debian/control:60` records it: *"Inside the 0.1.0 rc line the lock is partial: a
+schema change there passes the ceiling, and is caught by the schema-mirror test and by the rule
+that nothing in the ecosystem releases alone."* So a package relation will **not** stop a node
+running a schema this library has moved past. What does: the per-schema `doc_version` and its
+conversions (§8's F-flags), `test_schema_scope`'s hash pin, and D27 — nothing ships alone.
