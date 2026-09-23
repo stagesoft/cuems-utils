@@ -808,6 +808,8 @@ references and coincidental generics. Run 2026-09-23, it finds:
 | Overlap | Verdict |
 |---|---|
 | `NodeType` — `network_map` **and** `project_mappings` | **Live X14-class defect.** Same name, same namespace, **different content**: 10 identity fields against `uuid`/`mac` + three device sections. Never audited; only the per-schema registry split stops it misbinding |
+| `UuidType` — `network_map` **and** `script` | **Live X14-class defect, and semantic.** `network_map`'s accepts **any** uuid version, case-insensitive, shape only — deliberately (007 research R2). `script`'s requires **uuid4** (version nibble `4`, variant `[89ab]`), lowercase, exactly 36 characters. Production node identities are uuid1 and uuid5 (§2.6): the first accepts them, the second would reject them. Ties directly to **OPEN-5** |
+| `BoolType`, `DateType`, `NonEmptyString`, `PositiveUnitFloat`, `UnitFloat` | Identical content across 2–4 schemas. Same standing as `CanvasRegionType`: tolerated, but pinned against drift |
 | `CanvasRegionType` — `project_mappings` **and** `script` | Identical content today (`x`/`y`/`width`/`height`). Benign now, an X14 the moment one side gains a field, with nothing checking |
 | `default_audio_output`, `default_video_output` — `hardware_outputs` **and** `project_mappings` | §8.1's violation 3 — authored intent duplicated into a discovered document |
 | `uuid`, `mac`, `node`, `id`, `output` | **Legitimate**: references by join key, which is what F2 prescribes |
@@ -877,7 +879,12 @@ The flags are worth landing **before** the structure work, not after: F2's overl
 test, it already found a live defect, and it is what stops the split from re-fusing while it is
 being made.
 
-1. **F2 as a test** — the overlap report with its allowlist. Cheap, and it guards everything below.
+1. **F2 as a test** — ✅ **landed 2026-09-23**, `tests/contract/test_schema_name_overlap.py`.
+   A ratchet: today's overlaps are enumerated with a verdict each, anything new fails, and an
+   entry may not go stale — resolving a collision *requires* removing its entry, so the
+   allowlist cannot end up certifying a defect that is already fixed. Proven to bite in all
+   three directions (new overlap, a benign duplicate drifting, a recorded divergence resolved).
+   It found a **second** live X14 the section above had not: `UuidType`.
 2. **`NodeType`** — resolve the live collision it found (rename the `project_mappings` one; it is
    the newer, narrower meaning).
 3. **F3/F4** — retire the derived counts and move `hardware_outputs`' `default_*` pair out.
