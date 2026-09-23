@@ -183,13 +183,30 @@ class GoldenWriter:
 
 
 def _json_bytes(value) -> bytes:
-    """Exactly ``json.dumps(value)``, which is what C2 compares.
+    """Exactly what C2 compares — :func:`tests.support.roundtrip.json_dumps`.
 
     Not pretty-printed and with no trailing newline: the golden **is** the
     artifact under contract, and ``json.dumps`` is order-sensitive, so key
     insertion order is preserved on disk (FR-011a).
+
+    **Delegates rather than reimplements** (fixed 2026-09-23). This used to be
+    a bare ``json.dumps(value)``, which silently diverged from the comparison
+    the contract tests actually perform: ``roundtrip.json_dumps`` normalises
+    through ``as_plain`` and renders an ``Enum`` as its ``.value`` — added for
+    feature 006's object accessors and 007's ``network_map`` adapter table.
+    The goldens moved with those features; this writer did not, so it produced
+    ``"adopted": "True"`` where every golden and every test says ``true``.
+
+    The result was nine ``*.config.json`` goldens permanently reported as
+    conflicts by ``--force``-less capture, while the suite stayed green — a
+    harness that could no longer regenerate the artifacts it exists to
+    regenerate, and whose ``--force`` would have *overwritten correct goldens
+    with stale output*. One definition, both call sites, is the only thing that
+    keeps a captured artifact and its assertion from drifting apart again.
     """
-    return json.dumps(value).encode("utf-8")
+    from tests.support.roundtrip import json_dumps
+
+    return json_dumps(value).encode("utf-8")
 
 
 def capture(force: bool = False) -> GoldenWriter:
@@ -221,6 +238,22 @@ def capture(force: bool = False) -> GoldenWriter:
         outcomes[doc.relpath] = record
 
     outcomes.update(_capture_generated(writer))
+
+    # ``outcomes.json`` IS NOT A REGENERATION TARGET, and ``--force`` on it is
+    # destructive (learned the hard way, 2026-09-23).
+    #
+    # It records the **pre-refactor** verdict for every corpus document, and at
+    # least one contract asserts the *difference* between that record and what
+    # the library does now:
+    # ``test_accept_reject_parity.test_config_documents_fail_to_write_with_a_
+    # changed_exception_class`` reads ``AttributeError`` out of this file and
+    # asserts the live path raises ``XMLSchemaChildrenValidationError`` instead.
+    # Regenerating flattens both sides to the current value and the comparison
+    # silently becomes a tautology.
+    #
+    # So it will conflict **permanently and correctly**. A genuine update — a
+    # schema renamed, a document added — is applied surgically, to the keys that
+    # actually moved, never by capturing over the whole file.
     writer.put("outcomes.json", json.dumps(outcomes, indent=2, sort_keys=True).encode())
     return writer
 

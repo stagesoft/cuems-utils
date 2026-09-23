@@ -90,7 +90,7 @@
       "error_type": "XMLSchemaKeyError",
       "ok": false
     },
-    "schema": "outputs",
+    "schema": "hardware_outputs",
     "to_objects": {
       "error_head": "\"the namespace 'https://stagelab.coop/cuems' is not loaded\"",
       "error_type": "XMLSchemaKeyError",
@@ -354,7 +354,7 @@
     "read": {
       "ok": true
     },
-    "schema": "outputs",
+    "schema": "hardware_outputs",
     "to_objects": {
       "ok": true
     },
