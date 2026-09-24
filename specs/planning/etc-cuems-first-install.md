@@ -123,12 +123,22 @@ authority to copy.
 **Every `.xsd` on both machines is stale, and the two disagree with each other** — the drift D4
 exists to end, measured in the field:
 
-| schema | canonical | `.2` | `.3` |
+| schema | canonical *(as of 2026-09-21)* | `.2` | `.3` |
 |---|---|---|---|
 | `network_map.xsd` | 3652 | **2471** | **3119** |
 | `project_mappings.xsd` | 7701 | **5800** | **7301** |
 | `script.xsd` | 19408 | **15464** | **15986** |
 | `settings.xsd` | 8717 | **6195** | **6195** |
+
+**The canonical column is a snapshot, and three of its four rows have since
+moved** — `project_mappings.xsd` to 7722 (the `NodeMappingType` rename) and
+`settings.xsd` to 8844 (F3's drops and the version-comment correction);
+`network_map.xsd` and `script.xsd` are unchanged. Measured 2026-09-24. The
+machine columns are **not** re-measurable — both hosts have been unreachable
+since 2026-09-23 — so the table is kept as the audit recorded it rather than
+half-refreshed. Its conclusion is unaffected, and if anything stronger: every
+`.xsd` on both machines is stale, the two disagree with each other, and the
+canonical side has moved again since.
 
 `.2` also carries `network_map.xsd.dpkg-dist`: the conffile prompt fired, the admin kept the
 older copy, dpkg parked the new one beside it. **D5's argument, already having happened.**
@@ -255,7 +265,7 @@ forbids removing files a package did not create.
 case "$1" in purge)
     for f in settings.xml network_map.xml default_mappings.xml \
              network_map.xsd settings.xsd script.xsd \
-             project_mappings.xsd project_settings.xsd outputs.xsd; do
+             project_mappings.xsd project_settings.xsd hardware_outputs.xsd; do
         rm -f "/etc/cuems/$f"
     done
     rmdir --ignore-fail-on-non-empty /etc/cuems || true
@@ -409,7 +419,9 @@ Everything else matched both hosts exactly — all eleven `SettingsType` paths, 
 **Two fields are read by nothing** in engine, editor, frontend or `cuems-common` —
 `audioplayer.audio_cards` and `dmxplayer.universes` appear only in this library's own model and
 values table. Both are XSD-required, so a valid document must carry invented values. Making
-them optional is a rule-4 file-format change; logged as OPEN-6, not done here.
+them optional is a rule-4 file-format change; logged as OPEN-6 — **since closed by F3, which
+retired them outright rather than making them optional** (§8.5 item 3). The two entries are gone
+from this table.
 
 ### D16 — `PlayerType` keeps its class hierarchy and loses its values fallback
 
@@ -616,16 +628,29 @@ validate. But D13 says `postinst` mints a uuid4, and provisioning evidently does
 what `cuems-init-node` should mint before implementing D13: uuid4, uuid1-with-MAC, or uuid5 over
 a stable name.
 
-### OPEN-6 — Two XSD-required fields nothing reads
+### OPEN-6 — ✅ CLOSED 2026-09-23 by F3 — two XSD-required fields nothing reads
 
-`audioplayer.audio_cards` and `dmxplayer.universes` appear nowhere in `cuems-engine`,
+`audioplayer.audio_cards` and `dmxplayer.universes` appeared nowhere in `cuems-engine`,
 `cuems-editor`, `cuems-frontend` or `cuems-common` — only in this library's own model and values
-table. Both are required by `settings.xsd`, so every document in existence carries a value
-nobody consumes and the defaults table has to invent one.
+table. Both were required by `settings.xsd`, so every document in existence carried a value
+nobody consumed and the defaults table had to invent one.
 
-Making them `minOccurs="0"` is a rule-4 file-format change under
-`specs/agreements/schema-evolution-convention.md`, needing a version step and a conversion. Not
-done here; logged so the next schema pass can weigh it rather than re-deriving it.
+This item proposed making them `minOccurs="0"`. **F3 did the stronger thing and retired them
+outright** (§8.5 item 3), which is what §7.3 had by then prescribed: a count that restates
+`len(inventory)` has no declaration site at all, so making it optional would have left the
+duplication in place and merely excused it. `settings` moved to document version 2 with a
+registered conversion, so a document in the field carrying both still loads — verified against a
+real production `settings.xml`.
+
+Either way it was a rule-4 file-format change under
+`specs/agreements/schema-evolution-convention.md`, and it got the version step and conversion
+that rule requires.
+
+**The third count outlived this item.** `videoplayer.outputs` is the same kind of fact and was
+re-measured as read by nothing on 2026-09-24, but F3's scope was this item's two fields. It is
+enumerated as debt in `tests/contract/test_duplication_flags.py` and retires with feature 014 —
+not before, because `hardware_outputs` has to be able to answer `len(video_outputs)` first. See
+`etc-cuems-first-install-execution.md` §4.2.
 
 Note the contrast with `videoplayer.path`/`args`, which are *also* unread today but are
 **retained deliberately** (D15): they are scheduled to become the videocomposer systemd unit's
@@ -670,7 +695,7 @@ as intentional.
 | `project_mappings` root → `default_{audio,video,dmx}_output` | the three defaults | frontend (`sequence.component.ts:379,449,682`) | **live** |
 | `/run/cuems/display.conf` (tmpfs, `cuems-generate-display-conf` as videocomposer's `ExecStartPre`) | canvas size + per-output regions | engine **and** videocomposer | **authoritative for geometry** — the engine ignores XML `canvas_region` by design |
 | `settings.xml` → `videoplayer.outputs`, `audioplayer.audio_cards`, `dmxplayer.universes` | bare counts | **nothing** | degenerate |
-| `hardware_outputs.xsd` | flat video+audio lists + 2 defaults, **no DMX** | **nothing** | never loadable |
+| `hardware_outputs.xsd` | flat video+audio lists, **no DMX** (the 2 defaults were retired by F4, §8.5) | **nothing** | never loadable |
 
 Three cross-responsibility problems: the counts restate `len(outputs)` in a second document
 with nothing reconciling them; the schema predates DMX and never caught up; and physical
@@ -762,6 +787,12 @@ Three violations are live, all measured:
    discovered document, and already declared in `project_mappings`. §8.3's F2 catches this
    mechanically.
 
+**Violations 2 and 3 were fixed by F3/F4** (§8.5 item 3); violation 1 is feature 014's. All
+three are now *checked* as well as described — `tests/contract/test_duplication_flags.py` — so a
+fourth cannot arrive unannounced. That check also found a **third** stored derived fact the list
+above misses: `project_mappings`' `number_of_nodes`, which is `len(nodes/node)` restated at the
+root and **has already drifted in the corpus**. See `etc-cuems-first-install-execution.md` §4.2.
+
 ### 8.2 Writers and consumers
 
 **Exactly one writer per document.** Anything else has no arbiter, and the loser is whichever
@@ -844,7 +875,7 @@ class touches **four schemas and the code that enumerates them**:
 | `settings.xsd` | a player section element + a `PlayerType` extension |
 | `project_mappings.xsd` | `default_X_input`/`_output` at the root + an `<X>` element in `NodeType` |
 | `script.xsd` | `XCueType` + `XCueOutputsType` + a member in the `OutputsType` choice |
-| `hardware_outputs.xsd` | `X_outputs` + `default_X_output` |
+| `hardware_outputs.xsd` | `X_outputs` (the `default_X_output` half went with F4) |
 | `ConfigManager.py:69` | `_DEVICE_SECTIONS = ('audio', 'video', 'dmx')` — a hardcoded triple |
 | `ConfigManager.py:160,283` | the six-key `node_hw_outputs` dict becomes eight |
 | `cuems-frontend` | four cue-type unions in `sequence.component.ts` |

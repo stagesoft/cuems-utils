@@ -33,7 +33,9 @@ Paths are relative to this repository's root; `../<repo>` is a sibling checkout.
 
 **The parent document is the authority on *why*. This one is the authority on *where things
 stand*.** Where they disagree, this one was measured more recently — and §4 lists the specific
-places the parent is now stale, so that the correction is recorded rather than silently applied.
+places the parent was stale. Corrections are **recorded in §4 and then applied** to the parent,
+never applied silently — so the two documents agree while the reason they once disagreed stays
+readable.
 
 ---
 
@@ -71,6 +73,8 @@ Facts worth having up front, each of which has cost someone time:
 | `782f669` | **F3/F4** — derived counts and authored defaults out of the schemas (§8.5 item 3) |
 | `37489b5` | **F3/F4/F5 as standing ratchets** (this document's step 1) |
 | `e421e31` | **D15/D16/D17** — the settings seed values corrected, the generator's hole closed (step 2) |
+| `429f414` | this document |
+| *(the commit that added this row)* | **step 0** — the stale statements in both planning documents, and two schemas' version comments, corrected (§4) |
 
 Everything above is on `feat/xml-refactor`, unreleased, merging under `0.1.0rc16` (§12 of the
 parent — `0.1.1` is reserved by `_deprecation.REMOVAL_RELEASE` and refused outright by three
@@ -86,10 +90,10 @@ consumers' `<< 0.1.1~` ceilings).
 |---|---|---|
 | 1–2 | Problem, measured state | Still true. rc16 changed nothing about first install |
 | 3 | D1–D17 | **2 satisfied, 1 a stance, 14 unbuilt** → §3.2 |
-| 4 | End-to-end design | Nothing built; block stale in two places (§4.4) |
+| 4 | End-to-end design | Nothing built. The block still generates `default_mappings.xml`, which §8.5 item 5 retires — left standing for 011 to decide (§4.4) |
 | 4.1 | Packaging hygiene | Untouched — lives on `debian/bookworm` |
 | 5 | Eight identity practices | All unimplemented; they *are* `cuems-init-node`'s body |
-| 6 | OPEN-1…6 | 1,2,3,4 open · 5 closed · **6 closed by F3, unmarked** (§4.1) |
+| 6 | OPEN-1…6 | 1,2,3,4 open · 5 closed · 6 closed by F3, **now marked as such** (§4.1) |
 | 7 | `hardware_outputs` | Rename + F4 landed; capability descriptor not started → §3.4 |
 | 8 | Basis, writers, flags | → §3.3 |
 | 9–10 | uuid4 + re-mint | Decided and written; no code. Gated on `cuems-init-node` |
@@ -152,14 +156,19 @@ backing document or deletes it.
 
 ## 4. Findings new to this audit
 
-Each of these is a correction or an addition to the parent document, recorded here rather than
-edited in, so that the parent stays the design record and this stays the measurement record.
+Each of these is a correction or an addition to the parent document. **Step 0 acted
+on four of the six** — the parent document now carries the corrections, marked ✅ below. The two
+that remain are findings, not staleness: they describe the tree as it is.
 
-### 4.1 OPEN-6 is closed, and closed the *stronger* way
+### 4.1 ✅ OPEN-6 is closed, and closed the *stronger* way
 
-The parent's OPEN-6 still reads *"Making them `minOccurs="0"` is a rule-4 file-format change
-… Not done here"*. F3 **retired** `audio_cards` and `universes` outright rather than making
-them optional — which is what §7.3 prescribed. The open item is resolved; the text is stale.
+The parent's OPEN-6 read *"Making them `minOccurs="0"` is a rule-4 file-format change … Not done
+here"*. F3 **retired** `audio_cards` and `universes` outright rather than making them optional —
+which is what §7.3 prescribed: a count that restates `len(inventory)` has no declaration site at
+all, so making it optional would have left the duplication in place and merely excused it.
+
+Marked closed in the parent by step 0, at OPEN-6 itself and at the two other places that still
+described the fields in the present tense (D15's closing paragraph and §8.1's violation 2).
 
 ### 4.2 Two derived facts are still stored, and one has already drifted
 
@@ -179,7 +188,7 @@ Enumerated in `test_duplication_flags.KNOWN_STORED_DERIVED_FACTS` with a resolut
   `tests/data/corpus/cuems-engine/default_mappings.xml` declares `number_of_nodes=1` over **two**
   node entries. That is F3's argument standing in the corpus, not a hypothetical.
 
-### 4.3 Two schemas carry a version comment that is now false
+### 4.3 ✅ Two schemas carried a version comment that was false
 
 `settings.xsd` and `hardware_outputs.xsd` both still say
 
@@ -188,23 +197,37 @@ Enumerated in `test_duplication_flags.KNOWN_STORED_DERIVED_FACTS` with a resolut
 ```
 
 while `versioning.CURRENT_VERSION` puts both at **2** (F3/F4 moved them, each with a registered
-conversion). Cosmetic, but it is exactly the class of drift `test_schema_scope` exists to make
-visible — and fixing it changes both hashes, so the fix must update
-`CURRENT_SCHEMA_HASHES` in the same commit. **Still open** (step 0).
+conversion). Cosmetic — a comment, so no document on disk was affected — but exactly the class of
+drift `test_schema_scope` exists to make visible.
 
-### 4.4 The parent's §4 block and D6 are stale
+Corrected by step 0, each comment now naming what moved it and pointing at
+`versioning.CURRENT_VERSION` as the authority rather than restating a version number that can go
+stale again. Both hashes moved with it in the same commit, which is the pin working as designed.
 
-D6's `postrm` snippet still lists `outputs.xsd`, renamed in rc16. The §4 end-to-end block still
-says "9 paths" and still generates `default_mappings.xml` as a first-class artifact, which
-§8.5 item 5 schedules for retirement. Both are design text that predates the rename and the
-sequencing; correct them when 011 is specified, not before.
+### 4.4 ◐ The parent's D6 and two tables were stale; the §4 block is deferred
 
-### 4.5 The production byte-count table has aged
+**Fixed by step 0**, all three being plain factual errors: D6's `postrm` snippet listed
+`outputs.xsd`, renamed in rc16 (the path count stays 9); §7.2's row still counted
+`hardware_outputs`' "2 defaults" after F4 removed them; and §8.4's new-device-class cost table
+still charged a `default_X_output` that no longer exists.
 
-§2.6 compares each machine's `.xsd` against a "canonical" byte count. `settings.xsd` and
-`hardware_outputs.xsd` have since been edited, so two rows of that table no longer describe this
-tree. The *conclusion* — every `.xsd` on both machines is stale and the two disagree with each
-other — is unaffected, and if anything is now stronger.
+**Deliberately not fixed**: the §4 end-to-end block still generates `default_mappings.xml` as a
+first-class artifact, which §8.5 item 5 schedules for retirement. That is a design decision, not
+a stale fact — it is 011's to take (§6, clarification 2), and pre-empting it here would settle in
+housekeeping a question the spec should force.
+
+### 4.5 ✅ The production byte-count table had aged
+
+§2.6 compares each machine's `.xsd` against a "canonical" byte count. Re-measured 2026-09-24:
+**three of the four rows had moved**, not two as first reported — `project_mappings.xsd` 7701 →
+7722 (the `NodeMappingType` rename) and `settings.xsd` 8717 → 8844 (F3's drops plus §4.3's
+comment); `network_map.xsd` and `script.xsd` are unchanged.
+
+Step 0 relabelled the column as the 2026-09-21 snapshot it is and recorded the current figures
+beneath it, rather than half-refreshing a table whose machine columns **cannot** be re-measured
+— both hosts have been unreachable since 2026-09-23. The conclusion is unaffected and now
+stronger: every `.xsd` on both machines is stale, the two disagree with each other, and the
+canonical side has moved again since.
 
 ### 4.6 A flaky performance test
 
@@ -219,7 +242,7 @@ response to it**; re-run first. If it becomes frequent, the budget needs a floor
 ## 5. The step sequence
 
 ```
-step 0  housekeeping                     no SDD    OPEN
+step 0  housekeeping                     no SDD    DONE  2026-09-24
 step 1  F3/F4/F5 ratchets                no SDD    DONE  37489b5
 step 2  D15/D16/D17 values + generator   no SDD    DONE  e421e31
 step 3  feature 011  /etc/cuems first install         SDD

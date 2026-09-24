@@ -51,17 +51,24 @@ SCHEMAS_DIR = REPO_ROOT / "src" / "cuemsutils" / "xml" / "schemas"
 #: Recorded 2026-09-23, after: ``outputs.xsd`` -> ``hardware_outputs.xsd`` with
 #: its root element and type renamed (``CuemsHardwareOutputs``,
 #: ``HardwareOutputsType``); ``project_mappings.xsd``'s ``NodeType`` ->
-#: ``NodeMappingType``; and rc17's F3/F4 element drops —
+#: ``NodeMappingType``; and rc16's F3/F4 element drops —
 #: ``settings.xsd`` loses ``audio_cards``/``universes``, ``hardware_outputs.xsd``
 #: loses ``default_video_output``/``default_audio_output``, each with a
 #: conversion registered for its version step.
+#:
+#: Updated 2026-09-24 for ``settings.xsd`` and ``hardware_outputs.xsd``: both
+#: carried a ``doc_version`` comment reading *"this schema stays at version 1"*
+#: while sitting at version **2**, which F3/F4 had moved them to. A comment, so
+#: no document on disk is affected — but it is precisely the drift this pin
+#: exists to surface, and the two hashes moving beside the correction is the
+#: mechanism working rather than an inconvenience.
 CURRENT_SCHEMA_HASHES = {
-    "hardware_outputs.xsd": "a625957716e99cd25f6cdd39d4feae9c82faf0ee99597166fa0b36e02853f728",
+    "hardware_outputs.xsd": "fccbe9d8f6adbb122e46334ebf1c7548755ca27d95b07e8328beacd899b63cad",
     "network_map.xsd": "4411c7a23f71dc712bdf278c6629c0df9635d857ad62d58f9a378ada51865b67",
     "project_mappings.xsd": "b8446d7f5c21ea511ae2092d608fc1f62aa42a183ffa1a9dc2ec77c29708380d",
     "project_settings.xsd": "26a607758210057e11b79b1b2b023e6bc6086a0e250fb6b53bfb5ffadb897ac9",
     "script.xsd": "3912e37113d2783c610b449881c6ee1931312baaa486f7744d92270dd845e818",
-    "settings.xsd": "50f640ff573a7ea60c484c219360f81786efac31d656932dca5db837239ed9a6",
+    "settings.xsd": "a51a85a9a13262387470570d3dd8540b6ae258a6baae2b7d3bb514864967cea6",
 }
 
 ALL_SCHEMA_NAMES = set(CURRENT_SCHEMA_HASHES)
