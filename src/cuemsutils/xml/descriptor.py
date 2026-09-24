@@ -478,8 +478,7 @@ def generate_script_example():
     return script
 
 
-#: (bound class name, field name) -> an illustrative value, transcribed from
-#: the retired hand-maintained settings template (T078). Every ``settings``/
+#: (bound class name, field name) -> a seed value. Every ``settings``/
 #: ``NodeConfType``/player-section field is ``Unset`` at the model layer
 #: (config/settings.py's own docstring: "every field defaults to Unset"), so
 #: — unlike the show schema — there is no descriptor-derived default to fall
@@ -490,13 +489,31 @@ def generate_script_example():
 #: is what "remove the hand-maintenance clause" (FR-034) actually rests on,
 #: since a schema change now breaks the build here instead of drifting out of
 #: sync with a second, hand-edited file.
+#:
+#: **These stopped being merely illustrative.** The table was transcribed from
+#: the retired hand-maintained settings template (T078) and documented as
+#: *illustrative*; ``specs/planning/etc-cuems-first-install.md`` D2 schedules its
+#: output to be generated at package build and shipped, at which point a made-up
+#: value becomes a value on every node. D15 therefore corrected it against the
+#: two production machines by **consumption** — each entry classified by who
+#: actually reads it (engine source, live ``ps`` output, ``systemctl show``)
+#: rather than transcribed from a machine, since both audited hosts predate this
+#: refactor and are evidence of *improper* values, not an authority to copy.
+#:
+#: Four player ``path`` entries said ``/usr/bin/cuems-player``, **a binary that
+#: has never existed** — absent on both hosts. One fiction reached all four
+#: sections through the base-class fallback this pass also removes (D16-B): the
+#: shortest possible demonstration of why a fallback that quietly answers for a
+#: field nobody declared is worse than a ``RuntimeError``.
 _SETTINGS_EXAMPLE_VALUES = {
     ("SettingsType", "conf_path"): "/etc/cuems",
     ("SettingsType", "library_path"): "/opt/cuems_library",
     ("SettingsType", "tmp_path"): "/tmp/cuems",
     ("SettingsType", "database_name"): "project-manager.db",
     ("SettingsType", "show_lock_file"): "show.lock",
-    ("SettingsType", "editor_url"): "editor.local",
+    # The brand hostname, and the user-facing entry point: CUEMS is the
+    # internal machinery, formitgo is what an operator types (D15).
+    ("SettingsType", "editor_url"): "formitgo.local",
     ("SettingsType", "controller_url"): "controller.local",
     ("SettingsType", "templates_path"): "/usr/share/cuems",
     ("SettingsType", "controller_interfaces_template"): "interfaces.controller",
@@ -515,23 +532,72 @@ _SETTINGS_EXAMPLE_VALUES = {
     ("NodeConfType", "osc_in_port_base"): 7000,
     ("NodeConfType", "nng_hub_port"): 9093,
     ("NodeConfType", "gradient_osc_port"): 7100,
-    ("PlayerType", "path"): "/usr/bin/cuems-player",
-    ("PlayerType", "args"): "",
+    # Player sections: each concrete type declares its own path and args
+    # (D16-B). No ``("PlayerType", ...)`` entry exists, deliberately — the
+    # abstract base is used by no element, and an entry under it would be
+    # reachable only through the fallback this pass removed.
+    #
+    # videoplayer is the one section the engine does NOT spawn: it speaks OSC
+    # to an already-running cuems-videocomposer systemd unit and reads only
+    # ``osc_port`` (NodeEngine.py:555). ``path``/``args`` are kept and
+    # corrected rather than retired because they are scheduled to become that
+    # unit's SSOT (D15) — unread is not the same as dead.
+    ("VideoPlayerType", "path"): "/usr/bin/cuems-videocomposer",
+    ("VideoPlayerType", "args"): "",
     ("VideoPlayerType", "outputs"): 2,
+    # The engine's own fallback, stated explicitly rather than left implicit:
+    # NodeEngine.VIDEOCOMPOSER_OSC_PORT_DEFAULT = 7000. Writing it changes no
+    # behaviour (D17) — it makes a knob visible that an operator otherwise has
+    # to read engine source to discover.
+    ("VideoPlayerType", "osc_port"): 7000,
     ("VideoPlayerType", "output_latency_ms"): "auto",
+    # Engine-spawned, NodeEngine.py:514-518. ``-w -1`` is live and identical
+    # on both audited hosts.
+    ("AudioPlayerType", "path"): "/usr/bin/cuems-audioplayer",
+    ("AudioPlayerType", "args"): "-w -1",
     ("AudioPlayerType", "output_latency_ms"): "auto",
+    # Engine-spawned, NodeEngine.py:456-457, observed running as
+    # ``jack-volume -c 0_mixer -p 9555 -n 4``: the engine builds ``-c``/``-p``/
+    # ``-n`` itself from the mixer id and assigned port, so ``args`` carries
+    # operator flags only and is empty by default.
+    ("AudioMixerType", "path"): "/usr/bin/jack-volume",
+    ("AudioMixerType", "args"): "",
+    # Engine-spawned, NodeEngine.py:628-636. ``--mtcfollow`` appears on one
+    # audited host and is now the binary's own default, so that host is the
+    # stale one and the default here is empty (D15).
+    ("DmxPlayerType", "path"): "/usr/bin/cuems-dmxplayer",
+    ("DmxPlayerType", "args"): "",
+    # The one D17 entry whose emission changes the spawned argv rather than
+    # only the document: dmx has no "auto" form, and the engine appends
+    # ``--output-latency-ms`` whenever an integer is present
+    # (NodeEngine._append_output_latency_flag). 35 is dmxplayer's own
+    # hard-coded default, so the flag asserts what absence already meant.
     ("DmxPlayerType", "output_latency_ms"): 35,
 }
 
 
 def _settings_example_value(class_name: str, field_name: str):
-    """``derive()`` flattens ``xs:extension``, so a player subtype's field
-    list already includes ``PlayerType``'s ``path``/``args`` (same
-    flattening ``CueType`` gets from ``CommonPropertiesType``) — fall back to
-    the base entry rather than duplicating it under every subtype."""
-    for key in ((class_name, field_name), ("PlayerType", field_name)):
-        if key in _SETTINGS_EXAMPLE_VALUES:
-            return _SETTINGS_EXAMPLE_VALUES[key]
+    """The seed value for one field, or ``RuntimeError`` naming what to add.
+
+    **There is no base-class fallback, and its removal is the point** (D16-B).
+    ``derive()`` flattens ``xs:extension``, so a player subtype's field list
+    already includes ``PlayerType``'s ``path``/``args``, and this function used
+    to answer for all four subtypes from a single ``("PlayerType", ...)`` entry
+    — which is exactly how one wrong ``path``, naming a binary that never
+    existed, served videoplayer, audioplayer, audiomixer and dmxplayer at once
+    while looking deliberate in each.
+
+    The four players do not share a value; they share a *field name*. Requiring
+    each concrete type to declare its own turns that into four visible entries
+    a reviewer can check against four real binaries, and turns a missing one
+    into the ``RuntimeError`` below instead of a plausible wrong answer.
+
+    Safe to remove: nothing else consults this table — ``_instance_for`` seeds
+    from model-layer defaults, not from here.
+    """
+    key = (class_name, field_name)
+    if key in _SETTINGS_EXAMPLE_VALUES:
+        return _SETTINGS_EXAMPLE_VALUES[key]
     raise RuntimeError(
         f"settings.xsd's {class_name}.{field_name} has no example value in "
         f"descriptor._SETTINGS_EXAMPLE_VALUES — add one"
@@ -562,32 +628,60 @@ def generate_settings_example():
         VideoPlayerType,
     )
 
-    def required_fields(key: TypeKey) -> tuple[str, ...]:
-        """Required, **scalar** fields — complex children (``node``, the four
-        player sections) are built and attached separately below."""
+    def scalar_fields(key: TypeKey, required_only: bool = True) -> tuple[str, ...]:
+        """**Scalar** fields — complex children (``node``, the four player
+        sections) are built and attached separately below.
+
+        ``required_only=False`` widens to optional fields as well, which is
+        D17: ``osc_port`` and the three ``output_latency_ms`` entries are
+        declared ``minOccurs="0"``, so a required-only generator emitted none of
+        them and their table entries were unreachable by construction. The two
+        audited machines split on exactly this — one omits them, one writes them
+        out — and an operator opening ``settings.xml`` should see every knob
+        that exists rather than having to read engine source to learn that one
+        does.
+
+        Applied to the player sections only, because they are the only types
+        with optional scalars: ``SettingsType``'s eleven fields and
+        ``NodeConfType``'s thirteen are all required, and ``NodeConfType``'s
+        only optional children are the player sections themselves, attached
+        below by name.
+        """
         spec = derive(key)
         return tuple(
             f.name for f in spec.fields
-            if f.required and f.kind is FieldKind.ELEMENT and f.child is None
+            if (f.required or not required_only)
+            and f.kind is FieldKind.ELEMENT
+            and f.child is None
         )
 
+    def player_fields(type_name: str) -> tuple[str, ...]:
+        return scalar_fields(TypeKey("settings", type_name), required_only=False)
+
     node = _build_settings_section(
-        "NodeConfType", NodeConfType, required_fields(TypeKey("settings", "NodeConfType"))
+        "NodeConfType", NodeConfType, scalar_fields(TypeKey("settings", "NodeConfType"))
     )
     node["videoplayer"] = _build_settings_section(
-        "VideoPlayerType", VideoPlayerType, required_fields(TypeKey("settings", "VideoPlayerType"))
+        "VideoPlayerType", VideoPlayerType, player_fields("VideoPlayerType")
     )
     node["audioplayer"] = _build_settings_section(
-        "AudioPlayerType", AudioPlayerType, required_fields(TypeKey("settings", "AudioPlayerType"))
+        "AudioPlayerType", AudioPlayerType, player_fields("AudioPlayerType")
     )
+    # ``AudioMixerType``, not ``PlayerType`` (D16-A). This section derived from
+    # the abstract base under both the lookup name and the TypeKey, and worked
+    # only because that extension is currently empty: adding a required field to
+    # AudioMixerType produced no RuntimeError here — the documented
+    # generation-time guarantee was simply silent — and failed later as a
+    # SchemaError naming neither the values table nor the fix. One of the four
+    # sections had a hole in FR-034's net; this closes it.
     node["audiomixer"] = _build_settings_section(
-        "PlayerType", AudioMixerType, required_fields(TypeKey("settings", "PlayerType"))
+        "AudioMixerType", AudioMixerType, player_fields("AudioMixerType")
     )
     node["dmxplayer"] = _build_settings_section(
-        "DmxPlayerType", DmxPlayerType, required_fields(TypeKey("settings", "DmxPlayerType"))
+        "DmxPlayerType", DmxPlayerType, player_fields("DmxPlayerType")
     )
 
     settings_key = TypeKey("settings", "CuemsSettings/Settings", is_path=True)
-    settings = _build_settings_section("SettingsType", SettingsType, required_fields(settings_key))
+    settings = _build_settings_section("SettingsType", SettingsType, scalar_fields(settings_key))
     settings["node"] = node
     return CuemsSettingsType({"Settings": settings})
