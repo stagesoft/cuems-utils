@@ -173,3 +173,19 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Debian build artifacts.
+#
+# debian/ moved onto the working branch from the debian/bookworm branch
+# (tagged packaging-rc14). That branch tracked its own build output: the whole
+# debian/cuems-utils/ staging tree, debian/.debhelper/, and the stamp/substvars
+# files dpkg-buildpackage regenerates every run -- 19 files of build product
+# committed as if it were source. They are ignored here instead, so the
+# integration does not carry the habit across.
+debian/cuems-utils/
+debian/.debhelper/
+debian/files
+debian/*.substvars
+debian/*.debhelper
+debian/debhelper-build-stamp
+debian/tmp/

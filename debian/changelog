@@ -1,0 +1,239 @@
+cuems-utils (0.1.0rc16) UNRELEASED; urgency=medium
+
+  NOT YET BUILT. This entry is written ahead of the build so the packaging
+  record stops trailing the source by two release candidates, as it did
+  between rc14 and here. rc16 is the version the coordinated ecosystem merge
+  deploys; it is tagged xml-refactor-merge-candidate and nothing in the CUEMS
+  stack releases alone.
+
+  * Packaging: debian/ now lives on the working branch instead of on
+    debian/bookworm. The branch is kept and tagged packaging-rc14; nothing
+    new lands on it. This removes the merge-main-in step that let packaging
+    fall seven weeks behind the source.
+  * Schema renames, none of which invalidate a document on disk:
+    outputs.xsd becomes hardware_outputs.xsd, with its root element
+    (CuemsHardwareOutputs), its type (HardwareOutputsType) and its schema key
+    renamed with it. This resolves an audit finding where two schemas declared
+    OutputsType in the same namespace with different content.
+    project_mappings.xsd's NodeType becomes NodeMappingType, leaving
+    network_map.xsd's NodeType as the only declaration of that name; type
+    names are schema-internal, so no document changes.
+  * Schema field removals, each with a registered conversion so documents in
+    the field still load:
+    settings.xsd drops audioplayer/audio_cards and dmxplayer/universes --
+    counts restating another document's content, read by nothing anywhere in
+    the ecosystem. settings documents move to doc_version 2.
+    hardware_outputs.xsd drops default_video_output and default_audio_output
+    -- authored choices already declared in project_mappings. That schema
+    moves to doc_version 2. Verified against a real production settings.xml.
+  * The generated reference settings document is corrected against the two
+    audited production machines. All four player sections previously named
+    /usr/bin/cuems-player, a binary that has never existed and is absent from
+    both machines; they now name cuems-videocomposer, cuems-audioplayer,
+    jack-volume and cuems-dmxplayer respectively. editor_url becomes
+    formitgo.local, the brand hostname operators actually use. The generator
+    also emits the optional knobs (osc_port, output_latency_ms) that it
+    filtered out before.
+  * An empty <node_list/> now raises ValueError rather than TypeError, so the
+    failure names the document instead of the machinery.
+  * An atomic save no longer discards the target file's mode.
+  * Still ships nothing under /etc. The six XSD files remain inside the venv
+    only, and no default XML document is installed -- so a fresh node still
+    cannot start unaided. That is the next feature's whole subject; see
+    specs/planning/etc-cuems-first-install.md.
+
+ -- Adrià Masip <adria.back@gmail.com>  Thu, 24 Sep 2026 12:41:49 +0200
+
+cuems-utils (0.1.0rc15) UNRELEASED; urgency=medium
+
+  NOT BUILT AS A PACKAGE. Recorded retrospectively: the source moved from
+  rc14 to rc16 while debian/ sat on a branch nobody merged into, so this
+  version never got an entry. It is written now so the changelog is a
+  continuous record rather than one with a hole in it.
+
+  * New entry point: cuems-convert-documents, an offline batch upgrade for
+    XML documents, installed into the shared venv alongside the library. It
+    backs up each document before rewriting and treats a backup failure as
+    fatal for that document alone.
+  * Reading became strict. Every document load now runs structural and
+    semantic validation: a valid document loads, a version-old one converts
+    IN MEMORY with the file on disk untouched, a repairable violation loads
+    with the field repaired to its declared default, an unrepairable one
+    raises, and a document newer than the library raises distinguishably.
+    Operators get a report naming every repair rather than a silent
+    substitution.
+  * Documents carry a doc_version marker, per schema, with a conversion
+    registered for every version step. Absent means version 1, so nothing on
+    disk is invalidated by its introduction.
+  * network_map.xsd: <node_type>, free text carrying NodeType.master /
+    NodeType.slave, becomes <node_role>, typed controller/node/firstrun.
+    DEPLOYED MAPS MUST BE CONVERTED -- both audited production machines were
+    still carrying the old vocabulary at the time of writing.
+  * The library gained its first write path for network_map.xml, and the
+    node object model moved in from cuems-nodeconf.
+  * One public API across the library: load/save/validate/from_json/to_json/
+    to_wire on the script object, configuration accessors answering with
+    objects, and cuemsutils.errors as the one public error module. Six
+    retired entry points still resolve and warn; they are REMOVED IN v0.1.1,
+    which is why every consumer pins << 0.1.1~.
+  * DmxUniverse no longer silently stores unconverted channel data when a
+    per-entry conversion fails; it raises DmxChannelDecodeError naming the
+    universe and the failing entry.
+  * Media duration is typed as a timecode, and the unused fade-profile
+    surface is deleted.
+
+ -- Adrià Masip <adria.back@gmail.com>  Thu, 24 Sep 2026 12:41:49 +0200
+
+cuems-utils (0.1.0rc14) unstable; urgency=medium
+
+  * HubServices: stop the receive/send loops for good when the socket
+    reports Closed, instead of looping straight back into another
+    arecv_msg()/asend(). pynng registers an atexit hook calling
+    nng_fini(), which frees NNG's global state, and CPython does not
+    join daemon threads before running atexit hooks — so the comms
+    thread was still polling the bus and aborted the process with
+    "panic: pthread_mutex_lock: Invalid argument" (nni_aio_begin <-
+    nng_recv_aio). Both loops also bail out at the top once _closing is
+    set. Paired with the engine-side stop+join of the comms thread
+    (cuems-engine rc_1 a4e5e61), which covers the second failure mode
+    where the interpreter's GC finalises an abandoned arecv_msg()
+    coroutine. Measured on the test2 node engine: 5/5 instrumented
+    restarts core-dumped before, 0/10 after. ClickUp 869ed00ya.
+  * cues: add VideoCue.opacity and fix the AudioCue.master_vol default
+    (was 0.1.0rc13, never released as a package).
+
+ -- Ion Reguera <ion@stagelab.coop>  Mon, 03 Aug 2026 12:30:00 +0200
+
+cuems-utils (0.1.0rc12) unstable; urgency=medium
+
+  * log.py: record each message once in the journal, with its real
+    priority. (1) Root logger seeded with a NullHandler so third-party
+    import-time logging (pyossia via cuemsengine.osc) cannot arm an
+    implicit basicConfig stderr handler that re-emitted every record in
+    BASIC_FORMAT. (2) Under systemd (JOURNAL_STREAM) only the
+    SysLogHandler is attached: stdout and /dev/log both land in
+    journald, and only the syslog copy carries a true per-record
+    priority (systemd stamps all stdout PRIORITY=6), so cuems-logs -l/-e
+    can finally filter. (3) SysLogHandler.ident set from argv[0] so
+    journald records a full SYSLOG_IDENTIFIER instead of the kernel-
+    truncated _COMM (controller-engi). Verified on the test2 controller:
+    3 copies -> 1, priorities 7/4/3, 552 tests unchanged.
+
+ -- Ion Reguera <ion@stagelab.coop>  Wed, 29 Jul 2026 19:58:05 +0200
+
+cuems-utils (0.1.0rc11) unstable; urgency=medium
+
+  * parsers: stop type-coercing free-text fields (ClickUp 869cqbpxa).
+    CuemsParser.str_to_value() ran every scalar through int -> float ->
+    strtobool -> Uuid regardless of its key, so free text was silently
+    rewritten on save. Since strtobool accepts the truth abbreviations, a cue
+    named n/N/f/F was persisted as False, y/Y/t/T as True and any bare digit
+    as an int -- 18 of the 62 alphanumeric single characters, plus the words
+    yes/no/true/false/on/off. Reported as "can't name a cue with a single
+    letter": there was never a length rule (NameStringType has always been
+    minLength=1 and the frontend has no validator), the failing characters
+    were exactly strtobool's vocabulary.
+    Separately, a cue named lowercase none/null hit the ['none','null','']
+    -> None branch, serialised to <name/> and failed NameStringType's
+    minLength=1 -- a hard XMLSchemaValidationError at save rather than silent
+    corruption. The new short-circuit precedes that branch, fixing both.
+    Adds STRING_TYPED_KEYS plus an optional key argument to str_to_value,
+    threaded through all four call sites; keeping key optional leaves
+    existing single-argument callers unaffected. 'id' is deliberately
+    excluded -- the Uuid() branch is the only thing producing Uuid objects on
+    parse. Reachable keys are name, description and file_name; output_name,
+    parameter_name, icon and color are defensive entries only.
+    Full suite green (551 passed; the one failure is a pre-existing realtime
+    jitter check unrelated to this change, which passes in CI).
+    Verified end-to-end on test2 through the live cuems-editor WebSocket:
+    12/12 names round-trip verbatim, including none/null which previously
+    errored. Ships the same source as main/rc_1 @ 0.1.0rc11.
+
+ -- Ion Reguera <ion@stagelab.coop>  Tue, 28 Jul 2026 15:05:00 +0200
+
+cuems-utils (0.1.0rc10) unstable; urgency=medium
+
+  * deps: bump lxml 5.3.0 -> 6.1.0 to clear CVE-2026-41066 (high) -- XXE via
+    iterparse()/ETCompatXMLParser() with resolve_entities=True default (fixed:
+    default is now 'internal'). cuems-utils only uses lxml.etree.Element +
+    register_namespace (never the parser entry points), so it was never
+    actually reachable, but bumped to clear the advisory and future-proof.
+    Full test suite verified green before (5.3.0) and after (6.1.0): 312
+    passed, XML round-trips included. Ships the same source as main/rc_1 @
+    0.1.0rc10 (media-duration + node-identity + gradient_osc_port).
+
+ -- Ion Reguera <ion@stagelab.coop>  Thu, 09 Jul 2026 20:20:09 +0200
+
+cuems-utils (0.1.0rc9) unstable; urgency=medium
+
+  * Media duration correctness (paired with the cuems-editor + cuems-frontend
+    fixes for the ffprobe duration-extraction bug):
+    - cues/MediaCue: Media.duration is validated and canonicalised on write
+      (accepts str/CTimecode/None, rejects malformed); the getter contract
+      stays str so engine consumers (CTimecode(cue.media.duration)) are
+      unchanged.
+    - xml/schemas/script.xsd: escape the literal dot in TimecodeType and
+      constrain MediaType/duration from unbounded xs:string to the
+      pattern-validated cms:TimecodeType (plain text, no structural change;
+      existing/repaired XMLs still validate, malformed values now rejected).
+    - tests: add tests/unit/test_media_duration.py (8 tests).
+
+ -- Ion Reguera <ion@stagelab.coop>  Mon, 06 Jul 2026 20:34:53 +0200
+
+cuems-utils (0.1.0rc8) unstable; urgency=medium
+
+  * Package pre_release_1 code (merged into debian/bookworm). Notable
+    changes since 0.1.0rc5:
+    - xml/schemas/network_map.xsd: optional node-identity fields
+      (role_id, alias, hostname) for the nodeconf identity model.
+    - settings.{xml,xsd}: add gradient_osc_port (needed by cuems-engine
+      pre_release_1); add output_latency_ms tri-state to player types;
+      per-node settings.xml template.
+    - CTimecode: >24h MTC correctness fixes (skip_rollover __str__,
+      None-safe comparators + __hash__ dedupe, dict-compatible items()),
+      and .milliseconds -> _rounded/_exact split migrated across
+      AudioCue/VideoCue/DmxCue.
+    - cues/VideoCue: remove deprecated video_media_loop.
+    - pyproject: pin lxml (CVE-2026-41066 context documented).
+
+ -- Ion Reguera <ion@stagelab.coop>  Mon, 06 Jul 2026 17:31:30 +0200
+
+cuems-utils (0.1.0rc5) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.9rc2 to match upstream
+  * Updadte upstream version
+
+
+cuems-utils (0.0.7-31) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.7-31 to match upstream
+  * Updadte upstream version
+
+
+cuems-utils (0.0.7-3) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.7-3 to match upstream
+  * Updadte upstream version
+
+cuems-utils (0.0.7-2) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.7-2 to match upstream
+  * Updadte upstream version
+
+cuems-utils (0.0.6-0) UNRELEASED; urgency=low
+
+  * Bump version to 0.0.6 to match upstream
+  * Updadte upstream version
+    
+
+  [ ion ]
+  * Fix circular import in daemon.py causing AttributeError
+
+ -- Ion Reguera <ion@stagelab.coop>  Wed, 14 Jan 2026 19:30:36 +0100
+
+cuems-utils (0.0.1-0) UNRELEASED; urgency=low
+
+  * create cuems-utils package with custom python and virtualenv
+    
+
+ -- Ion Reguera <ion@stagelab.coop>  Tue, 29 Apr 2025 19:18:13 +0200

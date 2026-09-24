@@ -1,0 +1,84 @@
+cuems-utils — notes for whoever maintains this packaging
+========================================================
+
+Where debian/ lives
+-------------------
+
+On the working branch, beside the source it packages.
+
+It used to live on a separate `debian/bookworm` branch, whose workflow was
+"merge main in, add a changelog entry, build". That works only as long as
+somebody performs the merge. Between 0.1.0rc14 (2026-08-03) and 0.1.0rc16 the
+merge did not happen, so the packaging branch sat seven weeks and 132 commits
+behind the source, and two release candidates went out of the source tree with
+no changelog entry at all. Both entries were written retrospectively; they are
+the ones marked NOT BUILT / NOT YET BUILT.
+
+The old branch is preserved and tagged `packaging-rc14`. It is the exact tree
+every .deb up to rc14 was built from, including the build artifacts it tracked
+as if they were source. Nothing new lands on it.
+
+This also matches what the sibling repositories already do: cuems-common,
+cuems-power-bridge and cuems-nodeconf all keep debian/ on their working branch.
+cuems-utils was the outlier.
+
+Building
+--------
+
+    dpkg-buildpackage -us -uc -b        # artifacts land in the parent directory
+
+Before shipping any build, check the venv interpreter:
+
+    dpkg-deb --fsys-tarfile <deb> | tar -xO ./usr/lib/cuems/pyvenv.cfg | grep '^home'
+    # must be:  home = /usr/bin      (and bin/python -> ../../../bin/python3)
+
+debian/rules pins `dh_virtualenv --python /usr/bin/python3` BY ABSOLUTE PATH on
+purpose. `--python python3` resolves through PATH, so a build on a machine with
+pyenv active bakes the builder's private interpreter into the package. On every
+target host that symlink is broken, /usr/lib/cuems/bin/python does not exist,
+and *nothing in the shared venv can start* — every CUEMS Python component at
+once. There is no build-time error; it surfaces after `dpkg -i`, and even then
+the running process survives until the next restart.
+
+Two further constraints, both of which have bitten:
+
+  * /etc/cuems is shared by at least five packages, including a private SSH key
+    belonging to cuems-power-bridge. Nothing here may remove a file this package
+    did not place.
+  * The shared venv /usr/lib/cuems is populated by several packages. A .deb must
+    not bundle anything another package already ships, or `dpkg -i` aborts on a
+    file-overwrite conflict.
+
+Planned, not yet done
+---------------------
+
+  * Trixie. Packaging currently targets bookworm only. The intention is to
+    extend it to trixie and to keep both supported, rather than to migrate. The
+    distribution-specific parts are expected to stay small — the venv
+    interpreter path and the python3 version bounds in debian/control are the
+    two known ones — so the likely shape is one debian/ directory carrying both,
+    with the distribution selected at build time, rather than a branch per
+    release. A branch per release is what produced the drift described above.
+
+  * CI/CD. Builds are manual today. They should be produced by a pipeline, for
+    every Debian flavour the system is expected to run on, so that a package
+    exists for each supported distribution from the same commit and none of them
+    depends on which machine a developer happened to build from. The pyvenv.cfg
+    check above is the first thing that pipeline should assert, because it is
+    the failure a human reviewer cannot see in the diff.
+
+  * /etc/cuems first install. This package ships nothing under /etc today, and
+    no CUEMS package ships the XML documents a node needs to start. That work —
+    shipping the six XSD files, generating the default documents at build, and
+    provisioning node identity — is specified separately; see
+    specs/planning/etc-cuems-first-install.md and its execution companion in the
+    same directory. It will add debian/install, a postinst and a postrm here.
+
+Historical note
+---------------
+
+Four entries near the end of debian/changelog (0.0.7-31, 0.0.7-3, 0.0.7-2 and
+0.0.6-0) have no maintainer trailer, so dpkg-parsechangelog warns on them. They
+are left as they are: they are the record of what happened, the warnings are
+harmless, and rewriting released history to silence a warning is worse than the
+warning.

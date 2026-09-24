@@ -56,7 +56,7 @@ that file later moves, any more than a past git commit message would be.
 
 ### Building the `.deb` — verify the venv interpreter before shipping
 
-Built from the `debian/bookworm` branch (merge `main` in, add a `debian/changelog` entry, then `dpkg-buildpackage -us -uc -b`; artifacts land in the parent dir).
+Built from **`debian/` on the working branch** — add a `debian/changelog` entry, then `dpkg-buildpackage -us -uc -b`; artifacts land in the parent dir. **Changed 2026-09-24**: packaging used to live on a separate `debian/bookworm` branch whose workflow was "merge `main` in first", and that merge stopped happening — the branch sat seven weeks and 132 commits behind at `0.1.0rc14` while the source reached rc16, so two release candidates left the tree with no changelog entry at all (both written retrospectively, marked NOT BUILT). The branch is preserved and tagged `packaging-rc14`; nothing new lands on it. This also matches `cuems-common`, `cuems-power-bridge` and `cuems-nodeconf`, which all keep `debian/` on the working branch. See `debian/README.source` for the trixie and CI/CD intentions.
 
 `debian/rules` pins `dh_virtualenv --python /usr/bin/python3` **by absolute path on purpose**. It used to say `--python python3`, which resolves through `PATH` — so building on a dev box with **pyenv** active baked the builder's private interpreter into the package:
 

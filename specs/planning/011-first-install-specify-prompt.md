@@ -173,9 +173,13 @@ SUCCESS CRITERIA — measured, not asserted
 
 BRANCHES AND REPOSITORIES
 
-  cuems-utils   owner. Work spans TWO branches: feat/xml-refactor (source, generator, entry
-                point, tests) and debian/bookworm (packaging). This is the first feature that
-                needs both trees at once, and how they meet is a question the spec must answer.
+  cuems-utils   owner. ONE branch: feat/xml-refactor carries both the source and debian/,
+                integrated 2026-09-24 from the old debian/bookworm branch (preserved, tagged
+                packaging-rc14). The generator this feature adds and the debian/rules that
+                invokes it live in the same tree, so there is no cross-branch step. Packaging
+                targets bookworm today; trixie and a CI/CD build for every supported flavour are
+                recorded as intended future work in debian/README.source, and this feature must
+                not add anything that makes either harder.
   cuems-common  hands over etc/cuems/network_map.xml and etc/cuems/network_map.xsd from its
                 debian/install and retires tests/test_schema_mirror.py; gains
                 docs/node-identity-contract.md carrying D14's contract.
@@ -238,9 +242,14 @@ answers already in conflict.
 5. **OPEN-4 — where `cuems-init-node` lives**, given §3's one-way venv constraint: it belongs
    naturally to `cuems-utils`, but it writes files `cuems-common` has historically owned and is
    invoked from `cuems-utils`' `postinst`.
-6. **How the two branches meet.** Does packaging merge `main`/`feat/xml-refactor` into
-   `debian/bookworm` as today, and does the generator run at build from the just-built venv?
-   The design says yes; the mechanics are unspecified.
+6. **How the generator runs at build.** The two-branch question is gone — `debian/` was
+   integrated into the working branch on 2026-09-24 — but the mechanics are still unspecified:
+   the design says `debian/rules` invokes the generator with the *just-built* venv's interpreter,
+   after `dh_virtualenv`, writing into the staging tree. Confirm the ordering against
+   dh-virtualenv's own autoscript, which runs at `#DEBHELPER#` and re-hardlinks the interpreter.
+   Related, and worth settling in the same breath: anything added here should not assume a
+   single Debian flavour, since trixie and a CI/CD matrix build are intended
+   (`debian/README.source`).
 7. **What `--check` exits with.** A verifier that reports a mismatch and exits 0 is a verifier
    nothing can gate on; one that exits non-zero from `postinst` is the stack-blocking hazard of
    §3.1. These are not the same invocation and probably need different answers.

@@ -52,8 +52,11 @@ PYENV_VERSION=3.11.9 pyenv exec hatch test tests/contract/test_duplication_flags
 Facts worth having up front, each of which has cost someone time:
 
 - **Commits are GPG-signed.** On `gpg failed to sign`, retry — never `--no-gpg-sign`.
-- **`debian/` does not exist on `feat/xml-refactor`.** Packaging lives on the `debian/bookworm`
-  branch. Feature 011 is the first work that needs both trees at once.
+- **`debian/` lives on the working branch** as of 2026-09-24. It was integrated from
+  `debian/bookworm` — eight real packaging files, without the nineteen committed build artifacts,
+  which are now `.gitignore`d. The old branch is preserved and tagged `packaging-rc14`. Feature
+  011 therefore edits one tree, not two. `debian/README.source` records why, and carries the
+  trixie and CI/CD intentions.
 - **The two production machines were unreachable on 2026-09-23 and again on 2026-09-24**
   (`ssh -i ~/.ssh/id_stagelab cuems-admin@10.16.10.{2,3}`, connection timed out). Every
   production figure in the parent document dates from the 2026-09-21 audit. Treat them as
@@ -91,7 +94,7 @@ consumers' `<< 0.1.1~` ceilings).
 | 1–2 | Problem, measured state | Still true. rc16 changed nothing about first install |
 | 3 | D1–D17 | **2 satisfied, 1 a stance, 14 unbuilt** → §3.2 |
 | 4 | End-to-end design | Nothing built. The block still generates `default_mappings.xml`, which §8.5 item 5 retires — left standing for 011 to decide (§4.4) |
-| 4.1 | Packaging hygiene | Untouched — lives on `debian/bookworm` |
+| 4.1 | Packaging hygiene | **Partly done** — the committed build artifacts are gone with the branch integration; `debian/compat 11`, `Standards-Version 4.1.4` and the `dh_python2` postinst remain for 011 |
 | 5 | Eight identity practices | All unimplemented; they *are* `cuems-init-node`'s body |
 | 6 | OPEN-1…6 | 1,2,3,4 open · 5 closed · 6 closed by F3, **now marked as such** (§4.1) |
 | 7 | `hardware_outputs` | Rename + F4 landed; capability descriptor not started → §3.4 |
@@ -281,7 +284,7 @@ the `cuems-common` handover; `postrm`; §4.1's packaging hygiene.
 | | |
 |---|---|
 | **Repos** | `cuems-utils` (owner), `cuems-common` (hands over `network_map.{xml,xsd}`, gains the identity contract) |
-| **Branches** | `feat/xml-refactor` **and** `debian/bookworm` — the first work needing both |
+| **Branches** | `feat/xml-refactor` alone — `debian/` was integrated 2026-09-24, so source and packaging move together |
 | **Depends on** | nothing. This is the entry point |
 | **Blocks** | 012 (hard), and every "fresh node" claim in the ecosystem |
 | **Closes** | OPEN-1, OPEN-2, OPEN-3, OPEN-4 |
