@@ -77,8 +77,35 @@ Planned, not yet done
 Historical note
 ---------------
 
-Four entries near the end of debian/changelog (0.0.7-31, 0.0.7-3, 0.0.7-2 and
-0.0.6-0) have no maintainer trailer, so dpkg-parsechangelog warns on them. They
-are left as they are: they are the record of what happened, the warnings are
-harmless, and rewriting released history to silence a warning is worse than the
-warning.
+The 2025-era tail of debian/changelog was one entry that had swallowed four
+others. Four version headers (0.0.7-31, 0.0.7-3, 0.0.7-2, 0.0.6-0) carried no
+maintainer trailer, so dpkg parsed lines 201-232 as a single 0.1.0rc5 stanza and
+read those headers as change text. It had grown that way: the file originally
+had exactly ONE trailer, at the very bottom, terminating everything above it.
+
+Repaired 2026-09-24 by adding the four missing trailers. THE DATES WERE NOT
+INVENTED -- each is the author date of the commit that introduced the entry the
+trailer closes, recovered from the debian/bookworm history (908359b, 038295c,
+ab6b1ac, 79804fd) and mapping one-to-one. Adding them completes the record
+rather than rewriting it, which is the distinction that made the repair
+acceptable: dpkg-parsechangelog goes from four warnings to zero, and the
+headers and trailers now balance at 14 each.
+
+Builds were never affected -- dpkg-buildpackage reads only the top entry -- so
+this had survived a year unnoticed. It was fixed now because the CI/CD work
+above will run lintian and parse the whole file, and this would surface as a
+pipeline failure at the least convenient moment.
+
+Deliberately NOT changed, and left as known-outstanding:
+
+  * The distribution field on the older entries still reads UNRELEASED, on
+    versions that were plainly released. Correcting that would be rewriting
+    history rather than completing it.
+
+  * One change block is filed under the wrong year. "[ ion ] Fix circular
+    import in daemon.py causing AttributeError" is dated Wed, 14 Jan 2026 and
+    sits inside the 0.0.6-0 entry, which is from May 2025. It arrived that way
+    in dfc132b, appended to the single terminating trailer the file then had.
+    Placing it correctly needs someone to establish which release actually
+    carried the daemon.py fix; one change under the wrong year is better than a
+    second one under a guessed one.
