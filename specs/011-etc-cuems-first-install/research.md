@@ -1,0 +1,416 @@
+<!--
+SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
+# Research — `/etc/cuems` first install (feature 011)
+
+**Phase 0 output** for `plan.md`. Every decision below was reached by measuring the tree, the
+sibling checkouts and the build host on 2026-09-25, not by assumption. Where the spec deferred a
+question to the plan (Q4, Q5, Q6) the decision is here, with what was measured to reach it.
+
+Environment measured: `feat/xml-refactor` at `8b29556` (this branch), Debian 12.15 build host,
+`debhelper 13.11.4`, `dh-virtualenv 1.2.2`, `dpkg 1.21.23`, `mmdebstrap 1.3.5`, Python 3.11.9
+(pyenv) for the suite, `/usr/bin/python3` = 3.11.2 for the package. **`hatch` is not installed on
+this host**; the execution document's `pyenv exec hatch` form was written for another machine.
+`uvx hatch` works and is what `quickstart.md` uses.
+
+---
+
+## R1 — Where `cuems-init-node` lives, and how `postinst` invokes it (spec Q5 / OPEN-4)
+
+**Decision**: the entry point is declared in `[project.scripts]` as
+`cuems-init-node = "cuemsutils.tools.init_node:main"`. dh-virtualenv installs it at
+`/usr/lib/cuems/bin/cuems-init-node` with its shebang rewritten to the venv interpreter
+(`dh_virtualenv/deployment.py:fix_shebangs`, measured). `postinst` invokes it **by absolute
+path**, wrapped in `timeout`, and never through `PATH`. A `/usr/bin/cuems-init-node` symlink is
+added via `debian/cuems-utils.links` for operators.
+
+**Rationale**: the shared venv is one-way — `/usr/bin/python3` cannot import `cuemsutils`
+(CLAUDE.md), so a script under `/usr/bin` executed by the system interpreter would fail on
+import. A symlink is safe because the target's shebang selects the venv interpreter; a wrapper
+script that itself imported `cuemsutils` would not be. The module goes under `tools/` (the
+public configuration façade: `ConfigManager`, `NodeList`), not `xml/` (internal, `__all__ = []`),
+because the tool's job is node coherence, not document mechanics.
+
+**Alternatives considered**: a stdlib-only `/usr/bin` script (rejected: it would have to
+re-implement the descriptor, the adapters and the validators — the tool "imports it heavily" by
+design); installing under `/usr/lib/cuems/bin` with no `/usr/bin` link (rejected: the migration
+guide asks operators to run it, and `cuems-common`'s own Python helpers already follow the
+symlink-or-absolute-path convention).
+
+## R2 — How the generator runs at build (spec Q6)
+
+**Decision**: `debian/rules`'s `override_dh_virtualenv` runs `dh_virtualenv` and then, in the
+same recipe:
+
+```make
+	debian/cuems-utils/usr/lib/cuems/bin/python -m cuemsutils.xml.make_defaults \
+	    --out debian/cuems-utils/usr/share/cuems/defaults
+	install -d debian/cuems-utils/usr/share/cuems/schemas
+	install -m 0644 src/cuemsutils/xml/schemas/*.xsd debian/cuems-utils/usr/share/cuems/schemas/
+	install -m 0644 src/cuemsutils/defaults/system-defaults.toml debian/cuems-utils/usr/share/cuems/defaults/
+```
+
+**Rationale (measured)**: dh-virtualenv's sequence file inserts `dh_virtualenv` *before*
+`dh_installinit` and removes `dh_auto_install`, so by the time the override runs the venv exists
+under the staging tree, `cuemsutils` is pip-installed into it, and `bin/python` is a symlink to
+`/usr/bin/python3` (the absolute pin in `debian/rules`) — runnable on the build host. The
+interpreter-hardlinking autoscript runs only at *install* time (`configure`), so it is irrelevant
+to the build. Every path in the recipe is version-free: the generator is reached through the
+venv's `bin/python`, never through `lib/python3.11/…`, which is what keeps a trixie build
+neutral (FR-044). The `.xsd` and `.toml` are copied by `install`, not `debian/install`, because
+`debian/install` runs from `debian/tmp`/source and this keeps the whole `/usr/share/cuems` tree
+in one recipe a reviewer reads top to bottom.
+
+**Determinism (measured)**: two consecutive `generate_settings_example().save()` calls produce
+byte-identical files (SHA-256 equal); the writer emits no timestamp, and the sentinel is a fixed
+value. The build asserts it: `make_defaults` generates twice into temp dirs and refuses to
+install if the two differ.
+
+**Alternatives considered**: generating in `override_dh_install` (rejected: the venv does not
+exist yet at that point); committing the generated XML (rejected by D2 — a second source of
+truth).
+
+## R3 — Custody transfer of `/etc/cuems/network_map.{xml,xsd}` from `cuems-common` (FR-005)
+
+**The trap, measured**: `dpkg-maintscript-helper rm_conffile` *moves the live file aside* —
+an unmodified conffile goes to `.dpkg-remove` and is **deleted** in `postinst`; a modified one
+becomes `.dpkg-backup` then `.dpkg-bak`. Either way the path is empty when the upgrade ends.
+`cuems-common`'s own `preinst` already documents exactly this for `/etc/network/interfaces` and
+works around it with a pre-save snapshot restored in `postinst`. Simply dropping the paths from
+`debian/install` without `rm_conffile` leaves them as *obsolete conffiles*, which dpkg deletes on
+a later `purge` of `cuems-common` — the live cluster topology gone on an unrelated purge.
+
+**Decision** — `cuems-common 1.3.0-23`:
+
+1. `preinst`: if `/etc/cuems/network_map.xml` exists, snapshot it byte-exact to
+   `/var/backups/cuems-common.network_map.xml.presave` (the established pattern), then
+   `rm_conffile /etc/cuems/network_map.xml 1.3.0-23~` and `rm_conffile /etc/cuems/network_map.xsd 1.3.0-23~`.
+2. `postinst`: the same two `rm_conffile` calls (the helper needs all three phases); then
+   restore `network_map.xml` from the snapshot if the path is absent, and remove
+   `network_map.xml.dpkg-bak` **only if** it is byte-identical to the snapshot (so a `.dpkg-bak`
+   that predates this upgrade is never touched); then, if `/etc/cuems/network_map.xsd` is absent,
+   copy `cuems-utils`'s pristine `/usr/share/cuems/schemas/network_map.xsd` into place and remove
+   any `network_map.xsd.dpkg-bak` (package content, no operator data).
+3. `postrm`: the two `rm_conffile` calls (restores on abort).
+4. `debian/install`: the two `etc/cuems/network_map.*` lines removed; the repository's
+   `etc/cuems/network_map.xsd` file deleted; `etc/cuems/network_map.xml` kept only as the
+   documentation example already installed under `/usr/share/doc/cuems-common/`.
+
+**Package relations**: `cuems-utils` declares `Breaks: cuems-common (<< 1.3.0-23~)`.
+**`Replaces` is deliberately omitted**: `cuems-utils` ships nothing under `/etc` in its manifest
+(D5 — the schemas are copied by `postinst` from `/usr/share/cuems/schemas/`), so there is no
+manifest overlap for `Replaces` to license. `Breaks` is what forces apt to upgrade the pair
+together, which closes the window in which new `cuems-utils` would rewrite an `.xsd` that old
+`cuems-common` still records as its conffile. `cuems-common`'s existing
+`Depends: cuems-utils (>= 0.1.0rc16)` already names the shipping version (spec M6, A3).
+
+**Verification**: the lifecycle test installs old `cuems-common` (a stub carrying the two
+conffiles, from `tests/packaging/stubs/`) then upgrades in **both** unpack orders and via
+`apt install ./a.deb ./b.deb`, asserting the live map is byte-identical, no `.dpkg-*` sibling
+exists, and a subsequent `purge cuems-common` leaves the map in place.
+
+## R4 — Seed values as TOML: file, key space, and the single copy
+
+**Decision**: one file, `src/cuemsutils/defaults/system-defaults.toml`, shipped as **package
+data** inside the wheel (the same mechanism as the schemas: `[tool.hatch.build] include`), read
+through `importlib.resources` by both the build-time generator and `cuems-init-node`. The same
+bytes are also installed to `/usr/share/cuems/defaults/system-defaults.toml` as the
+operator-visible reference D9 names, and a test pins the two byte-identical. Operator overlay
+files under `/etc/cuems/defaults.d/*.toml` use the same table layout.
+
+Key space — one table per (schema, type), values typed as TOML scalars:
+
+```toml
+[settings.SettingsType]
+conf_path = "/etc/cuems"
+editor_url = "formitgo.local"
+# ...
+
+[settings.NodeConfType]
+oscquery_ws_port = 9190
+# ... uuid and mac are NOT here: identity is never a default (FR-033)
+
+[settings.VideoPlayerType]
+output_latency_ms = "auto"        # string
+[settings.DmxPlayerType]
+output_latency_ms = 35            # integer — the distinction TOML preserves (FR-035)
+
+[network_map.NodeType]
+name = "unprovisioned"            # Q1b
+ip = "0.0.0.0"
+node_role = "firstrun"
+
+[project_mappings.CuemsProjectMappingsType]
+number_of_nodes = 1
+default_audio_output = ""         # placeholder until R12 settles the spelling
+# ...
+```
+
+The generator keeps FR-010's two-way completeness check: a required field with no entry fails
+naming `(schema, type, field)` and the file; an entry naming no declared field fails naming the
+stale key. `descriptor._SETTINGS_EXAMPLE_VALUES` is deleted; `descriptor.generate_settings_example`
+becomes a thin call into the new module so its eleven tests in
+`tests/contract/test_settings_example_generation.py` keep their meaning with the import moved.
+
+**Rationale**: `tomllib` is stdlib in 3.11 (read-only is all that is needed); typed scalars are
+the one property the format had to have; one copy read by one code path avoids a second source
+of truth, and the `/usr/share` copy is a courtesy that `dpkg -V` can verify.
+
+**Alternatives considered**: reading `/usr/share/cuems/defaults/system-defaults.toml` at runtime
+(rejected: an editable or test install has no `/usr/share` copy, so the tool would need a
+fallback — two code paths); keeping the values in Python (rejected by D7/D9).
+
+## R5 — The write record (FR-027a)
+
+**Decision**: `/var/lib/cuems-utils/init-node/last-written.json` — one JSON object per document
+(`settings`, `network_map`, `default_mappings`) holding the SHA-256 of the bytes written and a
+flat map of dotted field path → value as written (identity fields included, for `--check`'s
+benefit). Created by `cuems-init-node` after a successful write; directory created by `postinst`
+(`install -d -m 0755`); removed by `postrm purge` together with the nine `/etc/cuems` paths.
+Absent record ⇒ every on-disk difference is an operator edit (kept and reported), per FR-027a.
+
+**Why not under `/etc/cuems`**: it is state, not configuration, and every extra path under the
+shared directory is one more thing purge must reason about. `/var/lib/cuems` is `cuems-common`'s
+(the `cuems` user's home, created by its `preinst`); a sibling directory owned by this package is
+cleaner than sharing.
+
+**Field comparison**: for each dotted path in the record, compare the on-disk decoded value with
+the recorded one. Equal ⇒ recompute from seed + overlay. Different ⇒ operator edit, keep. Fields
+absent from the record (new upstream fields) ⇒ take the computed value. `network_map.xml`'s
+other rows are never compared — they are `cuems-nodeconf`'s (FR-027b).
+
+## R6 — Writing the triple "atomically"
+
+**Decision**: build all three documents in memory, validate each (T1) before touching disk,
+write each to a temporary file beside its target via the existing `write_tree` mechanism
+(`mkstemp` in the destination directory), then `os.replace` the three in a fixed order; if any
+replace fails, put the previous files back from in-memory copies taken before the first replace.
+Nothing is written to `/etc/cuems` until all three have validated.
+
+**Honest limitation, recorded**: three `os.replace` calls are not one filesystem transaction.
+The window is microseconds and the recovery is deterministic, which satisfies FR-025's
+"either all three are replaced or none is" at the granularity an operator can observe. A
+`rename`-based directory swap was rejected because `/etc/cuems` is shared with four other
+packages' files.
+
+**Locking**: the tool takes an `flock` on `/run/lock/cuems-init-node.lock` so two concurrent
+runs (an operator and a provisioning script) serialize; `cuems-nodeconf` is detected by
+`systemctl is-active cuems-nodeconf.service` and produces the warning the spec's edge case
+requires.
+
+## R7 — How the Avahi record derives from `settings.xml` (D14, FR-040a) — the mechanism
+
+**Measured**: the live `/etc/avahi/services/cuems.service` is written by **`cuems-nodeconf`
+copying a template verbatim** — `sudo cp /usr/share/cuems/cuems.service.<role> /etc/avahi/services/cuems.service`
+(the exact literal rules in `etc/sudoers.d/99-cuems-avahi`). The templates carry the `uuid=`
+record. Today `cuems-config-node write` rewrites the templates with its own `uuid1()`; the
+shipped templates carry a production controller's uuid; and **every `cuems-common` upgrade
+resets the templates to the shipped value**, because `/usr/share` files are package content.
+So a provisioned node silently re-announces the shipped uuid after its next `cuems-common`
+upgrade and role change — the silent failure D14 describes, with a mechanism.
+
+**Decision** (the handover's content in `cuems-common`, FR-040a):
+
+1. The three shipped templates carry the sentinel uuid.
+2. `cuems-config-node` gains a `render` subcommand: read `.//node/uuid` from
+   `/etc/cuems/settings.xml`, rewrite the `uuid=` record in the three templates **and** in the
+   live `/etc/avahi/services/cuems.service` if present, reload `avahi-daemon` only if the live
+   file changed. It refuses (exit 3, message "not provisioned") when `settings.xml` is absent or
+   carries the sentinel, and never writes the sentinel into a live record. Its `write` mode no
+   longer mints: it calls `render` for the uuid and keeps its hostname/MAC duties unchanged.
+3. `cuems-common`'s `postinst` calls `cuems-config-node render || true` after its existing Avahi
+   migration block — so a `cuems-common` upgrade re-renders the templates from the node's real
+   identity instead of resetting them, and on a fresh stack install (where dpkg configures
+   `cuems-utils` first, so identity already exists) the templates are correct before
+   `cuems-nodeconf` ever copies one.
+4. `cuems-init-node` prints, after any identity change, the exact command to run
+   (`cuems-config-node render`) and `--check` reports the live record's value.
+
+`cuems-nodeconf` is **not** changed: its `cp` keeps working because the templates it copies are
+now rendered. That is why this lands in the `cuems-common` handover (spec Q10, option A)
+without opening a third repository.
+
+**Alternatives considered**: a `{uuid}` placeholder in the templates substituted by the copier
+(rejected: the copier is a literal `sudo cp`, and changing it opens `cuems-nodeconf` and the
+sudoers file); `cuems-init-node` rewriting the templates itself (rejected: they are
+`cuems-common`'s package content and would be reset on its next upgrade — the same bug again).
+
+## R8 — `postinst`'s invocation mode and its fallback (FR-015 – FR-018, A6)
+
+**Decision**: `cuems-init-node --no-overlay --install-missing`:
+
+- `settings.xml` absent ⇒ mint (through `Uuid()`), write all three (any present sibling is
+  left untouched — a present `network_map.xml` stub gets its self-entry seeded by plain insert,
+  which is a *modification*, so in this mode a present sibling is **not** touched and `--check`
+  reports it; the migration guide sends the operator to a plain run).
+- `settings.xml` present and readable ⇒ identity taken from it; only absent siblings written.
+- `settings.xml` present but unreadable ⇒ exit 2 with the path and reason; nothing written.
+
+`postinst`:
+
+```sh
+INIT=/usr/lib/cuems/bin/cuems-init-node
+if ! timeout 60s "$INIT" --no-overlay --install-missing; then
+    echo "WARNING: cuems-init-node failed or timed out; installing pristine placeholders." >&2
+    for f in settings.xml network_map.xml default_mappings.xml; do
+        [ -e "/etc/cuems/$f" ] || cp /usr/share/cuems/defaults/"$f" "/etc/cuems/$f"
+    done
+    echo "WARNING: this node is NOT PROVISIONED (sentinel identity). Run: cuems-init-node" >&2
+fi
+```
+
+`timeout` (coreutils, present on every target) is the one addition the design did not name: a
+hang in `postinst` would block the stack exactly as a non-zero exit does. 60 s is 15× the
+measured tool budget (R10). The whole block runs after `#DEBHELPER#` (FR-019) and the script
+ends with `exit 0` unconditionally.
+
+## R9 — Lifecycle tests without root or a container runtime
+
+**Measured**: no `podman`, `docker` or `systemd-nspawn` on the build host; `mmdebstrap 1.3.5`
+is present, the user has sub-uid/sub-gid ranges, and `unshare --map-auto --map-root-user`
+works. `mmdebstrap --mode=unshare --variant=apt --include=python3 bookworm` built a 200 MB
+tarball in 38 s; entering it with `unshare --map-auto --map-root-user chroot` gives uid 0,
+`dpkg 1.21.23`, `python3 3.11.2` — bookworm's exact versions.
+
+**Decision**: two tiers.
+
+- **Script-level tests, always run** (`tests/packaging/`): the maintainer scripts are executed
+  with `CUEMS_ETC`/`CUEMS_SHARE`/`CUEMS_STATE` overrides pointing into `tmp_path` and a stub
+  `cuems-init-node` on `PATH`, covering every branch of FR-015–FR-018, FR-037, FR-038 and the
+  fallback. The scripts read those variables with `/etc/cuems` etc. as defaults, the pattern
+  `cuems-common`'s `tests/packaging/stubs/` established.
+- **Chroot lifecycle tests, marked `slow`** (`tests/packaging/test_lifecycle_chroot.py`): build
+  the `.deb`, install into a fresh copy of the tarball (`CUEMS_CHROOT_TAR` env var; skipped when
+  unset), and run SC-001–SC-003, SC-006–SC-010 and the R3 upgrade orders with real `dpkg`. The
+  tarball is built once by `quickstart.md`'s command and cached; CI builds it in a preparatory
+  job. `ConfigManager(load_all=True)` runs *inside* the chroot through the installed venv
+  (`/usr/lib/cuems/bin/python`), which is also what proves R1's interpreter path.
+
+## R10 — Performance budgets, measured and re-based (FR-PERF-001, SC-PERF-001)
+
+Measured on the build host (Python 3.11.9, warm disk cache, three runs each):
+
+| Operation | Measured |
+|---|---|
+| bare interpreter start | 0.023 s |
+| `import cuemsutils.tools.ConfigManager` | 0.40 – 0.50 s |
+| import + `generate_settings_example()` + `save()` | 0.71 – 1.00 s |
+| `ConfigManager(load_all=True)` on the engine corpus, cold process | 1.17 s |
+
+A `cuems-init-node` write run is import + three loads + three generations + three writes ≈
+the third and fourth rows combined, so **≈ 1.5 – 2.0 s cold on the build host**. The reference
+node hardware (N97-class) is slower by a factor the audit has never measured; a 2× allowance is
+the conservative choice. The spec proposed ≤ 2 s and allowed the plan to re-base with a reason.
+
+**Budgets (re-based)**:
+
+| Budget | Value | Validation |
+|---|---|---|
+| `cuems-init-node` write mode, cold | **≤ 4 s** | chroot test times the invocation; recorded in `baseline.md` for build host and, when reachable, one node |
+| `cuems-init-node --check`, cold | **≤ 3 s** | same |
+| `postinst`, fresh install, excluding dh-virtualenv's autoscript | **≤ 10 s** (hard cap: the 60 s `timeout`) | chroot test times `dpkg -i` minus a baseline `dpkg -i` of a package with an empty postinst |
+| `postinst`, upgrade with all three present | **≤ 2 s** | same |
+| library suite per-test figure | **≤ 110 %** of the figure measured at plan start (`baseline.md`) | `hatch run test.py3.11:run` |
+| package size delta | **≤ 100 KB** (six schemas 42 KB + three documents + TOML) | `dpkg-deb -I` |
+
+The generator's own cost at build time is unbudgeted (build, not runtime) but recorded.
+
+## R11 — Recording the entry point in the public API golden (FR-023)
+
+**Decision**: `tests/support/public_api.py` gains `PUBLIC_SCRIPTS = {"cuems-convert-documents",
+"cuems-init-node"}` and `_snapshot()` gains a `"scripts"` key listing the installed
+distribution's `console_scripts` entry points (`importlib.metadata.entry_points`). The golden
+`tests/golden/api/public_api.json` moves **once**, adding that key — a recorded, argued change
+(FR-021 stands: the golden is not regenerated to make a test pass; it is extended to cover a new
+surface). `cuemsutils.tools.init_node` exposes `main` and nothing else public.
+
+## R12 — `default_mappings.xml`: settling id-vs-name by consumption (spec Q1a, FR-012)
+
+**Measured, by consumption** (who reads the six `default_*` fields):
+
+- `cuems-frontend/src/app/components/projects/project-edit/sequence/sequence.component.ts:385,455,697-698`
+  (measured 2026-09-25; the design document's `:379,449,682` had drifted) reads
+  `default_audio_output` and `default_video_output` and uses them as the cue's `output_name`
+  default, whose values are `<uuid>_<output_id>` (design §10.1; corpus scripts:
+  `0367f391-…-000000000001_2`).
+- `cuems-frontend/src/app/services/projects/projects.service.ts:560` (design said `:553`)
+  parses the compound with `^(<uuid>)_(.+)$` — the tail is whatever follows the underscore,
+  opaque to the parser.
+- The engine reads `default_*` through `ConfigManager` only to expose them; it resolves outputs
+  by **id** in `node_hw_outputs` (`ConfigManager.py:159,283,368-399`).
+
+**Decision**: the compound's tail is the output **id** (`<uuid>_<id>`, host `.2`'s spelling);
+host `.3`'s `…_DP-1 Left` is the wrong one — an output *name*, which the schema declares as a
+free `NonEmptyString` and nothing resolves by. For a fresh, unconfigured node the seven root
+scalars are: `number_of_nodes = 1`; every `default_*` **empty** (the corpus shows
+`<default_video_input/>` empty and schema-valid; a fresh node has no discovered hardware to
+point at, and inventing `…_0` would assert an output that may not exist — the disconnected
+`DP-2` case from the audit); the node entry carries the sentinel uuid/mac and **empty**
+`audio`/`video`/`dmx` sections. The plan's `data-model.md` records the table; the engine's
+behaviour on an empty default is checked by `tests/integration/test_default_mappings_fresh.py`
+(loads clean; `get_*_output_id('default')` returns the empty string rather than raising).
+
+The tool substitutes the sentinel token in every string leaf (so a future non-empty compound
+default specializes correctly, FR-026) and asserts the serialized bytes contain no sentinel.
+
+## R13 — F1 annotation form (FR-047)
+
+**Decision**: on each schema's root `xs:element`, one `xs:annotation` carrying
+`<xs:appinfo><cms:writer scope="…">…</cms:writer>…</xs:appinfo>` — one `writer` element per
+writer, `scope` naming the seam (`document`, `self-entry`, `topology`, `inventory`, `geometry`,
+`default_mappings.xml`), plus a one-sentence `xs:documentation`. `xmlschema` exposes it as
+`schema.elements[name].annotation.appinfo`, so `test_duplication_flags` can assert every schema
+declares at least one writer and every writer is a known process name. Six hashes move in
+`test_schema_scope.CURRENT_SCHEMA_HASHES` in the same commit, with the reason in the message.
+No `doc_version` moves: annotations do not change any instance document's validity.
+
+## R14 — `--check`'s four locations and precedence (FR-032)
+
+Source: `settings.xml` `Settings/node/uuid`. Mirrors: `network_map.xml` (`node_list/node[uuid]`
+present), `default_mappings.xml` (`nodes/node[uuid]` present **and** no sentinel token anywhere
+in the file), `/etc/avahi/services/cuems.service` (every `<txt-record>uuid=…</txt-record>`;
+the two service blocks must also agree with each other). Exit classes 0/1/2/3 with precedence
+3 > 2 > 1 (spec A4). Output is one line per location, path first, in the
+`cuems-convert-documents` style (`<path>: <verdict> (<detail>)`), and a final line naming the
+fixing command.
+
+## R15 — CLI logging (FR-UX-001)
+
+**Measured**: the library's logger writes DEBUG/INFO lines to **stdout** by default
+(`log.py:118`, seen during the timing runs), which would pollute a CLI's report. **Decision**:
+`cuems-init-node` sets the library log level to `WARNING` unless `CUEMS_LOG_LEVEL` is set in
+the environment or `--verbose` is given; its own report goes to stdout, warnings and errors to
+stderr, exit codes as contracted. `cuems-convert-documents` already prints its report itself;
+the same split applies.
+
+## R16 — OPEN-3: `postinst` before the first engine start (spec Q4, FR-022)
+
+**Measured**: `cuems-common` `Depends: cuems-utils (>= 0.1.0rc16)`, so dpkg configures
+`cuems-utils` first; `cuems-common`'s `postinst` carries no `#DEBHELPER#` token (pinned by its
+`tests/test_postinst_ordering.py`), so no engine is started at configure time; engines start
+from `cuems-node.target`/`cuems-controller.target` on the next boot. **Decision**: pin the
+premise from this side too — `tests/packaging/test_ordering_premise.py` asserts (a) this
+package's `postinst` invokes the tool after `#DEBHELPER#` and before `exit 0`, and (b) when the
+sibling checkout is present, `../cuems-common/debian/control` still depends on `cuems-utils`
+and its `postinst` still lacks the token (skipped when the sibling is absent, the
+`test_schema_mirror` convention).
+
+## R17 — Packaging hygiene specifics (FR-042)
+
+- `debian/compat` deleted; `Build-Depends: debhelper-compat (= 13)` (the siblings' value;
+  `debhelper 13.11.4` on bookworm).
+- `Standards-Version: 4.6.2` (bookworm's `debian-policy`; the siblings sit at 4.6.0).
+- The `dh_python2` provenance string was produced by an older dh-virtualenv autoscript; the
+  installed 1.2.2 autoscript says "dh-virtualenv postinst autoscript" (measured). A test greps
+  the *built* `DEBIAN/postinst` for `dh_python2` and fails if present.
+- `debian/README.Debian` is rewritten to point at `README.source` and the first-install notes
+  rather than the 2025 stub.
+
+## R18 — Suite baseline at plan start
+
+Recorded in `baseline.md` once `hatch run test.py3.11:run` completes on this host (the
+execution document's figure — 2719 passed, 100 skipped, 2 xfailed — was measured on another
+machine and is not comparable for wall time). The per-test figure from this host is the
+reference SC-PERF-001's suite budget uses.

@@ -101,6 +101,15 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   public API and release together. This repository's own share is the descriptor's public
   path, the deprecated-surface removal and the migration guide. Suite baseline re-measured
   2026-09-03: **2573 passed, 96 skipped, 2 xfailed in 53.34 s = 20.73 ms/test**.
+- **Feature 011 (`011-etc-cuems-first-install`, in progress) adds no new runtime dependency.**
+  It adds POSIX `sh` maintainer scripts (`debian/cuems-utils.{postinst,postrm}`), stdlib
+  `tomllib`/`importlib.resources`/`fcntl` use, and `debhelper-compat (= 13)` +
+  `dh-virtualenv (>= 1.2)` at build. New on-disk state: `/etc/cuems/*.xml|*.xsd` (never
+  conffiles), `/usr/share/cuems/{schemas,defaults}/`, `/etc/cuems/defaults.d/*.toml` (operator
+  overlay), `/var/lib/cuems-utils/init-node/last-written.json` (the tool's write record). One new
+  public entry point, `cuems-init-node`. **`hatch` is not installed on the current dev box** —
+  use `uvx hatch run test.py3.11:run -- -q` (the `hatch test` env lacks `hypothesis`); see
+  `specs/011-etc-cuems-first-install/quickstart.md`.
 
 ## Recent Changes
 
