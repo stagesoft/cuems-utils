@@ -9,8 +9,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 `feat/xml-refactor` when done; only that integration branch is pushed to origin, unless stated
 otherwise during the feature (rule given 2026-09-25).
 **Created**: 2026-09-25
-**Status**: Draft — three marker questions answered 2026-09-25 (see "Clarifications"); the
-remaining confirmations go to `/speckit.clarify` before `/speckit.plan`
+**Status**: Draft — clarified 2026-09-25 (eight questions answered, three deferred to the plan
+with recorded defaults); ready for `/speckit.plan`
 **Input**: User description: "Build the /etc/cuems first install for cuems-utils: a fresh
 `apt install` must leave a node that boots, loads its configuration, and is uniquely identified —
 where today no package ships any of the three documents ConfigManager requires in a usable state,
@@ -118,6 +118,28 @@ documents can be updated in this feature's pass rather than left disagreeing wit
   pair lands together under the coordinated merge that the `xml-refactor-merge-candidate` tag
   marks — the existing tag, or the future one for this sequence — never as two independent
   releases. (Option B.)
+- Q: Does retiring `cuems-config-node`'s `uuid1()` minting and the hardcoded template uuid land in
+  this feature's `cuems-common` handover commit, or only the documented contract (M2/M3)? → A:
+  **Land it in the handover.** `cuems-config-node` reads the uuid from `/etc/cuems/settings.xml`
+  and never mints; the shipped Avahi templates carry the sentinel; the contract document records
+  both. (Option A.)
+- Q: On a re-run, what happens to an operator's hand edit of a non-identity field in
+  `settings.xml`? → A: **Kept, three-way.** A value that differs from what the tool itself last
+  wrote is an operator decision and survives; the tool reports every such field as "modified,
+  kept"; `--reset` discards them and returns the node to system defaults (upstream seed values
+  plus the overlay), identity still preserved. Venue-specific configuration must survive; a
+  return-to-defaults path must exist. (Option D, extended.)
+- Q: `--check`'s exit-code contract? → A: **Four classes**: 0 coherent and provisioned; 1 mismatch
+  between locations; 2 a location absent or unreadable; 3 the source carries the sentinel ("not
+  provisioned"). A never-provisioned node is coherent but actionable, so it does not share the
+  "done" code; the source's sentinel takes precedence over an absent Avahi record, which is
+  expected on such a node. `postinst` never gates on the code. (Option B.)
+- Q: Build a `default_mappings.xml` generator that feature 014 retires? → A: **Yes, deliberately**:
+  generator, seed values and the `cuems-init-node` write path, with the retirement by 014
+  recorded and no new consumer allowed to depend on them. (Option A.)
+- Q: F1's writer annotations in the schemas — in or out? → A: **In, as one isolated commit**: the
+  writer annotation goes into all six schemas, the six hashes in `test_schema_scope` move in that
+  same commit for that reason alone, and the F1 check joins `test_duplication_flags`. (Option B.)
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -251,10 +273,15 @@ install output.
    **Then** the two nodes carry different uuids, both uuid4, neither the sentinel, and each
    uuid appears in exactly the three documents on its own host with no stale sentinel token
    anywhere in them — including inside compound strings such as `default_video_output`.
-3. **Given** a host whose `settings.xml` carries a real identity, **When** `cuems-init-node` is
-   run again (with or without an overlay), **Then** the uuid and MAC are preserved, and the
-   remaining values are re-applied across all three documents; reassignment of identity
-   requires an explicit `--force-new-identity`, which warns loudly before writing.
+3. **Given** a host whose `settings.xml` carries a real identity and one hand-edited field,
+   **When** `cuems-init-node` is run again (with or without an overlay), **Then** the uuid and
+   MAC are preserved, the hand-edited field is preserved and reported as "modified, kept" with a
+   pointer to `--reset`, and every other value is re-applied across all three documents;
+   reassignment of identity requires an explicit `--force-new-identity`, which warns loudly
+   before writing.
+3a. **Given** the same host, **When** `cuems-init-node --reset` is run, **Then** the hand-edited
+   field returns to its system default (seed value, or overlay value if one applies), the list of
+   reverted fields was printed before writing, and the identity is unchanged.
 4. **Given** `cuems-init-node` fails part-way (e.g. the second of three writes cannot complete),
    **When** the failure occurs, **Then** the documents on disk are either all in their previous
    state or all in the new state — never a half-specialized triple — and the tool exits
@@ -301,7 +328,11 @@ non-zero with the file and line named and all three documents unchanged.
    Python table produced (the move changes no value).
 2. **Given** an overlay file that sets one known scalar, **When** `cuems-init-node` runs,
    **Then** the value appears in `/etc/cuems/settings.xml`, every other value is the upstream
-   default, and the uuid and MAC are the ones the node already had.
+   default (or an operator edit the tool kept and reported), and the uuid and MAC are the ones
+   the node already had.
+2a. **Given** an overlay sets a field the operator had also hand-edited, **When** the tool runs
+   without `--reset`, **Then** the hand edit wins and is reported as "modified, kept"; with
+   `--reset`, the overlay value wins.
 3. **Given** an overlay file with a syntax error, or one naming a field no schema declares,
    or one attempting to set `uuid` or `mac`, **When** `cuems-init-node` runs, **Then** it exits
    non-zero naming the file (and line, for a syntax error) and writes nothing.
@@ -380,10 +411,11 @@ exits 0; confirm `--check` never writes.
    `settings.xml`, **When** `--check` runs, **Then** it names that path and states the two
    values — the one case nothing else in the ecosystem detects.
 4. **Given** `settings.xml` carries the sentinel, **When** `--check` runs, **Then** it says
-   "not provisioned" in those words, and exits non-zero.
-5. **Given** any of the four is missing or unreadable, **When** `--check` runs, **Then** it
-   reports the path and the reason, and exits with a distinct code from "mismatch" so a script
-   can tell "wrong" from "absent".
+   "not provisioned" in those words and exits 3 — even when the Avahi record is also absent,
+   which it reports as expected for an unprovisioned node.
+5. **Given** any of the four is missing or unreadable on a provisioned node, **When** `--check`
+   runs, **Then** it reports the path and the reason and exits 2, distinct from a mismatch (1),
+   so a script can tell "wrong" from "absent".
 6. **Given** `--check` is invoked, **When** it completes with any exit code, **Then** no file
    under `/etc/cuems` or `/etc/avahi` has changed.
 
@@ -453,6 +485,10 @@ lintian over the result.
 - **The overlay names `uuid` or `mac`.** Refused: identity is not a default and cannot be
   overlaid. `--uuid`/`--mac` on the command line are the only explicit route, and `--uuid`
   goes through the single minter's validation.
+- **A hand edit and a changed upstream default collide.** Upstream ships a new default for a
+  field the operator had edited: the operator's value stays (it differs from what the tool last
+  wrote), and the report shows both values so the operator can choose `--reset` or leave it.
+  Upstream never silently wins over a venue decision.
 - **The seed values name a field the schema no longer declares.** The generator MUST fail the
   build naming the stale entry, symmetric with the missing-entry failure (FR-034's guarantee in
   both directions), so the TOML cannot silently accumulate dead keys.
@@ -527,7 +563,10 @@ lintian over the result.
   sentinel uuid, with the seven root scalars set per the plan's per-field decision — which
   MUST first settle, by consumption, whether `default_audio_output` (and its siblings) hold an
   output **id** or an output **name**, and MUST record which reader decided it — and MUST be generated by this feature even though feature 014 later
-  retires the document (clarification Q2's recommended answer, taken deliberately).
+  retires the document. The generator, its seed-values section and the tool's write path for
+  it are **scheduled for retirement with 014**: each MUST say so where it is declared, and no
+  new consumer in this feature MAY depend on `default_mappings.xml` beyond what `ConfigManager`
+  already requires.
 - **FR-013**: The seed values table MUST leave `descriptor.py` and live in a named home as data
   (`/usr/share/cuems/defaults/system-defaults.toml` when shipped; its source location in the
   tree is the plan's). The generator's output MUST be byte-identical before and after the move
@@ -581,10 +620,22 @@ lintian over the result.
   documents, including inside compound strings (`<uuid>_<output_id>`), by literal token
   substitution (design §10.2's rule) — a structural rewrite of `uuid` elements alone is not
   acceptable, because it leaves compound strings stale and schema-valid.
-- **FR-027**: Re-run policy: identity is preserved and everything else is re-applied. This MAY
-  overwrite an operator's hand edit to a non-identity field of `settings.xml`; the tool MUST
-  say so before writing and MUST report which fields changed (clarification Q8 confirms the
-  policy and the warning's shape).
+- **FR-027**: Re-run policy: identity is preserved; operator edits are preserved; everything
+  else is re-applied. A field whose on-disk value differs from the value the tool itself **last
+  wrote** is an operator decision and MUST be kept; a field whose on-disk value equals what the
+  tool last wrote MUST be re-computed from the current seed values and overlay. The tool MUST
+  report every kept field as "modified, kept" (path, field, on-disk value) and MUST tell the
+  operator that `--reset` returns the node to system defaults.
+- **FR-027a**: To make FR-027 possible the tool MUST record what it last wrote (a write record,
+  outside the three documents, in a package-owned state location the plan names and `postrm
+  purge` removes). When the record is absent — a host provisioned before this feature, or a
+  record lost — every difference from the computed output MUST be treated as an operator edit
+  and kept, and the tool MUST say the record was missing.
+- **FR-027b**: `--reset` MUST discard operator edits to non-identity fields across all three
+  documents and re-apply upstream seed values plus the overlay, MUST preserve identity (only
+  `--force-new-identity` changes it), MUST list every field it is about to revert before
+  writing, and MUST leave other nodes' rows and adoption flags in `network_map.xml` untouched
+  (they are `cuems-nodeconf`'s, never "defaults").
 - **FR-028**: Reassignment of identity MUST require `--force-new-identity`, MUST warn loudly
   naming the old and new uuids, and MUST state that the node must be re-adopted and that the
   Avahi record is now stale.
@@ -602,9 +653,12 @@ lintian over the result.
 - **FR-032**: `--check` MUST read all four identity locations (`settings.xml`, `network_map.xml`,
   `default_mappings.xml`, `/etc/avahi/services/cuems.service`), report each value by path,
   report every mismatch against the source (`settings.xml`), report the sentinel as "not
-  provisioned" in those words, name the fixing command, change nothing, and exit with distinct
-  codes for coherent / mismatch / absent-or-unreadable (clarification Q7). `postinst` MUST NOT
-  gate on `--check`'s exit code.
+  provisioned" in those words, name the fixing command, change nothing, and exit with one of
+  four codes: **0** coherent and provisioned; **1** at least one location disagrees with the
+  source; **2** at least one location absent or unreadable; **3** the source (`settings.xml`)
+  carries the sentinel. Precedence when several apply: 3 over 2 over 1 — a not-provisioned node
+  with no Avahi record (expected after FR-040a) exits 3 and reports the absent record as
+  expected. `postinst` MUST NOT gate on `--check`'s exit code.
 - **FR-033**: The tool MUST refuse an overlay that sets `uuid` or `mac`, a `--uuid` that is not
   a uuid4, and any overlay key that no schema declares — each before writing anything.
 
@@ -622,7 +676,8 @@ lintian over the result.
 #### Purge (D6)
 
 - **FR-037**: `postrm purge` MUST remove exactly the nine paths this package placed under
-  `/etc/cuems` (three documents, six schemas) and then remove the directory only if empty.
+  `/etc/cuems` (three documents, six schemas) plus the tool's write record (FR-027a, outside
+  `/etc/cuems`), and then remove `/etc/cuems` only if empty.
   It MUST NOT remove recursively and MUST NOT remove any path it did not place, including
   `.dpkg-*` siblings, `defaults.d/`, and every other package's files.
 - **FR-038**: `postrm remove` (not purge) MUST touch nothing under `/etc/cuems`.
@@ -630,15 +685,20 @@ lintian over the result.
 #### The identity invariant and the `cuems-common` contract (D14, practices 1, 6, 7, 8)
 
 - **FR-039**: `cuemsutils.tools.Uuid` MUST remain the only uuid minter this feature uses; the
-  feature MUST NOT add a second one, and the plan MUST record M2's second minter
-  (`cuems-config-node`'s `uuid1()`) as a practice-1 violation for `cuems-common` to retire.
+  feature MUST NOT add a second one, and M2's second minter (`cuems-config-node`'s
+  `uuid1()`) is retired by the handover (FR-040a).
 - **FR-040**: D14's contract — the Avahi TXT `uuid=` value is derived from the provisioned
   `/etc/cuems/settings.xml`, never independently generated or hand-entered — MUST be recorded in
   `cuems-common`'s existing `docs/node-identity-contract.md` (M1), naming: the source document,
   the sole minter, the tool that verifies (`--check`), the second minter to retire (M2), and the
   hardcoded production uuid in the shipped templates (M3) as the live violation the contract
-  closes. Whether the `cuems-config-node` code change lands in this feature is clarification
-  Q10.
+  closes.
+- **FR-040a**: The `cuems-common` handover MUST make `cuems-config-node` read the node uuid from
+  `/etc/cuems/settings.xml` (`.//node/uuid`) and never mint one, MUST replace the hardcoded
+  production uuid in `usr/share/cuems/cuems.service.{firstrun,controller,node}` with the
+  sentinel, and MUST refuse to write an Avahi record carrying the sentinel (a "not provisioned"
+  node announces nothing rather than a placeholder identity). After the handover,
+  `cuemsutils.tools.Uuid` is the only minter in the ecosystem.
 - **FR-041**: The sentinel `00000000-0000-0000-0000-000000000000` MUST be treated as "not
   provisioned" by every tool this feature adds, said in those words, and MUST never be written
   to a live node by `cuems-init-node` — only `postinst`'s degraded fallback may leave it there,
@@ -664,6 +724,17 @@ lintian over the result.
   order and versions.
 - **FR-046**: The planning documents MUST be corrected for M1–M8 in this feature's pass, with
   the correction recorded (not applied silently), per the execution document's own §0 rule.
+- **FR-047**: Each of the six schemas MUST carry an `xs:annotation` on its root element naming
+  the document's sole writer (F1, design §8.2): `settings` → `cuems-init-node`; `network_map` →
+  `cuems-nodeconf` for topology rows, `cuems-init-node` for this node's self-entry (the seam of
+  practice 2, stated at element granularity); `project_mappings` → `cuems-editor` for a
+  project's `mappings.xml`, `cuems-init-node` for `default_mappings.xml` until 014 retires it;
+  `script` and `project_settings` → `cuems-editor`; `hardware_outputs` → `cuems-hardware-discovery`
+  for the probed inventory and `cuems-nodeconf` for the transcribed geometry. The annotations
+  MUST land in **one isolated commit** that also updates the six hashes in `test_schema_scope`
+  and adds the F1 check (every schema declares exactly one writer annotation) to
+  `test_duplication_flags`. No document on disk changes and no `doc_version` moves — an
+  annotation is not a shape change.
 - **FR-UX-001**: `cuems-init-node`'s flags, messages and exit codes MUST follow the conventions
   `cuems-convert-documents` established (argparse, path-first messages, non-zero on any skipped
   or failed document); the "not provisioned" wording MUST be identical in `--check` and in
@@ -695,7 +766,11 @@ lintian over the result.
   the seed values minus identity, applied only by `cuems-init-node`.
 - **Check report**: `--check`'s output — per location: path, value found, agreement with the
   source, sentinel status; plus the fixing command and an exit code class.
-- **The nine owned paths**: the exact set `postrm purge` may remove.
+- **Write record**: what `cuems-init-node` last wrote, per document and field, kept outside
+  the three documents in a package-owned state location; the reference that distinguishes an
+  operator edit from the tool's own previous output (FR-027a).
+- **The owned paths**: the nine under `/etc/cuems` plus the write record — the exact set
+  `postrm purge` may remove.
 
 ---
 
@@ -726,16 +801,20 @@ lintian over the result.
 - **SC-009**: A malformed overlay in `defaults.d` changes nothing about install or upgrade
   (exit 0, identical documents), and makes `cuems-init-node` exit non-zero naming the file with
   all three documents unchanged.
-- **SC-010**: `--check` exits 0 on a coherent node, a distinct non-zero code when any of the
-  four locations disagrees with `settings.xml` or carries the sentinel, and another distinct code
-  when a location is absent or unreadable; it never modifies a file (checksums before and after
-  equal).
+- **SC-010**: `--check` exits 0 on a coherent provisioned node, 1 when any location disagrees
+  with `settings.xml`, 2 when a location is absent or unreadable, 3 when `settings.xml` carries
+  the sentinel (also when the Avahi record is absent); it never modifies a file (checksums before
+  and after equal).
+- **SC-010a**: A hand-edited non-identity field survives a plain re-run byte-for-byte and is
+  named in the tool's output as kept; after `--reset` it equals the system default and the uuid
+  is unchanged. On a host with no write record, zero on-disk values change on a plain re-run.
 - **SC-011**: The three live schema-path defects resolve on an installed host with no change to
   their callers.
 - **SC-012**: The `cuems-common` sibling at its handover version has zero tests asserting the
   shipped `network_map.{xml,xsd}` and zero `etc/cuems/network_map.*` lines in `debian/install`,
-  and its `docs/node-identity-contract.md` states D14's derivation rule and names the second
-  minter.
+  and its `docs/node-identity-contract.md` states D14's derivation rule and names the retired
+  second minter; `cuems-config-node` contains no uuid minting call, and no shipped Avahi template
+  contains a non-sentinel uuid.
 - **SC-PERF-001** (proposed; the plan validates and may re-base with a recorded reason):
   - `postinst` wall time on the reference node hardware, excluding dh-virtualenv's own
     autoscript: **≤ 5 s** on a fresh install (one tool invocation), **≤ 1 s** on an upgrade
@@ -750,32 +829,33 @@ lintian over the result.
 - **SC-TEST-001**: Every functional requirement above has at least one automated test that
   fails before the implementation and passes after it. Package-lifecycle criteria (SC-001–003,
   SC-006–010) are exercised in a container or chroot as an integration test the plan defines;
-  the schema-hash pin (`test_schema_scope`) does not move, because this feature edits no
-  schema.
+  the schema-hash pin (`test_schema_scope`) moves exactly once, in FR-047's annotation
+  commit, and in no other commit of this feature.
 
 ---
 
-## Clarifications to force in `/speckit.clarify`
+## Clarification register
 
 Carried from `specs/planning/011-first-install-specify-prompt.md` §4, extended by today's
-measurements. Each either has no defensible default or two candidate answers already in
-conflict. Three were answered on 2026-09-25 (Q1a, Q1b, Q9 — see "Clarifications"); the rest
-carry a recommended default and are listed for confirmation.
+measurements. Eight are answered (three at specify time, five in the `/speckit.clarify` session —
+see "Clarifications" above). The three that remain (Q4, Q5, Q6) are confirmable by test or by
+reading the build tooling and are **deferred to the plan** with their recorded defaults; none
+changes what the feature delivers.
 
 | Q | Topic | State in this spec |
 |---|---|---|
 | Q1a | **OPEN-1** — `default_mappings.xml`'s per-field values for a *fresh, unconfigured* node (`number_of_nodes`, the six `default_*_input`/`_output`), and whether `default_audio_output` holds an output **id** or an output **name** (the two production hosts disagree; one is wrong). | **Answered (C)**: spelling settled by consumption in the plan; values derived from it. FR-012. |
 | Q1b | The pristine `network_map.xml` self-entry's placeholders for the required `name` and `ip` (practice 4 derives them at init time; the pristine copy needs a sentinel spelling). | **Answered (A)**: `unprovisioned` / `0.0.0.0`. FR-011. |
-| Q2 | Build a `default_mappings.xml` generator that feature 014 retires. | Recommended: yes, deliberately (FR-012). Confirm. |
+| Q2 | Build a `default_mappings.xml` generator that feature 014 retires. | **Answered (A)**: built deliberately, retirement recorded. FR-012. |
 | Q3 | OPEN-2 — does the editor need the XSDs? | **Closed by M4**: yes, `/etc/cuems/script.xsd`. Ship all six regardless. |
-| Q4 | OPEN-3 — `postinst` before first engine start. | M5 gives the mechanism; the plan pins it by test (FR-022). Confirm. |
-| Q5 | OPEN-4 — where `cuems-init-node` lives and how `postinst` invokes it. | Default in Assumptions (venv `bin/`, absolute-path invocation, optional `/usr/bin` symlink). Confirm. |
-| Q6 | How the generator runs at build (after `dh_virtualenv`, through the built venv's interpreter, into the staging tree) and its neutrality to a trixie build. | Default in Assumptions. Confirm against dh-virtualenv's autoscript ordering. |
-| Q7 | `--check`'s exit-code contract vs. `postinst`'s never-fail rule. | Default: three exit classes; `postinst` never gates on it (FR-032). Confirm the codes. |
-| Q8 | Re-run on a changed overlay may overwrite an operator's hand edit of `settings.xml`. | Default: yes, with a pre-write statement and a changed-fields report (FR-027). Confirm the warning's shape. |
+| Q4 | OPEN-3 — `postinst` before first engine start. | M5 gives the mechanism; **deferred to the plan**, which pins it by test (FR-022). |
+| Q5 | OPEN-4 — where `cuems-init-node` lives and how `postinst` invokes it. | **Deferred to the plan** with A1 as the default (venv `bin/`, absolute-path invocation, optional `/usr/bin` symlink); the venv constraint leaves no other location. |
+| Q6 | How the generator runs at build (after `dh_virtualenv`, through the built venv's interpreter, into the staging tree) and its neutrality to a trixie build. | **Deferred to the plan** with A2 as the default; confirm against dh-virtualenv's autoscript ordering. |
+| Q7 | `--check`'s exit-code contract vs. `postinst`'s never-fail rule. | **Answered (B)**: four classes, 0/1/2/3, precedence 3 > 2 > 1. FR-032, A4. |
+| Q8 | Re-run on a changed overlay may overwrite an operator's hand edit of `settings.xml`. | **Answered (D, extended)**: operator edits are kept and reported; `--reset` returns to defaults. FR-027/027a/027b. |
 | Q9 | Handover order and the two version numbers. | **Answered (B)**: `cuems-common 1.3.0-23` drops the paths; `cuems-utils 0.1.0rc16` ships them; both land under the `xml-refactor-merge-candidate` coordinated merge. A3. |
-| Q10 | *New (M2/M3)*: does retiring `cuems-config-node`'s `uuid1()` minting and the hardcoded template uuid land in this feature's `cuems-common` handover commit, or is it recorded in the contract as `cuems-common`'s follow-up? | Recommended: land it in the handover (it is a few lines and the contract is false while it stands). Confirm. |
-| Q11 | *New*: F1 (one writer per document, declared in each schema's `xs:annotation`) is "packaging work" per the execution document §3.3, and every schema hash would move. | Recommended: **not** in this feature — it is a schema edit and this feature makes none. Confirm. |
+| Q10 | *New (M2/M3)*: does retiring `cuems-config-node`'s `uuid1()` minting and the hardcoded template uuid land in this feature's `cuems-common` handover commit, or is it recorded in the contract as `cuems-common`'s follow-up? | **Answered (A)**: lands in the handover. FR-040a. |
+| Q11 | *New*: F1 (one writer per document, declared in each schema's `xs:annotation`) is "packaging work" per the execution document §3.3, and every schema hash would move. | **Answered (B)**: in scope, one isolated hash-updating commit. FR-047. |
 
 ---
 
@@ -800,9 +880,11 @@ carry a recommended default and are listed for confirmation.
   floor already names the shipping version. The pair is not two releases: both land under the
   coordinated merge the `xml-refactor-merge-candidate` tag marks (D27), so apt only ever sees
   them together and the `Breaks` is a safety net rather than the ordering mechanism.
-- **A4 — Exit codes (Q7 default)**: `--check` uses 0 = coherent, 1 = mismatch or sentinel,
-  2 = absent or unreadable, matching the three-class convention `cuems-common`'s own
-  `apply-identity` documents (0 no drift / 1 drift / 2 error). Write mode uses 0 / 1.
+- **A4 — Exit codes (Q7, answered)**: `--check` uses 0 = coherent and provisioned,
+  1 = mismatch, 2 = absent or unreadable, 3 = sentinel in the source; the first three map onto
+  the convention `cuems-common`'s own `apply-identity` documents (0 no drift / 1 drift /
+  2 error), and 3 is the class that convention lacks because it never had a "never provisioned"
+  state to name. Write mode uses 0 / 1.
 - **A5 — Overlay precedence**: files in `defaults.d` apply in lexical filename order, later
   wins, the sysctl/systemd convention.
 - **A6 — `postinst`'s partial-triple rule**: "absent" is evaluated per file. When
@@ -830,7 +912,7 @@ carry a recommended default and are listed for confirmation.
   invalidates every node identity in the field with nothing able to repair them), and every
   "fresh node" claim in the ecosystem.
 - **Cross-repository**: `cuems-common` (hands over two paths, extends one contract document,
-  re-bases five tests; optionally retires a second minter per Q10). Both changes land on
+  re-bases five tests, retires the second minter in `cuems-config-node` per FR-040a). Both changes land on
   `cuems-common`'s working branch; nothing ships from either repository alone (D27 — the
   coordinated merge is tagged after 011–014).
 - **Closes**: OPEN-1, OPEN-2 (by M4), OPEN-3 (by M5 + FR-022's test), OPEN-4.
@@ -848,8 +930,6 @@ carry a recommended default and are listed for confirmation.
 - **The `hardware_outputs` structure pass and the port-inventory move**: feature 014, which is
   also what finally retires `default_mappings.xml`.
 - **The device-class reshape (F6)**: feature 013.
-- **F1's writer annotations in the schemas**: recommended out (Q11) — a schema edit, and this
-  feature makes none.
 - **The library version**: stays `0.1.0rc16` (design §12). Schema shape is signalled by
   `doc_version`, not by the library version.
 - **Converting existing documents at install** (D8, satisfied): the read path converts in
