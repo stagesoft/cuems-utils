@@ -1,0 +1,114 @@
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Upstream seed values for the documents cuems-utils generates at package build
+# and cuems-init-node writes at provisioning (feature 011; contract
+# specs/011-etc-cuems-first-install/contracts/system-defaults-toml.md).
+#
+# Tables are [<schema>.<TypeName>]; keys are the type's scalar element names,
+# exactly as the schema spells them; values are typed TOML scalars and the type
+# must match the field (an integer element rejects a string form and vice
+# versa). uuid and mac never appear here: identity is injected, never seeded.
+#
+# Structure comes from the XSD (the descriptor); this file holds VALUES only.
+# A required field with no entry here fails the build naming it; an entry
+# naming no declared field fails the build naming the key.
+#
+# Site overlays go in /etc/cuems/defaults.d/*.toml with the same layout and are
+# applied only by cuems-init-node, never by the package.
+
+# --- settings.xsd -------------------------------------------------------------
+
+[settings.SettingsType]
+conf_path = "/etc/cuems"
+library_path = "/opt/cuems_library"
+tmp_path = "/tmp/cuems"
+database_name = "project-manager.db"
+show_lock_file = "show.lock"
+# The brand hostname, and the user-facing entry point: CUEMS is the internal
+# machinery, formitgo is what an operator types (D15).
+editor_url = "formitgo.local"
+controller_url = "controller.local"
+templates_path = "/usr/share/cuems"
+controller_interfaces_template = "interfaces.controller"
+node_interfaces_template = "interfaces.node"
+controller_lock_file = "controller.lock"
+
+[settings.NodeConfType]
+osc_dest_host = "localhost"
+oscquery_ws_port = 9190
+oscquery_osc_port = 9191
+websocket_port = 9092
+load_timeout = 15000
+nodeconf_timeout = 5000
+discovery_timeout = 15000
+mtc_port = "Midi Through Port-0"
+osc_in_port_base = 7000
+nng_hub_port = 9093
+gradient_osc_port = 7100
+
+# Player sections: each concrete type declares its own path and args (D16-B).
+# There is no [settings.PlayerType] table, deliberately: the abstract base is
+# used by no element, and a value under it could only be reached by the
+# fallback that was removed.
+
+# videoplayer is the one section the engine does NOT spawn: it speaks OSC to an
+# already-running cuems-videocomposer unit and reads only osc_port. path/args
+# are kept and corrected rather than retired because they are scheduled to
+# become that unit's source of truth (D15) — unread is not the same as dead.
+[settings.VideoPlayerType]
+path = "/usr/bin/cuems-videocomposer"
+args = ""
+outputs = 2
+# The engine's own fallback, stated explicitly: NodeEngine.VIDEOCOMPOSER_OSC_PORT_DEFAULT.
+osc_port = 7000
+output_latency_ms = "auto"
+
+# Engine-spawned. "-w -1" is live and identical on both audited hosts.
+[settings.AudioPlayerType]
+path = "/usr/bin/cuems-audioplayer"
+args = "-w -1"
+output_latency_ms = "auto"
+
+# Engine-spawned as `jack-volume -c <id> -p <port> -n 4`: the engine builds
+# -c/-p/-n itself, so args carries operator flags only and is empty by default.
+[settings.AudioMixerType]
+path = "/usr/bin/jack-volume"
+args = ""
+
+# Engine-spawned. --mtcfollow appears on one audited host and is now the
+# binary's own default, so the default here is empty (D15). dmx has no "auto"
+# form: 35 is dmxplayer's hard-coded default, so the flag asserts what absence
+# already meant.
+[settings.DmxPlayerType]
+path = "/usr/bin/cuems-dmxplayer"
+args = ""
+output_latency_ms = 35
+
+# --- network_map.xsd -----------------------------------------------------------
+
+# This node's own row, before the election. name and ip are placeholders in the
+# pristine copy (clarification Q1b, 2026-09-25); cuems-init-node writes the OS
+# hostname and the interface's address, and cuems-nodeconf refreshes both.
+[network_map.NodeType]
+name = "unprovisioned"
+ip = "0.0.0.0"
+node_role = "firstrun"
+
+# --- project_mappings.xsd (default_mappings.xml; retires with feature 014) -----
+
+# A fresh, unconfigured node claims no hardware: every default is empty rather
+# than an invented output (research R12). A non-empty value is spelled
+# <uuid>_<output id>, never an output name.
+[project_mappings.CuemsProjectMappingsType]
+number_of_nodes = 1
+default_audio_input = ""
+default_audio_output = ""
+default_video_input = ""
+default_video_output = ""
+default_dmx_input = ""
+default_dmx_output = ""
+
+# The node entry carries injected uuid/mac and empty device sections; the
+# table exists so the completeness check has a declaration site.
+[project_mappings.NodeMappingType]

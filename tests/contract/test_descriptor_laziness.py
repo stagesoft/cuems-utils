@@ -57,8 +57,9 @@ which = sys.argv[1]
 from cuemsutils.xml.descriptor import SchemaDescriptor
 from cuemsutils.xml.schema import SCHEMA_NAMES, get_schema
 from cuemsutils.tools.ConfigManager import ConfigManager, SchemaName
+from tests.support.corpus import REPO_ROOT  # feature 011, T007: no host /etc/cuems
 
-manager = ConfigManager(load_all=False)
+manager = ConfigManager(config_dir=str(REPO_ROOT / "tests/data/corpus/cuems-engine"), load_all=False)
 timings = {}
 for name in SCHEMA_NAMES:
     start = time.perf_counter()
@@ -77,7 +78,9 @@ def _measure(which: str) -> dict:
         capture_output=True, text=True, cwd=".",
     )
     assert result.returncode == 0, result.stderr[-400:]
-    return json.loads(result.stdout.strip())
+    # Feature 011, T007: the probe now loads a real corpus, and the library logs
+    # to stdout by default — the JSON is the probe's last line.
+    return json.loads(result.stdout.strip().splitlines()[-1])
 
 
 @pytest.fixture(scope="module")

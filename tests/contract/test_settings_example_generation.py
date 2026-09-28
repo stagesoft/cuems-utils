@@ -44,12 +44,15 @@ from __future__ import annotations
 
 import pytest
 
-from cuemsutils.xml.descriptor import (
-    _SETTINGS_EXAMPLE_VALUES,
-    _settings_example_value,
-    generate_settings_example,
-)
+from cuemsutils.xml.descriptor import generate_settings_example
+from cuemsutils.xml.seed_values import settings_table, settings_value
 from cuemsutils.xml.spec import FieldKind, TypeKey, derive
+
+# Feature 011 (D7/D9): the values table is data now — ``system-defaults.toml``
+# — and these tests read it through ``seed_values`` rather than a Python dict.
+# Every assertion below kept its meaning; only where the values live moved.
+_SETTINGS_EXAMPLE_VALUES = settings_table()
+_settings_example_value = settings_value
 
 #: The four concrete player types, and the element each is reached by.
 PLAYER_SECTIONS = {
@@ -99,7 +102,7 @@ def test_every_player_type_declares_all_of_its_own_values(type_name):
     ]
     assert not missing, (
         f"{type_name} declares {missing} with no entry under its own name in "
-        "_SETTINGS_EXAMPLE_VALUES. There is no base-class fallback any more "
+        "system-defaults.toml. There is no base-class fallback any more "
         "(D16-B) -- add the entry under the concrete type."
     )
 
@@ -134,7 +137,7 @@ def test_the_error_names_the_table_and_the_fix():
         _settings_example_value("DmxPlayerType", "no_such_field")
     message = str(raised.value)
     assert "DmxPlayerType.no_such_field" in message
-    assert "_SETTINGS_EXAMPLE_VALUES" in message
+    assert "system-defaults.toml" in message
     assert "add one" in message
 
 

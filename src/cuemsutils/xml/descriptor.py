@@ -478,130 +478,16 @@ def generate_script_example():
     return script
 
 
-#: (bound class name, field name) -> a seed value. Every ``settings``/
-#: ``NodeConfType``/player-section field is ``Unset`` at the model layer
-#: (config/settings.py's own docstring: "every field defaults to Unset"), so
-#: — unlike the show schema — there is no descriptor-derived default to fall
-#: back on anywhere in this tree; a value has to come from somewhere, and
-#: this table is that somewhere. What *is* descriptor-driven is completeness:
-#: ``generate_settings_example`` raises if a field this table does not name
-#: is required, rather than silently emitting an incomplete document — this
-#: is what "remove the hand-maintenance clause" (FR-034) actually rests on,
-#: since a schema change now breaks the build here instead of drifting out of
-#: sync with a second, hand-edited file.
-#:
-#: **These stopped being merely illustrative.** The table was transcribed from
-#: the retired hand-maintained settings template (T078) and documented as
-#: *illustrative*; ``specs/planning/etc-cuems-first-install.md`` D2 schedules its
-#: output to be generated at package build and shipped, at which point a made-up
-#: value becomes a value on every node. D15 therefore corrected it against the
-#: two production machines by **consumption** — each entry classified by who
-#: actually reads it (engine source, live ``ps`` output, ``systemctl show``)
-#: rather than transcribed from a machine, since both audited hosts predate this
-#: refactor and are evidence of *improper* values, not an authority to copy.
-#:
-#: Four player ``path`` entries said ``/usr/bin/cuems-player``, **a binary that
-#: has never existed** — absent on both hosts. One fiction reached all four
-#: sections through the base-class fallback this pass also removes (D16-B): the
-#: shortest possible demonstration of why a fallback that quietly answers for a
-#: field nobody declared is worse than a ``RuntimeError``.
-_SETTINGS_EXAMPLE_VALUES = {
-    ("SettingsType", "conf_path"): "/etc/cuems",
-    ("SettingsType", "library_path"): "/opt/cuems_library",
-    ("SettingsType", "tmp_path"): "/tmp/cuems",
-    ("SettingsType", "database_name"): "project-manager.db",
-    ("SettingsType", "show_lock_file"): "show.lock",
-    # The brand hostname, and the user-facing entry point: CUEMS is the
-    # internal machinery, formitgo is what an operator types (D15).
-    ("SettingsType", "editor_url"): "formitgo.local",
-    ("SettingsType", "controller_url"): "controller.local",
-    ("SettingsType", "templates_path"): "/usr/share/cuems",
-    ("SettingsType", "controller_interfaces_template"): "interfaces.controller",
-    ("SettingsType", "node_interfaces_template"): "interfaces.node",
-    ("SettingsType", "controller_lock_file"): "controller.lock",
-    ("NodeConfType", "uuid"): "00000000-0000-0000-0000-000000000000",
-    ("NodeConfType", "mac"): "000000000000",
-    ("NodeConfType", "osc_dest_host"): "localhost",
-    ("NodeConfType", "oscquery_ws_port"): 9190,
-    ("NodeConfType", "oscquery_osc_port"): 9191,
-    ("NodeConfType", "websocket_port"): 9092,
-    ("NodeConfType", "load_timeout"): 15000,
-    ("NodeConfType", "nodeconf_timeout"): 5000,
-    ("NodeConfType", "discovery_timeout"): 15000,
-    ("NodeConfType", "mtc_port"): "Midi Through Port-0",
-    ("NodeConfType", "osc_in_port_base"): 7000,
-    ("NodeConfType", "nng_hub_port"): 9093,
-    ("NodeConfType", "gradient_osc_port"): 7100,
-    # Player sections: each concrete type declares its own path and args
-    # (D16-B). No ``("PlayerType", ...)`` entry exists, deliberately — the
-    # abstract base is used by no element, and an entry under it would be
-    # reachable only through the fallback this pass removed.
-    #
-    # videoplayer is the one section the engine does NOT spawn: it speaks OSC
-    # to an already-running cuems-videocomposer systemd unit and reads only
-    # ``osc_port`` (NodeEngine.py:555). ``path``/``args`` are kept and
-    # corrected rather than retired because they are scheduled to become that
-    # unit's SSOT (D15) — unread is not the same as dead.
-    ("VideoPlayerType", "path"): "/usr/bin/cuems-videocomposer",
-    ("VideoPlayerType", "args"): "",
-    ("VideoPlayerType", "outputs"): 2,
-    # The engine's own fallback, stated explicitly rather than left implicit:
-    # NodeEngine.VIDEOCOMPOSER_OSC_PORT_DEFAULT = 7000. Writing it changes no
-    # behaviour (D17) — it makes a knob visible that an operator otherwise has
-    # to read engine source to discover.
-    ("VideoPlayerType", "osc_port"): 7000,
-    ("VideoPlayerType", "output_latency_ms"): "auto",
-    # Engine-spawned, NodeEngine.py:514-518. ``-w -1`` is live and identical
-    # on both audited hosts.
-    ("AudioPlayerType", "path"): "/usr/bin/cuems-audioplayer",
-    ("AudioPlayerType", "args"): "-w -1",
-    ("AudioPlayerType", "output_latency_ms"): "auto",
-    # Engine-spawned, NodeEngine.py:456-457, observed running as
-    # ``jack-volume -c 0_mixer -p 9555 -n 4``: the engine builds ``-c``/``-p``/
-    # ``-n`` itself from the mixer id and assigned port, so ``args`` carries
-    # operator flags only and is empty by default.
-    ("AudioMixerType", "path"): "/usr/bin/jack-volume",
-    ("AudioMixerType", "args"): "",
-    # Engine-spawned, NodeEngine.py:628-636. ``--mtcfollow`` appears on one
-    # audited host and is now the binary's own default, so that host is the
-    # stale one and the default here is empty (D15).
-    ("DmxPlayerType", "path"): "/usr/bin/cuems-dmxplayer",
-    ("DmxPlayerType", "args"): "",
-    # The one D17 entry whose emission changes the spawned argv rather than
-    # only the document: dmx has no "auto" form, and the engine appends
-    # ``--output-latency-ms`` whenever an integer is present
-    # (NodeEngine._append_output_latency_flag). 35 is dmxplayer's own
-    # hard-coded default, so the flag asserts what absence already meant.
-    ("DmxPlayerType", "output_latency_ms"): 35,
-}
-
-
-def _settings_example_value(class_name: str, field_name: str):
-    """The seed value for one field, or ``RuntimeError`` naming what to add.
-
-    **There is no base-class fallback, and its removal is the point** (D16-B).
-    ``derive()`` flattens ``xs:extension``, so a player subtype's field list
-    already includes ``PlayerType``'s ``path``/``args``, and this function used
-    to answer for all four subtypes from a single ``("PlayerType", ...)`` entry
-    — which is exactly how one wrong ``path``, naming a binary that never
-    existed, served videoplayer, audioplayer, audiomixer and dmxplayer at once
-    while looking deliberate in each.
-
-    The four players do not share a value; they share a *field name*. Requiring
-    each concrete type to declare its own turns that into four visible entries
-    a reviewer can check against four real binaries, and turns a missing one
-    into the ``RuntimeError`` below instead of a plausible wrong answer.
-
-    Safe to remove: nothing else consults this table — ``_instance_for`` seeds
-    from model-layer defaults, not from here.
-    """
-    key = (class_name, field_name)
-    if key in _SETTINGS_EXAMPLE_VALUES:
-        return _SETTINGS_EXAMPLE_VALUES[key]
-    raise RuntimeError(
-        f"settings.xsd's {class_name}.{field_name} has no example value in "
-        f"descriptor._SETTINGS_EXAMPLE_VALUES — add one"
-    )
+#: The seed values moved out of this module (feature 011, D7/D9): they are
+#: data now — ``cuemsutils/defaults/system-defaults.toml``, loaded and checked by
+#: ``xml/seed_values.py``, the one code path the build-time generator and
+#: ``cuems-init-node`` share. Everything the old table's docstring said about
+#: *why* the values are what they are (D15's correction by consumption, D16's
+#: removed base-class fallback) travelled with the values as comments in that
+#: file. What stays here is the structural guarantee: ``generate_settings_example``
+#: still raises when a required field has no entry, whichever file the entries
+#: came from.
+from .seed_values import settings_value as _settings_example_value  # noqa: E402
 
 
 def _build_settings_section(class_name: str, model, field_names: tuple[str, ...]):

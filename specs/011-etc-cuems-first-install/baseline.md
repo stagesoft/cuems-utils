@@ -25,12 +25,28 @@ Rows marked *pending* are filled as the corresponding task lands.
 
 Generator determinism: two `generate_settings_example().save()` runs → equal SHA-256. ✅
 
+**Pre-move reference for T012** (recorded 2026-09-28 before T011 moved the values to TOML):
+`generate_settings_example().save()` → SHA-256 `5635a078302cc6513b3a85e795ba0c4f75afa3adbcf9de8385755c604974da3d`,
+1814 bytes. The post-move document must equal it byte for byte.
+
 ## Suite
 
 | Run | Result | Wall | Per test |
 |---|---|---|---|
 | `hatch run test.py3.11:run`, no `CUEMS_CONF_PATH` | 9 failed, 2698 passed, 96 skipped, 2 xfailed, **16 errors** | 119.17 s | — (not a baseline: see M9) |
 | same, `CUEMS_CONF_PATH=tests/data/corpus/cuems-engine/` | identical: 9 failed, 2698 passed, 96 skipped, 2 xfailed, 16 errors (2821 collected) | 116.03 s | **41.1 ms/test** (2-vCPU VM; host-specific) |
+
+**Pre-fix range at implementation start (T001, 2026-09-28, two runs)**: 9 failed, 2702 passed,
+96 skipped, 2 xfailed, 16 errors in 123.45 s / 124.39 s (2825 collected, **43.7–44.0 ms/test**).
+The hermetic figure after Phase 2 (T006/T007) is recorded below it once measured.
+
+**`test_descriptor_laziness` on this host**: after T007 pointed its probe at a real corpus it
+fails the 1.10× cap on roughly two runs in three (public 285 ms vs internal 233 ms = 1.22×, script
+alone 1.23×) and passes on the others — the same sub-noise-floor timing assertion the execution
+document's §4.6 records. Not a schema or a code regression: the probe's timed region starts after
+the manager is built, and the public path builds *fewer* schemas in it than before. Re-run before
+recording a delta; the budget needs a noise floor (§4.6's own recommendation), which is not this
+feature's to add.
 
 **M9 (finding)**: all 25 come from four modules that construct `ConfigManager(load_all=False)`
 with no `config_dir` (`test_public_surface.py`, `test_descriptor_instances.py`,

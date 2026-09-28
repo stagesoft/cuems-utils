@@ -23,6 +23,7 @@ from cuemsutils.helpers import Unset
 from cuemsutils.xml.descriptor import SchemaDescriptor
 from cuemsutils.xml.schema import SCHEMA_NAMES
 from cuemsutils.xml.spec import FieldKind, derive
+from tests.support.corpus import REPO_ROOT  # feature 011, T007: no host /etc/cuems
 
 
 def _child_fields(key) -> set[str]:
@@ -136,5 +137,5 @@ def test_the_instance_is_reachable_from_the_public_path(schema_name):
     """FR-022a is a descriptor fact, so it arrives with the descriptor — no
     second public accessor, and no extra exposure to SC-004."""
     ConfigManager, SchemaName = _public()
-    described = ConfigManager(load_all=False).get_schema_descriptor(SchemaName(schema_name))
+    described = ConfigManager(config_dir=str(REPO_ROOT / "tests/data/corpus/cuems-engine"), load_all=False).get_schema_descriptor(SchemaName(schema_name))
     assert all(isinstance(t.instance, dict) for t in described)

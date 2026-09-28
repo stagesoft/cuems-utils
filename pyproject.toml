@@ -65,7 +65,7 @@ Source = "https://github.com/stagesoft/cuems-utils"
 path = "src/cuemsutils/__init__.py"
 
 [tool.hatch.build]
-include = ["src/cuemsutils/xml/schemas"]
+include = ["src/cuemsutils/xml/schemas", "src/cuemsutils/defaults"]
 
 [tool.hatch.build.targets.sdist]
 packages = ["src/cuemsutils"]
