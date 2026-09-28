@@ -61,7 +61,7 @@ is reported by `--check` (exit 3) and only `postinst`'s degraded fallback may le
 | `settings.xml` | `Settings/node/uuid`, `Settings/node/mac` | bare |
 | `network_map.xml` | `node_list/node[uuid,mac]` — this node's row only | bare; row keyed by MAC in `NodeIndex`, matched by uuid |
 | `default_mappings.xml` | `nodes/node[uuid,mac]`; the six `default_*` when non-empty | bare, and compound `<uuid>_<id>` |
-| `/etc/avahi/services/cuems.service` | `txt-record uuid=` | read by `--check` only; written by `cuems-config-node render` (R7) |
+| `/etc/avahi/services/cuems.service` | `txt-record uuid=` | read by `--check` only; written by `cuems-nodeconf`, derived from `settings.xml` at every start and role change (R7) |
 
 **State transitions of a node's identity**:
 

@@ -43,20 +43,35 @@ floor's reason is now "the release that ships the schemas to `/etc/cuems`".
 | `tests/test_documented_validation.py` | re-based the same way; the documented command keeps `/etc/cuems/network_map.xsd` as its argument, which now exists on every host |
 | `tests/test_network_map_conversion.py` | unchanged in substance; fixture schema path re-based |
 | `tests/test_avahi_vocabulary.py` | extended: every template's `uuid=` record is the sentinel |
-| new `tests/test_config_node_render.py` | `render` reads the uuid from a settings fixture, rewrites templates and a live file, refuses on sentinel/absent with exit 3, reloads only on change |
+| `tests/test_template_consumers.py` | re-based: no `cp` rule expected; `cuems-config-node` names no template |
+| new `tests/test_config_node_no_minting.py` | `cuems-config-node` contains no `uuid1`/`uuid4` call and names no template; the sudoers file has no `cp` rule |
 
-## 4. `cuems-config-node` (research R7, FR-040a)
+## 4. `cuems-config-node`, the templates, and the sudoers rules (research R7, FR-040a)
 
-- Gains `render`: uuid from `/etc/cuems/settings.xml` (`.//node/uuid`) into the three templates
-  and, if present, the live `/etc/avahi/services/cuems.service`; `avahi-daemon` reloaded only
-  when the live file changed. Exit 0 rendered / 0 nothing changed / 3 not provisioned (sentinel
-  or absent `settings.xml`) / 2 unreadable. Never writes the sentinel to a live record.
-- `write` no longer calls `uuid1()`; it uses `render` for the uuid and keeps its hostname, MAC
-  and `avahi-daemon.conf` duties unchanged.
-- The three shipped templates carry the sentinel uuid.
-- `debian/postinst` calls `/usr/bin/cuems-config-node render || true` after the Avahi migration
-  block (never fails the upgrade; on an unprovisioned node it prints "not provisioned" and
-  continues).
+- `cuems-config-node` **loses** `uuid1()` minting and every Avahi/template duty: it no longer
+  rewrites `usr/share/cuems/cuems.service.*` nor any live record. `write` keeps its hostname,
+  `/etc/hosts` and `avahi-daemon.conf` handling and prints that identity comes from
+  `/etc/cuems/settings.xml` (written by `cuems-init-node`) and is announced by `cuems-nodeconf`.
+- The three shipped templates carry the **sentinel** uuid and are never rewritten by any tool.
+- `etc/sudoers.d/99-cuems-avahi`: the three `cp` rules are retired (dead privilege — nodeconf
+  runs as root and copies directly; nothing else in production copies a template); the
+  `systemctl reload avahi-daemon.service` rule stays.
+- `debian/postinst` makes **no** new Avahi call; the existing live-file key migration stays.
+- `debian/control`: `Breaks: cuems-nodeconf (<< 0.1.0-9~)` added (the version whose start
+  renders the record), matching nodeconf's existing `Breaks: cuems-common (<< 1.3.0-23~)`.
+
+## 4a. `cuems-nodeconf` `0.1.0-9` (its own tree, same coordinated merge)
+
+- At start, before discovery: uuid/MAC from `settings.xml` via its `ConfigManager`; render
+  the role template into `/etc/avahi/services/cuems.service` by literal substitution of the
+  sentinel token; atomic write; `avahi-daemon` reloaded only if the bytes changed. Absent or
+  sentinel `settings.xml` ⇒ log `NOT PROVISIONED`, exit non-zero, announce nothing.
+- The three template-copy sites (`_install_master_service_template`, the node branch of
+  `set_node_role`, the resume path) render the same way.
+- After discovery: the discovered self must carry the `settings.xml` uuid; otherwise refuse
+  loudly (plan 09 §4).
+- Tests: render from a settings fixture (real uuid, sentinel, absent), reload-only-on-change,
+  the guard, and that the templates are read from `/usr/share/cuems` unchanged.
 
 ## 5. `docs/node-identity-contract.md` — the D14 section to add
 
@@ -64,13 +79,16 @@ Under "Discovery TXT record", a new subsection **"Where the `uuid=` value comes 
 
 - the source is `/etc/cuems/settings.xml`, whose sole writer is `cuems-init-node`; the only
   minter in the ecosystem is `cuemsutils.tools.Uuid`;
-- `cuems-config-node render` derives the record from it; nothing else may set the value and
-  nothing may hand-enter it;
+- **`cuems-nodeconf` is the record's sole writer** and derives it from that file at every start
+  and every role change; nothing else may set the value and nothing may hand-enter it;
 - the retired second minter (`cuems-config-node`'s former `uuid1()`) and the retired hardcoded
   production uuid in the shipped templates, with the version that retired each;
 - `cuems-init-node --check` is the verifier and the only detector of a drifted record;
-- the sentinel is never announced: an unprovisioned node has no `uuid=` record until provisioned.
+- the sentinel is never announced: an unprovisioned node's nodeconf refuses to start;
+- the shipped templates carry the sentinel and are package content — a host's identity never
+  lives under `/usr/share`.
 
-Also: the "Role-flip" procedure gains the step "run `cuems-config-node render` after any
-identity change", and the OPEN-4 ownership note (who writes which `/etc/cuems` file) lands here
+Also: the "Role-flip" procedure gains the step "restart `cuems-nodeconf` after any identity
+change" (which is also feature 012's last step), the transition note records the mutual
+`Breaks` and that unmasking nodeconf fleet-wide is part of the same landing, and the OPEN-4 ownership note (who writes which `/etc/cuems` file) lands here
 as a table matching `data-model.md` §5.

@@ -120,9 +120,13 @@ documents can be updated in this feature's pass rather than left disagreeing wit
   releases. (Option B.)
 - Q: Does retiring `cuems-config-node`'s `uuid1()` minting and the hardcoded template uuid land in
   this feature's `cuems-common` handover commit, or only the documented contract (M2/M3)? → A:
-  **Land it in the handover.** `cuems-config-node` reads the uuid from `/etc/cuems/settings.xml`
-  and never mints; the shipped Avahi templates carry the sentinel; the contract document records
-  both. (Option A.)
+  **Land it in the handover.** `cuems-config-node` never mints; the shipped Avahi templates carry
+  the sentinel; the contract document records both. (Option A.)
+- *(Session 2026-09-28, plan phase)* Q: Who derives the Avahi record from `settings.xml` —
+  `cuems-config-node` in `cuems-common`, or `cuems-nodeconf`? → A: **`cuems-nodeconf`**, as its
+  sole writer, at every start and role change, refusing to start unprovisioned; nodeconf becomes
+  integral and unmasked fleet-wide with the xml-refactor landing, which is what makes this the
+  best shape (research R7/R7a, shape B). `cuems-config-node` only loses duties.
 - Q: On a re-run, what happens to an operator's hand edit of a non-identity field in
   `settings.xml`? → A: **Kept, three-way.** A value that differs from what the tool itself last
   wrote is an operator decision and survives; the tool reports every such field as "modified,
@@ -475,8 +479,9 @@ lintian over the result.
   imaging, or run `cuems-init-node --force-new-identity` on each clone.
 - **`--force-new-identity` on an adopted node.** The old row in `network_map.xml` is replaced
   by the new identity's row; the node must be re-adopted by the controller. The tool warns
-  before writing and names the old and new uuids. The Avahi record is `cuems-common`'s to
-  rewrite (D14) — the tool reports that it is now stale rather than touching it.
+  before writing and names the old and new uuids. The Avahi record is re-derived by
+  `cuems-nodeconf` at its next start (D14, R7) — the tool says to restart it rather than
+  touching the record.
 - **`cuems-nodeconf` writes `network_map.xml` while the tool runs.** On a fresh install no
   service is running yet. On a re-run, the operator is told to stop `cuems-nodeconf` first; the
   tool's atomic replace guarantees the file is never half-written, but a discovery pass after
@@ -637,8 +642,8 @@ lintian over the result.
   writing, and MUST leave other nodes' rows and adoption flags in `network_map.xml` untouched
   (they are `cuems-nodeconf`'s, never "defaults").
 - **FR-028**: Reassignment of identity MUST require `--force-new-identity`, MUST warn loudly
-  naming the old and new uuids, and MUST state that the node must be re-adopted and that the
-  Avahi record is now stale.
+  naming the old and new uuids, and MUST state that the node must be re-adopted and that
+  `cuems-nodeconf` must be restarted so the Avahi record is re-derived.
 - **FR-029**: The self-entry in `network_map.xml` MUST be seeded by plain insert into the node
   index (practice 3), never through `merge`, so that other nodes' rows and their `adopted`/
   `online` flags are preserved. The row MUST be keyed by MAC and matched by uuid (practice 5),
@@ -693,12 +698,16 @@ lintian over the result.
   the sole minter, the tool that verifies (`--check`), the second minter to retire (M2), and the
   hardcoded production uuid in the shipped templates (M3) as the live violation the contract
   closes.
-- **FR-040a**: The `cuems-common` handover MUST make `cuems-config-node` read the node uuid from
-  `/etc/cuems/settings.xml` (`.//node/uuid`) and never mint one, MUST replace the hardcoded
-  production uuid in `usr/share/cuems/cuems.service.{firstrun,controller,node}` with the
-  sentinel, and MUST refuse to write an Avahi record carrying the sentinel (a "not provisioned"
-  node announces nothing rather than a placeholder identity). After the handover,
-  `cuemsutils.tools.Uuid` is the only minter in the ecosystem.
+- **FR-040a**: The `cuems-common` handover MUST strip `cuems-config-node` of uuid minting and
+  of every Avahi/template duty, MUST ship the three `usr/share/cuems/cuems.service.*` templates
+  with the sentinel uuid as package content that no tool rewrites, and MUST retire the dead
+  template-copy sudoers rules. **`cuems-nodeconf` is the sole writer of
+  `/etc/avahi/services/cuems.service`**: at every start and every role change it derives the
+  record from `/etc/cuems/settings.xml`, and it refuses to start on a node whose `settings.xml`
+  is absent or carries the sentinel — an unprovisioned node announces nothing. After the
+  handover, `cuemsutils.tools.Uuid` is the only minter in the ecosystem. (Clarified 2026-09-28:
+  research R7a, shape B; the `cuems-nodeconf` change lands in the same coordinated merge, with
+  mutual `Breaks` covering the transition.)
 - **FR-041**: The sentinel `00000000-0000-0000-0000-000000000000` MUST be treated as "not
   provisioned" by every tool this feature adds, said in those words, and MUST never be written
   to a live node by `cuems-init-node` — only `postinst`'s degraded fallback may leave it there,
@@ -720,8 +729,12 @@ lintian over the result.
 
 - **FR-045**: The feature MUST produce a migration guide covering: what an operator of an
   existing host must run after upgrading (the partial-triple edge case); that purge destroys
-  identity; the disk-imaging hazard; the `--check` exit codes; and the `cuems-common` handover
-  order and versions.
+  identity; the disk-imaging hazard; the `--check` exit codes; the `cuems-common` handover
+  order and versions; and the **manual hardware verification steps per node**, which MUST
+  include unmasking, enabling and starting `cuems-nodeconf` (masked at Medina and off on most
+  of the fleet before this landing) — without it the Avahi record is unmaintained and `--check`
+  exits 1 by design — with `cuems-init-node --check` exit 0 after the unmask and after a reboot
+  as the acceptance.
 - **FR-046**: The planning documents MUST be corrected for M1–M8 in this feature's pass, with
   the correction recorded (not applied silently), per the execution document's own §0 rule.
 - **FR-047**: Each of the six schemas MUST carry an `xs:annotation` on its root element naming
@@ -896,9 +909,12 @@ changes what the feature delivers.
 - **A8 — The pristine fallback is loadable**: three pristine documents sharing the sentinel are
   mutually coherent, so a node left with them by the degraded path loads, in the "not
   provisioned" state, rather than raising.
-- **A9 — `cuems-common`'s Avahi record**: rewriting `/etc/avahi/services/cuems.service` from
-  `settings.xml` is `cuems-common`'s (D14). This feature's tool reads it (`--check`) and never
-  writes it.
+- **A9 — the Avahi record's writer**: `/etc/avahi/services/cuems.service` is derived from
+  `settings.xml` by `cuems-nodeconf` at every start and role change (D14, research R7, decided
+  2026-09-28); the templates are `cuems-common`'s package content carrying the sentinel. This
+  feature's tool reads the record (`--check`) and never writes it. Nodeconf is unmasked
+  fleet-wide as part of the same landing; a node where it stays masked has an unmaintained
+  record, which `--check` reports.
 - **A10 — Container-based lifecycle tests**: the package-lifecycle success criteria are measured
   in a bookworm container or chroot on the build host, since both production machines have been
   unreachable since 2026-09-23 and are evidence, not a test bed.
@@ -912,7 +928,7 @@ changes what the feature delivers.
   invalidates every node identity in the field with nothing able to repair them), and every
   "fresh node" claim in the ecosystem.
 - **Cross-repository**: `cuems-common` (hands over two paths, extends one contract document,
-  re-bases five tests, retires the second minter in `cuems-config-node` per FR-040a). Both changes land on
+  re-bases six tests, retires the second minter in `cuems-config-node` per FR-040a) and `cuems-nodeconf` (renders the Avahi record from `settings.xml`, FR-040a; ~30 lines). Both changes land on
   `cuems-common`'s working branch; nothing ships from either repository alone (D27 — the
   coordinated merge is tagged after 011–014).
 - **Closes**: OPEN-1, OPEN-2 (by M4), OPEN-3 (by M5 + FR-022's test), OPEN-4.

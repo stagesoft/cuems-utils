@@ -202,40 +202,190 @@ requires.
 
 ## R7 — How the Avahi record derives from `settings.xml` (D14, FR-040a) — the mechanism
 
-**Measured**: the live `/etc/avahi/services/cuems.service` is written by **`cuems-nodeconf`
-copying a template verbatim** — `sudo cp /usr/share/cuems/cuems.service.<role> /etc/avahi/services/cuems.service`
-(the exact literal rules in `etc/sudoers.d/99-cuems-avahi`). The templates carry the `uuid=`
-record. Today `cuems-config-node write` rewrites the templates with its own `uuid1()`; the
-shipped templates carry a production controller's uuid; and **every `cuems-common` upgrade
-resets the templates to the shipped value**, because `/usr/share` files are package content.
-So a provisioned node silently re-announces the shipped uuid after its next `cuems-common`
-upgrade and role change — the silent failure D14 describes, with a mechanism.
+**Decided 2026-09-28 (shape B of R7a, maintainer's call)**: **`cuems-nodeconf` is the sole
+writer of `/etc/avahi/services/cuems.service`, and derives it from `settings.xml` at every
+start.** The first version of this section chose a `cuems-config-node render` subcommand in
+`cuems-common`; R7a's analysis and the maintainer's premise — nodeconf becomes integral and
+unmasked across the fleet once the xml-refactor lands — replaced it.
 
-**Decision** (the handover's content in `cuems-common`, FR-040a):
+**Measured** (details in R7a): the live record's writer is already nodeconf (root,
+`shutil.copy2` of `/usr/share/cuems/cuems.service.<role>`); nodeconf learns its own uuid from
+its own announcement, never from `settings.xml`; the templates are package content that every
+`cuems-common` upgrade resets; `cuems-config-node` is a second minter (`uuid1()`) whose
+template rewrite is how the production controller's uuid reached the shipped templates (M2, M3).
 
-1. The three shipped templates carry the sentinel uuid.
-2. `cuems-config-node` gains a `render` subcommand: read `.//node/uuid` from
-   `/etc/cuems/settings.xml`, rewrite the `uuid=` record in the three templates **and** in the
-   live `/etc/avahi/services/cuems.service` if present, reload `avahi-daemon` only if the live
-   file changed. It refuses (exit 3, message "not provisioned") when `settings.xml` is absent or
-   carries the sentinel, and never writes the sentinel into a live record. Its `write` mode no
-   longer mints: it calls `render` for the uuid and keeps its hostname/MAC duties unchanged.
-3. `cuems-common`'s `postinst` calls `cuems-config-node render || true` after its existing Avahi
-   migration block — so a `cuems-common` upgrade re-renders the templates from the node's real
-   identity instead of resetting them, and on a fresh stack install (where dpkg configures
-   `cuems-utils` first, so identity already exists) the templates are correct before
-   `cuems-nodeconf` ever copies one.
-4. `cuems-init-node` prints, after any identity change, the exact command to run
-   (`cuems-config-node render`) and `--check` reports the live record's value.
+**Decision**:
 
-`cuems-nodeconf` is **not** changed: its `cp` keeps working because the templates it copies are
-now rendered. That is why this lands in the `cuems-common` handover (spec Q10, option A)
-without opening a third repository.
+1. **Templates** (`cuems-common`): the three shipped `cuems.service.{firstrun,controller,node}`
+   carry the **sentinel** uuid and are never rewritten by any tool — pure package content.
+2. **`cuems-nodeconf`** (its own tree, same coordinated merge): at start, before discovery,
+   read `uuid`/`mac` from `settings.xml` through the `ConfigManager` it already constructs;
+   render the role template into the live file by literal substitution of the 36-character
+   sentinel token (design §10.2's rule, the same one `cuems-init-node` uses); write atomically,
+   reload `avahi-daemon` only if the bytes changed; **refuse to start** (exit non-zero,
+   `NOT PROVISIONED` in the log) when `settings.xml` is absent or carries the sentinel — a node
+   with no identity must not announce one. The same render runs on every role change (the
+   three copy sites). After discovery, assert the discovered self carries the `settings.xml`
+   uuid and refuse loudly otherwise (plan 09 §4's guard, now a cheap assertion).
+3. **`cuems-config-node`** (`cuems-common`): loses `uuid1()` minting and every Avahi/template
+   duty in this feature; keeps hostname, `/etc/hosts` and `avahi-daemon.conf` handling until
+   nodeconf's identity chain retires it. Its `write` prints where identity now comes from.
+4. **`cuems-common`'s `postinst`** makes no Avahi call beyond its existing live-file
+   migration. The three dead `cp` rules in `etc/sudoers.d/99-cuems-avahi` are retired (the
+   `reload` rule stays), and `test_template_consumers.py` is re-based.
+5. **Transition**: mutual `Breaks` — `cuems-nodeconf` already carries
+   `Breaks: cuems-common (<< 1.3.0-23~)`; `cuems-common 1.3.0-23` gains
+   `Breaks: cuems-nodeconf (<< 0.1.0-9~)` so an old nodeconf can never copy a sentinel template
+   verbatim beside new templates. Unmasking nodeconf fleet-wide is part of the same landing;
+   a node where it stays masked has an unmaintained record, which `cuems-init-node --check`
+   reports (exit 1) and the migration guide answers with "enable and start cuems-nodeconf".
+6. **`cuems-init-node`** prints, after any identity change, `restart cuems-nodeconf.service`;
+   `--check` reads the live record (R14) and nothing else.
 
-**Alternatives considered**: a `{uuid}` placeholder in the templates substituted by the copier
-(rejected: the copier is a literal `sudo cp`, and changing it opens `cuems-nodeconf` and the
-sudoers file); `cuems-init-node` rewriting the templates itself (rejected: they are
-`cuems-common`'s package content and would be reset on its next upgrade — the same bug again).
+**Dividends**: feature 012's last step (design §10.5, "rewrite the Avahi TXT from the new
+`settings.xml`") becomes "restart nodeconf"; `--force-new-identity` needs no operator step
+beyond that; the duplicate-self failure cannot occur on a node whose nodeconf started, because
+the announcement is derived from the source before discovery runs.
+
+**Alternatives** — A (config-node renders, called from `cuems-common`'s postinst) and D (a
+rendering helper in `cuems-common` invoked by nodeconf): both analysed in R7a; A rejected for
+keeping identity in package-owned files and two writers; D rejected because its one advantage
+over B — working on hosts without nodeconf — no longer describes the fleet.
+
+## R7a — Ownership of the Avahi record: `cuems-common` (`cuems-config-node`) versus `cuems-nodeconf`
+
+**Asked by the maintainer 2026-09-25** after R7's first version (shape A below): analyse the
+implications of making the Avahi record `cuems-common`'s responsibility (through
+`cuems-config-node`) against relying on `cuems-nodeconf`, whose name already says "node
+configuration". **Outcome (2026-09-28): shape B**, on the maintainer's premise that nodeconf
+becomes integral and unmasked across the fleet once the xml-refactor lands — which removes B's
+only structural weakness and makes D's one advantage moot. R7 above now records B; this
+section is kept as the argument.
+
+### What was measured (sibling checkouts, 2026-09-25)
+
+1. **The live record's writer today is `cuems-nodeconf`, not `cuems-config-node`.** It runs as
+   root and `shutil.copy2`s `/usr/share/cuems/cuems.service.<role>` over
+   `/etc/avahi/services/cuems.service` on every role decision (`set_node_role`,
+   `_install_master_service_template`, the resume-controller path). The `sudo cp` rules in
+   `etc/sudoers.d/99-cuems-avahi` are the *old* path ("the old `sudo cp` shelled out
+   needlessly", nodeconf's own comment); nothing in production calls them any more — the only
+   other copiers are three dev scripts in `cuems-engine/dev/scripts/`. The rules are dead
+   privilege that `cuems-common`'s `test_template_consumers.py` still pins.
+2. **`cuems-nodeconf` learns its own uuid from its own Avahi announcement.** `CuemsAvahiListener`
+   builds a `Node` from each service's TXT `uuid=`; `retreive_local_node` picks the discovered
+   node whose IP is this host's; that object becomes `self.node`, whose uuid is what nodeconf
+   writes into `network_map.xml`. It never reads `settings.xml`'s uuid itself — `ConfigManager`
+   does, in `load_network_map`, and nodeconf catches the resulting `ValueError` ("this node is
+   not in the map yet"). So today's identity flow is **template → Avahi → nodeconf → map**, and
+   `settings.xml` only enters through lookups that fail when the two disagree. That is the
+   duplicate-self failure design §5 names, and on a fresh host it is the *default* state: the
+   shipped template carries a production controller's uuid (M3).
+3. **The templates are package content.** Every `cuems-common` upgrade rewrites them, so any
+   identity written into them (by `cuems-config-node` today, by R7's `render` tomorrow) is host
+   state living in `/usr/share`, reset on upgrade, and flagged by `dpkg -V` forever.
+4. **`cuems-nodeconf` has already claimed this remit in writing.** Its `CLAUDE.md`: "when
+   reactivated it also owns **node identity**: assigns `<role_id>` on adoption and applies the
+   OS-side identity chain (hostnamectl + `/etc/hosts` + avahi-daemon.conf)" — exactly the
+   duties `cuems-config-node write` performs by hand today. Its planning document
+   `09-self-node-seeding.md` (maintainer, 2026-09-17) settles that `settings.xml` is the identity
+   source, that nodeconf seeds its own row from it (`uuid`/`mac` via `ConfigManager`), and that
+   "a seeding implementation should still verify [the TXT uuid equals `settings.xml`] at run
+   time … and refuse loudly on a mismatch". The `cuems-nodeconf apply-identity [--check]` CLI
+   the contract document cites is **planned, not implemented**.
+5. **`cuems-nodeconf` is optional and mostly off.** `cuems-common` only `Breaks` old versions
+   (no `Depends`); the unit is enabled by `cuems-common`'s `postinst` but never started there;
+   it is masked at Medina and "still disabled elsewhere in the fleet" (re-enabled on one
+   controller since 2026-06). On a host without nodeconf, nobody writes the live record at
+   all — it is hand-placed, "shipped by no package".
+
+### The three shapes
+
+**A — R7 as planned: `cuems-common` renders (`cuems-config-node render`, called from its
+`postinst`).**
+*For*: works on the nodeconf-less majority; fixes the upgrade-reset at the place it happens;
+no third repository; the handover commit already touches `cuems-config-node`.
+*Against*: it **institutionalises finding 3** — per-host identity keeps living in `/usr/share`
+templates that a package owns and resets; it makes `cuems-config-node` a second writer of the
+live record beside nodeconf (F1 fails at document granularity for `cuems.service`); it leaves
+the flow of finding 2 in place, so nodeconf still trusts the announcement over `settings.xml`
+and the "refuse loudly on mismatch" guard from its own plan never gets built; and it adds an
+operator step (`cuems-config-node render`) after every identity change.
+
+**B — `cuems-nodeconf` owns the record end to end.** At every start, before discovery: read
+`uuid`/`mac` from `settings.xml` (it already constructs a `ConfigManager`), render the role
+template with them into the live file, reload avahi, then discover — so "announced ==
+`settings.xml`" holds by construction and the self-row can be seeded from `settings.xml`
+(closing its planning item 09 at the same time). Templates go back to pure package content
+with a placeholder; `cuems-config-node` loses its Avahi duties.
+*For*: one writer (F1 at document granularity), the D14 direction enforced at every boot and
+self-healing after any `cuems-common` upgrade or `--force-new-identity` (restart nodeconf, no
+operator step), no host state in `/usr/share`, and it is the remit nodeconf's own plan and
+CLAUDE.md already assign it.
+*Against*: opens a third repository in feature 011 (~30 lines in `CuemsNodeConf.py` plus
+tests, and a template placeholder in `cuems-common`); on the nodeconf-less majority the live
+record stays hand-managed until nodeconf is re-enabled — which is **exactly today's state**,
+and `cuems-init-node --check` still detects the drift; and the transition needs mutual
+`Breaks` so an old nodeconf never copies a placeholder template verbatim (the two packages
+already use that pattern for the `node_role` cutover).
+
+**D — one rendering helper in `cuems-common`, invoked by whoever decides the role.**
+`cuems-common` ships `cuems-avahi-service <role>` (root; a sudoers rule for `cuems` replaces
+the three dead `cp` rules): it renders the template with the uuid from `settings.xml` into the
+live file and reloads avahi only on change; refuses on sentinel/absent (`NOT PROVISIONED`,
+exit 3). `cuems-nodeconf` replaces its `copy2` with a call to it (one line per site, or an
+import — it is root). `cuems-config-node` drops its template rewrite and Avahi duties (keeps
+hostname/`/etc/hosts`/`avahi-daemon.conf` until nodeconf's identity chain lands).
+`cuems-common`'s `postinst` calls the helper with the *current* role when a live record exists
+and `settings.xml` is provisioned, which repairs every already-deployed host on upgrade.
+Templates carry the sentinel and are never rewritten by anyone.
+*For*: everything B gives (one writer of the live file — the helper; D14 direction enforced
+at every write; no host state in `/usr/share`; self-healing on upgrade through `postinst`),
+**plus** it works on nodeconf-less hosts (operators and provisioning call the helper directly),
+and the nodeconf change is a swap of one call rather than new logic, so it can land in
+nodeconf's own tree as part of the same coordinated merge (D27 already includes nodeconf in
+`xml-refactor-merge-candidate` from feature 010).
+*Against*: still opens `cuems-nodeconf`, minimally; the "refuse on mismatch" guard from
+nodeconf's plan 09 is not built here (it becomes unnecessary once nodeconf renders through the
+helper, but a nodeconf that is *not yet swapped* keeps trusting the announcement — the mutual
+`Breaks` covers the transition).
+
+### Comparison against the identity invariant (design §5)
+
+| Practice | A (config-node renders) | B (nodeconf owns) | D (helper, nodeconf calls it) |
+|---|---|---|---|
+| 1 one source, one minter | source enforced only at render time; nodeconf still trusts Avahi | enforced at every nodeconf start | enforced at every write |
+| 2 self-entry vs topology | unchanged | self-entry seeded from `settings.xml` (plan 09) | unchanged unless nodeconf also seeds |
+| 6 TXT derives from `settings.xml` | yes, via templates in `/usr/share` (reset on upgrade, re-rendered by postinst) | yes, live file only | yes, live file only |
+| 7 sentinel never announced | render refuses; but an old nodeconf copies the sentinel template verbatim until postinst re-renders | helper/nodeconf refuse | helper refuses; postinst repairs deployed hosts |
+| 8 verifier | `--check` | `--check` | `--check` |
+| F1 one writer of `cuems.service` | **two** (nodeconf copies, config-node renders) | one | one (the helper) |
+| works with nodeconf masked | yes | no (hand-managed, as today) | yes |
+| repositories opened by 011 | 2 | 3 | 3 (one-line swap) |
+| operator step after `--force-new-identity` | run `render` | restart nodeconf | run the helper, or restart nodeconf |
+
+### Recommendation (superseded — B was taken, see R7)
+
+**D** was the recommendation under the fleet as measured on 2026-09-25 (nodeconf masked on most hosts). It is the only shape that satisfies F1 for the live record, keeps identity out of
+package-owned files, and still works on the fleet as it is (nodeconf masked). The name
+argument the maintainer raises is right in substance — the *decision* of which role to
+announce is nodeconf's, and under D it stays so — but the *mechanism* of rendering a record from
+`settings.xml` is a `cuems-common` concern because `cuems-common` owns the templates, the
+avahi-daemon configuration, and the hosts where nodeconf does not run. B is the end state
+nodeconf's own planning points at (self-row seeding plus the run-time guard), and D does not
+foreclose it: once nodeconf renders through the helper at every start, B's guarantees follow
+without a second mechanism.
+
+**If D is taken**, the changes to the plan are: contract `cuems-common-handover.md` §4 is
+rewritten around the helper (the `render` subcommand goes; `cuems-config-node` only *loses*
+duties); `cuems-common`'s `postinst` calls the helper instead of `cuems-config-node render`;
+the three `cp` sudoers rules are replaced by one rule for the helper and
+`test_template_consumers.py` re-based; and a **`cuems-nodeconf`** change joins the coordinated
+merge — the `copy2` sites call the helper, `Breaks: cuems-common (<< 1.3.0-23~)` already
+exists in its `control`, and `cuems-common` gains the reverse `Breaks: cuems-nodeconf (<< 0.1.0-9~)`.
+`cuems-init-node`'s post-change message names the helper. Spec FR-040a's wording ("`cuems-config-node`
+reads the node uuid from `settings.xml` and never mints") stays true; its "refuse to write an
+Avahi record carrying the sentinel" moves to the helper.
 
 ## R8 — `postinst`'s invocation mode and its fallback (FR-015 – FR-018, A6)
 

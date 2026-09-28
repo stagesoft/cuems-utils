@@ -52,7 +52,8 @@ write.
   `--verbose` or when `CUEMS_LOG_LEVEL` is set.
 - Required wording, identical in `--check` and in `postinst`'s fallback: **`NOT PROVISIONED`**
   (sentinel), **`modified, kept`** (operator edit preserved), and the fixing command spelled
-  `cuems-init-node` / `cuems-init-node --reset` / `cuems-config-node render`.
+  `cuems-init-node` / `cuems-init-node --reset` / `systemctl restart cuems-nodeconf.service`
+  (and, where the record is absent because the unit is masked, `systemctl unmask cuems-nodeconf.service`).
 
 ## Guarantees
 

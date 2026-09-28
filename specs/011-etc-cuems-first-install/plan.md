@@ -26,8 +26,8 @@ absolute path under `timeout` (R1, R8); generation inside `override_dh_virtualen
 built venv's interpreter (R2); a snapshot-and-`rm_conffile` custody transfer for the two
 `cuems-common` paths (R3); TOML as package data read by one code path (R4); a JSON write record
 under `/var/lib/cuems-utils` for three-way edit preservation (R5); validate-then-replace with
-in-memory restore for the triple (R6); `cuems-config-node render` as the Avahi derivation
-mechanism, leaving `cuems-nodeconf` untouched (R7); unprivileged `mmdebstrap` chroots for
+in-memory restore for the triple (R6); `cuems-nodeconf` as the sole writer of the Avahi record, derived from `settings.xml` at every
+start (R7, shape B of R7a; decided 2026-09-28); unprivileged `mmdebstrap` chroots for
 lifecycle tests (R9); budgets re-based on measurements (R10).
 
 ## Technical Context
@@ -40,7 +40,7 @@ lifecycle tests (R9); budgets re-based on measurements (R10).
 **Project Type**: library + CLI entry point + Debian packaging; one cross-repository handover (`cuems-common`).
 **Performance Goals**: `cuems-init-node` write ≤ 4 s cold, `--check` ≤ 3 s cold; `postinst` ≤ 10 s fresh / ≤ 2 s upgrade (60 s hard `timeout`); suite ≤ 110 % of the per-test figure in `baseline.md`; package size delta ≤ 100 KB (research R10).
 **Constraints**: `postinst` exits 0 on every path; nothing under `/etc/cuems` is a conffile; no existing file under `/etc/cuems` is modified by the package; `/etc/cuems` is never removed recursively; the venv is one-way (`/usr/bin/python3` cannot import `cuemsutils`); no manifest overlap with any sibling package; build reproducible (sentinel, never a minted uuid); one minter (`cuemsutils.tools.Uuid`); library version stays `0.1.0rc16`; no schema shape change (annotations only, R13).
-**Scale/Scope**: three documents, six schemas, one tool, two maintainer scripts, one handover in one sibling repository; ~20 new test modules; two production hosts to migrate by the guide.
+**Scale/Scope**: three documents, six schemas, one tool, two maintainer scripts, one handover in `cuems-common` plus a ~30-line change in `cuems-nodeconf` (both in the coordinated merge); ~20 new test modules; two production hosts to migrate by the guide.
 
 ## Constitution Check
 
@@ -72,7 +72,7 @@ Fail-before-pass per story (the task list makes each explicit):
 | US7 hygiene | `test_built_package.py` (compat 13, `Standards-Version`, no `dh_python2`, `pyvenv.cfg` home, no artifacts in `git status` after build) |
 | F1 (FR-047) | `test_duplication_flags.py::test_every_schema_declares_its_writer`; `test_schema_scope` hashes updated in the same commit |
 | public API | `test_public_api_surface.py` with the `scripts` key (golden extended once, R11) |
-| cross-repo | `test_ordering_premise.py` (R16); in `cuems-common`: `test_config_node_render.py`, `test_avahi_vocabulary.py` sentinel extension |
+| cross-repo | `test_ordering_premise.py` (R16); in `cuems-common`: `test_config_node_no_minting.py`, `test_avahi_vocabulary.py` sentinel extension, `test_template_consumers.py` re-based; in `cuems-nodeconf`: render-at-start, reload-on-change, the self-uuid guard |
 
 Existing goldens are not regenerated (FR-021); `tests/golden/outcomes.json` is not touched.
 
@@ -170,12 +170,18 @@ tests/
 ├── support/public_api.py               # PUBLIC_SCRIPTS (R11)
 └── golden/api/public_api.json          # + "scripts" key
 
-../cuems-common/ (handover, contract cuems-common-handover.md)
+../cuems-common/ (handover, contract cuems-common-handover.md §1-5)
 ├── debian/{install,preinst,postinst,postrm,control,changelog}
-├── usr/bin/cuems-config-node           # render; no uuid1()
-├── usr/share/cuems/cuems.service.*     # sentinel uuid
-├── docs/node-identity-contract.md      # D14 section
-└── tests/…                             # five re-based/retired, two added
+├── usr/bin/cuems-config-node           # no uuid1(), no Avahi/template duty
+├── usr/share/cuems/cuems.service.*     # sentinel uuid, never rewritten
+├── etc/sudoers.d/99-cuems-avahi        # cp rules retired
+├── docs/node-identity-contract.md      # D14 section: nodeconf is the writer
+└── tests/…                             # six re-based/retired, two added
+
+../cuems-nodeconf/ (contract cuems-common-handover.md §4a; 0.1.0-9)
+├── cuemsnodeconf/CuemsNodeConf.py      # render record from settings.xml at start + role change; guard
+├── debian/{control,changelog}          # Breaks already present; changelog entry
+└── tests/…                             # render, reload-on-change, guard
 ```
 
 **Structure Decision**: single library project, extended in place. New runtime code sits under
@@ -231,11 +237,26 @@ suite (`test_lifecycle_chroot.py`) covering SC-001–SC-003, SC-006–SC-010 and
 
 Six schemas annotated, six hashes updated, the F1 check added to `test_duplication_flags.py`.
 
-### Step 6 — the `cuems-common` handover *(sibling repository; contract cuems-common-handover.md)*
+### Step 6 — the `cuems-common` handover and the `cuems-nodeconf` render *(sibling repositories; contract cuems-common-handover.md)*
 
-Custody transfer, `cuems-config-node render`, sentinel templates, `postinst` render call, five
-tests re-based/retired, two added, the D14 section in `docs/node-identity-contract.md`,
-`1.3.0-23` changelog text. Verified by the chroot test installing both packages.
+`cuems-common 1.3.0-23`: custody transfer (R3), `cuems-config-node` stripped of minting and
+Avahi duties, sentinel templates, dead `cp` rules retired, `Breaks: cuems-nodeconf (<< 0.1.0-9~)`,
+six tests re-based/retired and two added, the D14 section in `docs/node-identity-contract.md`,
+changelog text. `cuems-nodeconf 0.1.0-9`: render the record from `settings.xml` at start and on
+every role change, reload only on change, refuse to start unprovisioned, the self-uuid guard;
+tests; changelog. Verified by the chroot test installing all three packages and asserting the
+live record equals `settings.xml`'s uuid after a simulated nodeconf start.
+
+### Step 6a — hardware verification (manual, operator; task in `tasks.md`)
+
+The package-lifecycle criteria are measured in the chroot (R9), but three things only real
+hardware can show: avahi on a real interface, nodeconf's discovery of a second node, and a
+reboot. `quickstart.md` "Operator hardware verification" is the list; the tasks phase MUST
+carry it as one explicit manual task per node class (controller, node), and that task MUST
+include **unmasking, enabling and starting `cuems-nodeconf`** — masked at Medina and off on
+most of the fleet today — because under R7 the Avahi record is unmaintained until nodeconf
+runs, and `--check` exits 1 (Avahi absent) on such a host by design. The task's acceptance is
+`cuems-init-node --check` exit 0 after the unmask, and again after a reboot.
 
 ### Step 7 — records (FR-045, FR-046)
 
