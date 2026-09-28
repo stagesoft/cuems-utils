@@ -78,10 +78,25 @@ case "$1" in
     configure)
         install -d -m 0755 "$CUEMS_ETC" || warn "could not create $CUEMS_ETC"
         install_schemas
-        # The tool step (US3) goes here: it mints an identity and writes a
-        # coherent triple. On failure, or when it is skipped, the pristine
-        # placeholders below are the fallback and the node is NOT PROVISIONED.
+        # D13: mint an identity and write a coherent triple — only where absent
+        # (--install-missing), reading no operator input (--no-overlay), under a
+        # hard timeout: a hang here blocks the stack as surely as a non-zero
+        # exit (research R8). On any failure the pristine placeholders below are
+        # the fallback and the node is NOT PROVISIONED until an operator runs the
+        # tool. An empty CUEMS_INIT_NODE skips the step (tests).
         _tool_ok=1
+        if [ -n "$CUEMS_INIT_NODE" ]; then
+            install -d -m 0755 "$CUEMS_STATE/init-node" || warn "could not create $CUEMS_STATE/init-node"
+            if [ -x "$CUEMS_INIT_NODE" ]; then
+                if timeout "$CUEMS_INIT_TIMEOUT" "$CUEMS_INIT_NODE" --no-overlay --install-missing; then
+                    _tool_ok=0
+                else
+                    warn "cuems-init-node failed or timed out ($CUEMS_INIT_TIMEOUT); installing pristine placeholders"
+                fi
+            else
+                warn "$CUEMS_INIT_NODE is not executable; installing pristine placeholders"
+            fi
+        fi
         install_missing_documents
         if [ "$_tool_ok" != 0 ]; then
             warn "this node is $NOT_PROVISIONED (sentinel identity). Run: cuems-init-node"

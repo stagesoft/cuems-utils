@@ -34,6 +34,7 @@ import json
 import pytest
 
 from tests.support.corpus import GOLDEN_ROOT
+from tests.support.public_api import PUBLIC_SCRIPTS, installed_scripts
 
 GOLDEN = GOLDEN_ROOT / "api" / "public_api.json"
 
@@ -111,6 +112,8 @@ def _snapshot() -> dict:
             for name in sorted(PUBLIC_ERRORS)
         },
         "symbols": {},
+        # Feature 011 (FR-023, research R11): the entry points are a surface too.
+        "scripts": installed_scripts(),
     }
     for label, (module_name, attribute) in sorted(PUBLIC_CLASSES.items()):
         module = importlib.import_module(module_name)
@@ -315,3 +318,8 @@ def test_the_deprecated_aliases_are_still_instances_of_the_real_classes():
 
     assert issubclass(xml_package.Settings, RealSettings)
     assert issubclass(xml_package.XmlReaderWriter, RealWriter)
+
+
+def test_the_published_scripts_are_the_declared_set():
+    """Feature 011: ``[project.scripts]`` and the allowlist agree both ways."""
+    assert set(installed_scripts()) == PUBLIC_SCRIPTS

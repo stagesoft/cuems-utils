@@ -490,11 +490,11 @@ def generate_script_example():
 from .seed_values import settings_value as _settings_example_value  # noqa: E402
 
 
-def _build_settings_section(class_name: str, model, field_names: tuple[str, ...]):
-    return model({name: _settings_example_value(class_name, name) for name in field_names})
+def _build_settings_section(class_name: str, model, field_names: tuple[str, ...], tables=None):
+    return model({name: _settings_example_value(class_name, name, tables) for name in field_names})
 
 
-def generate_settings_example():
+def generate_settings_example(tables=None):
     """A ``CuemsSettingsType`` reference instance (T078), replacing the
     retired hand-maintained settings template file.
 
@@ -545,13 +545,13 @@ def generate_settings_example():
         return scalar_fields(TypeKey("settings", type_name), required_only=False)
 
     node = _build_settings_section(
-        "NodeConfType", NodeConfType, scalar_fields(TypeKey("settings", "NodeConfType"))
+        "NodeConfType", NodeConfType, scalar_fields(TypeKey("settings", "NodeConfType")), tables
     )
     node["videoplayer"] = _build_settings_section(
-        "VideoPlayerType", VideoPlayerType, player_fields("VideoPlayerType")
+        "VideoPlayerType", VideoPlayerType, player_fields("VideoPlayerType"), tables
     )
     node["audioplayer"] = _build_settings_section(
-        "AudioPlayerType", AudioPlayerType, player_fields("AudioPlayerType")
+        "AudioPlayerType", AudioPlayerType, player_fields("AudioPlayerType"), tables
     )
     # ``AudioMixerType``, not ``PlayerType`` (D16-A). This section derived from
     # the abstract base under both the lookup name and the TypeKey, and worked
@@ -561,13 +561,13 @@ def generate_settings_example():
     # SchemaError naming neither the values table nor the fix. One of the four
     # sections had a hole in FR-034's net; this closes it.
     node["audiomixer"] = _build_settings_section(
-        "AudioMixerType", AudioMixerType, player_fields("AudioMixerType")
+        "AudioMixerType", AudioMixerType, player_fields("AudioMixerType"), tables
     )
     node["dmxplayer"] = _build_settings_section(
-        "DmxPlayerType", DmxPlayerType, player_fields("DmxPlayerType")
+        "DmxPlayerType", DmxPlayerType, player_fields("DmxPlayerType"), tables
     )
 
     settings_key = TypeKey("settings", "CuemsSettings/Settings", is_path=True)
-    settings = _build_settings_section("SettingsType", SettingsType, scalar_fields(settings_key))
+    settings = _build_settings_section("SettingsType", SettingsType, scalar_fields(settings_key), tables)
     settings["node"] = node
     return CuemsSettingsType({"Settings": settings})

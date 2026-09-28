@@ -43,7 +43,10 @@ def _no_host_etc_cuems_dependence():
 
     @functools.wraps(original)  # keeps the signature the public API golden pins
     def guarded(self, config_dir=default_dir, load_all=True, *args, **kwargs):
-        if config_dir == default_dir and not _os.path.isdir(default_dir):
+        # CUEMS_CONF_PATH redirects load_base_settings, so a default config_dir
+        # under a set variable is hermetic; only the bare default is the defect.
+        if (config_dir == default_dir and not _os.path.isdir(default_dir)
+                and not _os.environ.get("CUEMS_CONF_PATH")):
             _pytest.fail(
                 f"{_os.environ.get('PYTEST_CURRENT_TEST', '<unknown test>')} constructs "
                 "ConfigManager() without config_dir and would read the host's "

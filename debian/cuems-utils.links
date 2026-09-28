@@ -1,0 +1,5 @@
+# Feature 011 (research R1): the tool lives in the venv's bin/ so it can import
+# cuemsutils; a symlink is safe because the target's shebang selects the venv
+# interpreter (a /usr/bin wrapper importing cuemsutils under /usr/bin/python3
+# would not be — the shared venv is one-way).
+usr/lib/cuems/bin/cuems-init-node usr/bin/cuems-init-node

@@ -42,7 +42,7 @@ def _settings(tables: Tables):
     # 008, ITEM D); it reads the same seed values through ``seed_values``.
     from .descriptor import generate_settings_example
 
-    return generate_settings_example()
+    return generate_settings_example(tables)
 
 
 def _network_map(tables: Tables, identity: dict):

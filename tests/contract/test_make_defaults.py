@@ -51,8 +51,8 @@ def test_every_document_carries_the_sentinel_and_no_other_uuid(generated):
 
 
 def test_every_document_validates_with_nothing_to_repair(generated):
-    from cuemsutils.xml.validators import repair
     from cuemsutils.xml.settings import NetworkMap, ProjectMappings, Settings
+    from cuemsutils.xml.validators import repair
 
     readers = {"settings.xml": Settings, "network_map.xml": NetworkMap, "default_mappings.xml": ProjectMappings}
     for name, reader in readers.items():

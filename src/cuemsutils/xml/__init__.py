@@ -38,9 +38,9 @@ thing a maintainer reads.
 # working, and the package root keeps binding classes.
 #
 # Neither import emits a warning: the shims warn on use, never on import.
+from .._deprecation import deprecated_alias
 from . import Settings as _settings_shim  # noqa: F401
 from . import XmlReaderWriter as _xml_reader_writer_shim  # noqa: F401
-from .._deprecation import deprecated_alias
 from .Parsers import CuemsParser as _CuemsParser
 from .settings import NetworkMap as _NetworkMap
 from .settings import ProjectMappings as _ProjectMappings

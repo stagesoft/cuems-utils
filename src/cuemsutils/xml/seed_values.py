@@ -246,18 +246,20 @@ def settings_table() -> dict[tuple[str, str], Any]:
     }
 
 
-def settings_value(type_name: str, field: str) -> Any:
+def settings_value(type_name: str, field: str, tables: Tables | None = None) -> Any:
     """``descriptor._settings_example_value``'s replacement: no base-class
     fallback (D16-B); a missing entry raises naming the file and the fix.
 
     Identity fields answer with the **sentinel** (D3): the generated document is
     the pristine, never-specialised one, and the seed file never carries an
-    identity by rule V3.
+    identity by rule V3. ``tables`` defaults to the shipped values; the tool
+    passes the merged seed-plus-overlay tables.
     """
     if field in IDENTITY_FIELDS:
         return SENTINEL_IDENTITY[field]
+    source = tables if tables is not None else shipped()
     try:
-        return shipped()["settings"][type_name][field]
+        return source["settings"][type_name][field]
     except KeyError:
         raise RuntimeError(
             f"settings.xsd's {type_name}.{field} has no example value in "

@@ -1,6 +1,47 @@
 cuems-utils for Debian
+======================
 
-Cuems utils
- Cuems utils is a set of utilities to work with the cuems project
+The shared Python library of the CUEMS stack, installed as a dh-virtualenv
+under /usr/lib/cuems that every other CUEMS package populates. Maintainer
+notes (where debian/ lives, how to build, the interpreter check) are in
+README.source.
 
- -- Ion Reguera <ion@stagelab.coop>  Tue, 29 Apr 2025 19:18:13 +0200
+What this package places on a node (feature 011, "/etc/cuems first install")
+----------------------------------------------------------------------------
+
+  /usr/share/cuems/schemas/*.xsd        the six schemas, package content
+  /usr/share/cuems/defaults/*.xml       the three pristine documents, carrying the
+                                        reserved sentinel identity (never a real uuid)
+  /usr/share/cuems/defaults/system-defaults.toml   the upstream seed values
+  /usr/lib/cuems/bin/cuems-init-node    node coherence tool (also /usr/bin/cuems-init-node)
+
+  /etc/cuems/*.xsd                      copied from /usr/share on EVERY configure —
+                                        the installed schema always matches the
+                                        installed library; never a conffile
+  /etc/cuems/{settings,network_map,default_mappings}.xml
+                                        created by postinst ONLY WHEN ABSENT, with one
+                                        freshly minted uuid4; never modified by the
+                                        package afterwards; removed only by purge
+  /etc/cuems/defaults.d/*.toml          the operator's site overlay; never shipped,
+                                        never touched; applied by cuems-init-node only
+  /var/lib/cuems-utils/init-node/       the tool's write record (what it last wrote)
+
+postinst never exits non-zero: this is the base package of the stack and a
+failure here would leave every CUEMS package unconfigured. If cuems-init-node
+fails or times out, the pristine placeholders are installed, a warning says the
+node is NOT PROVISIONED, and `cuems-init-node` provisions it.
+
+Operator commands
+-----------------
+
+  cuems-init-node --check       0 coherent · 1 mismatch · 2 absent/unreadable · 3 not provisioned
+  cuems-init-node               (re)provision: identity preserved, hand edits kept and reported
+  cuems-init-node --reset       back to system defaults (seed values + your overlay), identity kept
+  cuems-init-node --force-new-identity --yes   a new uuid; the node must be re-adopted;
+                                               then: systemctl restart cuems-nodeconf.service
+
+The Avahi record announcing the node is rendered from /etc/cuems/settings.xml by
+cuems-nodeconf at every start and role change; unmask and start it on every
+node. Full guide: specs/011-etc-cuems-first-install/migration-guide.md.
+
+ -- Adrià Masip <adria@stagelab.coop>  Mon, 28 Sep 2026 12:00:00 +0200

@@ -34,7 +34,18 @@ behind unless one predates the upgrade, and a later `purge cuems-common` no long
 `cuems-utils` declares `Breaks: cuems-common (<< 1.3.0-23~)` so apt upgrades the pair together;
 `Replaces` is deliberately absent (nothing under `/etc` is in the manifest).
 
-*The identity half (US3) is filled by T050.*
+**Identity (US3, T050).** A host upgraded from any earlier state falls into one of three cases:
+
+| `/etc/cuems/settings.xml` before | What the upgrade does | What you run |
+|---|---|---|
+| absent | `postinst` runs `cuems-init-node --no-overlay --install-missing`: mints one uuid4, writes the three documents | nothing; `cuems-init-node --check` → 0 once nodeconf runs |
+| present, real uuid, `network_map.xml` is the old empty stub | **nothing is modified**; the stub is "present". The node is exactly as unbootable as before, no worse | `cuems-init-node` once — it seeds this node's row by plain insert and leaves every other row and its adoption flags alone; then `--check` |
+| present, sentinel uuid (a hand-copied pristine file) | nothing is modified | `cuems-init-node` — it mints and specialises all three |
+
+`postinst` never modifies an existing file. If the tool fails or times out during install (60 s
+hard cap), the pristine placeholders are copied for the absent documents, the install still
+succeeds, and the node is **NOT PROVISIONED** until you run `cuems-init-node`; two such nodes on
+one network answer to one identity, so do not leave one that way.
 
 ## 2. The pristine copies and the install-if-absent rule (US2)
 
@@ -61,19 +72,61 @@ that state.
 
 ## 3. Purge destroys identity; remove does not (US5)
 
-*Filled by T060.*
+`apt remove cuems-utils` touches nothing under `/etc/cuems`: identity, documents and schemas
+stay, and a later install finds them and leaves them alone. `apt purge cuems-utils` removes
+**exactly** the nine paths this package placed (the three documents and the six schemas) and the
+tool's write record under `/var/lib/cuems-utils`, then removes each directory only if it is empty.
+It never removes recursively, so `cuems-common`'s conffiles, the cluster identity,
+`power-bridge.key`, any `.dpkg-*` sibling and your `defaults.d/` overlays survive. Purge then
+install mints a **new** uuid — purge destroys identity by design; a node re-installed that way
+must be re-adopted.
 
 ## 4. Disk imaging after install (US3)
 
-*Filled by T050.*
+The sentinel protects against *package* imaging (every `.deb` carries the sentinel, never a
+real uuid), not *disk* imaging: two machines cloned from one installed disk carry the same real
+uuid4. Before imaging, `apt purge cuems-utils` (and reinstall on each clone), or run
+`cuems-init-node --force-new-identity --yes` on every clone and restart `cuems-nodeconf` there.
 
 ## 5. `cuems-init-node --check` — the four locations and the four exit codes (US6)
 
-*Filled by T064.*
+`--check` reads `settings.xml` (the source), `network_map.xml`, `default_mappings.xml` and
+`/etc/avahi/services/cuems.service`, prints one line per location, path first, then a verdict
+and the command that fixes it. It writes nothing. `--json` gives the same as one object.
+
+| Exit | Verdict | Meaning | Run |
+|---|---|---|---|
+| 0 | coherent | every location agrees with the source | — |
+| 1 | mismatch | a mirror disagrees (self-entry missing; a sentinel token left in a compound string; the Avahi record differs) | `cuems-init-node`, or `systemctl restart cuems-nodeconf.service` when only the Avahi record disagrees |
+| 2 | absent or unreadable | a location is missing or does not parse | `cuems-init-node`; for an absent Avahi record on a provisioned node, unmask and start `cuems-nodeconf` |
+| 3 | NOT PROVISIONED | the source carries the sentinel; an absent Avahi record is expected here | `cuems-init-node` |
+
+Precedence when several apply: 3 over 2 over 1. Examples:
+
+```
+/etc/cuems/settings.xml: source uuid=6f1d… mac=aabbccddeeff
+/etc/cuems/network_map.xml: MISMATCH (self-entry missing (2 row(s), none with uuid=6f1d…))
+/etc/cuems/default_mappings.xml: ok (node entry present, no sentinel token)
+/etc/avahi/services/cuems.service: ok (2 records agree)
+verdict: mismatch (exit 1) — run: cuems-init-node
+```
 
 ## 6. Site overlays and operator edits (US4)
 
-*Filled by T056.*
+Drop `*.toml` files into `/etc/cuems/defaults.d/` using the same tables as
+`/usr/share/cuems/defaults/system-defaults.toml` (grammar: `contracts/system-defaults-toml.md`),
+then run `cuems-init-node`. Files apply in lexical order, later wins; `--verbose` names the file
+behind each override. A syntax error, an unknown key, a wrong scalar type or an identity field
+(`uuid`, `mac`) refuses the whole run before anything is written. `postinst` never reads the
+overlay, so a broken one cannot affect an upgrade.
+
+**Hand edits survive.** A field you changed by hand in `settings.xml` (or in this node's map row,
+or in `default_mappings.xml`'s root) is kept on every plain re-run and reported as
+`modified, kept`; upstream never silently wins over a venue decision. `cuems-init-node --reset`
+returns every non-identity field to the system default (seed values plus your overlay), listing
+what it reverts first; identity is untouched by `--reset` and changed only by
+`--force-new-identity`. On a host provisioned before this feature there is no write record, so a
+first re-run keeps every difference and says so.
 
 ## 7. The `cuems-common` handover — order, versions, announced re-cuts
 

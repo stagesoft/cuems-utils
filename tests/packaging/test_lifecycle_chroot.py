@@ -107,3 +107,45 @@ def test_identity_survives_upgrade_reinstall_remove(chroot, built_deb):
         assert r.returncode == 0, (argv, r.stderr)
         after = {d: _sha(chroot.read(f"/etc/cuems/{d}")) for d in documents}
         assert after == before, (argv, "identity or documents changed")
+
+
+# -- US3 (T040) -----------------------------------------------------------------
+
+
+def test_fresh_install_loads_and_is_unique(chroot, built_deb, tmp_path):
+    """SC-001, SC-007, SC-008 in one chroot: install, load, and the sabotaged fallback."""
+    import re
+    import shutil
+
+    load = "from cuemsutils.tools.ConfigManager import ConfigManager; m = ConfigManager(load_all=True); print(m.node_conf['uuid'])"
+    _install_ours(chroot, built_deb)
+    r = chroot.run(["/usr/lib/cuems/bin/python", "-c", load])
+    first = r.stdout.strip()
+    assert re.match(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", first), r.stderr
+    grep = chroot.run(["grep", "-r", "00000000-0000-0000-0000-000000000000", "/etc/cuems"], check=False)
+    assert grep.returncode == 1, f"sentinel token still present: {grep.stdout}"
+
+    # a second chroot from the same tarball and .deb: a different identity
+    second_root = tmp_path / "rootfs2"
+    shutil.copytree(chroot.root, second_root, symlinks=True)
+    second = type(chroot)(root=second_root)
+    for d in ("settings.xml", "network_map.xml", "default_mappings.xml"):
+        (second_root / "etc/cuems" / d).unlink()
+    second.run(["dpkg", "-i", "--force-confmiss", f"/tmp/{built_deb.name}"], check=False)
+    r2 = second.run(["/usr/lib/cuems/bin/python", "-c", load])
+    assert r2.stdout.strip() != first
+
+    # sabotage: the venv interpreter unrunnable -> placeholders, warning, exit 0
+    third_root = tmp_path / "rootfs3"
+    shutil.copytree(chroot.root, third_root, symlinks=True)
+    third = type(chroot)(root=third_root)
+    for d in ("settings.xml", "network_map.xml", "default_mappings.xml"):
+        (third_root / "etc/cuems" / d).unlink()
+    py = third_root / "usr/lib/cuems/bin/python"
+    py.unlink()
+    py.write_text("not an interpreter\n")
+    r3 = third.run(["dpkg", "-i", "--force-confmiss", f"/tmp/{built_deb.name}"], check=False)
+    assert r3.returncode == 0, r3.stderr
+    assert "NOT PROVISIONED" in (r3.stderr + r3.stdout)
+    assert third.exists("/etc/cuems/settings.xml")
+    assert b"00000000-0000-0000-0000-000000000000" in third.read("/etc/cuems/settings.xml")

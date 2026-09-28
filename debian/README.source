@@ -67,12 +67,34 @@ Planned, not yet done
     check above is the first thing that pipeline should assert, because it is
     the failure a human reviewer cannot see in the diff.
 
-  * /etc/cuems first install. This package ships nothing under /etc today, and
-    no CUEMS package ships the XML documents a node needs to start. That work —
-    shipping the six XSD files, generating the default documents at build, and
-    provisioning node identity — is specified separately; see
-    specs/planning/etc-cuems-first-install.md and its execution companion in the
-    same directory. It will add debian/install, a postinst and a postrm here.
+/etc/cuems first install (feature 011) — landed
+------------------------------------------------
+
+This package ships the six XSD files to /usr/share/cuems/schemas and copies
+them to /etc/cuems on every configure (never a conffile: the schema always
+matches the installed library, and no conffile prompt can park a stale copy).
+The three documents a node needs — settings.xml, network_map.xml,
+default_mappings.xml — are GENERATED AT BUILD by debian/rules through the
+just-built venv's bin/python (`cuemsutils.xml.make_defaults`, deterministic,
+sentinel identity) into /usr/share/cuems/defaults, and postinst creates them in
+/etc/cuems only where absent, running cuems-init-node under a 60 s timeout to
+mint one uuid4. An existing file is never modified; purge removes exactly the
+nine paths this package placed plus the tool's write record, then rmdir
+--ignore-fail-on-non-empty. Contract and inventory:
+specs/011-etc-cuems-first-install/contracts/packaging.md, data-model.md §8.
+
+Two rules a maintainer must keep, both tested:
+
+  * postinst ends with `exit 0` and begins its custom block with `set +e`,
+    because dh-virtualenv's injected autoscript starts with `set -e`
+    (tests/packaging/test_postinst.py simulates that stanza).
+  * No new path under debian/ embeds an interpreter version; the generator is
+    reached through the venv's bin/python (tests/packaging/test_built_package.py).
+
+The lifecycle (install, upgrade, --reinstall, remove, purge, the cuems-common
+custody transfer in both unpack orders) is exercised in an unprivileged
+bookworm chroot: `mmdebstrap --mode=unshare`, entered with `unshare --map-auto
+--map-root-user … chroot`; see specs/011-etc-cuems-first-install/quickstart.md.
 
 Historical note
 ---------------
