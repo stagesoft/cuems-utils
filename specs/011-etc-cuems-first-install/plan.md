@@ -248,11 +248,11 @@ candidate `3af31cc`; announced.**
 `cuems-nodeconf`, inside its unreleased `0.1.0-8`: the render-at-start, refuse-unprovisioned and
 self-uuid guard are **delivered by that repository's feature `003-startup-readiness`** (brief:
 `../cuems-nodeconf/specs/planning/10-readiness-window.md`, extended 2026-09-28 with the inputs
-from 010 and 011 — pending D-R20-1). This plan carries them as a **gate reference**, the way 010's
+from 010 and 011 — D-R20-1 decided: folded). This plan carries them as a **gate reference**, the way 010's
 T094 does: verify the render runs before `set_comms()`, reload-only-on-change, the refusal, and the
 guard, and record it in `baseline.md`. **One re-cut of `6c0cca7`** for 003 and B together; announced.
 
-**Library work that serves both**: `NodeIndex.ensure(node) -> bool` (R7 item 7, pending D-R20-2),
+**Library work that serves both**: `NodeIndex.ensure(node) -> bool` (R7 item 7, D-R20-2 decided),
 inserted by reference and covered by an `ensure` case in `test_node_aliasing.py`.
 
 **No package version moves and no package relation changes** beyond `cuems-utils`'s new `Breaks`
@@ -266,7 +266,7 @@ reboot. `quickstart.md` "Operator hardware verification" is the operator's step 
 carry it as one explicit manual task per node class (controller, node), **recorded in
 `cuems-nodeconf`'s hardware-verification ledger
 (`../cuems-nodeconf/specs/002-public-network-map-path/checklists/hardware-verification.md`) as a
-fifth entry rather than in a second list here** (R20, pending D-R20-3), and that task MUST include
+fifth entry rather than in a second list here** (R20, D-R20-3 decided; the entry exists), and that task MUST include
 **unmasking, enabling and starting `cuems-nodeconf`** — masked at Medina and off on
 most of the fleet today — because under R7 the Avahi record is unmaintained until nodeconf
 runs, and `--check` exits 1 (Avahi absent) on such a host by design. The task's acceptance is
@@ -284,8 +284,8 @@ Upstream `feat/xml-refactor` moved by four commits (`5a1f7c9..0ba239b`) during s
 branch was rebased cleanly and the upstream tests pass on it. Research R20 records the effect: the
 nodeconf half of R7 is delivered by nodeconf's feature 003 and gated here; the render runs before
 `set_comms()`; a shared `NodeIndex.ensure` primitive is added in this feature; two candidate tags
-are re-cut and announced; the suite figure is a range. Three decisions are pending the maintainer
-(D-R20-1..3). Nothing else in this plan changed.
+are re-cut and announced; the suite figure is a range. The three decisions this raised (D-R20-1..3)
+were taken as recommended the same day and are recorded in R20. Nothing else in this plan changed.
 
 ## Complexity Tracking
 

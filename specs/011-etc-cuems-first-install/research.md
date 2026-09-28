@@ -627,11 +627,13 @@ What they change for this plan, item by item:
 | `nodeconf` brief §7 criterion 7 and its `specs/002-…/checklists/hardware-verification.md` ledger (four entries, all "Not performed") | Step 6a's unmask/enable/start task belongs **in that ledger** rather than a second list — one place for every hardware-only check on a node; this plan's quickstart list stays as the operator's steps and points there |
 | `release-gate.md` re-measured: `cuems-power-bridge`'s `debian/control` floor unbounded | Unrelated to 011's relations; noted so the no-bump guard is not mistaken for that gate |
 
-**Decisions this raises for the maintainer** (asked 2026-09-28, recorded when answered):
+**Decisions — taken by the maintainer 2026-09-28**, all three as recommended, recorded in
+`../cuems-nodeconf/specs/planning/10-readiness-window.md` §9.4 (pushed to that repository's
+`feat/xml-refactor` so they are stated before its feature 003 starts):
 
-- D-R20-1 — fold B's nodeconf work into feature `003-startup-readiness` (recommended: yes; one start-up
-  sequence, one re-cut, one hardware verification), or keep it a separate nodeconf item.
-- D-R20-2 — add `NodeIndex.ensure` here, inside `0.1.0rc16` (recommended: yes; nodeconf's plan 09
-  option 1, and init-node needs it regardless).
-- D-R20-3 — the unmask task lives in nodeconf's hardware-verification ledger (recommended), with this
-  plan's step 6a pointing at it, rather than a parallel list here.
+- D-R20-1 — B's nodeconf work **folds into `003-startup-readiness`**: one start-up sequence, one
+  re-cut of `6c0cca7`, one hardware verification.
+- D-R20-2 — **`NodeIndex.ensure` is added here**, inside `0.1.0rc16`, and consumed by both
+  `cuems-init-node` and nodeconf; no daemon-side insert.
+- D-R20-3 — the unmask/enable/start hardware task is **entry §5 of nodeconf's hardware-verification
+  ledger**; this plan's step 6a points at it and keeps no second list.
