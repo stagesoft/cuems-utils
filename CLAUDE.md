@@ -101,7 +101,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   public API and release together. This repository's own share is the descriptor's public
   path, the deprecated-surface removal and the migration guide. Suite baseline re-measured
   2026-09-03: **2573 passed, 96 skipped, 2 xfailed in 53.34 s = 20.73 ms/test**.
-- **Feature 011 (`011-etc-cuems-first-install`, in progress) adds no new runtime dependency.**
+- **Feature 011 (`011-etc-cuems-first-install`, landed 2026-09-28 on its local branch) adds no new runtime dependency.**
   It adds POSIX `sh` maintainer scripts (`debian/cuems-utils.{postinst,postrm}`), stdlib
   `tomllib`/`importlib.resources`/`fcntl` use, and `debhelper-compat (= 13)` +
   `dh-virtualenv (>= 1.2)` at build. New on-disk state: `/etc/cuems/*.xml|*.xsd` (never
@@ -112,6 +112,52 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   `specs/011-etc-cuems-first-install/quickstart.md`.
 
 ## Recent Changes
+
+- `011-etc-cuems-first-install` (**landed on the local feature branch** 2026-09-28; merges into
+  `feat/xml-refactor`; nothing ships until the coordinated `xml-refactor-merge-candidate` tag after
+  011–014): a plain `apt install cuems-utils` leaves a node that loads and is unique.
+  - **Packaging**: the six XSDs ship to `/usr/share/cuems/schemas` and are copied to `/etc/cuems` on
+    every configure — never a conffile (D4/D5); `cuems-common 1.3.0-23` hands over
+    `network_map.{xml,xsd}` with a snapshot-and-`rm_conffile` recipe so a live map survives and a
+    later purge of `cuems-common` cannot delete it (research R3); `Breaks: cuems-common (<< 1.3.0-23~)`,
+    no `Replaces`. The three documents are **generated at build** (`xml/make_defaults.py`, through the
+    just-built venv's `bin/python`, deterministic, sentinel identity) and installed by `postinst`
+    **only where absent**. `postinst` begins its custom block with `set +e` because dh-virtualenv's
+    injected autoscript starts with `set -e`, runs the tool under a 60 s `timeout`, falls back to
+    the pristine placeholders with a `NOT PROVISIONED` warning, and **never exits non-zero** — it is
+    the base package of the stack. `postrm purge` removes exactly nine paths plus the write record,
+    never `rm -r` (`/etc/cuems` holds another package's private SSH key). `debhelper-compat (= 13)`,
+    `Standards-Version 4.6.2`. **No version bump anywhere** (`tests/packaging/test_no_version_bump.py`
+    pins `0.1.0rc16` / `1.3.0-23` / `0.1.0-8`).
+  - **Seed values are data** (D7/D9): `src/cuemsutils/defaults/system-defaults.toml` (package data,
+    the one copy code reads; also installed under `/usr/share/cuems/defaults/`), loaded by
+    `xml/seed_values.py` with four rules — completeness naming schema/type/field/file, no stale key,
+    no identity (`uuid`/`mac` are injected, never seeded), scalar type matches the XSD type — and an
+    `/etc/cuems/defaults.d/*.toml` overlay applied only by the tool, lexical order, later wins.
+    `descriptor._SETTINGS_EXAMPLE_VALUES` is gone; the generated `settings.xml` is byte-identical.
+  - **`cuems-init-node`** (`tools/init_node.py`, new public entry point, `[project.scripts]`,
+    venv `bin/` + `/usr/bin` symlink): mints one uuid4 through `cuemsutils.tools.Uuid` (the only
+    minter) or preserves the identity `settings.xml` carries; writes the three documents as one set
+    (temporaries, ordered `os.replace`, in-memory restore); substitutes the sentinel token in every
+    string leaf including compound `<uuid>_<id>` strings; seeds this node's map row through the new
+    **`NodeIndex.ensure`** (by reference, pinned in `test_node_aliasing.py`); MAC from `--mac`,
+    `ethernet0`, else the first physical interface, else **refuses** (a sentinel MAC on a live node
+    collides in the MAC-keyed map); map row `name` = OS hostname. Operator edits are kept three-way
+    against a write record (`/var/lib/cuems-utils/init-node/last-written.json`) and reported as
+    `modified, kept`; `--reset` returns to defaults; `--force-new-identity --yes` re-mints; `--check`
+    (`tools/identity_check.py`, stdlib XML only) reads the four identity locations and exits
+    **0 / 1 mismatch / 2 absent / 3 NOT PROVISIONED**, precedence 3 > 2 > 1.
+  - **D14, shape B**: the Avahi record is derived from `settings.xml` by **`cuems-nodeconf`** at every
+    start and role change (its feature `003-startup-readiness`, gated here as T049, not implemented
+    here); `cuems-config-node` no longer mints and the shipped templates carry the sentinel.
+  - **Measured corrections** (M1–M9 in the spec): `cuems-common`'s `node-identity-contract.md`
+    already existed; `cuems-config-node` was a second minter; the editor hardcodes
+    `/etc/cuems/script.xsd`; the fossil `get_{video,audio}_output_id('default')` raise `KeyError` on
+    every node (feature 014's); 25 tests needed a host `/etc/cuems` because
+    `tests/support/config_inventory.py` pops `CUEMS_CONF_PATH` at import — now a session guard in
+    `tests/conftest.py` names any such test.
+  - Lifecycle tests run in an unprivileged `mmdebstrap --mode=unshare` bookworm chroot
+    (`CUEMS_CHROOT_TAR`; `quickstart.md`); no container runtime needed.
 
 - `009-fix-dmx-channel-conversion` (**landed** 2026-09-03): `DmxUniverse.set_dmx_channels`
   (`cues/DmxCue.py`) no longer swallows a per-entry conversion failure and silently stores the raw,

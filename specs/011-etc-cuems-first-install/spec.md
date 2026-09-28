@@ -15,7 +15,8 @@ with recorded defaults); ready for `/speckit.plan`
 `apt install` must leave a node that boots, loads its configuration, and is uniquely identified —
 where today no package ships any of the three documents ConfigManager requires in a usable state,
 and the six XSD files that define them live only inside the venv." The full prompt is
-`specs/planning/011-first-install-specify-prompt.md` §2, pasted verbatim.
+`specs/planning/011-first-install-specify-prompt.md` §2, pasted verbatim (that prompt document was
+deleted on 2026-09-28 once every clarification it listed was recorded here — git history keeps it).
 
 **Authoritative inputs** (read in full before this spec was written; this spec does not re-derive
 what they measure):
@@ -878,7 +879,7 @@ lintian over the result.
 
 ## Clarification register
 
-Carried from `specs/planning/011-first-install-specify-prompt.md` §4, extended by today's
+Carried from the (since deleted) `specs/planning/011-first-install-specify-prompt.md` §4, extended by today's
 measurements. Eight are answered (three at specify time, five in the `/speckit.clarify` session —
 see "Clarifications" above). The three that remain (Q4, Q5, Q6) are confirmable by test or by
 reading the build tooling and are **deferred to the plan** with their recorded defaults; none

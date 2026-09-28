@@ -5,7 +5,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # `/etc/cuems` first install — schemas, system defaults, and node identity
 
-**Status**: design settled, implementation not started
+**Status**: design settled; **feature 011 landed 2026-09-28** on its local branch (D2–D7, D9, D11–D14 built; see the execution companion §3.2 and §4.7 for the corrections that pass made to this document)
 **Measured**: 2026-09-21, against `feat/xml-refactor`, `debian/bookworm`, and the two
 production machines `10.16.10.2` / `10.16.10.3` (§2.6)
 **Decisions taken**: 2026-09-21, seventeen of them, recorded in §3 with their reasoning
@@ -372,7 +372,17 @@ wrong.
 | Pre-existing hand-placed file | present, real uuid | **untouched** |
 | Present but carrying the **sentinel** | present, all-zeros | left alone by `postinst`; `--check` reports it; `init-node` fixes it. `postinst` never modifies an existing file, and that invariant is worth more than auto-repairing a rare hand-copied case |
 
-### D14 — The Avahi TXT `uuid` stays `cuems-common`'s, and **must derive from `settings.xml`**
+### D14 — The Avahi TXT `uuid` **must derive from `settings.xml`** — written by `cuems-nodeconf` *(corrected 2026-09-28)*
+
+> **Correction (feature 011, research R7/R7a, maintainer's decision 2026-09-28).** The record's
+> writer is **`cuems-nodeconf`**, which renders it from `settings.xml` at every start and role
+> change and refuses to start unprovisioned — not `cuems-config-node`. Measured: nodeconf already
+> wrote the live file (a verbatim template copy) and learned its own uuid from its own announcement;
+> `cuems-config-node` minted a `uuid1()` (a second minter, M2) and the shipped templates carried a
+> real production controller's uuid (M3). Both retired in `cuems-common 1.3.0-23`; the templates
+> carry the sentinel; the rule lives in `docs/node-identity-contract.md` §"Where the `uuid=` value
+> comes from". The paragraph below is the original design, kept for the record.
+
 
 `cuems-common` keeps ownership of `/etc/avahi/services/cuems.service` and of
 `cuems-config-node`, which rewrites the `uuid=` TXT record. The contract this design adds:
@@ -545,7 +555,8 @@ is that provisioning step** — this design and that research describe one mecha
 
 1. **One source, one minter.** `settings.xml` is the identity SSOT exactly as the XSD is the
    structure SSOT. Only `cuems-init-node` mints a uuid4. Every other writer — nodeconf,
-   `cuems-config-node`, the operator — *reads* it. A second minter is how two nodes end up with
+   `cuems-config-node`, the operator — *reads* it. (*Corrected 2026-09-25, M2*: `cuems-config-node`
+   **was** a writer and a minter until `cuems-common 1.3.0-23`.) A second minter is how two nodes end up with
    different answers to "who am I".
 2. **Self-entry and topology are different concerns with different owners.** That *this node's*
    row exists in `network_map.xml` is seeded (by `init-node`, or by nodeconf at start-up);
@@ -597,18 +608,30 @@ So the values table needs a decision per field about what a *fresh, unconfigured
 claim, not a copy of what either venue happens to run. The node entry must carry the sentinel
 identity (D3) and stay consistent with `settings.xml` (§5).
 
-### OPEN-2 — Does the editor need the XSDs?
+### OPEN-2 — ✅ CLOSED 2026-09-25 by feature 011 (M4) — the editor needs the XSDs
+
+`cuems-editor/CuemsProjectManager.py:23` hardcodes `/etc/cuems/script.xsd`. Ship all six (D4).
+
+#### Original text
 
 `cuems-editor` has no `debian/` directory at all (feature 010, T037b). Whether it validates
 against `/etc/cuems/*.xsd` or the venv copies has not been measured.
 
-### OPEN-3 — Ordering between `postinst` and first service start
+### OPEN-3 — ✅ CLOSED 2026-09-28 by feature 011 (M5, research R16)
+
+Ordering holds by dependency: `cuems-common` `Depends: cuems-utils`, so dpkg configures `cuems-utils` first; `cuems-common`'s `postinst` carries no `#DEBHELPER#` token, so no engine is started at configure. Pinned from both sides (`tests/packaging/test_ordering_premise.py` here; `tests/test_postinst_ordering.py` there).
+
+#### Original text
 
 `cuems-init-node` must complete before any engine starts, or the engines hit the §5 lookups. On a
 fresh install `postinst` handles it; on a stack install, package ordering has to be confirmed
 rather than assumed, and the units are `cuems-common`'s.
 
-### OPEN-4 — Where `cuems-init-node` lives
+### OPEN-4 — ✅ CLOSED 2026-09-28 by feature 011 (research R1)
+
+`[project.scripts]` in `cuems-utils`, installed at `/usr/lib/cuems/bin/cuems-init-node` (the venv, so it can import `cuemsutils`), linked from `/usr/bin`, invoked by `postinst` by absolute path under `timeout 60s`. The ownership table is in `cuems-common/docs/node-identity-contract.md`.
+
+#### Original text
 
 Naturally `cuems-utils` (it owns the schemas, the models and the generator). But it writes files
 `cuems-common` has historically owned, and it is invoked from `cuems-utils`' `postinst`. The entry
