@@ -123,14 +123,30 @@ def built_deb() -> Path:
     return debs[-1]
 
 
+_DEB_CACHE: dict[tuple[str, float], tuple[bytes, list[str]]] = {}
+
+
+def _deb_data(deb: Path) -> tuple[bytes, list[str]]:
+    """The data tarball and the path listing, read **once per archive** — the
+    9 MB venv is otherwise re-extracted by every assertion, which is what made
+    the built-package tests dominate the suite's per-test figure (T081)."""
+    key = (str(deb), deb.stat().st_mtime)
+    if key not in _DEB_CACHE:
+        tar = subprocess.run(["dpkg-deb", "--fsys-tarfile", str(deb)], check=True, capture_output=True).stdout
+        listing = subprocess.run(["dpkg-deb", "-c", str(deb)], check=True, capture_output=True, text=True).stdout
+        paths = [line.split()[-1].lstrip(".") for line in listing.splitlines() if line.strip()]
+        _DEB_CACHE.clear()
+        _DEB_CACHE[key] = (tar, paths)
+    return _DEB_CACHE[key]
+
+
 def deb_paths(deb: Path) -> list[str]:
-    out = subprocess.run(["dpkg-deb", "-c", str(deb)], check=True, capture_output=True, text=True).stdout
-    return [line.split()[-1].lstrip(".") for line in out.splitlines() if line.strip()]
+    return list(_deb_data(deb)[1])
 
 
 def deb_file(deb: Path, member: str) -> bytes:
     """One file's bytes out of the ``.deb``'s data tarball (``member`` like ``usr/share/…``)."""
-    tar = subprocess.run(["dpkg-deb", "--fsys-tarfile", str(deb)], check=True, capture_output=True).stdout
+    tar, _ = _deb_data(deb)
     return subprocess.run(["tar", "-xO", f"./{member}"], input=tar, check=True, capture_output=True).stdout
 
 
