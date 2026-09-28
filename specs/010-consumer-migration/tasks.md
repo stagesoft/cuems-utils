@@ -339,7 +339,13 @@ Feature 002 closed the **crash** variant deliberately, by assigning `self._docum
 `self.network_map` — `read_network_map`'s comment names the same `set_comms`-before-`run` fact. The
 wrong-answer variant is live.
 
-- [ ] T094 [US7] Gate: verify `../cuems-nodeconf` answers **"not ready"** rather than **"not found"** in
+- [ ] T094 [US7] **Briefed 2026-09-28** — `../cuems-nodeconf/specs/planning/10-readiness-window.md` is
+  that repository's self-contained brief for feature `003-startup-readiness`, so this no longer depends on
+  a reader finding three sections of this directory from another checkout. It carries the measured window,
+  the four constitutional gates, the readiness-flag-not-a-lock argument, the four-tier decision, the
+  candidate re-cut, and a re-measurement of that repository's `STARTUP_ANALYSIS.md` (nine of twelve
+  findings already fixed; the root-level cleanup is four files, three of them deletions). This task stays a
+  **gate**: verify `../cuems-nodeconf` answers **"not ready"** rather than **"not found"** in
   that window — a readiness flag set at the end of `read_network_map`, with `engine_callback` returning a
   distinguishable refusal until then. Record the fix and a test exercising the window in
   `specs/010-consumer-migration/baseline.md`. **A mutex is not the fix and must not be accepted as one**:
