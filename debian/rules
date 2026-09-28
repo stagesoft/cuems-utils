@@ -19,3 +19,13 @@ override_dh_virtualenv:
 	# never a conffile (D5). Version-free paths only (FR-044).
 	install -d debian/cuems-utils/usr/share/cuems/schemas
 	install -m 0644 src/cuemsutils/xml/schemas/*.xsd debian/cuems-utils/usr/share/cuems/schemas/
+	# Feature 011 (D2/D3): the three default documents are generated from the
+	# descriptor and the seed values by the JUST-BUILT venv's interpreter —
+	# reached through bin/python, never through lib/python3.N (FR-044) — and
+	# carry the reserved sentinel identity, never a minted uuid, so the build is
+	# reproducible. make_defaults generates twice and refuses on any difference.
+	install -d debian/cuems-utils/usr/share/cuems/defaults
+	debian/cuems-utils/usr/lib/cuems/bin/python -m cuemsutils.xml.make_defaults \
+	    --out debian/cuems-utils/usr/share/cuems/defaults
+	install -m 0644 src/cuemsutils/defaults/system-defaults.toml \
+	    debian/cuems-utils/usr/share/cuems/defaults/

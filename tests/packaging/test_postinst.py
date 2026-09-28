@@ -43,3 +43,41 @@ def test_postinst_exits_zero_even_when_share_is_missing(dirs, run_maintainer_scr
     result = run_maintainer_script("postinst", "configure", env)
     assert result.returncode == 0, result.stderr
     assert "WARNING" in result.stderr
+
+
+# -- US2 (T028) -----------------------------------------------------------------
+
+
+def test_documents_installed_only_when_absent(dirs, run_maintainer_script):
+    """Per file, only where absent; a present file is never touched; the overlay
+    is never read. CUEMS_INIT_NODE is EMPTY here so the tool step is skipped —
+    this test must not depend on US3's block."""
+    dirs.etc.mkdir()
+    _seed_pristine(dirs.share)
+    present = {
+        "settings.xml": b"<real identity/>",
+        "network_map.xml": b"<node_list/>",  # a cuems-common stub is "present"
+    }
+    for name, content in present.items():
+        (dirs.etc / name).write_bytes(content)
+    (dirs.etc / "defaults.d").mkdir()
+    (dirs.etc / "defaults.d" / "00-broken.toml").write_text("this is = = not toml")
+
+    result = run_maintainer_script("postinst", "configure", dirs.env())
+
+    assert result.returncode == 0, result.stderr
+    for name, content in present.items():
+        assert (dirs.etc / name).read_bytes() == content, f"{name} was modified"
+    assert (dirs.etc / "default_mappings.xml").read_bytes() == b"<pristine default_mappings.xml/>"
+    assert (dirs.etc / "default_mappings.xml").stat().st_mode & 0o777 == 0o644
+    assert "NOT PROVISIONED" in result.stderr
+
+
+def test_a_sentinel_document_is_left_alone(dirs, run_maintainer_script):
+    dirs.etc.mkdir()
+    _seed_pristine(dirs.share)
+    sentinel = b"<settings><uuid>00000000-0000-0000-0000-000000000000</uuid></settings>"
+    (dirs.etc / "settings.xml").write_bytes(sentinel)
+    result = run_maintainer_script("postinst", "configure", dirs.env())
+    assert result.returncode == 0
+    assert (dirs.etc / "settings.xml").read_bytes() == sentinel

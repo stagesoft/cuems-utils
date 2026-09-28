@@ -84,3 +84,26 @@ def _build_old_common_stub(tmp_path):
     out = tmp_path / "cuems-common_1.3.0-22_all.deb"
     subprocess.run(["dpkg-deb", "--root-owner-group", "-b", str(root), str(out)], check=True, capture_output=True)
     return out
+
+
+# -- US2 (T030) -----------------------------------------------------------------
+
+
+def test_identity_survives_upgrade_reinstall_remove(chroot, built_deb):
+    """SC-002: upgrade, --reinstall, remove-then-install leave the triple byte-identical."""
+    _install_ours(chroot, built_deb)
+    documents = ("settings.xml", "network_map.xml", "default_mappings.xml")
+    before = {d: _sha(chroot.read(f"/etc/cuems/{d}")) for d in documents}
+    assert all(before.values())
+
+    steps = (
+        ["dpkg", "-i", f"/tmp/{built_deb.name}"],                    # upgrade (same version re-unpacked)
+        ["dpkg", "-i", "--force-confmiss", f"/tmp/{built_deb.name}"],  # reinstall
+        ["dpkg", "-r", "cuems-utils"],                                # remove keeps /etc
+        ["dpkg", "-i", f"/tmp/{built_deb.name}"],                    # install again
+    )
+    for argv in steps:
+        r = chroot.run(argv, check=False)
+        assert r.returncode == 0, (argv, r.stderr)
+        after = {d: _sha(chroot.read(f"/etc/cuems/{d}")) for d in documents}
+        assert after == before, (argv, "identity or documents changed")

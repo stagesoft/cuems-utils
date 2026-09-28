@@ -38,7 +38,26 @@ behind unless one predates the upgrade, and a later `purge cuems-common` no long
 
 ## 2. The pristine copies and the install-if-absent rule (US2)
 
-*Filled by T034.*
+The three documents `ConfigManager` needs — `settings.xml`, `network_map.xml`,
+`default_mappings.xml` — are generated at package build from the schemas and the seed values,
+carry the reserved sentinel identity (`00000000-0000-0000-0000-000000000000`, MAC
+`000000000000`), and ship under `/usr/share/cuems/defaults/` inside the package manifest
+(`dpkg -V cuems-utils` verifies them). `system-defaults.toml` beside them is the upstream seed
+values, for reading; the copy code uses is the library's package data, byte-identical.
+
+**Install-if-absent, per file.** `postinst` copies a document to `/etc/cuems` only when nothing
+is there. A present file — a real identity, a hand-placed file, a `cuems-common` stub map, or a
+sentinel document — is never modified, renamed or removed by the package, on install, upgrade,
+`--reinstall` or remove-then-install. To see how a live document differs from pristine:
+
+```sh
+diff /usr/share/cuems/defaults/settings.xml /etc/cuems/settings.xml
+```
+
+A node left with the pristine copies (the degraded fallback, or a hand copy) loads, but as
+**NOT PROVISIONED**: `cuems-init-node --check` exits 3, and a plain `cuems-init-node` run mints a
+real identity. Two such nodes on one network answer to one identity, so do not leave a node in
+that state.
 
 ## 3. Purge destroys identity; remove does not (US5)
 

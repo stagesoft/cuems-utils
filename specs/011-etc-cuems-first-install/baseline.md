@@ -38,7 +38,14 @@ Generator determinism: two `generate_settings_example().save()` runs → equal S
 
 **Pre-fix range at implementation start (T001, 2026-09-28, two runs)**: 9 failed, 2702 passed,
 96 skipped, 2 xfailed, 16 errors in 123.45 s / 124.39 s (2825 collected, **43.7–44.0 ms/test**).
-The hermetic figure after Phase 2 (T006/T007) is recorded below it once measured.
+**After Phase 2, before US1's scripts existed (two runs)**: 3–4 failed, 2722–2724 passed,
+106–107 skipped, 2 xfailed, 14 errors in 127.65 s / 115.55 s (~2849 collected, **40.6–44.8 ms/test**).
+The non-passing cases at that moment were the packaging tests written ahead of their scripts
+(fail-first) and the laziness flake; the final hermetic figure is T081's.
+
+**R12 corrected (T027)**: `get_video_output_id('default')`/`get_audio_output_id('default')` raise
+`KeyError` on every node — fresh or not — because they read `node_conf['default_*_output']`,
+keys `settings.xsd` has never declared. Zero callers; feature 014's fossil. Pinned as measured.
 
 **`test_descriptor_laziness` on this host**: after T007 pointed its probe at a real corpus it
 fails the 1.10× cap on roughly two runs in three (public 285 ms vs internal 233 ms = 1.22×, script

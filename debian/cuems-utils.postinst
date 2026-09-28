@@ -54,10 +54,38 @@ install_schemas() {
     done
 }
 
+#: The one wording for the sentinel state, shared with cuems-init-node --check.
+NOT_PROVISIONED="NOT PROVISIONED"
+
+install_missing_documents() {
+    # D5/D13: only where absent, per file. A present document — real identity,
+    # sentinel, a cuems-common stub, or garbage — is never touched here;
+    # `cuems-init-node --check` reports it and a plain run repairs it.
+    for name in settings.xml network_map.xml default_mappings.xml; do
+        if [ ! -e "$CUEMS_ETC/$name" ]; then
+            src="$CUEMS_SHARE/defaults/$name"
+            if [ -f "$src" ]; then
+                install -m 0644 "$src" "$CUEMS_ETC/$name" \
+                    || warn "could not install the pristine $CUEMS_ETC/$name"
+            else
+                warn "$src is missing; $CUEMS_ETC/$name not created"
+            fi
+        fi
+    done
+}
+
 case "$1" in
     configure)
         install -d -m 0755 "$CUEMS_ETC" || warn "could not create $CUEMS_ETC"
         install_schemas
+        # The tool step (US3) goes here: it mints an identity and writes a
+        # coherent triple. On failure, or when it is skipped, the pristine
+        # placeholders below are the fallback and the node is NOT PROVISIONED.
+        _tool_ok=1
+        install_missing_documents
+        if [ "$_tool_ok" != 0 ]; then
+            warn "this node is $NOT_PROVISIONED (sentinel identity). Run: cuems-init-node"
+        fi
         ;;
     *)
         ;;
