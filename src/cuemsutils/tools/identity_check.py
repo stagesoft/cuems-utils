@@ -154,7 +154,7 @@ def check(conf_dir: Path, avahi_service: Path | None = None) -> Report:
         locations.append(_avahi(avahi, uuid, sentinel))
     statuses = {loc.status for loc in locations}
     if sentinel:
-        return Report(source, locations, "not provisioned", 3, FIX_PLAIN)
+        return Report(source, locations, NOT_PROVISIONED, 3, FIX_PLAIN)
     if not uuid or ABSENT in statuses or UNREADABLE in statuses:
         others_absent = any(loc.status in (ABSENT, UNREADABLE) and loc.path != str(avahi) for loc in locations)
         fix = FIX_PLAIN if others_absent or not uuid else FIX_UNMASK

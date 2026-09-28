@@ -79,3 +79,17 @@ this host is used for SC-PERF-001.
 | `mmdebstrap --mode=unshare --variant=apt --include=python3 bookworm` | 38 s, 200 MB tarball, no root |
 | `unshare --map-auto --map-root-user … chroot` | uid 0, `dpkg 1.21.23`, `python3 3.11.2`, `apt 2.6.1` |
 | container runtimes | none (`podman`, `docker`, `systemd-nspawn` absent) — not needed |
+
+## UX pass and announcements (T075, T080, 2026-09-28)
+
+- The three pinned wordings are one constant each, printed identically by the tool, `--check`
+  and `postinst`: `NOT PROVISIONED` (4 print sites), `modified, kept`, and the fixing commands
+  `cuems-init-node`, `cuems-init-node --reset`, `systemctl restart cuems-nodeconf.service`,
+  `systemctl unmask cuems-nodeconf.service && systemctl enable --now cuems-nodeconf.service`.
+  The reporting idiom is `<path>: <verdict> (<detail>)`, the one `cuems-convert-documents` uses.
+- Re-cuts announced: `cuems-common`'s `3af31cc` (its local commits `b3dd7e1`, `f6750d7` amend the
+  `1.3.0-23` entry, which names the handover and the retired minter) and `cuems-nodeconf`'s
+  `6c0cca7` (its brief §9.3 records one re-cut for feature 003 and B together). This repository
+  creates no tag in this feature (D27); the migration guide §7 carries the table.
+- Repository-wide `ruff` on the integration branch: 365 fixable findings (pre-existing); on this
+  branch: 362. Every file this feature touches lints clean.
