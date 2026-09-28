@@ -238,25 +238,36 @@ suite (`test_lifecycle_chroot.py`) covering SC-001–SC-003, SC-006–SC-010 and
 
 Six schemas annotated, six hashes updated, the F1 check added to `test_duplication_flags.py`.
 
-### Step 6 — the `cuems-common` handover and the `cuems-nodeconf` render *(sibling repositories; contract cuems-common-handover.md)*
+### Step 6 — the `cuems-common` handover, and the gate on `cuems-nodeconf` feature 003 *(contract cuems-common-handover.md; research R7, R19, R20)*
 
 `cuems-common 1.3.0-23`: custody transfer (R3), `cuems-config-node` stripped of minting and
 Avahi duties, sentinel templates, dead `cp` rules retired, six tests re-based/retired and two
-added, the D14 section in `docs/node-identity-contract.md`, the `1.3.0-23` entry amended.
-`cuems-nodeconf`, inside its unreleased `0.1.0-8` entry: render the record from `settings.xml`
-at start and on every role change, reload only on change, refuse to start unprovisioned, the
-self-uuid guard; tests; entry amended. **No package version moves and no package relation
-changes** beyond `cuems-utils`'s new `Breaks` (research R19); the mutual `Breaks` between
-`cuems-common` and `cuems-nodeconf` already name these versions. Verified by the chroot test installing all three packages and asserting the
-live record equals `settings.xml`'s uuid after a simulated nodeconf start.
+added, the D14 section in `docs/node-identity-contract.md`, the entry amended. **Re-cuts its
+candidate `3af31cc`; announced.**
+
+`cuems-nodeconf`, inside its unreleased `0.1.0-8`: the render-at-start, refuse-unprovisioned and
+self-uuid guard are **delivered by that repository's feature `003-startup-readiness`** (brief:
+`../cuems-nodeconf/specs/planning/10-readiness-window.md`, extended 2026-09-28 with the inputs
+from 010 and 011 — pending D-R20-1). This plan carries them as a **gate reference**, the way 010's
+T094 does: verify the render runs before `set_comms()`, reload-only-on-change, the refusal, and the
+guard, and record it in `baseline.md`. **One re-cut of `6c0cca7`** for 003 and B together; announced.
+
+**Library work that serves both**: `NodeIndex.ensure(node) -> bool` (R7 item 7, pending D-R20-2),
+inserted by reference and covered by an `ensure` case in `test_node_aliasing.py`.
+
+**No package version moves and no package relation changes** beyond `cuems-utils`'s new `Breaks`
+(R19); the mutual `Breaks` between `cuems-common` and `cuems-nodeconf` already name these versions.
 
 ### Step 6a — hardware verification (manual, operator; task in `tasks.md`)
 
 The package-lifecycle criteria are measured in the chroot (R9), but three things only real
 hardware can show: avahi on a real interface, nodeconf's discovery of a second node, and a
-reboot. `quickstart.md` "Operator hardware verification" is the list; the tasks phase MUST
-carry it as one explicit manual task per node class (controller, node), and that task MUST
-include **unmasking, enabling and starting `cuems-nodeconf`** — masked at Medina and off on
+reboot. `quickstart.md` "Operator hardware verification" is the operator's step list; the tasks phase MUST
+carry it as one explicit manual task per node class (controller, node), **recorded in
+`cuems-nodeconf`'s hardware-verification ledger
+(`../cuems-nodeconf/specs/002-public-network-map-path/checklists/hardware-verification.md`) as a
+fifth entry rather than in a second list here** (R20, pending D-R20-3), and that task MUST include
+**unmasking, enabling and starting `cuems-nodeconf`** — masked at Medina and off on
 most of the fleet today — because under R7 the Avahi record is unmaintained until nodeconf
 runs, and `--check` exits 1 (Avahi absent) on such a host by design. The task's acceptance is
 `cuems-init-node --check` exit 0 after the unmask, and again after a reboot.
@@ -266,6 +277,15 @@ runs, and `--check` exits 1 (Avahi absent) on such a host by design. The task's 
 `migration-guide.md`; planning documents corrected for M1–M9 with the corrections recorded;
 `debian/README.source` first-install section replaced by the landed description; CLAUDE.md
 "Recent Changes" entry; `baseline.md` completed.
+
+## Revalidation 2026-09-28
+
+Upstream `feat/xml-refactor` moved by four commits (`5a1f7c9..0ba239b`) during specification; the
+branch was rebased cleanly and the upstream tests pass on it. Research R20 records the effect: the
+nodeconf half of R7 is delivered by nodeconf's feature 003 and gated here; the render runs before
+`set_comms()`; a shared `NodeIndex.ensure` primitive is added in this feature; two candidate tags
+are re-cut and announced; the suite figure is a range. Three decisions are pending the maintainer
+(D-R20-1..3). Nothing else in this plan changed.
 
 ## Complexity Tracking
 

@@ -64,9 +64,11 @@ floor's reason is now "the release that ships the schemas to `/etc/cuems`".
 - `debian/control`: **unchanged** — the existing `Breaks: cuems-nodeconf (<< 0.1.0-8)` already
   covers the transition, matching nodeconf's `Breaks: cuems-common (<< 1.3.0-23~)`.
 
-## 4a. `cuems-nodeconf` (its own tree, same coordinated merge, **inside the unreleased `0.1.0-8` entry — no bump**)
+## 4a. `cuems-nodeconf` — delivered by its feature `003-startup-readiness` (inside the unreleased `0.1.0-8` entry, no bump; one re-cut of `6c0cca7`, announced)
 
-- At start, before discovery: uuid/MAC from `settings.xml` via its `ConfigManager`; render
+- At start, **before `set_comms()`** (so an unprovisioned refusal never creates `/tmp/nodeconf.ipc`,
+  the socket `cuems-engine`'s readiness probe trusts) and before discovery: uuid/MAC from
+  `settings.xml` via its `ConfigManager`; render
   the role template into `/etc/avahi/services/cuems.service` by literal substitution of the
   sentinel token; atomic write; `avahi-daemon` reloaded only if the bytes changed. Absent or
   sentinel `settings.xml` ⇒ log `NOT PROVISIONED`, exit non-zero, announce nothing.
@@ -74,8 +76,11 @@ floor's reason is now "the release that ships the schemas to `/etc/cuems`".
   `set_node_role`, the resume path) render the same way.
 - After discovery: the discovered self must carry the `settings.xml` uuid; otherwise refuse
   loudly (plan 09 §4).
+- Self-entry seeded through the library's `NodeIndex.ensure` (by reference), never a daemon-side
+  insert (D22; nodeconf plan 09 §5).
 - Tests: render from a settings fixture (real uuid, sentinel, absent), reload-only-on-change,
-  the guard, and that the templates are read from `/usr/share/cuems` unchanged.
+  the guard, the ordering before `set_comms()`, and that the templates are read from
+  `/usr/share/cuems` unchanged. Hardware verification recorded in that repository's ledger.
 
 ## 5. `docs/node-identity-contract.md` — the D14 section to add
 

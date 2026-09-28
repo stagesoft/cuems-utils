@@ -646,7 +646,10 @@ lintian over the result.
   `cuems-nodeconf` must be restarted so the Avahi record is re-derived.
 - **FR-029**: The self-entry in `network_map.xml` MUST be seeded by plain insert into the node
   index (practice 3), never through `merge`, so that other nodes' rows and their `adopted`/
-  `online` flags are preserved. The row MUST be keyed by MAC and matched by uuid (practice 5),
+  `online` flags are preserved. The insert MUST go through one library primitive
+  (`NodeIndex.ensure`, added by this feature inside `0.1.0rc16`) that inserts the caller's node
+  object **by reference** — honouring the aliasing contract pinned upstream on 2026-09-28 — so
+  `cuems-nodeconf`'s feature 003 can seed from `settings.xml` through the same call. The row MUST be keyed by MAC and matched by uuid (practice 5),
   with `node_role` `firstrun` unless the file already carries a role for this uuid.
 - **FR-030**: The tool MUST load existing documents through the strict read path (so a
   version-old file converts in memory) and write in the current shape, and MUST NOT write a
@@ -706,8 +709,9 @@ lintian over the result.
   record from `/etc/cuems/settings.xml`, and it refuses to start on a node whose `settings.xml`
   is absent or carries the sentinel — an unprovisioned node announces nothing. After the
   handover, `cuemsutils.tools.Uuid` is the only minter in the ecosystem. (Clarified 2026-09-28:
-  research R7a, shape B; the `cuems-nodeconf` change lands in the same coordinated merge, with
-  mutual `Breaks` covering the transition.)
+  research R7a, shape B; the `cuems-nodeconf` change is delivered by that repository's feature
+  `003-startup-readiness` inside the same coordinated merge, rendering **before** its IPC socket is
+  created, with the existing mutual `Breaks` covering the transition — research R20.)
 - **FR-041**: The sentinel `00000000-0000-0000-0000-000000000000` MUST be treated as "not
   provisioned" by every tool this feature adds, said in those words, and MUST never be written
   to a live node by `cuems-init-node` — only `postinst`'s degraded fallback may leave it there,

@@ -218,7 +218,11 @@ template rewrite is how the production controller's uuid reached the shipped tem
 
 1. **Templates** (`cuems-common`): the three shipped `cuems.service.{firstrun,controller,node}`
    carry the **sentinel** uuid and are never rewritten by any tool — pure package content.
-2. **`cuems-nodeconf`** (its own tree, same coordinated merge): at start, before discovery,
+2. **`cuems-nodeconf`** (its own tree, delivered by **its feature `003-startup-readiness`**, whose
+   brief landed upstream 2026-09-28 — see R20): at start, **before `set_comms()`** and before
+   discovery, so that an unprovisioned node never creates `/tmp/nodeconf.ipc` (the engine's
+   readiness probe is that socket's existence; a refusal after creating it would read as
+   "available" — the C2 shape from `nodeconf-map-write-divergence.md` §5),
    read `uuid`/`mac` from `settings.xml` through the `ConfigManager` it already constructs;
    render the role template into the live file by literal substitution of the 36-character
    sentinel token (design §10.2's rule, the same one `cuems-init-node` uses); write atomically,
@@ -243,6 +247,12 @@ template rewrite is how the production controller's uuid reached the shipped tem
    reports (exit 1) and the migration guide answers with "enable and start cuems-nodeconf".
 6. **`cuems-init-node`** prints, after any identity change, `restart cuems-nodeconf.service`;
    `--check` reads the live record (R14) and nothing else.
+7. **One library primitive, shared** (R20): `NodeIndex.ensure(node) -> bool` — insert the caller's
+   node dict **by reference** if no node carries its uuid, return whether it did — is added in
+   this feature (inside `0.1.0rc16`, no bump). `cuems-init-node` uses it for the self-entry
+   (FR-029, practice 3), and nodeconf's plan `09-self-node-seeding.md` §5 option 1 asked for
+   exactly it, so feature 003 can seed from `settings.xml` without re-implementing map logic in
+   the daemon (D22). It MUST honour the aliasing contract T091 pinned upstream — no `dict(node)`.
 
 **Dividends**: feature 012's last step (design §10.5, "rewrite the Avahi TXT from the new
 `settings.xml`") becomes "restart nodeconf"; `--force-new-identity` needs no operator step
@@ -586,7 +596,42 @@ today it exists in `cuems-common`, `cuems-nodeconf` and `cuems-power-bridge` (no
 repository); after 011–014 it is **re-pointed** at the final commit in each repository and
 created here. Nothing ships between now and then (D27).
 
+**Two candidate tags are re-cut by this feature, and both re-cuts must be announced** (the shared
+convention nodeconf's brief §4 states: the tag moves only for packaged-content changes, and a re-cut
+is announced to the other flows). `cuems-common`'s `3af31cc` and `cuems-nodeconf`'s `6c0cca7` both sit
+at the head of their unreleased entries and both gain packaged content here (`debian/install`,
+maintainer scripts, templates, `cuems-config-node`; `CuemsNodeConf.py`). Neither moves a version.
+**Caveat, the T090 shape**: inside `0.1.0-8` the version cannot distinguish a nodeconf build made
+before the render from one made after, so the mutual `Breaks` protect the transition only across the
+version boundary, not within it — the rule is operational (rebuild both from the tagged commits), and
+it costs nothing because D27 forbids shipping any intermediate build.
+
 **Guard**: `tests/packaging/test_no_version_bump.py` asserts this repository's changelog head
 is `0.1.0rc16` and, when the sibling checkouts are present, that `cuems-common`'s is
 `1.3.0-23` and `cuems-nodeconf`'s is `0.1.0-8` — a bump is a deliberate act that updates the
 test in the same commit, with the reason in the message.
+
+## R20 — Revalidation against upstream `feat/xml-refactor` `5a1f7c9..0ba239b` (2026-09-28)
+
+Four commits landed on the integration branch while this feature was being specified; the 011 branch
+was rebased onto them cleanly (no file overlap) and the two upstream tests pass on the rebased tree.
+What they change for this plan, item by item:
+
+| Upstream change | Effect on 011 |
+|---|---|
+| `tests/contract/test_node_aliasing.py` + docstrings: `NodeIndex.adopt`/`merge` and `CuemsNetworkMapType.refresh` mutate **by reference**, as a contract (T091/T092) | Constrains R7 item 7 and FR-029: the new `NodeIndex.ensure` inserts the caller's dict, never a copy; `cuems-init-node`'s self-entry seeding goes through it and the aliasing test gains an `ensure` case |
+| `specs/010-consumer-migration/nodeconf-map-write-divergence.md` §5: the start-up window (C2) and the engine's socket-existence probe | Fixes the **order** of B's render: before `set_comms()`, so an unprovisioned refusal never creates the socket the engine trusts (R7 item 2) |
+| `tasks.md` T094 → `../cuems-nodeconf/specs/planning/10-readiness-window.md`, feature `003-startup-readiness` | B's nodeconf half is **delivered by feature 003**, not by a task of this feature; this plan carries it as a gate reference (the 010 convention), and both changes share **one** re-cut of `6c0cca7` |
+| `tasks.md` "Consumer flow status": `cuems-common` landed at `3af31cc`, nodeconf at `6c0cca7`; 011–014 recorded as hard successor | Confirms A3/R19 and adds the two re-cuts above; the handover's `cuems-common` half re-cuts `3af31cc` |
+| `etc-cuems-first-install-execution.md` §4.6 extended: the suite figure is a **range** (2717–2719 / 100–101) because `test_descriptor_laziness` breathes | `baseline.md` quotes ranges, and SC-PERF-001's suite budget compares per-test figures over the collected population, not a single passed count |
+| `nodeconf` brief §7 criterion 7 and its `specs/002-…/checklists/hardware-verification.md` ledger (four entries, all "Not performed") | Step 6a's unmask/enable/start task belongs **in that ledger** rather than a second list — one place for every hardware-only check on a node; this plan's quickstart list stays as the operator's steps and points there |
+| `release-gate.md` re-measured: `cuems-power-bridge`'s `debian/control` floor unbounded | Unrelated to 011's relations; noted so the no-bump guard is not mistaken for that gate |
+
+**Decisions this raises for the maintainer** (asked 2026-09-28, recorded when answered):
+
+- D-R20-1 — fold B's nodeconf work into feature `003-startup-readiness` (recommended: yes; one start-up
+  sequence, one re-cut, one hardware verification), or keep it a separate nodeconf item.
+- D-R20-2 — add `NodeIndex.ensure` here, inside `0.1.0rc16` (recommended: yes; nodeconf's plan 09
+  option 1, and init-node needs it regardless).
+- D-R20-3 — the unmask task lives in nodeconf's hardware-verification ledger (recommended), with this
+  plan's step 6a pointing at it, rather than a parallel list here.

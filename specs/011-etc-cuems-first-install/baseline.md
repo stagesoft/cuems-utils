@@ -43,8 +43,10 @@ corpus) in those four modules; the suite budget uses the **41.1 ms/test** figure
 over the collected population, since the 25 non-passing cases cost the same wall time either
 way and the population is what SC-PERF-001 compares.
 
-For comparison, the execution document's figure (another host): 2719 passed, 100 skipped,
-2 xfailed. The population differs slightly (2805 collected here); only the per-test figure from
+For comparison, the execution document's figure (another host) is a **range**: 2717–2719 passed,
+100–101 skipped, 2 xfailed — `test_descriptor_laziness` skips a varying set of sub-noise-floor schemas
+and occasionally fails one or two on a clean tree (its §4.6, extended 2026-09-25). Quote ranges, never a
+single run, when recording a delta. The population differs slightly (2805 collected here); only the per-test figure from
 this host is used for SC-PERF-001.
 
 ## Lifecycle-test substrate
