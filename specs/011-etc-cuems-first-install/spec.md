@@ -169,7 +169,7 @@ copy of any of them.
 
 **Why this priority**: viable on its own with no identity work at all. It closes the three live
 "validates against a file nobody ships" defects (finding 1–3) and ends the schema drift measured
-on both production machines. It is also the prerequisite for the handover's `Breaks`/`Replaces`
+on both production machines. It is also the prerequisite for the handover's `Breaks`
 choreography with `cuems-common`, which is the one cross-package change that can abort a
 `dpkg -i`.
 
@@ -779,7 +779,7 @@ lintian over the result.
   annotation is not a shape change.
 - **FR-UX-001**: `cuems-init-node`'s flags, messages and exit codes MUST follow the conventions
   `cuems-convert-documents` established (argparse, path-first messages, non-zero on any skipped
-  or failed document); the "not provisioned" wording MUST be identical in `--check` and in
+  or failed document); the `NOT PROVISIONED` wording MUST be identical in `--check` and in
   `postinst`'s fallback warning.
 - **FR-PERF-001**: The feature MUST define and validate three budgets (constitution IV; a
   previous feature was pulled up for declaring this inapplicable): `postinst` wall time,
