@@ -122,6 +122,13 @@ documents can be updated in this feature's pass rather than left disagreeing wit
   this feature's `cuems-common` handover commit, or only the documented contract (M2/M3)? → A:
   **Land it in the handover.** `cuems-config-node` never mints; the shipped Avahi templates carry
   the sentinel; the contract document records both. (Option A.)
+- *(Session 2026-09-28, analysis)* Q: What does `cuems-init-node` write for the map row's
+  `name` and `ip` at install time, with no avahi and possibly no network? → A: **`name` = the OS
+  hostname**; `ip` = the chosen interface's current IPv4 else `0.0.0.0`; nodeconf's `merge`
+  refreshes both in place later (FR-025a).
+- *(Session 2026-09-28, analysis)* Q: What if no MAC can be determined and `--mac` is absent? →
+  A: **Refuse**, never write a sentinel MAC — the map is keyed by MAC, so two such nodes collide;
+  `postinst` falls through to the placeholders (FR-025a). The authoritative link is `ethernet0`.
 - *(Session 2026-09-28, plan phase)* Q: Who derives the Avahi record from `settings.xml` —
   `cuems-config-node` in `cuems-common`, or `cuems-nodeconf`? → A: **`cuems-nodeconf`**, as its
   sole writer, at every start and role change, refusing to start unprovisioned; nodeconf becomes
@@ -297,8 +304,8 @@ install output.
    after it.
 6. **Given** a `settings.xml` that carries the sentinel identity (a hand-copied pristine file),
    **When** the package is installed or upgraded, **Then** `postinst` leaves the file untouched
-   (it never modifies an existing file), `cuems-init-node --check` reports the sentinel in the
-   words "not provisioned", and a plain `cuems-init-node` run specializes it.
+   (it never modifies an existing file), `cuems-init-node --check` reports the sentinel with the
+   words `NOT PROVISIONED`, and a plain `cuems-init-node` run specializes it.
 7. **Given** the operator passes `--uuid` with a value that is not a uuid4, **When** the tool
    runs, **Then** it refuses before writing anything, because the only minter in the ecosystem
    (`cuemsutils.tools.Uuid`) raises on anything but a uuid4.
@@ -414,8 +421,8 @@ exits 0; confirm `--check` never writes.
 3. **Given** `/etc/avahi/services/cuems.service` carries a `uuid=` that differs from
    `settings.xml`, **When** `--check` runs, **Then** it names that path and states the two
    values — the one case nothing else in the ecosystem detects.
-4. **Given** `settings.xml` carries the sentinel, **When** `--check` runs, **Then** it says
-   "not provisioned" in those words and exits 3 — even when the Avahi record is also absent,
+4. **Given** `settings.xml` carries the sentinel, **When** `--check` runs, **Then** it prints
+   `NOT PROVISIONED` and exits 3 — even when the Avahi record is also absent,
    which it reports as expected for an unprovisioned node.
 5. **Given** any of the four is missing or unreadable on a provisioned node, **When** `--check`
    runs, **Then** it reports the path and the reason and exits 2, distinct from a mismatch (1),
@@ -528,16 +535,18 @@ lintian over the result.
 - **FR-001**: The package MUST install all six bundled schemas to `/etc/cuems/<name>.xsd` as
   regular files (not symlinks into the venv), byte-identical to the library's bundled copies,
   on every install and upgrade, unconditionally and without prompting.
-- **FR-002**: The six `.xsd` files under `/etc/cuems` MUST NOT be conffiles. The pristine copies
-  MUST live in the package manifest under `/usr/share/cuems/schemas/` so that `dpkg -V` verifies
-  them.
+- **FR-002**: The pristine copies of the six schemas MUST live in the package manifest under
+  `/usr/share/cuems/schemas/` so that `dpkg -V` verifies them and a drifted live file can be
+  diffed against pristine. (Their non-conffile status is FR-020's.)
 - **FR-003**: `cuems-common` MUST drop `etc/cuems/network_map.xsd` and `etc/cuems/network_map.xml`
   from its `debian/install`, retire `tests/test_schema_mirror.py`, and re-base or retire the four
   other tests that pin the shipped paths (M8). Its `Depends` on `cuems-utils` MUST name the first
   `cuems-utils` version that ships the schemas.
-- **FR-004**: `cuems-utils` MUST declare `Breaks` and `Replaces` on every `cuems-common` version
-  that still ships either path, so that `dpkg -i` never aborts on a file-overwrite conflict and
-  apt orders the pair correctly in either direction.
+- **FR-004**: `cuems-utils` MUST declare `Breaks` on every `cuems-common` version that still
+  ships either path (`<< 1.3.0-23~`), so apt upgrades the pair together and old `cuems-common` can
+  never record an `.xsd` this package rewrote as its conffile. `Replaces` is **deliberately
+  absent**: this package ships nothing under `/etc` in its manifest (D5), so there is no file
+  overlap for `Replaces` to license (research R3).
 - **FR-005**: The custody transfer of `/etc/cuems/network_map.xml` MUST leave an existing live
   file byte-identical through the upgrade of both packages in any order, MUST leave no
   `.dpkg-bak`/`.dpkg-dist`/`.dpkg-old` sibling behind, and MUST leave the file in place through a
@@ -572,10 +581,10 @@ lintian over the result.
   it are **scheduled for retirement with 014**: each MUST say so where it is declared, and no
   new consumer in this feature MAY depend on `default_mappings.xml` beyond what `ConfigManager`
   already requires.
-- **FR-013**: The seed values table MUST leave `descriptor.py` and live in a named home as data
-  (`/usr/share/cuems/defaults/system-defaults.toml` when shipped; its source location in the
-  tree is the plan's). The generator's output MUST be byte-identical before and after the move
-  (US4 scenario 1). `DECLARED_DEFAULTS` stays in Python (D10, already satisfied).
+- **FR-013**: The seed values table MUST leave `descriptor.py` and become package data (the
+  single copy code reads); its shipped locations and precedence are FR-034's. The generator's
+  output MUST be byte-identical before and after the move (US4 scenario 1). `DECLARED_DEFAULTS`
+  stays in Python (D10, already satisfied).
 - **FR-014**: The generator MUST continue to emit optional player-section fields explicitly
   (D17, already landed) — this feature MUST NOT regress the widened generator.
 
@@ -588,16 +597,19 @@ lintian over the result.
   `/etc/cuems` — including one carrying the sentinel, one that is unparseable, one that is a
   `cuems-common` stub, and one placed by hand. The only files it creates are the three documents
   when absent (and the schemas, which are the package's own and always replaced).
-- **FR-017**: `postinst` MUST create the three documents only when absent, per file. When
+- **FR-017**: `postinst` MUST create the three documents only when absent, per file, and MUST
+  leave any present one untouched — including a `cuems-common` stub map or a sentinel document,
+  which `cuems-init-node --check` reports and a plain `cuems-init-node` run repairs. When
   `settings.xml` is absent, it MUST obtain a freshly minted uuid4 by invoking `cuems-init-node`
-  in its no-operator-input mode (`--no-overlay`); when `settings.xml` is present and readable,
-  any absent sibling MUST be created coherent with the identity `settings.xml` carries, and
-  `settings.xml` itself MUST NOT be rewritten.
+  in its no-operator-input mode (`--no-overlay --install-missing`); when `settings.xml` is present
+  and readable, any absent sibling MUST be created coherent with the identity `settings.xml`
+  carries, and `settings.xml` itself MUST NOT be rewritten.
 - **FR-018**: `postinst` MUST NOT read `/etc/cuems/defaults.d/` (D11). A malformed overlay MUST
   have no effect on install or upgrade.
 - **FR-019**: Custom `postinst` logic MUST run after dh-virtualenv's own autoscript (after the
   `#DEBHELPER#` token), so the venv interpreter is settled before the tool is invoked.
-- **FR-020**: Nothing under `/etc/cuems` MUST be a conffile of this package.
+- **FR-020**: Nothing under `/etc/cuems` MUST be a conffile of this package — neither the six
+  schemas nor the three documents. `DEBIAN/conffiles` contains no `/etc/cuems` path.
 - **FR-021**: The identity in an existing `settings.xml` MUST survive upgrade, `--reinstall`,
   and remove-then-install byte-identically (D13's table), and MUST be destroyed by purge and
   nothing else.
@@ -619,8 +631,19 @@ lintian over the result.
 - **FR-025**: It MUST read the pristine defaults, the overlay (unless `--no-overlay`), and any
   existing `/etc/cuems/*.xml`; assign identity — preserved if the existing `settings.xml`
   carries a real uuid, minted through `cuemsutils.tools.Uuid` if absent or the sentinel, or taken
-  from `--uuid`/`--mac` — and write `settings.xml`, `network_map.xml` and `default_mappings.xml`
-  as one atomic set: either all three are replaced or none is.
+  from `--uuid`/`--mac` — and write the documents **this run writes** (all three on a plain run;
+  only the absent ones under `--install-missing`) as one atomic set: either every document the
+  run set out to write is replaced, or none is.
+- **FR-025a**: Identity-adjacent fields MUST be derived as follows, at install time and without
+  avahi or a live network (clarified 2026-09-28): **`mac`** from `--mac`, else the `ethernet0`
+  link (the stable udev name `cuems-common` enforces and `cuems-config-node` uses today), else the
+  first non-loopback, non-virtual physical interface under `/sys/class/net`; when none is found
+  the tool MUST **refuse** (exit 1, naming the reason) rather than write a sentinel MAC — the map
+  is keyed by MAC, so a sentinel MAC on a live node is the practice-7 collision in another field.
+  **`name`** is the OS hostname (`socket.gethostname()`). **`ip`** is the chosen interface's
+  current IPv4 address, else `0.0.0.0`; `cuems-nodeconf`'s `merge` refreshes `name` and `ip` in
+  place at its next discovery pass (it matches by uuid and keys by MAC). Under `postinst`, a
+  refusal falls through to the pristine placeholders and the `NOT PROVISIONED` warning.
 - **FR-026**: Specialization MUST replace the sentinel token everywhere it occurs in the three
   documents, including inside compound strings (`<uuid>_<output_id>`), by literal token
   substitution (design §10.2's rule) — a structural rewrite of `uuid` elements alone is not
@@ -660,8 +683,8 @@ lintian over the result.
   a 0 exit; the tool itself never hides a failure.
 - **FR-032**: `--check` MUST read all four identity locations (`settings.xml`, `network_map.xml`,
   `default_mappings.xml`, `/etc/avahi/services/cuems.service`), report each value by path,
-  report every mismatch against the source (`settings.xml`), report the sentinel as "not
-  provisioned" in those words, name the fixing command, change nothing, and exit with one of
+  report every mismatch against the source (`settings.xml`), report the sentinel as
+  `NOT PROVISIONED`, name the fixing command, change nothing, and exit with one of
   four codes: **0** coherent and provisioned; **1** at least one location disagrees with the
   source; **2** at least one location absent or unreadable; **3** the source (`settings.xml`)
   carries the sentinel. Precedence when several apply: 3 over 2 over 1 — a not-provisioned node
@@ -713,9 +736,10 @@ lintian over the result.
   `003-startup-readiness` inside the same coordinated merge, rendering **before** its IPC socket is
   created, with the existing mutual `Breaks` covering the transition — research R20.)
 - **FR-041**: The sentinel `00000000-0000-0000-0000-000000000000` MUST be treated as "not
-  provisioned" by every tool this feature adds, said in those words, and MUST never be written
-  to a live node by `cuems-init-node` — only `postinst`'s degraded fallback may leave it there,
-  with the warning FR-015 requires.
+  provisioned" by every tool this feature adds, spelled **`NOT PROVISIONED`** wherever it is
+  printed (one constant, asserted verbatim in the tool's tests and the script tests), and MUST
+  never be written to a live node by `cuems-init-node` — only `postinst`'s degraded fallback may
+  leave it there, with the warning FR-015 requires.
 
 #### Packaging hygiene (design §4.1)
 
@@ -734,13 +758,14 @@ lintian over the result.
 - **FR-045**: The feature MUST produce a migration guide covering: what an operator of an
   existing host must run after upgrading (the partial-triple edge case); that purge destroys
   identity; the disk-imaging hazard; the `--check` exit codes; the `cuems-common` handover
-  order and versions; and the **manual hardware verification steps per node**, which MUST
-  include unmasking, enabling and starting `cuems-nodeconf` (masked at Medina and off on most
-  of the fleet before this landing) — without it the Avahi record is unmaintained and `--check`
-  exits 1 by design — with `cuems-init-node --check` exit 0 after the unmask and after a reboot
-  as the acceptance.
-- **FR-046**: The planning documents MUST be corrected for M1–M8 in this feature's pass, with
-  the correction recorded (not applied silently), per the execution document's own §0 rule.
+  order and versions; and a **pointer** to the manual hardware verification, whose one record is
+  entry §5 of `cuems-nodeconf`'s hardware-verification ledger (decision D3, 2026-09-28) — the
+  guide carries the pointer and the acceptance line (unmask, enable and start `cuems-nodeconf`;
+  `cuems-init-node --check` exit 0 after the unmask and after a reboot), not a second copy of the
+  steps.
+- **FR-046**: The planning documents MUST be corrected for M1–M9 (M9: the suite's dependence on a
+  host `/etc/cuems`, found at plan time) in this feature's pass, with the correction recorded (not
+  applied silently), per the execution document's own §0 rule.
 - **FR-047**: Each of the six schemas MUST carry an `xs:annotation` on its root element naming
   the document's sole writer (F1, design §8.2): `settings` → `cuems-init-node`; `network_map` →
   `cuems-nodeconf` for topology rows, `cuems-init-node` for this node's self-entry (the seam of
@@ -832,7 +857,7 @@ lintian over the result.
   and its `docs/node-identity-contract.md` states D14's derivation rule and names the retired
   second minter; `cuems-config-node` contains no uuid minting call, and no shipped Avahi template
   contains a non-sentinel uuid.
-- **SC-PERF-001** (proposed; the plan validates and may re-base with a recorded reason):
+- **SC-PERF-001** (proposed here; **re-based on measurement in `plan.md`/research R10 — those figures bind**: tool write ≤ 4 s, `--check` ≤ 3 s, `postinst` ≤ 10 s fresh / ≤ 2 s upgrade, 60 s hard cap; the values below are the original proposal kept for the record):
   - `postinst` wall time on the reference node hardware, excluding dh-virtualenv's own
     autoscript: **≤ 5 s** on a fresh install (one tool invocation), **≤ 1 s** on an upgrade
     where all three documents exist (no invocation).

@@ -637,3 +637,24 @@ What they change for this plan, item by item:
   `cuems-init-node` and nodeconf; no daemon-side insert.
 - D-R20-3 — the unmask/enable/start hardware task is **entry §5 of nodeconf's hardware-verification
   ledger**; this plan's step 6a points at it and keeps no second list.
+
+## R21 — Analysis remediations (2026-09-28, `/speckit.analyze`)
+
+Seventeen findings, none constitutional; the four HIGH ones and their resolutions:
+
+- **`set -e` after `#DEBHELPER#`** (U1): dh-virtualenv's autoscript starts with `set -e`, so the
+  custom block must begin with `set +e` and the script test must simulate the injected stanza.
+  Contract packaging.md step 0; T020, T039.
+- **Map-row `name`/`ip` at install time** (U2, maintainer): `name` = OS hostname; `ip` = the chosen
+  interface's IPv4 else `0.0.0.0`; nodeconf's `merge` refreshes both. FR-025a.
+- **No determinable MAC** (U3): refuse (exit 1) instead of a sentinel MAC — `NodeIndex` is keyed
+  by MAC. Authoritative link `ethernet0` (the udev name `cuems-common` enforces), then the first
+  physical interface. FR-025a; `postinst` falls through to placeholders.
+- **FR-004** said `Breaks` and `Replaces`; R3 omits `Replaces` with a reason. Spec corrected.
+
+The rest: FR-017/FR-025 reworded for `--install-missing` (I2); T028 no longer depends on US3's
+tool block (I3); the sibling `.deb`s the chroot tests need are built from the sibling checkouts or
+skipped (U4); the hardware steps live in nodeconf's ledger, this repository carries the pointer
+(I4); FR-030/FR-039/FR-044/SC-005 gain explicit assertions (C1–C4); `NOT PROVISIONED` is one
+spelling (A1); FR-046 says M1–M9 (I5); SC-PERF-001 names the binding re-based figures (I6);
+FR-002/FR-020 and FR-013/FR-034 de-duplicated (D1, D2); `CUEMS_INIT_TIMEOUT` is in the contract (U5).

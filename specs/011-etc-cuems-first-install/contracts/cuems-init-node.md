@@ -34,11 +34,19 @@ cuems-init-node --version
 `--no-overlay` and `--install-missing` are what `postinst` passes; together they read no
 operator input.
 
+## Identity-adjacent derivation (FR-025a)
+
+| Field | Source, in order | When none |
+|---|---|---|
+| `mac` | `--mac`; `ethernet0`'s link address; first non-loopback, non-virtual physical interface | **refuse, exit 1** — never a sentinel MAC on a live node |
+| `name` (map row) | OS hostname | — |
+| `ip` (map row) | the chosen interface's IPv4 | `0.0.0.0`; nodeconf refreshes it |
+
 ## Exit codes
 
 | Mode | 0 | 1 | 2 | 3 |
 |---|---|---|---|---|
-| write modes | all documents written (or nothing needed) | refused before writing (invalid overlay, bad `--uuid`, identity field in overlay, nodeconf active without `--yes`) or a write failed with the triple restored | a required input unreadable (`settings.xml` present but unparseable; pristine defaults missing) | — |
+| write modes | all documents written (or nothing needed) | refused before writing (invalid overlay, bad `--uuid`, identity field in overlay, no determinable MAC, nodeconf active without `--yes`) or a write failed with the triple restored | a required input unreadable (`settings.xml` present but unparseable; pristine defaults missing) | — |
 | `--check` | coherent and provisioned | at least one mirror disagrees with the source | at least one location absent or unreadable | the source carries the sentinel ("not provisioned") |
 
 Precedence in `--check`: 3 > 2 > 1. In write modes the tool **never** exits 0 after a partial
@@ -58,8 +66,8 @@ write.
 ## Guarantees
 
 - G1 Nothing under `/etc/cuems` is modified unless all three documents validated in memory.
-- G2 Either all three documents are replaced or none is (three `os.replace` calls with
-  in-memory restore on failure — research R6).
+- G2 Either every document the run set out to write is replaced or none is (ordered `os.replace`
+  calls with in-memory restore on failure — research R6); `--install-missing` writes only the absent ones.
 - G3 `--check` and `--dry-run` never write.
 - G4 The sentinel token never appears in a document this tool writes to a live node — checked on
   the serialized bytes, including compound strings.
@@ -67,7 +75,9 @@ write.
   modified, in any mode.
 - G6 Re-running with unchanged inputs changes no file (idempotent; the write record's hashes
   match and no replace happens).
-- G7 Only `cuemsutils.tools.Uuid()` mints; `--uuid` is validated by the same class.
+- G7 Only `cuemsutils.tools.Uuid()` mints; `--uuid` is validated by the same class; the tool's
+  modules import no `uuid` module directly.
+- G9 The tool writes no backup file of any kind (the no-routine-backups rule).
 - G8 `--install-missing` never rewrites an existing document, including one carrying the
   sentinel or a `cuems-common` stub.
 

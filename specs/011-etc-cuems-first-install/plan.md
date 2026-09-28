@@ -262,8 +262,9 @@ inserted by reference and covered by an `ensure` case in `test_node_aliasing.py`
 
 The package-lifecycle criteria are measured in the chroot (R9), but three things only real
 hardware can show: avahi on a real interface, nodeconf's discovery of a second node, and a
-reboot. `quickstart.md` "Operator hardware verification" is the operator's step list; the tasks phase MUST
-carry it as one explicit manual task per node class (controller, node), **recorded in
+reboot. The steps are recorded once, in nodeconf's ledger; `quickstart.md` and the migration guide carry
+the pointer and the acceptance line. The tasks phase MUST carry it as one explicit manual task per
+node class (controller, node), **recorded in
 `cuems-nodeconf`'s hardware-verification ledger
 (`../cuems-nodeconf/specs/002-public-network-map-path/checklists/hardware-verification.md`) as a
 fifth entry rather than in a second list here** (R20, D-R20-3 decided; the entry exists), and that task MUST include

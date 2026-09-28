@@ -19,6 +19,9 @@ Nothing under `/etc` is in the manifest. `DEBIAN/conffiles` contains no `/etc/cu
 
 ## `postinst configure` (after `#DEBHELPER#`; script ends `exit 0`)
 
+0. `set +e` **immediately after `#DEBHELPER#`**: dh-virtualenv's injected autoscript begins with
+   `set -e`, which would otherwise turn any failing command below — including the `timeout`ed
+   tool — into the non-zero exit FR-015 forbids. The script test simulates the injected stanza.
 1. `install -d -m 0755 /etc/cuems /var/lib/cuems-utils/init-node`.
 2. For each of the six schemas: `install -m 0644 /usr/share/cuems/schemas/X.xsd /etc/cuems/X.xsd`
    — **always**, replacing whatever is there.
@@ -29,7 +32,8 @@ Nothing under `/etc` is in the manifest. `DEBIAN/conffiles` contains no `/etc/cu
 
 Every path has an override for tests: `CUEMS_ETC` (default `/etc/cuems`), `CUEMS_SHARE`
 (`/usr/share/cuems`), `CUEMS_STATE` (`/var/lib/cuems-utils`), `CUEMS_INIT_NODE` (the tool's
-absolute path).
+absolute path; empty ⇒ the tool step is skipped and only the copy block runs), and
+`CUEMS_INIT_TIMEOUT` (default `60s`).
 
 ## `postrm`
 
@@ -59,8 +63,10 @@ No new path contains an interpreter version.
 
 - `pyvenv.cfg` `home = /usr/bin`; `bin/python` is a relative symlink.
 - `DEBIAN/conffiles` has no `/etc/cuems` entry.
-- `DEBIAN/postinst` contains no `dh_python2`; the tool invocation appears after the
-  dh-virtualenv autoscript block and before the final `exit 0`.
+- `DEBIAN/postinst` contains no `dh_python2`; `set +e` follows the autoscript block; the tool
+  invocation appears after it and before the final `exit 0`.
+- No line this feature adds to `debian/rules`, `postinst`, `postrm` or `links` contains an
+  interpreter version (`python3.1[0-9]`) — FR-044.
 - The three pristine documents carry the sentinel and validate; the six schemas are
   byte-identical to `src/cuemsutils/xml/schemas/`.
 - The `.deb` bundles no path another CUEMS package ships (`/usr/lib/cuems` overlap check

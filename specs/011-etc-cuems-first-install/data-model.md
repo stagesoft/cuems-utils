@@ -48,7 +48,9 @@ Parse error ⇒ error naming file and line; the run writes nothing. Never read b
 | Field | Type | Source | Rule |
 |---|---|---|---|
 | `uuid` | uuid4, lowercase, 36 chars (`Uuid.UUID4_REGEX`) | `settings.xml` `Settings/node/uuid` | minted only by `cuemsutils.tools.Uuid()`; `--uuid` must satisfy the regex |
-| `mac` | 12 lowercase hex chars | `settings.xml` `Settings/node/mac` | from `--mac`, else the first non-loopback physical interface (`/sys/class/net/*/address`), else the sentinel with a warning |
+| `mac` | 12 lowercase hex chars | `settings.xml` `Settings/node/mac` | from `--mac`, else `ethernet0`'s link address, else the first non-loopback, non-virtual physical interface under `/sys/class/net`; **none ⇒ refuse (exit 1)**, never a sentinel MAC on a live node (FR-025a) |
+| `name` (map row) | non-empty string | OS hostname (`socket.gethostname()`) | refreshed in place by nodeconf's `merge` (FR-025a) |
+| `ip` (map row) | dotted IPv4 | the chosen interface's current address, else `0.0.0.0` | refreshed in place by nodeconf's `merge` (FR-025a) |
 
 **Sentinel**: `uuid = 00000000-0000-0000-0000-000000000000`, `mac = 000000000000` — "not
 provisioned". A document carrying the sentinel is valid and loadable; a *live* node carrying it
