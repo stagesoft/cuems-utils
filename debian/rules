@@ -13,3 +13,9 @@ export DH_VERBOSE = 1
 # host. Target hosts always have /usr/bin/python3 = 3.11 on bookworm.
 override_dh_virtualenv:
 	dh_virtualenv --python /usr/bin/python3 --install-suffix cuems --use-system-packages
+	# Feature 011 (D4): the six schemas ship to /usr/share/cuems/schemas as
+	# package content; postinst copies them to /etc/cuems on every configure,
+	# so the installed schema always matches the installed library and is
+	# never a conffile (D5). Version-free paths only (FR-044).
+	install -d debian/cuems-utils/usr/share/cuems/schemas
+	install -m 0644 src/cuemsutils/xml/schemas/*.xsd debian/cuems-utils/usr/share/cuems/schemas/

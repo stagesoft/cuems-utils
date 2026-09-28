@@ -1,0 +1,66 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# cuems-utils postinst — feature 011, /etc/cuems first install.
+#
+# THIS SCRIPT MUST NEVER EXIT NON-ZERO. cuems-utils is the base package of the
+# whole stack: a non-zero exit here leaves it half-configured and every
+# dependent CUEMS package fails to configure after it, on every node the
+# upgrade reaches (specs/011-etc-cuems-first-install/spec.md, "the constraint
+# that dominates"). Every step below either succeeds or degrades, warns, and
+# continues; the last line is `exit 0` unconditionally.
+#
+# Nothing under /etc/cuems is a conffile (D5). The six schemas are the only
+# files this script REPLACES, on every configure, so the installed schema always
+# matches the installed library (D4). The three documents are created only when
+# absent (D5/D13) and an existing one is never modified — including one carrying
+# the sentinel identity, which `cuems-init-node --check` reports and a plain
+# `cuems-init-node` run repairs.
+#
+# Contract: specs/011-etc-cuems-first-install/contracts/packaging.md.
+
+#DEBHELPER#
+
+# dh-virtualenv's autoscript, injected at the token above, begins with `set -e`
+# (measured: /usr/share/debhelper/autoscripts/postinst-dh-virtualenv). Under it,
+# a failing `install`, `timeout` or tool call below would exit this script
+# non-zero — the one outcome this script exists to prevent. Undo it first.
+set +e
+
+# Path overrides for the script-level tests (contract packaging.md). An EMPTY
+# CUEMS_INIT_NODE means "skip the tool step" (the `-` form keeps an empty value).
+CUEMS_ETC="${CUEMS_ETC:-/etc/cuems}"
+CUEMS_SHARE="${CUEMS_SHARE:-/usr/share/cuems}"
+CUEMS_STATE="${CUEMS_STATE:-/var/lib/cuems-utils}"
+CUEMS_INIT_NODE="${CUEMS_INIT_NODE-/usr/lib/cuems/bin/cuems-init-node}"
+CUEMS_INIT_TIMEOUT="${CUEMS_INIT_TIMEOUT:-60s}"
+
+warn() {
+    echo "WARNING: cuems-utils postinst: $*" >&2
+}
+
+install_schemas() {
+    # D4: always, replacing whatever is there. A missing source is a broken
+    # package rather than a broken host; say so and carry on.
+    for name in settings network_map project_mappings project_settings script hardware_outputs; do
+        src="$CUEMS_SHARE/schemas/$name.xsd"
+        if [ -f "$src" ]; then
+            install -m 0644 "$src" "$CUEMS_ETC/$name.xsd" \
+                || warn "could not install $CUEMS_ETC/$name.xsd"
+        else
+            warn "$src is missing; $CUEMS_ETC/$name.xsd left as it is"
+        fi
+    done
+}
+
+case "$1" in
+    configure)
+        install -d -m 0755 "$CUEMS_ETC" || warn "could not create $CUEMS_ETC"
+        install_schemas
+        ;;
+    *)
+        ;;
+esac
+
+exit 0
