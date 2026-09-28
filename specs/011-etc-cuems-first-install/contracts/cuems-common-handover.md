@@ -27,9 +27,13 @@ Measured outcome required (lifecycle test, both unpack orders and `apt install .
 live map byte-identical; zero `network_map.*.dpkg-*` siblings; a later `purge cuems-common`
 leaves the map in place; `/etc/cuems/network_map.xsd` equals the installed library's schema.
 
-## 2. Package relations
+## 2. Package relations and versions
 
 `Depends: cuems-utils (>= 0.1.0rc16), cuems-utils (<< 0.1.1~)` — unchanged, already correct.
+`Breaks: cuems-nodeconf (<< 0.1.0-8)` — unchanged, already covers the render transition.
+**No version bumps anywhere** (research R19): `cuems-common` stays at its unreleased
+`1.3.0-23`, `cuems-nodeconf` at `0.1.0-8`, `cuems-utils` at `0.1.0rc16`; the three land
+together under the re-pointed `xml-refactor-merge-candidate` tag.
 The `control` description's paragraph about the "mirrored network_map.xsd" is rewritten: the
 floor's reason is now "the release that ships the schemas to `/etc/cuems`".
 
@@ -57,10 +61,10 @@ floor's reason is now "the release that ships the schemas to `/etc/cuems`".
   runs as root and copies directly; nothing else in production copies a template); the
   `systemctl reload avahi-daemon.service` rule stays.
 - `debian/postinst` makes **no** new Avahi call; the existing live-file key migration stays.
-- `debian/control`: `Breaks: cuems-nodeconf (<< 0.1.0-9~)` added (the version whose start
-  renders the record), matching nodeconf's existing `Breaks: cuems-common (<< 1.3.0-23~)`.
+- `debian/control`: **unchanged** — the existing `Breaks: cuems-nodeconf (<< 0.1.0-8)` already
+  covers the transition, matching nodeconf's `Breaks: cuems-common (<< 1.3.0-23~)`.
 
-## 4a. `cuems-nodeconf` `0.1.0-9` (its own tree, same coordinated merge)
+## 4a. `cuems-nodeconf` (its own tree, same coordinated merge, **inside the unreleased `0.1.0-8` entry — no bump**)
 
 - At start, before discovery: uuid/MAC from `settings.xml` via its `ConfigManager`; render
   the role template into `/etc/avahi/services/cuems.service` by literal substitution of the

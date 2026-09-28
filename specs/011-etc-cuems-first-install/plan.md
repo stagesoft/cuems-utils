@@ -39,7 +39,7 @@ lifecycle tests (R9); budgets re-based on measurements (R10).
 **Target Platform**: Debian 12 bookworm amd64 nodes (N97-class), `/usr/bin/python3` = 3.11.2; trixie neutrality preserved (no new version-bearing path).
 **Project Type**: library + CLI entry point + Debian packaging; one cross-repository handover (`cuems-common`).
 **Performance Goals**: `cuems-init-node` write ≤ 4 s cold, `--check` ≤ 3 s cold; `postinst` ≤ 10 s fresh / ≤ 2 s upgrade (60 s hard `timeout`); suite ≤ 110 % of the per-test figure in `baseline.md`; package size delta ≤ 100 KB (research R10).
-**Constraints**: `postinst` exits 0 on every path; nothing under `/etc/cuems` is a conffile; no existing file under `/etc/cuems` is modified by the package; `/etc/cuems` is never removed recursively; the venv is one-way (`/usr/bin/python3` cannot import `cuemsutils`); no manifest overlap with any sibling package; build reproducible (sentinel, never a minted uuid); one minter (`cuemsutils.tools.Uuid`); library version stays `0.1.0rc16`; no schema shape change (annotations only, R13).
+**Constraints**: **no version bump on any package** — `cuems-utils 0.1.0rc16`, `cuems-common 1.3.0-23`, `cuems-nodeconf 0.1.0-8`, all unreleased entries amended, all landing together under the re-pointed `xml-refactor-merge-candidate` tag (R19, guarded by `test_no_version_bump.py`); `postinst` exits 0 on every path; nothing under `/etc/cuems` is a conffile; no existing file under `/etc/cuems` is modified by the package; `/etc/cuems` is never removed recursively; the venv is one-way (`/usr/bin/python3` cannot import `cuemsutils`); no manifest overlap with any sibling package; build reproducible (sentinel, never a minted uuid); one minter (`cuemsutils.tools.Uuid`); library version stays `0.1.0rc16`; no schema shape change (annotations only, R13).
 **Scale/Scope**: three documents, six schemas, one tool, two maintainer scripts, one handover in `cuems-common` plus a ~30-line change in `cuems-nodeconf` (both in the coordinated merge); ~20 new test modules; two production hosts to migrate by the guide.
 
 ## Constitution Check
@@ -69,7 +69,7 @@ Fail-before-pass per story (the task list makes each explicit):
 | US4 TOML/overlay | `test_seed_values.py` byte-identity before/after the move; `test_init_node_overlay.py` (precedence, refusals, typed scalars, `postinst` ignores overlay) |
 | US5 purge | script-level `test_postrm.py` (nine paths + record; nothing else; `remove` no-op); chroot SC-003 |
 | US6 --check | `test_identity_check.py` (four locations, exit classes 0/1/2/3, precedence, never writes) |
-| US7 hygiene | `test_built_package.py` (compat 13, `Standards-Version`, no `dh_python2`, `pyvenv.cfg` home, no artifacts in `git status` after build) |
+| US7 hygiene | `test_built_package.py` (compat 13, `Standards-Version`, no `dh_python2`, `pyvenv.cfg` home, no artifacts in `git status` after build); `test_no_version_bump.py` (R19) |
 | F1 (FR-047) | `test_duplication_flags.py::test_every_schema_declares_its_writer`; `test_schema_scope` hashes updated in the same commit |
 | public API | `test_public_api_surface.py` with the `scripts` key (golden extended once, R11) |
 | cross-repo | `test_ordering_premise.py` (R16); in `cuems-common`: `test_config_node_no_minting.py`, `test_avahi_vocabulary.py` sentinel extension, `test_template_consumers.py` re-based; in `cuems-nodeconf`: render-at-start, reload-on-change, the self-uuid guard |
@@ -155,6 +155,7 @@ tests/
 │   ├── test_postrm.py
 │   ├── test_built_package.py           # needs a built .deb (skips otherwise)
 │   ├── test_ordering_premise.py        # R16
+│   ├── test_no_version_bump.py         # R19: rc16 / 1.3.0-23 / 0.1.0-8 stay
 │   └── test_lifecycle_chroot.py        # slow; CUEMS_CHROOT_TAR
 ├── contract/
 │   ├── test_seed_values.py
@@ -178,9 +179,9 @@ tests/
 ├── docs/node-identity-contract.md      # D14 section: nodeconf is the writer
 └── tests/…                             # six re-based/retired, two added
 
-../cuems-nodeconf/ (contract cuems-common-handover.md §4a; 0.1.0-9)
+../cuems-nodeconf/ (contract cuems-common-handover.md §4a; inside unreleased 0.1.0-8, no bump)
 ├── cuemsnodeconf/CuemsNodeConf.py      # render record from settings.xml at start + role change; guard
-├── debian/{control,changelog}          # Breaks already present; changelog entry
+├── debian/changelog                    # 0.1.0-8 entry amended; control unchanged
 └── tests/…                             # render, reload-on-change, guard
 ```
 
@@ -240,11 +241,13 @@ Six schemas annotated, six hashes updated, the F1 check added to `test_duplicati
 ### Step 6 — the `cuems-common` handover and the `cuems-nodeconf` render *(sibling repositories; contract cuems-common-handover.md)*
 
 `cuems-common 1.3.0-23`: custody transfer (R3), `cuems-config-node` stripped of minting and
-Avahi duties, sentinel templates, dead `cp` rules retired, `Breaks: cuems-nodeconf (<< 0.1.0-9~)`,
-six tests re-based/retired and two added, the D14 section in `docs/node-identity-contract.md`,
-changelog text. `cuems-nodeconf 0.1.0-9`: render the record from `settings.xml` at start and on
-every role change, reload only on change, refuse to start unprovisioned, the self-uuid guard;
-tests; changelog. Verified by the chroot test installing all three packages and asserting the
+Avahi duties, sentinel templates, dead `cp` rules retired, six tests re-based/retired and two
+added, the D14 section in `docs/node-identity-contract.md`, the `1.3.0-23` entry amended.
+`cuems-nodeconf`, inside its unreleased `0.1.0-8` entry: render the record from `settings.xml`
+at start and on every role change, reload only on change, refuse to start unprovisioned, the
+self-uuid guard; tests; entry amended. **No package version moves and no package relation
+changes** beyond `cuems-utils`'s new `Breaks` (research R19); the mutual `Breaks` between
+`cuems-common` and `cuems-nodeconf` already name these versions. Verified by the chroot test installing all three packages and asserting the
 live record equals `settings.xml`'s uuid after a simulated nodeconf start.
 
 ### Step 6a — hardware verification (manual, operator; task in `tasks.md`)

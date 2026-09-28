@@ -233,10 +233,12 @@ template rewrite is how the production controller's uuid reached the shipped tem
 4. **`cuems-common`'s `postinst`** makes no Avahi call beyond its existing live-file
    migration. The three dead `cp` rules in `etc/sudoers.d/99-cuems-avahi` are retired (the
    `reload` rule stays), and `test_template_consumers.py` is re-based.
-5. **Transition**: mutual `Breaks` — `cuems-nodeconf` already carries
-   `Breaks: cuems-common (<< 1.3.0-23~)`; `cuems-common 1.3.0-23` gains
-   `Breaks: cuems-nodeconf (<< 0.1.0-9~)` so an old nodeconf can never copy a sentinel template
-   verbatim beside new templates. Unmasking nodeconf fleet-wide is part of the same landing;
+5. **Transition**: the mutual `Breaks` **already exist** for the unreleased pair —
+   `cuems-nodeconf 0.1.0-8` carries `Breaks: cuems-common (<< 1.3.0-23~)` and
+   `cuems-common 1.3.0-23` carries `Breaks: cuems-nodeconf (<< 0.1.0-8)` (both from the
+   `node_role` cutover) — so an old nodeconf can never copy a sentinel template verbatim beside
+   new templates, and **no package relation changes**. The render lands in nodeconf's
+   unreleased `0.1.0-8` entry; **no package is bumped** (R19). Unmasking nodeconf fleet-wide is part of the same landing;
    a node where it stays masked has an unmaintained record, which `cuems-init-node --check`
    reports (exit 1) and the migration guide answers with "enable and start cuems-nodeconf".
 6. **`cuems-init-node`** prints, after any identity change, `restart cuems-nodeconf.service`;
@@ -382,7 +384,7 @@ duties); `cuems-common`'s `postinst` calls the helper instead of `cuems-config-n
 the three `cp` sudoers rules are replaced by one rule for the helper and
 `test_template_consumers.py` re-based; and a **`cuems-nodeconf`** change joins the coordinated
 merge — the `copy2` sites call the helper, `Breaks: cuems-common (<< 1.3.0-23~)` already
-exists in its `control`, and `cuems-common` gains the reverse `Breaks: cuems-nodeconf (<< 0.1.0-9~)`.
+exists in its `control`, and `cuems-common`'s reverse `Breaks: cuems-nodeconf (<< 0.1.0-8)` already covers it.
 `cuems-init-node`'s post-change message names the helper. Spec FR-040a's wording ("`cuems-config-node`
 reads the node uuid from `settings.xml` and never mints") stays true; its "refuse to write an
 Avahi record carrying the sentinel" moves to the helper.
@@ -564,3 +566,27 @@ Recorded in `baseline.md` once `hatch run test.py3.11:run` completes on this hos
 execution document's figure — 2719 passed, 100 skipped, 2 xfailed — was measured on another
 machine and is not comparable for wall time). The per-test figure from this host is the
 reference SC-PERF-001's suite budget uses.
+
+## R19 — Versions and the merge candidate: nothing bumps
+
+**Measured 2026-09-28**: every package this feature touches has an **unreleased** changelog
+head that absorbs its change, and the relations between them already name those versions:
+
+| Package | Head | This feature's share | Relation already in place |
+|---|---|---|---|
+| `cuems-utils` | `0.1.0rc16 UNRELEASED` (NOT YET BUILT) | ships schemas/defaults/tool; entry amended | gains `Breaks: cuems-common (<< 1.3.0-23~)` — the one relation this feature adds |
+| `cuems-common` | `1.3.0-23 UNRELEASED` | custody transfer, config-node stripped, sentinel templates; entry amended | `Depends: cuems-utils (>= 0.1.0rc16)`, `Breaks: cuems-nodeconf (<< 0.1.0-8)` |
+| `cuems-nodeconf` | `0.1.0-8 UNRELEASED` | render at start/role change, guard; entry amended | `Breaks: cuems-common (<< 1.3.0-23~)` |
+
+**Decision**: no version moves — not `rc17`, not `1.3.0-24`, not `0.1.0-9` (an earlier draft
+of R7/§4a said `0.1.0-9`; corrected). The library version stays `0.1.0rc16` for the reasons
+design §12 records (`0.1.1` is reserved and refused by three consumers; `rc17` would say
+nothing true). The coordinated state is what the `xml-refactor-merge-candidate` tag marks:
+today it exists in `cuems-common`, `cuems-nodeconf` and `cuems-power-bridge` (not yet in this
+repository); after 011–014 it is **re-pointed** at the final commit in each repository and
+created here. Nothing ships between now and then (D27).
+
+**Guard**: `tests/packaging/test_no_version_bump.py` asserts this repository's changelog head
+is `0.1.0rc16` and, when the sibling checkouts are present, that `cuems-common`'s is
+`1.3.0-23` and `cuems-nodeconf`'s is `0.1.0-8` — a bump is a deliberate act that updates the
+test in the same commit, with the reason in the message.
