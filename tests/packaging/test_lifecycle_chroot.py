@@ -34,23 +34,60 @@ def test_custody_transfer_both_orders(chroot, built_deb, sibling_deb, tmp_path):
     """The live map survives the handover, in either unpack order (research R3)."""
     old_common = _build_old_common_stub(tmp_path)
     new_common = sibling_deb("cuems-common")
-    live_map = b"<map>operator topology</map>\n"
+    # An operator's topology: one real node row (an empty stub with no <node>
+    # is the one case the recipe lets a freshly generated map replace).
+    live_map = (
+        b"<?xml version='1.0' encoding='utf-8'?>\n"
+        b'<cms:CuemsNetworkMap xmlns:cms="https://stagelab.coop/cuems/" doc_version="1"><node_list>'
+        b"<node><uuid>8c8f4d5e-3d5b-4b0a-9f5d-0a0a0a0a0a0a</uuid><mac>0011aabbccdd</mac><name>controller</name>"
+        b"<node_role>controller</node_role><ip>10.0.0.2</ip><adopted>True</adopted><online>True</online></node>"
+        b"</node_list></cms:CuemsNetworkMap>\n"
+    )
 
-    for order in (("utils", "common"), ("common", "utils")):
-        assert chroot.dpkg_install(old_common).returncode == 0
+    def _fresh_old_common():
+        assert chroot.dpkg_install(old_common, "--force-depends").returncode == 0
         (chroot.root / "etc/cuems/network_map.xml").write_bytes(live_map)
-        for which in order:
-            deb = built_deb if which == "utils" else new_common
-            r = chroot.dpkg_install(deb)
-            assert r.returncode == 0, f"{order}/{which}: {r.stderr}{r.stdout}"
+
+    def _assert_transferred(order):
         assert chroot.read("/etc/cuems/network_map.xml") == live_map, order
         siblings = sorted(p.name for p in (chroot.root / "etc/cuems").glob("network_map.*"))
         assert siblings == ["network_map.xml", "network_map.xsd"], (order, siblings)
         assert chroot.read("/etc/cuems/network_map.xsd") == (XSD_DIR / "network_map.xsd").read_bytes()
+        status = chroot.run(["dpkg-query", "-W", "-f=${Status} ${Version}", "cuems-common"]).stdout
+        assert status.startswith("install ok installed 1.3.0-23"), (order, status)
         r = chroot.run(["dpkg", "--purge", "cuems-common"], check=False)
         assert r.returncode == 0, r.stderr
         assert chroot.read("/etc/cuems/network_map.xml") == live_map, "purge of cuems-common removed the live map"
         chroot.run(["dpkg", "--purge", "cuems-utils"], check=False)
+
+    # Order 1 — cuems-utils first. A bare dpkg -i is REFUSED by the Breaks
+    # (positive control, research R3); apt resolves it by deconfiguring the old
+    # cuems-common, which --auto-deconfigure mirrors: cuems-utils is configured,
+    # the old cuems-common stays deconfigured until its upgrade lands.
+    _fresh_old_common()
+    refused = chroot.dpkg_install(built_deb)
+    assert refused.returncode != 0 and "breaks cuems-common" in refused.stdout + refused.stderr
+    r = chroot.dpkg_install(built_deb, "--auto-deconfigure")
+    assert "De-configuring cuems-common" in r.stdout + r.stderr, r.stderr
+    assert chroot.run(["dpkg-query", "-W", "-f=${Status}", "cuems-utils"]).stdout == "install ok installed"
+    r = chroot.dpkg_install(new_common, "--force-depends")
+    assert r.returncode == 0, r.stderr + r.stdout
+    _assert_transferred("utils-first")
+
+    # Order 2 — cuems-common unpacked first. Configuration is dependency-ordered
+    # by dpkg itself (cuems-common Depends: cuems-utils, and its postinst refuses
+    # to run without the venv), so the realistic form of this order is
+    # unpack both, then configure — which is what apt does. dpkg's own
+    # obsolete-conffile step parks a modified map as .dpkg-bak and removes the
+    # .xsd at unpack; the postinst block must undo both.
+    _fresh_old_common()
+    chroot.copy_in(new_common, f"/tmp/{new_common.name}")
+    chroot.copy_in(built_deb, f"/tmp/{built_deb.name}")
+    r = chroot.run(["dpkg", "--unpack", "--auto-deconfigure", f"/tmp/{new_common.name}", f"/tmp/{built_deb.name}"], check=False)
+    assert r.returncode == 0, r.stderr + r.stdout
+    r = chroot.run(["dpkg", "--configure", "--force-depends", "-a"], check=False)
+    assert r.returncode == 0, r.stderr + r.stdout
+    _assert_transferred("common-unpacked-first")
 
 
 def test_live_defects_resolve(chroot, built_deb):
@@ -112,40 +149,93 @@ def test_identity_survives_upgrade_reinstall_remove(chroot, built_deb):
 # -- US3 (T040) -----------------------------------------------------------------
 
 
-def test_fresh_install_loads_and_is_unique(chroot, built_deb, tmp_path):
-    """SC-001, SC-007, SC-008 in one chroot: install, load, and the sabotaged fallback."""
+def test_fresh_install_loads_and_is_unique(make_chroot, built_deb, tmp_path):
+    """SC-001, SC-007, SC-008 across three fresh roots: install, load, and the sabotaged fallback."""
     import re
-    import shutil
+
+    chroot = make_chroot("rootfs")
 
     load = "from cuemsutils.tools.ConfigManager import ConfigManager; m = ConfigManager(load_all=True); print(m.node_conf['uuid'])"
     _install_ours(chroot, built_deb)
     r = chroot.run(["/usr/lib/cuems/bin/python", "-c", load])
-    first = r.stdout.strip()
+    first = r.stdout.strip().splitlines()[-1]  # the library may log to stdout first
     assert re.match(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", first), r.stderr
     grep = chroot.run(["grep", "-r", "00000000-0000-0000-0000-000000000000", "/etc/cuems"], check=False)
     assert grep.returncode == 1, f"sentinel token still present: {grep.stdout}"
 
-    # a second chroot from the same tarball and .deb: a different identity
-    second_root = tmp_path / "rootfs2"
-    shutil.copytree(chroot.root, second_root, symlinks=True)
-    second = type(chroot)(root=second_root)
-    for d in ("settings.xml", "network_map.xml", "default_mappings.xml"):
-        (second_root / "etc/cuems" / d).unlink()
-    second.run(["dpkg", "-i", "--force-confmiss", f"/tmp/{built_deb.name}"], check=False)
+    # a second root from the same tarball and .deb: a different identity
+    second = make_chroot("rootfs2")
+    _install_ours(second, built_deb)
     r2 = second.run(["/usr/lib/cuems/bin/python", "-c", load])
-    assert r2.stdout.strip() != first
+    assert r2.stdout.strip().splitlines()[-1] != first
 
-    # sabotage: the venv interpreter unrunnable -> placeholders, warning, exit 0
-    third_root = tmp_path / "rootfs3"
-    shutil.copytree(chroot.root, third_root, symlinks=True)
-    third = type(chroot)(root=third_root)
-    for d in ("settings.xml", "network_map.xml", "default_mappings.xml"):
-        (third_root / "etc/cuems" / d).unlink()
-    py = third_root / "usr/lib/cuems/bin/python"
-    py.unlink()
-    py.write_text("not an interpreter\n")
-    r3 = third.run(["dpkg", "-i", "--force-confmiss", f"/tmp/{built_deb.name}"], check=False)
+    # sabotage: a fresh root where the tool cannot run (no ethernet0, no MAC) ->
+    # the tool refuses, postinst installs the placeholders, warns, exits 0
+    third = make_chroot("rootfs3")
+    (third.root / "sys/class/net/ethernet0/address").unlink()
+    r3 = third.dpkg_install(built_deb)
     assert r3.returncode == 0, r3.stderr
     assert "NOT PROVISIONED" in (r3.stderr + r3.stdout)
     assert third.exists("/etc/cuems/settings.xml")
     assert b"00000000-0000-0000-0000-000000000000" in third.read("/etc/cuems/settings.xml")
+
+    # the other fallback branch: the tool itself is not executable (a broken
+    # venv, the trap register's pyenv case) -> the same warning, still exit 0
+    fourth = make_chroot("rootfs4")
+    tool = fourth.root / "usr/lib/cuems/bin/cuems-init-node"
+    r4 = fourth.dpkg_install(built_deb)
+    assert r4.returncode == 0, r4.stderr
+    # make it unrunnable and re-run configure with the documents removed
+    tool.chmod(0o000)
+    for d in ("settings.xml", "network_map.xml", "default_mappings.xml"):
+        (fourth.root / "etc/cuems" / d).unlink()
+    r5 = fourth.run(["dpkg-reconfigure", "-f", "noninteractive", "cuems-utils"], check=False)
+    if r5.returncode != 0 and "not found" in r5.stderr:
+        r5 = fourth.run(["sh", "/var/lib/dpkg/info/cuems-utils.postinst", "configure"], check=False)
+    assert r5.returncode == 0, r5.stderr
+    assert "NOT PROVISIONED" in (r5.stderr + r5.stdout) and "not executable" in (r5.stderr + r5.stdout)
+    assert fourth.exists("/etc/cuems/settings.xml")
+
+
+
+# -- US5 (T058) -----------------------------------------------------------------
+
+
+def test_purge_alone_and_whole_stack(chroot, built_deb):
+    """SC-003: purge of this package alone damages no other owner's file; purge of
+    every CUEMS package leaves no /etc/cuems; purge then install mints a new uuid."""
+    _install_ours(chroot, built_deb)
+    load = "from cuemsutils.tools.ConfigManager import ConfigManager; print(ConfigManager(load_all=True).node_conf['uuid'])"
+    first = chroot.run(["/usr/lib/cuems/bin/python", "-c", load]).stdout.strip().splitlines()[-1]
+    others = {
+        "ap.conf": b"other package's conffile\n",
+        "power-bridge.key": b"-----BEGIN OPENSSH PRIVATE KEY-----\n",
+        "cluster.conf": b"cluster identity\n",
+        "defaults.d/10-venue.toml": b"[settings.SettingsType]\n",
+    }
+    for name, content in others.items():
+        target = chroot.root / "etc/cuems" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+
+    r = chroot.run(["dpkg", "--purge", "cuems-utils"], check=False)
+    assert r.returncode == 0, r.stderr
+    for name, content in others.items():
+        assert chroot.read(f"/etc/cuems/{name}") == content, f"{name} damaged by purge"
+    for gone in ("settings.xml", "network_map.xml", "default_mappings.xml", "settings.xsd", "script.xsd"):
+        assert not chroot.exists(f"/etc/cuems/{gone}"), gone
+    assert not chroot.exists("/var/lib/cuems-utils")
+    assert chroot.exists("/etc/cuems")
+
+    # the whole stack: nothing else is installed here, so remove the markers and purge again
+    for name in others:
+        (chroot.root / "etc/cuems" / name).unlink()
+    (chroot.root / "etc/cuems/defaults.d").rmdir()
+    _install_ours(chroot, built_deb)
+    r = chroot.run(["dpkg", "--purge", "cuems-utils"], check=False)
+    assert r.returncode == 0 and not chroot.exists("/etc/cuems"), "the last package must remove the empty directory"
+
+    # purge then install: a new identity, by design
+    _install_ours(chroot, built_deb)
+    second = chroot.run(["/usr/lib/cuems/bin/python", "-c", load]).stdout.strip().splitlines()[-1]
+    assert second != first

@@ -103,3 +103,27 @@ this host is used for SC-PERF-001.
 | 4 (relabel fix) | 1m35s | same | built `postinst` contains no `dh_python2`; autoscript → `set +e` → tool block in that order |
 
 `.deb` size: 9,013,536 bytes. `git status` after each build: clean (artifacts ignored).
+
+## Chroot lifecycle (T017/T018/T030/T040/T058, 2026-09-28) — measured in the bookworm chroot
+
+Substrate: `mmdebstrap --mode=unshare --variant=apt --include=python3,python3-systemd,python3-daemon`
+(the tarball with the package's runtime dependencies; a first attempt named `xmlschema`, which is
+not a Debian package, and produced an empty tarball). Extraction skips `./dev/*` (no `CAP_MKNOD`
+in the namespace; a bind mount of the host `/dev` is refused too) and provides a plain-file
+`/dev/null` and a fake `sys/class/net/ethernet0/address` per root — there is no sysfs in the
+chroot, and the tool refuses without a MAC (FR-025a), which is itself the first measured
+fallback path.
+
+| Case | Result |
+|---|---|
+| fresh install, `ConfigManager(load_all=True)` inside the venv | **loads**; uuid4 minted (SC-001); no sentinel token anywhere under `/etc/cuems` (SC-007) |
+| second root from the same `.deb` | a different uuid4 (SC-007) |
+| tool cannot determine a MAC (no `ethernet0`) | refuses; `postinst` installs the placeholders, prints `NOT PROVISIONED`, exits 0; `--check` exits **3** and reports the absent Avahi record as expected (SC-008) |
+| tool not executable (the broken-venv trap) | the `[ -x ]` branch warns, placeholders installed, exit 0 (SC-008, second variant) |
+| upgrade / `--reinstall` / remove-then-install | the three documents byte-identical through all four steps (SC-002) |
+| purge alone | the nine paths and the write record gone; other owners' files byte-identical; `/etc/cuems` kept (SC-003) |
+| purge of every package | `/etc/cuems` gone; a reinstall mints a **new** uuid (SC-003) |
+| six installed `.xsd` | byte-identical to the bundled schemas; the corpus validates against `/etc/cuems/project_mappings.xsd` and `settings.xsd` (SC-006, SC-011) |
+| **the Breaks** | a bare `dpkg -i` of new `cuems-utils` beside `cuems-common 1.3.0-22` is **refused** ("installing cuems-utils would break cuems-common, and deconfiguration is not permitted"); with `--auto-deconfigure` (what apt does) `cuems-utils` configures, the old `cuems-common` is deconfigured, and the new one upgrades it |
+| **custody transfer, utils first** | live map byte-identical; zero `network_map.*.dpkg-*` siblings; `.xsd` equals the installed library's; a later `purge cuems-common` leaves the map |
+| **custody transfer, common unpacked first** | dpkg's own obsolete-conffile step at unpack parks the modified map as `.dpkg-bak` and removes the `.xsd`; the `postinst` block restores the map from the snapshot, removes the identical `.dpkg-bak`, reinstalls the schema — before the conversion loop, which then reports "already converted". Configuration is dependency-ordered by dpkg (the `cuems-common` postinst refuses to run without the venv), so the realistic form of this order is unpack both, then `dpkg --configure -a` |

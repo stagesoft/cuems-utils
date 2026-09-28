@@ -152,7 +152,7 @@ class Chroot:
         cmd = [
             "unshare", "--map-auto", "--map-root-user", "--",
             "sh", "-c",
-            'export PATH=/usr/sbin:/usr/bin:/sbin:/bin; exec chroot "$0" "$@"',
+            'export PATH=/usr/sbin:/usr/bin:/sbin:/bin CUEMS_LOG_LEVEL=CRITICAL; exec chroot "$0" "$@"',
             str(self.root), *argv,
         ]
         return subprocess.run(cmd, check=check, capture_output=True, text=True, timeout=timeout)
@@ -168,25 +168,56 @@ class Chroot:
     def exists(self, path: str) -> bool:
         return (self.root / path.lstrip("/")).exists()
 
-    def dpkg_install(self, deb: Path) -> subprocess.CompletedProcess:
+    def dpkg_install(self, deb: Path, *flags: str) -> subprocess.CompletedProcess:
+        """``dpkg -i`` inside the chroot. A sibling package whose dependency tree
+        is not under test is installed with ``--force-depends``."""
         self.copy_in(deb, f"/tmp/{deb.name}")
-        return self.run(["dpkg", "-i", f"/tmp/{deb.name}"], check=False)
+        return self.run(["dpkg", "-i", *flags, f"/tmp/{deb.name}"], check=False)
+
+
+def _prepare_root(tar: str, root: Path) -> Chroot:
+    # Measured 2026-09-28: the mmdebstrap tarball carries device nodes that tar
+    # cannot mknod without CAP_MKNOD, and a bind mount of the host's /dev is
+    # refused in this user namespace. dpkg and the maintainer scripts only need
+    # a /dev/null sink, which a regular file provides; uuid4 uses getrandom(2),
+    # not /dev/urandom. There is no sysfs either, so a fake ethernet0 gives the
+    # tool its MAC (FR-025a) — a different one per root.
+    import hashlib
+
+    root.mkdir(parents=True, exist_ok=True)
+    mac = "02" + hashlib.sha256(str(root).encode()).hexdigest()[2:12]
+    prepare = (
+        'tar -xf "$1" -C "$2" --exclude="./dev/*" && mkdir -p "$2/dev" "$2/proc" '
+        '"$2/sys/class/net/ethernet0" && : > "$2/dev/null" && chmod 666 "$2/dev/null" '
+        '&& printf "%s\n" "$3" > "$2/sys/class/net/ethernet0/address"'
+    )
+    result = subprocess.run(
+        ["unshare", "--map-auto", "--map-root-user", "--", "sh", "-c", prepare, "sh", tar, str(root),
+         ":".join(mac[i:i + 2] for i in range(0, 12, 2))],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, f"chroot extraction failed: {result.stderr[-800:]}"
+    return Chroot(root=root)
 
 
 @pytest.fixture
-def chroot(tmp_path: Path) -> Chroot:
+def make_chroot(tmp_path: Path):
+    """A factory: a fresh bookworm root per call (``chroot`` is ``make_chroot("rootfs")``)."""
     tar = os.environ.get("CUEMS_CHROOT_TAR")
     if not tar or not Path(tar).exists():
         pytest.skip("CUEMS_CHROOT_TAR is unset or missing (see quickstart.md)")
     if shutil.which("unshare") is None:
         pytest.skip("unshare(1) not available")
-    root = tmp_path / "rootfs"
-    root.mkdir()
-    subprocess.run(
-        ["unshare", "--map-auto", "--map-root-user", "--", "tar", "-xf", tar, "-C", str(root)],
-        check=True, capture_output=True,
-    )
-    return Chroot(root=root)
+
+    def _make(name: str = "rootfs") -> Chroot:
+        return _prepare_root(tar, tmp_path / name)
+
+    return _make
+
+
+@pytest.fixture
+def chroot(make_chroot) -> Chroot:
+    return make_chroot("rootfs")
 
 
 @pytest.fixture(scope="session")
