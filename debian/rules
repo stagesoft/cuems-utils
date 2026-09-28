@@ -13,3 +13,31 @@ export DH_VERBOSE = 1
 # host. Target hosts always have /usr/bin/python3 = 3.11 on bookworm.
 override_dh_virtualenv:
 	dh_virtualenv --python /usr/bin/python3 --install-suffix cuems --use-system-packages
+	# Feature 011 (D4): the six schemas ship to /usr/share/cuems/schemas as
+	# package content; postinst copies them to /etc/cuems on every configure,
+	# so the installed schema always matches the installed library and is
+	# never a conffile (D5). Version-free paths only (FR-044).
+	install -d debian/cuems-utils/usr/share/cuems/schemas
+	install -m 0644 src/cuemsutils/xml/schemas/*.xsd debian/cuems-utils/usr/share/cuems/schemas/
+	# Feature 011 (D2/D3): the three default documents are generated from the
+	# descriptor and the seed values by the JUST-BUILT venv's interpreter —
+	# reached through bin/python, never through lib/python3.N (FR-044) — and
+	# carry the reserved sentinel identity, never a minted uuid, so the build is
+	# reproducible. make_defaults generates twice and refuses on any difference.
+	install -d debian/cuems-utils/usr/share/cuems/defaults
+	debian/cuems-utils/usr/lib/cuems/bin/python -m cuemsutils.xml.make_defaults \
+	    --out debian/cuems-utils/usr/share/cuems/defaults
+	install -m 0644 src/cuemsutils/defaults/system-defaults.toml \
+	    debian/cuems-utils/usr/share/cuems/defaults/
+# dh-virtualenv 1.2.2 labels the autoscript it injects into postinst/prerm as
+# "Automatically added by dh_python2" — a historical name from the helper it
+# was modelled on, not a claim that dh_python2 ran (it is removed from the
+# sequence). The label misleads a reader of the installed script, so it is
+# relabelled — without repeating the misleading name — after dh_installdeb has assembled
+# the scripts (FR-042; the same
+# override_dh_installdeb shape cuems-common uses to drop a conffile entry).
+override_dh_installdeb:
+	dh_installdeb
+	for f in debian/cuems-utils/DEBIAN/postinst debian/cuems-utils/DEBIAN/prerm; do \
+	    [ -f "$$f" ] && sed -i 's/Automatically added by dh_python2/Automatically added by dh-virtualenv (its postinst autoscript; the tool labels it with the helper it was modelled on, see debian\/rules)/' "$$f" || true; \
+	done

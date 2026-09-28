@@ -63,12 +63,12 @@ SCHEMAS_DIR = REPO_ROOT / "src" / "cuemsutils" / "xml" / "schemas"
 #: exists to surface, and the two hashes moving beside the correction is the
 #: mechanism working rather than an inconvenience.
 CURRENT_SCHEMA_HASHES = {
-    "hardware_outputs.xsd": "fccbe9d8f6adbb122e46334ebf1c7548755ca27d95b07e8328beacd899b63cad",
-    "network_map.xsd": "4411c7a23f71dc712bdf278c6629c0df9635d857ad62d58f9a378ada51865b67",
-    "project_mappings.xsd": "b8446d7f5c21ea511ae2092d608fc1f62aa42a183ffa1a9dc2ec77c29708380d",
-    "project_settings.xsd": "26a607758210057e11b79b1b2b023e6bc6086a0e250fb6b53bfb5ffadb897ac9",
-    "script.xsd": "3912e37113d2783c610b449881c6ee1931312baaa486f7744d92270dd845e818",
-    "settings.xsd": "a51a85a9a13262387470570d3dd8540b6ae258a6baae2b7d3bb514864967cea6",
+    "hardware_outputs.xsd": "385c97036794353c60723af7c298f106d4e0e020451dd86e3cbd26837d66ef01",
+    "network_map.xsd": "f8968d3e881a2268ec81adac71c7d6b63e10fdc18ac78f4b6ce4eac0baac8951",
+    "project_mappings.xsd": "cf65df1843443a0332451ac75057e1c4b8fadba9fe5302aa9fa70d509077cb21",
+    "project_settings.xsd": "5cd80b9d2a5239365a764526a40c17426e158a9ec057acda2ffc97b552ea254f",
+    "script.xsd": "f4f42419332388af9b183c13c0eb606ccd0eea62d53ec05e9d0b187ae5274298",
+    "settings.xsd": "d6d578ae68b56940e360f33029042ffeb61b64b1c66f62a1ddd45c466592c784",
 }
 
 ALL_SCHEMA_NAMES = set(CURRENT_SCHEMA_HASHES)

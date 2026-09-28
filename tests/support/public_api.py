@@ -11,6 +11,22 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+#: The console-script entry points this library publishes (feature 011, FR-023,
+#: research R11). Recorded in the public API golden under ``"scripts"``: a
+#: renamed or dropped script is a surface change the snapshot must see.
+PUBLIC_SCRIPTS = frozenset({"cuems-convert-documents", "cuems-init-node"})
+
+
+def installed_scripts() -> list[str]:
+    """The ``console_scripts`` entry points of the installed ``cuemsutils``."""
+    from importlib.metadata import entry_points
+
+    return sorted(
+        ep.name for ep in entry_points(group="console_scripts")
+        if ep.value.startswith("cuemsutils.")
+    )
+
+
 #: The six methods FR-007 names as the only supported way script data moves.
 PUBLIC_SCRIPT_METHODS = (
     "load",

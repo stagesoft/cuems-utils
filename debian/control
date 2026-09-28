@@ -2,8 +2,8 @@ Source: cuems-utils
 Section: misc
 Priority: optional
 Maintainer: Ion Reguera <ion@stagelab.coop>
-Build-Depends: debhelper (>=11~), python3, dh-virtualenv (>= 1.2), python3-setuptools, python3-pip, python3-dev
-Standards-Version: 4.1.4
+Build-Depends: debhelper-compat (= 13), dh-virtualenv (>= 1.2), python3, python3-setuptools, python3-pip, python3-dev
+Standards-Version: 4.6.2
 Homepage: https://github.com/stagesoft/stagesoft-project
 Vcs-Git: https://github.com/stagesoft/cuems-utils.git
 Vcs-Browser: https://github.com/stagesoft/cuems-utils.git
@@ -12,5 +12,14 @@ X-Python3-Version: >= 3.11
 Package: cuems-utils
 Architecture: amd64
 Depends: python3 (>= 3.11), python3 (<< 3.12), ${shlibs:Depends}, ${misc:Depends}, python3-systemd, python3-daemon
+# Feature 011 (D4, research R3): cuems-common versions before 1.3.0-23 ship
+# /etc/cuems/network_map.{xml,xsd} as conffiles. This package installs the
+# current network_map.xsd into /etc/cuems from postinst on every configure,
+# so an old cuems-common left beside it would record that file as its own
+# modified conffile and prompt or park a .dpkg-dist on its next upgrade.
+# Breaks makes apt upgrade the pair together. Replaces is deliberately
+# absent: nothing under /etc is in this package's manifest (D5), so there is
+# no file overlap for Replaces to license.
+Breaks: cuems-common (<< 1.3.0-23~)
 Description: Cuems utils
  Cuems utils is a set of utilities to work with the cuems project

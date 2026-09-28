@@ -152,3 +152,50 @@ def test_refresh_reaches_the_documents_own_node_objects(tmp_path):
         "refresh worked on copies: an adoption made concurrently on the index "
         "would be invisible to the document being serialised"
     )
+
+
+# -- feature 011, T013: ensure inserts the caller's own object -------------------
+
+
+def test_ensure_inserts_the_callers_object_by_reference():
+    """``NodeIndex.ensure`` is the one primitive for "this node's row exists".
+
+    ``cuems-init-node`` seeds the self-entry through it at provisioning and
+    ``cuems-nodeconf``'s feature 003 seeds from ``settings.xml`` through the same
+    call (research R7 item 7, decision D-R20-2). It must honour the aliasing
+    contract every other link does: insert the **same object** the caller
+    holds, so a later ``adopt`` on the index is visible through the caller's
+    reference — a ``dict(node)`` copy here would fail this test.
+    """
+    document = _decoded()
+    index = _index_over(document)
+    fresh = {
+        "uuid": "8c8f4d5e-3d5b-4b0a-9f5d-0a0a0a0a0a0a",
+        "mac": "aabbccddeeff",
+        "name": "unprovisioned",
+        "node_role": NodeRole.firstrun,
+        "ip": "0.0.0.0",
+        "adopted": False,
+        "online": True,  # what provisioning seeds; ``adopt`` refuses an offline node
+    }
+    before = {mac: dict(n) for mac, n in index.items()}
+
+    assert index.ensure(fresh) is True
+    assert index["aabbccddeeff"] is fresh, "ensure copied instead of inserting by reference"
+    assert index.adopt(fresh["uuid"]) is True and fresh["adopted"] is True
+
+    for mac, snapshot in before.items():
+        assert dict(index[mac]) == snapshot, f"ensure touched another row ({mac})"
+
+
+def test_ensure_is_a_no_op_when_the_uuid_is_already_present():
+    """Match by uuid, never by key: a present node keeps its object and its flags."""
+    document = _decoded()
+    index = _index_over(document)
+    existing = list(index.values())[0]
+    existing["adopted"] = True
+    duplicate = {**dict(existing), "mac": "000000000000", "name": "impostor"}
+
+    assert index.ensure(duplicate) is False
+    assert "000000000000" not in index, "ensure inserted a second row for a present uuid"
+    assert index[existing["mac"]] is existing and existing["adopted"] is True

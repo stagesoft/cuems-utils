@@ -379,3 +379,49 @@ def test_the_two_cases_the_flag_was_written_for():
     assert "project" in _forbidden_tokens("hardware_outputs")
     assert "cue" in _forbidden_tokens("hardware_outputs")
     assert "output" in _forbidden_tokens("network_map")
+
+
+# ---------------------------------------------------------------------------
+# F1 — one writer per document, declared in the schema's annotation
+# (feature 011, FR-047, research R13). Declared on the root element as
+# ``<xs:appinfo><cms:writer scope="…">…</cms:writer></xs:appinfo>``; the seams
+# (self-entry vs topology, inventory vs geometry) are stated per scope so F1
+# holds at element granularity where two processes write one document.
+# ---------------------------------------------------------------------------
+
+KNOWN_WRITERS = {
+    "cuems-init-node", "cuems-nodeconf", "cuems-editor", "cuems-hardware-discovery",
+}
+
+#: The writer table FR-047 pins, per schema, as (writer, scope) pairs.
+DECLARED_WRITERS = {
+    "settings": {("cuems-init-node", "document")},
+    "network_map": {("cuems-nodeconf", "topology"), ("cuems-init-node", "self-entry")},
+    "project_mappings": {("cuems-editor", "document"), ("cuems-init-node", "default_mappings.xml")},
+    "project_settings": {("cuems-editor", "document")},
+    "script": {("cuems-editor", "document")},
+    "hardware_outputs": {("cuems-hardware-discovery", "inventory"), ("cuems-nodeconf", "geometry")},
+}
+
+
+def _root_writers(name: str) -> set[tuple[str, str]]:
+    from cuemsutils.xml.schema import get_schema, root_element
+
+    schema = get_schema(name)
+    root = schema.elements[root_element(name).local_name] if hasattr(root_element(name), "local_name") else root_element(name)
+    annotation = root.annotation
+    assert annotation is not None, f"{name}.xsd: root element has no xs:annotation"
+    writers = set()
+    for appinfo in annotation.appinfo:
+        for child in appinfo:
+            if child.tag.rsplit("}", 1)[-1] == "writer":
+                writers.add(((child.text or "").strip(), child.get("scope", "")))
+    return writers
+
+
+@pytest.mark.parametrize("name", sorted(DECLARED_WRITERS))
+def test_every_schema_declares_its_writer(name):
+    writers = _root_writers(name)
+    assert writers, f"{name}.xsd declares no cms:writer in its root annotation"
+    assert {w for w, _ in writers} <= KNOWN_WRITERS, f"{name}.xsd names an unknown writer: {writers}"
+    assert writers == DECLARED_WRITERS[name], f"{name}.xsd: {writers} != {DECLARED_WRITERS[name]}"

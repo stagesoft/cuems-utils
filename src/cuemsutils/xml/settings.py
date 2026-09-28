@@ -4,9 +4,9 @@
 import os
 from typing import Any
 
+from .._deprecation import deprecated_symbol
 from ..helpers import strtobool
 from ..log import Logger
-from .._deprecation import deprecated_symbol
 from .mapper import Mapper, read_versioned_config_document
 from .validators import validate_custom_templates
 from .xml_reader_writer import XmlReaderWriter

@@ -15,6 +15,12 @@ two hand-authored corpus documents that gained the marker in place
 re-hashed here, once, with the reason recorded at this call site rather than
 left for a diff to explain on its own.
 
+**Feature 011 re-hashes ``api/public_api.json`` once, deliberately** (FR-023,
+research R11): the snapshot gains a ``"scripts"`` key listing the console-script
+entry points, because ``cuems-init-node`` is a new public entry point and a
+renamed or dropped script must be a surface change the snapshot sees. The
+golden was *extended*, never regenerated — every prior key is byte-identical.
+
 **Feature 009 re-hashes ``api/public_api.json`` once, deliberately.** FR-006
 adds ``DmxChannelDecodeError`` to ``cuemsutils.errors.__all__`` (a new,
 public, catchable error type — see ``specs/009-fix-dmx-channel-conversion/``).

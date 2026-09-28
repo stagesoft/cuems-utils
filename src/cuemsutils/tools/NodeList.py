@@ -78,6 +78,40 @@ class NodeIndex(dict):
         """Build from an iterable of nodes, keyed by ``key(node)``."""
         return cls({key(n): n for n in nodes})
 
+    def ensure(self, entry) -> bool:
+        """Insert ``entry`` **by reference** if no node carries its ``uuid``.
+
+        The one primitive for "this node's row exists" (feature 011, research
+        R7 item 7; ``cuems-nodeconf``'s plan ``09-self-node-seeding.md`` §5
+        option 1). ``cuems-init-node`` seeds the self-entry through it at
+        provisioning; ``cuems-nodeconf``'s feature 003 seeds from
+        ``settings.xml`` through the same call, so the map logic lives here
+        (D22) and not in the daemon.
+
+        Two rules, both contractual:
+
+        * **Never ``merge`` for seeding** (practice 3): ``merge`` marks every
+          node absent from its argument offline, so seeding through it asserts
+          "nobody else is here" before discovery has run. This method touches no
+          other row.
+        * **The caller's object is inserted, not a copy** — the aliasing
+          contract ``adopt``/``merge``/``refresh`` already honour (T091/T092):
+          a later ``adopt`` on the index must be visible through the caller's
+          reference. ``tests/contract/test_node_aliasing.py`` fails against a
+          ``dict(entry)`` here.
+
+        Keyed by ``entry["mac"]`` (practice 5: match by uuid, key by MAC).
+
+        Returns:
+            bool: ``True`` if inserted, ``False`` if a node with that uuid was
+            already present (left untouched).
+        """
+        wanted = entry["uuid"]
+        if any(n.get("uuid") == wanted for n in self.values()):
+            return False
+        self[entry["mac"]] = entry
+        return True
+
     def by_role(self, role: NodeRole) -> tuple[node, ...]:
         """Every node whose ``node_role`` is ``role``."""
         return tuple(n for n in self.values() if n.get("node_role") == role)

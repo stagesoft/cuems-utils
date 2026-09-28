@@ -42,11 +42,14 @@ readable.
 ## 1. Environment — reproducing the audit
 
 ```bash
-cd <this repo>                     # /disk/Projects/StageLab/cuems-utils on the dev box
+cd <this repo>                     # /disk/Projects/StageLab/cuems-utils on the dev box;
+                                   # /home/stagelab/cuems-utils on the 2026-09-28 box
 
-# Tests run under pyenv 3.11.9. A bare `hatch` may not resolve; this form always does:
-PYENV_VERSION=3.11.9 pyenv exec hatch test -q              # full suite, ~55 s
-PYENV_VERSION=3.11.9 pyenv exec hatch test tests/contract/test_duplication_flags.py -q
+# Tests run under pyenv 3.11.9. A bare `hatch` may not resolve; on a box where hatch is
+# not installed at all (measured 2026-09-25) use uvx, and the project's `test` env — the
+# `hatch test` env lacks hypothesis:
+PYENV_VERSION=3.11.9 uvx hatch run test.py3.11:run -- -q            # full suite, ~2 min on a 2-vCPU VM
+PYENV_VERSION=3.11.9 uvx hatch run test.py3.11:run -- -q tests/contract/test_duplication_flags.py
 ```
 
 Facts worth having up front, each of which has cost someone time:
@@ -114,10 +117,10 @@ by the status quo, and F3 removed two entries from it.
 
 | Decision | Measured 2026-09-24 |
 |---|---|
-| D2, D3, D4, D5, D6 | No `debian/install`, no `postinst`, no `postrm`. Nothing ships to `/etc` or `/usr/share`. `cuems-common` still carries the `network_map.xsd` mirror |
-| D7, D9 | Values still in `descriptor._SETTINGS_EXAMPLE_VALUES`. **No `.toml` in the repo** except `pyproject.toml` |
-| D11, D12, D13 | `cuems-init-node` does not exist. `[project.scripts]` has exactly one entry, `cuems-convert-documents` |
-| D14 | No `node-identity-contract.md` in `../cuems-common` |
+| D2, D3, D4, D5, D6 | ✅ **landed by feature 011** (2026-09-28, local branch `011-etc-cuems-first-install`): `debian/rules` generates the three documents and installs the six schemas to `/usr/share/cuems`; `cuems-utils.postinst` copies the schemas always and the documents only where absent; `cuems-utils.postrm` purges exactly the owned paths; `cuems-common 1.3.0-23` hands the mirror over (its local commits `b3dd7e1`, `f6750d7`) |
+| D7, D9 | ✅ **landed by 011**: `src/cuemsutils/defaults/system-defaults.toml` (package data) + `xml/seed_values.py`; `/etc/cuems/defaults.d` overlay applied by the tool only |
+| D11, D12, D13 | ✅ **landed by 011**: `cuems-init-node` (`tools/init_node.py`, `[project.scripts]`), invoked by `postinst` with `--no-overlay --install-missing` under `timeout 60s` |
+| D14 | ◐ **corrected 2026-09-25 (spec M1)**: `../cuems-common/docs/node-identity-contract.md` **already existed** (its feature 001); it lacked the derivation rule, which 011's handover added (`f6750d7`). **The mechanism is `cuems-nodeconf`'s, not `cuems-config-node`'s** (research R7, shape B, decided 2026-09-28): nodeconf renders the record from `settings.xml` at every start — its feature `003-startup-readiness`, gated by 011's T049 and not yet implemented |
 | D15, D16, D17 | ✅ **landed `e421e31`** — the one block of §3 that is now built |
 
 So of the fourteen, **three are done** and eleven remain, all of them packaging or tooling.
@@ -126,7 +129,7 @@ So of the fourteen, **three are done** and eleven remain, all of them packaging 
 
 | Flag | State |
 |---|---|
-| **F1** — one writer per document, declared in the schema's annotation | ✗ **Not checkable yet.** Measured: five of six schemas contain **zero** `xs:annotation`; only `script.xsd` has any (2). Nothing to check until the annotations are written — packaging work |
+| **F1** — one writer per document, declared in the schema's annotation | ◐ **011's T072/T073** (decision Q11, 2026-09-28): the annotations land in one isolated commit that also moves the six hashes in `test_schema_scope`; the check joins `test_duplication_flags`. Before it: five of six schemas contain zero `xs:annotation` |
 | **F2** — a fact is declared once | ✅ `tests/contract/test_schema_name_overlap.py`. One entry left in `KNOWN_DIVERGENT_DECLARATIONS`: `UuidType`, gated on `cuems-init-node` |
 | **F3** — derived facts computed, never stored | ✅ ratchet in `tests/contract/test_duplication_flags.py`. Two live violations enumerated → §4.2 |
 | **F4** — one provenance per document | ✅ same file. `network_map`'s straddle recorded as a decision |
@@ -260,13 +263,36 @@ not the code.
 
 ---
 
+### 4.7 Findings of feature 011's specification and plan (2026-09-25 / 2026-09-28)
+
+Recorded in `specs/011-etc-cuems-first-install/spec.md` ("Measured since the planning documents")
+and `plan.md`; applied to the parent here and below, never silently (FR-046):
+
+| # | Finding | Corrects |
+|---|---|---|
+| M1 | `../cuems-common/docs/node-identity-contract.md` existed; D14's derivation rule was missing, not the file | §3.2's D14 row (above) |
+| M2 | `cuems-config-node` minted `uuid1()` and wrote it into `settings.xml` and the Avahi templates — a second minter. Retired by 011's handover | parent §5 practice 1 |
+| M3 | The three shipped Avahi templates carried a **real production controller's uuid**. They carry the sentinel now | parent D14 |
+| M4 | `cuems-editor` hardcodes `/etc/cuems/script.xsd` (`CuemsProjectManager.py:23`) — a third "validates against a file nobody ships" defect; closes OPEN-2 with *yes* | parent OPEN-2 |
+| M5 | `cuems-common` `Depends: cuems-utils`, and its `postinst` carries no `#DEBHELPER#`, so dpkg configures `cuems-utils` first and no engine starts at configure; pinned by `tests/packaging/test_ordering_premise.py` | parent OPEN-3 |
+| M6 | `cuems-common` already depended on `cuems-utils (>= 0.1.0rc16)`, never built — the floor named the shipping version | parent D4 |
+| M7 | `cuems-power-bridge`'s `postinst` also creates `/etc/cuems` | parent §2.3 |
+| M8 | Five `cuems-common` tests, not one, pinned the shipped map/mirror | §6's 011 brief |
+| M9 | 25 tests needed a host `/etc/cuems`: `tests/support/config_inventory.py:55` pops `CUEMS_CONF_PATH` at import; four modules built `ConfigManager()` with no `config_dir`. A session guard in `tests/conftest.py` now names any such test | §1 (the suite is hermetic) |
+
+Also measured at plan time: the fossil `get_{video,audio}_output_id('default')` raise `KeyError`
+on every node (§3.4's fossil, pinned as measured for feature 014); `test_descriptor_laziness`
+fails its 1.10× cap on roughly two runs in three on a 2-vCPU VM (§4.6, more support for a noise
+floor); and dh-virtualenv's injected postinst autoscript begins with `set -e`, which 011's
+`postinst` undoes first — the one trap this register did not have (`research.md` R21).
+
 ## 5. The step sequence
 
 ```
 step 0  housekeeping                     no SDD    DONE  2026-09-24
 step 1  F3/F4/F5 ratchets                no SDD    DONE  37489b5
 step 2  D15/D16/D17 values + generator   no SDD    DONE  e421e31
-step 3  feature 011  /etc/cuems first install         SDD
+step 3  feature 011  /etc/cuems first install         SDD   LANDED 2026-09-28 (local branch; nodeconf's 003 gate open)
 step 4  feature 012  uuid4 convergence                SDD
 step 5  feature 013  device-class reshape (F6)        SDD
 step 6  feature 014  hardware_outputs + inventory     SDD

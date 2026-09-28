@@ -10,8 +10,8 @@ neither existed until this phase.
 
 from __future__ import annotations
 
-from cuemsutils.errors import Outcome
 from cuemsutils.cues.CuemsScript import CuemsScript
+from cuemsutils.errors import Outcome
 from tests.support import invalid_scripts as broken
 
 
@@ -92,3 +92,20 @@ def test_only_the_standalone_tool_ever_writes_a_backup(tmp_path):
 
     assert status == ConversionOutcome.CONVERTED
     assert len(_backup_like_files(tmp_path)) == 1
+
+
+def test_cuems_init_node_writes_zero_backups(tmp_path):
+    """Feature 011, T037a — FR-030, contract G9: the tool's three write modes
+    leave no ``.bak``-like file anywhere it writes (the conf dir or the state dir)."""
+    from cuemsutils.tools import init_node
+
+    conf, state = tmp_path / "etc", tmp_path / "state"
+    sysfs = tmp_path / "sys"
+    (sysfs / "ethernet0").mkdir(parents=True)
+    (sysfs / "ethernet0" / "address").write_text("aa:bb:cc:dd:ee:ff\n")
+    base = ["--conf-dir", str(conf), "--state-dir", str(state), "--sysfs", str(sysfs),
+            "--lock-file", str(tmp_path / "lock"), "--systemctl", "/bin/false", "--no-overlay"]
+    assert init_node.main(base) == 0
+    assert init_node.main([*base, "--reset"]) == 0
+    assert init_node.main([*base, "--force-new-identity", "--yes"]) == 0
+    assert _backup_like_files(conf) == [] and _backup_like_files(state / "init-node") == []

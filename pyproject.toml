@@ -46,6 +46,11 @@ dependencies = [
 # ITEM E, US6, FR-042/SC-019 — batch/offline/post-install document upgrade,
 # sharing the one conversion registry the load path also consults.
 cuems-convert-documents = "cuemsutils.xml.convert_documents:main"
+# Feature 011 (D12/D13, FR-023): node coherence — mints one uuid4 through
+# cuemsutils.tools.Uuid and writes settings.xml, network_map.xml and
+# default_mappings.xml as one atomic set; --check verifies the four identity
+# locations. Invoked by debian/cuems-utils.postinst by absolute path.
+cuems-init-node = "cuemsutils.tools.init_node:main"
 
 [project.optional-dependencies]
 systemd = [
@@ -65,7 +70,7 @@ Source = "https://github.com/stagesoft/cuems-utils"
 path = "src/cuemsutils/__init__.py"
 
 [tool.hatch.build]
-include = ["src/cuemsutils/xml/schemas"]
+include = ["src/cuemsutils/xml/schemas", "src/cuemsutils/defaults"]
 
 [tool.hatch.build.targets.sdist]
 packages = ["src/cuemsutils"]

@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 import cuemsutils.xml as xml_pkg
+from tests.support.corpus import REPO_ROOT  # feature 011, T007: no host /etc/cuems
 
 
 def _public():
@@ -50,7 +51,7 @@ def test_the_accessor_takes_the_enum_and_not_a_bare_string():
     the enum exists to remove. D12's "public surface returns objects" applies to
     what an API *takes* as much as to what it returns."""
     ConfigManager, _ = _public()
-    manager = ConfigManager(load_all=False)
+    manager = ConfigManager(config_dir=str(REPO_ROOT / "tests/data/corpus/cuems-engine"), load_all=False)
     with pytest.raises((TypeError, ValueError)):
         manager.get_schema_descriptor("script")
 
@@ -63,7 +64,7 @@ def test_generate_example_also_rejects_a_bare_string():
     """
     ConfigManager, _ = _public()
     with pytest.raises(TypeError):
-        ConfigManager(load_all=False).generate_example("script")
+        ConfigManager(config_dir=str(REPO_ROOT / "tests/data/corpus/cuems-engine"), load_all=False).generate_example("script")
 
 
 def test_generate_example_raises_for_a_schema_with_no_generator():
@@ -74,7 +75,7 @@ def test_generate_example_raises_for_a_schema_with_no_generator():
     ``AttributeError`` somewhere unrelated, with nothing naming the cause.
     """
     ConfigManager, SchemaName = _public()
-    manager = ConfigManager(load_all=False)
+    manager = ConfigManager(config_dir=str(REPO_ROOT / "tests/data/corpus/cuems-engine"), load_all=False)
 
     with pytest.raises(NotImplementedError) as raised:
         manager.generate_example(SchemaName.NETWORK_MAP)
