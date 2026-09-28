@@ -92,6 +92,43 @@ this host is used for SC-PERF-001.
   `1.3.0-23` entry, which names the handover and the retired minter) and `cuems-nodeconf`'s
   `6c0cca7` (its brief §9.3 records one re-cut for feature 003 and B together). This repository
   creates no tag in this feature (D27); the migration guide §7 carries the table.
+
+**Status of those two re-cuts, re-measured 2026-09-28 after 011 merged here.** One happened, one
+did not, and the pair as tagged does not work — recorded rather than left to the next reader to
+discover:
+
+| Repository | `feat/xml-refactor` head | `xml-refactor-merge-candidate` | Drift | Verdict |
+|---|---|---|---|---|
+| `cuems-nodeconf` | `b305c1c` | **`b305c1c`** (tag object `5f0b64a`, re-cut from `6c0cca7`, signed, pushed) | 0 | ✅ **re-cut as announced** — carries features 001, 002 and 003 |
+| `cuems-common` | `e3c9430` | `3af31cc` | **3 commits**, all packaged: `b3dd7e1` (the `network_map.{xml,xsd}` handover, `preinst`/`postinst`/`postrm`, `debian/control`, `debian/install`), `f6750d7` (D14 — `cuems-config-node` stops minting, the three templates take the sentinel), `e3c9430` (the snapshot-wins fix) | ❌ **announced, not performed** |
+| `cuems-power-bridge` | `13a9af4` | `d5c4226` | **6 commits**, two of them packaged: `ca67a99` (`debian/rules` resolves `cuemsutils` from the sibling checkout, not PyPI), `13a9af4` (`debian/rules` strips foreign console scripts; `pyproject.toml` `0.3.0` → `0.3.1`, aligning it with the `0.3.1-1` changelog the tag already carried) | ❌ **not announced either** |
+| `cuems-utils` | `1a4e608` | — | — | ⏳ by decision (D27): tags after 011–014 |
+
+**What the un-moved `cuems-common` tag costs.** `cuems-nodeconf`'s re-cut candidate hard-requires
+the handover — its own tag message says so ("After 003's re-cut requires cuems-utils `73daab6`+ and
+cuems-common's 011 handover") — and its `_render_service_record` calls `sys.exit(-1)` on a template
+with no sentinel. At `3af31cc` the **controller** template still carries
+`a3811d78-099f-11f0-a075-00e04c01b7e3`; at `f6750d7` all three carry the sentinel. So a technician
+checking out the two candidate tags gets a controller whose `cuems-nodeconf` refuses to start. The
+code is right on both sides; only the tag is behind.
+
+**And the `cuems-nodeconf` tag message names the wrong counterpart.** Its body says "Counterpart:
+`cuems-common`'s tag of the same name at `f2fc0f5`" — two relocations stale (`f2fc0f5` →
+`3af31cc` on 2026-09-24, and now due at `e3c9430`). Its own appended paragraph says
+`3af31cc`, so the message contradicts itself. Both are fixed by the same re-cut of `cuems-common`
+plus an amended `cuems-nodeconf` tag message.
+
+**Maintainer actions, not agent actions** (`cuems-nodeconf`'s T048, FR-021/research R10; and this
+repository's own rule that moving a published tag is outward-facing):
+
+1. Re-cut `cuems-common`'s tag `3af31cc` → `e3c9430` and force-push it, recording old and new in
+   the message, as its own 2026-09-24 relocation did.
+2. Re-cut `cuems-power-bridge`'s tag `d5c4226` → `13a9af4` (no version moves; `0.3.1-1` either way).
+3. Amend `cuems-nodeconf`'s tag message so its "Counterpart" line names `e3c9430`.
+4. Close `cuems-nodeconf`'s T048's remaining halves: the announcement reached no other flow (no
+   `cuems-common`, `cuems-power-bridge` or `cuems-utils` file named `b305c1c` before this entry),
+   and neither its `specs/003-startup-readiness/evidence/verification-record.md` nor the
+   `xml-refactor-merge-coordination` memory note records the new commit.
 - Repository-wide `ruff` on the integration branch: 365 fixable findings (pre-existing); on this
   branch: 362. Every file this feature touches lints clean.
 
@@ -162,3 +199,62 @@ isolation**; `git diff feat/xml-refactor..HEAD -- src/cuemsutils/tools/CTimecode
 The honest range for this tree is **2802–2805 passed, 105 skipped, 2 xfailed**, with 0–4 flake
 failures per run. `ruff` is clean on every file this feature touches; `sh -n` passes on both
 maintainer scripts.
+
+## T049 — the `cuems-nodeconf` feature 003 gate, verified 2026-09-28
+
+Verified against `../cuems-nodeconf` `feat/xml-refactor` @ `b305c1c`
+("feat(003): start-up readiness — honest refusal, identity from settings.xml, own row via the
+library"), which is also that repository's re-cut `xml-refactor-merge-candidate` (tag object
+`5f0b64a`, annotated and signed, pushed). **A gate, not an edit** — nothing in this repository
+changed for it. Its 003 tasks are 47/48; the one open task is its own T048, the maintainer's
+tag/announce step.
+
+| Contract §4a clause | Where it is, in `cuemsnodeconf/CuemsNodeConf.py` | Verified |
+|---|---|---|
+| The render runs **before** `set_comms()` | `:172` `_render_service_record(self._live_record_role())` immediately precedes `:173` `set_comms()`; `:170` `_preflight()` precedes both | ✅ pinned by `tests/test_service_record.py::TestRenderHappensBeforeTheSocket` (`['render', 'set_comms']`) and `tests/test_startup_config.py::TestPreflight::test_preflight_runs_before_identity_and_socket` (`['preflight', 'identity', 'render', 'set_comms']`) |
+| Reloads only on change | `:336` `if current == rendered: … return False` — the `_reload_avahi()` at `:359` is unreachable for unchanged bytes | ✅ |
+| Refuses unprovisioned with `NOT PROVISIONED`, creates **no** socket | `:232` `Logger.critical(f'NOT PROVISIONED: {reason}')`, reached from `_preflight` before `set_comms` | ✅ `TestUnprovisionedRefusesToStart` — absent, unreadable, invalid, sentinel uuid, sentinel MAC: each exits non-zero with `set_comms` **not called** and no record written |
+| Renders at the three role-change sites | `:172` (start-up, live role), `:755` (`NodeRole.controller`), `:780` (`NodeRole.node`) — `grep -n _render_service_record` returns exactly these three call sites and the definition | ✅ |
+| Asserts the discovered self uuid | `tests/test_startup_readiness.py::TestSelfGuard` (its FR-013) — a stale uuid at our IP is waited out and warned about naming both uuids; on timeout the error names both and says `restart cuems-nodeconf` | ✅ |
+| Seeds through `NodeIndex.ensure`, **naming the `cuems-utils` commit that added it** | `:603` `inserted = self.network_map.ensure(self.node)`; the docstring at `:592-594` reads "inserted BY REFERENCE through NodeIndex.ensure (cuems-utils 73daab6)" | ✅ `73daab6` is an ancestor of this repository's `feat/xml-refactor` @ `1a4e608` (T014's commit) |
+| Hardware ledger entry §5 exists | `../cuems-nodeconf/specs/002-public-network-map-path/checklists/hardware-verification.md` §5, added 2026-09-28, citing D3 and this feature's research R7/shape B; §6 was added in the same pass for the start-up refusal | ✅ unchecked, "Not performed" — which is the accurate state, not a gap |
+
+**The run**, from `../cuems-nodeconf/specs/003-startup-readiness/evidence/verification-record.md`
+(recorded 2026-09-28, baseline `2ca7474`, this repository installed editable at `73daab6`):
+**173 passed** (119 baseline + 54 added), no skips, plus **15 passed** on the equivalence gate.
+The yardstick `test_nodeindex_characterization.py` was `cmp`-compared against ours and is
+**identical** — `73daab6` did not touch it either.
+
+**One measured caveat, and it is a counterpart problem rather than a gate failure**: the render
+refuses (`sys.exit(-1)`, `:325-327`) on a template carrying no sentinel. `cuems-common`'s
+**tagged** candidate `3af31cc` still ships the production uuid in
+`usr/share/cuems/cuems.service.controller`, so that tagged pair hard-fails on a controller. The
+fix is already on `cuems-common`'s `feat/xml-refactor` (`f6750d7`, verified: all three templates
+now carry `00000000-0000-0000-0000-000000000000`) — it is only the **tag** that has not moved.
+See the counterpart table under "UX pass and announcements".
+
+## Post-merge re-measurement on `feat/xml-refactor` @ `1a4e608` (2026-09-28)
+
+**2800 passed, 111 skipped, 2 xfailed, 0 failed, 45.37 s** — `uvx hatch run test.py3.11:run -- -q`,
+this host. Within the honest range T081 recorded (2802–2805 passed, 0–4 flake failures); both
+load-sensitive timing tests passed this run. The six extra skips against T081's 105 are the
+packaging tests whose `built_deb`/`sibling_deb` fixtures find no artefact in the parent directory
+on a clean checkout — the documented skip-with-reason path, not a loss of coverage.
+
+**One trap worth recording, because it cost a false regression here.** The first run of this
+re-measurement reported **2 failed** —
+`tests/contract/test_public_api_surface.py::test_public_api_matches_the_snapshot` (`scripts: []`
+against the golden's `['cuems-convert-documents', 'cuems-init-node']`) and
+`::test_the_published_scripts_are_the_declared_set`. Neither is a regression. Both read the
+**installed distribution's** entry points via
+`importlib.metadata.entry_points(group="console_scripts")` (`tests/support/public_api.py:20`), and
+the reused `hatch-test.py3.11` environment held editable metadata from
+**`cuemsutils-0.1.0rc10.dist-info`** — predating `[project.scripts]` entirely — while
+`cuemsutils.__file__` already resolved to the live `src/` tree. Current code, stale metadata: the
+dev-environment form of the "editable install is a no-op unless you remove the packaged copy"
+gotcha in `CLAUDE.md`. `hatch env prune` rebuilt it and all 25 tests in that file pass.
+
+The test is therefore **sensitive to install state rather than to the tree**, which is the price
+of checking the *published* surface rather than re-reading `pyproject.toml`; that is the right
+thing to check, so the note belongs here rather than a change to the test. Anyone seeing those two
+failures alone should run `hatch env prune` before looking for a defect.

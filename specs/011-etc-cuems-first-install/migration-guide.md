@@ -142,6 +142,16 @@ coordinated state is the re-pointed `xml-refactor-merge-candidate` tag; `cuems-c
 (`3af31cc`) and `cuems-nodeconf`'s (`6c0cca7`) candidates are re-cut by this feature and the
 re-cuts announced (T080). Nothing ships from any of the three alone.
 
+**Re-cut status, 2026-09-28.** `cuems-nodeconf`'s is **done** — `6c0cca7` → **`b305c1c`**, signed
+and pushed, carrying its feature `003-startup-readiness`. `cuems-common`'s is **not**: its tag is
+still `3af31cc`, three packaged commits behind `e3c9430`, and those three commits *are* the
+handover this section describes. Until it moves, the two candidate tags do not compose — at
+`3af31cc` the `usr/share/cuems/cuems.service.controller` template still carries the production
+uuid, and `cuems-nodeconf`'s renderer refuses a template with no sentinel, so a **controller**
+built from the tagged pair has a `cuems-nodeconf` that exits at start-up. Both trees are correct;
+only the tag is behind. `specs/011-etc-cuems-first-install/baseline.md` §"UX pass and
+announcements" carries the counterpart table and the maintainer actions.
+
 ## 8. Hardware verification — the pointer
 
 The one record of the manual per-node verification is entry §5 of `cuems-nodeconf`'s

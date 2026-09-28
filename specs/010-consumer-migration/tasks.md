@@ -68,9 +68,9 @@ which is the only enumeration that would have caught all three.
 
 | Flow | Repository | State | Tag |
 |---|---|---|---|
-| 03 | `cuems-common` | **landed** | `3af31cc` — relocated from `f2fc0f5` 2026-09-24, force-pushed |
-| 04 / 04a / 04b | `cuems-nodeconf` | **landed**; open: hardware verification (its 001/T050, T051), the merge-window handshake (001/T042), and **T091–T100** — the carried items from the unmerged hardening branch | `6c0cca7` |
-| 07 | `cuems-power-bridge` | **landed** — two features, `001-node-role-parser` (54/60) and `002-cluster-poweroff-cli` (69/69) | `d5c4226` |
+| 03 | `cuems-common` | **landed**; its 011 handover has since landed on `feat/xml-refactor` (`b3dd7e1`, `f6750d7`, `e3c9430`) | `3af31cc` — relocated from `f2fc0f5` 2026-09-24, force-pushed. **Now 3 packaged commits behind its own head**: re-cut to `e3c9430` is announced but not performed |
+| 04 / 04a / 04b | `cuems-nodeconf` | **landed**; open: hardware verification (its 001/T050, T051, plus ledger §5/§6), the merge-window handshake (001/T042), and its maintainer-only 003/T048. **T091–T094, T096, T097 closed** 2026-09-28 by its feature `003-startup-readiness`; T095, T098–T100 are recording tasks here | **`b305c1c`** — re-cut from `6c0cca7` 2026-09-28 for feature 003; signed and pushed |
+| 07 | `cuems-power-bridge` | **landed** — two features, `001-node-role-parser` (54/60) and `002-cluster-poweroff-cli` (69/69) | `d5c4226`. **Now 6 commits behind its own head**, two of them packaged (`ca67a99`, `13a9af4` — `debian/rules` and the `pyproject.toml` version); re-cut to `13a9af4` due, no version moves |
 | 01 | `cuems-engine` | **not started** — no `feat/xml-refactor` branch; bundle vendored 2026-09-25. Bases on `feat/nodelist-modify-dispatch` | — |
 | 02 | `cuems-editor` | **not started** — no branch; C2 re-verified live; bundle vendored. Bases on `feat/nodelist-adoption-api` | — |
 | 05 | `cuems-frontend` | **not started** — no branch; bundle vendored. Carries a **scope decision**: the adoption/liveness UI tier does not exist | — |
@@ -339,7 +339,7 @@ Feature 002 closed the **crash** variant deliberately, by assigning `self._docum
 `self.network_map` — `read_network_map`'s comment names the same `set_comms`-before-`run` fact. The
 wrong-answer variant is live.
 
-- [ ] T094 [US7] **Briefed 2026-09-28** — `../cuems-nodeconf/specs/planning/10-readiness-window.md` is
+- [X] T094 [US7] **Briefed 2026-09-28; CLEARED 2026-09-28** — `../cuems-nodeconf/specs/planning/10-readiness-window.md` is
   that repository's self-contained brief for feature `003-startup-readiness`, so this no longer depends on
   a reader finding three sections of this directory from another checkout. It carries the measured window,
   the four constitutional gates, the readiness-flag-not-a-lock argument, the four-tier decision, the
@@ -360,7 +360,7 @@ wrong-answer variant is live.
   is not to be reverted** — the stall was the worse failure on a fleet where nodeconf ships disabled, and
   it was measured on the rig. What is wrong is the *signal it trusts*. Record it as a readiness-contract
   gap between two repositories, not as a defect in either
-- [ ] T096 [P] [US7] Gate: verify flow 01 did **not** deepen the dependency on
+- [X] T096 [P] [US7] Gate: verify flow 01 did **not** deepen the dependency on
   socket-existence-as-readiness, and flow 02 did **not** add client-side retry or interpretation to
   compensate for the wrong string. Both are recorded as prohibitions in those repositories' bundles
   (`../cuems-engine/specs/planning/xml-refactor/04-findings-new-to-this-pass.md` F2a,

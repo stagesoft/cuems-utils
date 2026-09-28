@@ -1103,3 +1103,49 @@ and the UI should **do** with "not ready" — where retrying contradicts `cuems-
 made refusals instant on purpose. It also changes packaged content, so it re-cuts `6c0cca7` and is
 announced to the other flows. That repository's Governance section requires a constitution check in a
 feature plan, which is where all four of those belong.
+
+## T094 and T096 — C2 closed in `cuems-nodeconf`, verified 2026-09-28
+
+C2 was the last code item on this thread, and it is no longer this repository's to wait on. It
+landed as `cuems-nodeconf` feature **`003-startup-readiness`**, merged to that repository's
+`feat/xml-refactor` at **`b305c1c`**, which is also its re-cut `xml-refactor-merge-candidate`
+(from `6c0cca7`; tag object `5f0b64a`, signed, pushed). Its own tasks are 47/48 — the one open
+item is its maintainer-only T048 (the tag/announce step), not any part of the fix.
+
+**T094 — "not ready", not "not found", and not a lock.** Verified by reading
+`../cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py` at `b305c1c`, against the three clauses this
+gate was written with:
+
+| Clause | Evidence |
+|---|---|
+| A readiness flag **set at the end of `read_network_map`** | `:101` `self._ready = False` in `__init__`; `:887` `self._ready = True` is the **last** statement of `read_network_map`, after both `self._document` (`:875`) and `self.network_map` (`:876`) are installed, with a comment naming FR-002 and "anything raised above leaves the daemon not ready, which is the conservative state" |
+| `engine_callback` returns a **distinguishable refusal** until then | `:384` `if not self._ready:` → `:393` `{'OK': False, 'error': 'nodeconf is still starting up'}` — inside the existing `{'OK': bool, 'error'?: str}` shape, so the contract with `settings.component.ts` is unchanged; `:390` logs `nodeconf is still starting up; refusing {action} for {uuid}` |
+| **A mutex is not the fix** and was not accepted as one | `grep -n '_map_lock' cuemsnodeconf/CuemsNodeConf.py` → no matches. The unmerged `feat/nodelist-modify-hardening` branch is not merged; the flag is the whole mechanism |
+
+**A test exercising the window**, as this task required rather than merely a fix:
+`../cuems-nodeconf/tests/test_startup_readiness.py` — 15 tests, including a request arriving
+**between** the document and the index being installed, which is the precise interval `b53ee5f`'s
+lock would have serialised without emptying it any less. That repository's suite:
+**173 passed** (119 baseline + 54 added), no skips, plus **15 passed** on the equivalence gate,
+recorded in its `specs/003-startup-readiness/evidence/verification-record.md`.
+
+**T096 — neither consumer compensates.** Measured in that feature's research **R14**, which names
+this gate explicitly ("spec Story 4, their T096 gate"), 2026-09-28:
+
+- **`cuems-engine`** at `cf5c4ad` (on `origin/feat/nodelist-modify-dispatch`):
+  `git grep -nE 'starting up|retry|retries|not found' cf5c4ad -- src/cuemsengine/ControllerEngine.py`
+  → **no matches**. What it carries is `NODECONF_IPC_PATH` (`:23`), the existence probe (`:857`)
+  and an explicit `timeout=NODECONF_TIMEOUT_S` (`:867`): one probe, one timeout, **no retry and no
+  reading of the error string**. The F2a prohibition in its bundle holds — `cf5c4ad` is not
+  deepened, and it is not reverted either.
+- **`cuems-editor`**: `grep -nE 'starting up|nodeconf|retry' *.py` → **no matches**. It relays
+  whatever the engine answers, which is what §0a of its flow required.
+
+So the four-tier decision resolved to **relay verbatim** (that feature's decision D), and neither
+consumer repository needs an edit. The gate is recorded here; the measurement lives there.
+
+**What this leaves.** T095, T098, T099 and T100 are recording tasks in
+`migration-guide.md` — no sibling repository is waiting on them. T094's own note above, that C2
+"re-cuts `6c0cca7` and is announced to the other flows", is **half done**: the re-cut happened,
+the announcement did not reach any other flow. See `specs/011-etc-cuems-first-install/baseline.md`
+§"UX pass and announcements" for the counterpart table and the maintainer actions outstanding.

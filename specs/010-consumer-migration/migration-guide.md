@@ -634,9 +634,9 @@ not. Recorded here so a reader arriving at any section knows which half they are
 
 | Flow | Repository | Feature dir | State | Candidate tag |
 |---|---|---|---|---|
-| 03 | `cuems-common` | `001-node-role-and-conversion-ordering` | **landed** | `3af31cc` (relocated from `f2fc0f5`, 2026-09-24) |
-| 04 / 04a / 04b | `cuems-nodeconf` | `001-network-map-object-adoption`, `002-public-network-map-path` | **landed** | `6c0cca7` |
-| 07 | `cuems-power-bridge` | `001-node-role-parser`, `002-cluster-poweroff-cli` | **landed** | `d5c4226` |
+| 03 | `cuems-common` | `001-node-role-and-conversion-ordering` | **landed** | `3af31cc` (relocated from `f2fc0f5`, 2026-09-24) — **3 packaged commits behind `e3c9430`** since the 011 handover; re-cut announced, not performed |
+| 04 / 04a / 04b | `cuems-nodeconf` | `001-network-map-object-adoption`, `002-public-network-map-path`, `003-startup-readiness` | **landed** | **`b305c1c`** (re-cut from `6c0cca7`, 2026-09-28, signed and pushed) |
+| 07 | `cuems-power-bridge` | `001-node-role-parser`, `002-cluster-poweroff-cli` | **landed** | `d5c4226` — **6 commits behind `13a9af4`**, two packaged; re-cut due, no version moves |
 | 01 | `cuems-engine` | `008-cuems-utils-migration` | **not started** — bases on `feat/nodelist-modify-dispatch` | — |
 | 02 | `cuems-editor` | `001-cuems-utils-migration` | **not started** — bases on `feat/nodelist-adoption-api` | — |
 | 05 | `cuems-frontend` | `001-schema-descriptor-migration` | **not started** — carries a scope decision, below | — |
