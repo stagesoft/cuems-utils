@@ -137,3 +137,28 @@ node hardware (N97-class) has still not been measured — both production hosts 
 unreachable since 2026-09-23 — so the 2× allowance research R10 built into the budgets stands
 untested; the hardware ledger entry §5 in `cuems-nodeconf` is where that measurement is recorded
 when a node is available.
+
+## T001 / T081 — the suite, before and after (2026-09-28, this host, `uvx hatch run test.py3.11:run`)
+
+| Run | Result | Wall | Collected | Per test | vs plan start (43.7–44.0 ms) |
+|---|---|---|---|---|---|
+| plan start, pre-M9 fix (two runs) | 9 failed, 2702 passed, 96 skipped, 2 xfailed, 16 errors | 123.45 / 124.39 s | 2825 | 43.7–44.0 ms | reference |
+| feature complete, run 1 | 4 failed (3× laziness flake, 1× `test_realtime_25fps_jitter`), 2802 passed, 105 skipped, 2 xfailed | 143.78 s | 2913 | 49.4 ms | **112 % — exceeded** |
+| feature complete, run 2 | 1 failed (`test_realtime_25fps_jitter`), 2805 passed, 105 skipped, 2 xfailed | 143.92 s | 2913 | 49.4 ms | **112 % — exceeded** |
+| after caching the `.deb` reads in the packaging fixtures | 2 failed (laziness flake), 2804 passed, 105 skipped, 2 xfailed | 130.13 s | 2913 | **44.7 ms** | **102 % ✅** |
+
+**Recorded as exceeded, then mitigated, not restated.** The first two complete runs were over the
+budget by 12 %, and the cause was one file: `tests/packaging/test_built_package.py` re-extracted
+the 9 MB venv from the `.deb` for every assertion (about 13 s for eight tests against a 44 ms
+median). A per-archive cache in the packaging fixtures (`ba68bf0`) brings the file to under 5 s
+and the suite to 102 % of the reference. No library code changed between those runs.
+
+**The two non-passing tests are pre-existing, load-sensitive timing tests**, neither touched by
+this branch: `test_descriptor_laziness` (the execution document's §4.6 flake; fails one to three
+cases on roughly two runs in three on this 2-vCPU VM, passes on the others) and
+`tests/unit/test_ctimecode_timer.py::TestIntegration::test_realtime_25fps_jitter` (a ±1 ms
+real-time callback assertion; failed in two of three full runs under load, **passes 3 of 3 in
+isolation**; `git diff feat/xml-refactor..HEAD -- src/cuemsutils/tools/CTimecode*` is empty).
+The honest range for this tree is **2802–2805 passed, 105 skipped, 2 xfailed**, with 0–4 flake
+failures per run. `ruff` is clean on every file this feature touches; `sh -n` passes on both
+maintainer scripts.
