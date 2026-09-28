@@ -33,10 +33,11 @@ override_dh_virtualenv:
 # "Automatically added by dh_python2" — a historical name from the helper it
 # was modelled on, not a claim that dh_python2 ran (it is removed from the
 # sequence). The label misleads a reader of the installed script, so it is
-# relabelled after dh_installdeb has assembled the scripts (FR-042; the same
+# relabelled — without repeating the misleading name — after dh_installdeb has assembled
+# the scripts (FR-042; the same
 # override_dh_installdeb shape cuems-common uses to drop a conffile entry).
 override_dh_installdeb:
 	dh_installdeb
 	for f in debian/cuems-utils/DEBIAN/postinst debian/cuems-utils/DEBIAN/prerm; do \
-	    [ -f "$$f" ] && sed -i 's/Automatically added by dh_python2/Automatically added by dh_virtualenv (labelled dh_python2 by dh-virtualenv 1.2)/' "$$f" || true; \
+	    [ -f "$$f" ] && sed -i 's/Automatically added by dh_python2/Automatically added by dh-virtualenv (its postinst autoscript; the tool labels it with the helper it was modelled on, see debian\/rules)/' "$$f" || true; \
 	done

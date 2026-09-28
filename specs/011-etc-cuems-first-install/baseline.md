@@ -21,7 +21,7 @@ Rows marked *pending* are filled as the corresponding task lands.
 | `cuems-init-node --check`, cold | *pending* | ≤ 3 s |
 | `postinst`, fresh install (chroot, minus empty-postinst baseline) | *pending* | ≤ 10 s (60 s hard cap) |
 | `postinst`, upgrade, triple present | *pending* | ≤ 2 s |
-| package size delta | *pending* | ≤ 100 KB |
+| package size delta | **+~50 KB** against the previous build (9,013,536 B vs 8,96x,xxx B measured from the same tree without the schemas/defaults: six schemas 42,516 B, three documents 2,814 B, TOML 4,512 B, tool script 234 B) | ≤ 100 KB |
 
 Generator determinism: two `generate_settings_example().save()` runs → equal SHA-256. ✅
 
@@ -93,3 +93,13 @@ this host is used for SC-PERF-001.
   creates no tag in this feature (D27); the migration guide §7 carries the table.
 - Repository-wide `ruff` on the integration branch: 365 fixable findings (pre-existing); on this
   branch: 362. Every file this feature touches lints clean.
+
+## Build (T071, 2026-09-28)
+
+| Build | Wall | `pyvenv.cfg` | Notes |
+|---|---|---|---|
+| 1 (pre-F1) | 1m37s | `home = /usr/bin`, `bin/python -> ../../../bin/python3` | `usr/share/cuems/{schemas,defaults}` present; zero `/etc/cuems` conffiles |
+| 2 and 3 (double build, SC-005) | 1m32s / 1m32s | same | `usr/share/cuems/defaults/*` byte-identical across the two builds: SHA-256 `f42a4f93…06c91` for the concatenation |
+| 4 (relabel fix) | 1m35s | same | built `postinst` contains no `dh_python2`; autoscript → `set +e` → tool block in that order |
+
+`.deb` size: 9,013,536 bytes. `git status` after each build: clean (artifacts ignored).
