@@ -20,8 +20,6 @@ from cuemsutils.xml.schema import SCHEMA_NAMES
 from tests.support.corpus import REPO_ROOT  # feature 011, T007: no host /etc/cuems
 
 
-
-
 def _public():
     """Imported at call time, not at module import.
 

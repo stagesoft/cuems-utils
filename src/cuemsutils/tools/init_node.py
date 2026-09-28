@@ -33,15 +33,16 @@ from pathlib import Path
 from typing import Any
 
 from ..xml.seed_values import SeedValueError
-from .identity_check import (
+from .identity_check import (  # noqa: F401 — re-exported: the wording constants are this tool's public face
     FIX_NODECONF,
     FIX_PLAIN,
     FIX_RESET,
+    FIX_UNMASK,
     NOT_PROVISIONED,
     SENTINEL,
 )
 
-__all__ = ["main"]
+__all__ = ["main", "NOT_PROVISIONED", "MODIFIED_KEPT", "FIX_PLAIN", "FIX_RESET", "FIX_NODECONF", "FIX_UNMASK"]
 
 MODIFIED_KEPT = "modified, kept"
 DOCUMENTS = ("settings.xml", "network_map.xml", "default_mappings.xml")
