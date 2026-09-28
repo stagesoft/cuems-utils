@@ -7,11 +7,12 @@
 > An unmigrated consumer must refuse a library that has moved past it.
 
 That is an **upper bound or a `Breaks:`**. A `>=` floor says only "I need at least this" and cannot
-express it. Today exactly one edge in the ecosystem expresses the gate.
+express it. When this contract was written **exactly one** edge in the ecosystem expressed the gate;
+re-measured 2026-09-25 it is **three, plus one half-closed** — see the table below.
 
 ## Edges
 
-| Repository | Today | After |
+| Repository | As audited 2026-09-03 | After |
 |---|---|---|
 | `cuems-common` | `>= 0.1.0rc15` **+ `Breaks:`** | unchanged — the model for the others |
 | `cuems-engine` | `>=0.1.0rc10` (pyproject) / `>= 0.1.0rc4` (control) | **reconciled** (FR-092) + bound |
@@ -19,6 +20,32 @@ express it. Today exactly one edge in the ecosystem expresses the gate.
 | `cuems-nodeconf` | `>=0.1.0rc15` / `>= 0.1.0rc5` | bound |
 | `cuems-wsclient` | `>=0.1.0rc5`, **optional** | non-optional + bound (FR-053) |
 | `cuems-frontend` | not packaged | **no edge possible** → the payload handshake instead (FR-108) |
+
+### Re-measured 2026-09-25 — three edges closed, two open, one half-closed
+
+The table above is the 2026-09-03 audit and is kept as that record. Two of its rows are now misleading
+if read as current: the `cuems-wsclient` row is **`cuems-power-bridge`**'s, under the name the list
+still used before the 2026-09-18 identity correction (one repository, renamed in 2026-06 — so this
+table has **six** rows for six repositories, and T076's entry is that row, not a seventh). And three
+repositories have since moved.
+
+| Repository | `pyproject.toml` | `debian/control` | Expresses the gate? |
+|---|---|---|---|
+| `cuems-common` | — | `:12` `>= 0.1.0rc16`, `:13` `<< 0.1.1~` | ✅ |
+| `cuems-nodeconf` | `:28` `>=0.1.0rc16,<0.1.1` | `:18` `>= 0.1.0rc16`, `:19` `<< 0.1.1~` | ✅ **the model to copy** |
+| `cuems-power-bridge` | `:38` `>=0.1.0rc16,<0.1.1`, non-optional | `:18` `>= 0.1.0rc16` — **no upper bound, no `Breaks:`** | ◐ source yes, **package no** |
+| `cuems-engine` | `:41` `>=0.1.0rc10` | `:18` `>= 0.1.0rc4` | ✗ **and the two disagree with each other** |
+| `cuems-editor` | `:27` `>=0.1.0rc10` | no `debian/` directory | ✗ |
+| `cuems-frontend` | not packaged | not packaged | n/a — handshake only |
+
+**What this changes for the argument, not just the numbers.** When this contract was written,
+`cuems-common` was the *only* edge and the gate had to be argued for. It is now a convention **three
+sibling repositories follow**, and what remains is two holdouts plus one half-closed edge. Cite
+`cuems-nodeconf`'s `debian/control:18-19` as the pattern rather than re-deriving the reasoning.
+
+**T076 is not closed by the bridge's `pyproject.toml` alone.** Its source pin expresses the gate and
+its packaged pin does not — which is the *exact* distinction this contract's opening claim rests on. A
+`>=` floor in `debian/control` is what `dpkg` actually enforces; a bound in `pyproject.toml` is not.
 
 **The demonstration is run, not described** (FR-093): install an out-of-order combination and watch
 the package manager refuse it. 007 deferred this here precisely because no releasable package
@@ -74,6 +101,20 @@ Required value: **zero**. Known live consumers today: `XmlReaderWriter` (engine 
 editor `CuemsDBProject.py:10`, `repair_durations.py:40`), `NetworkMap` (engine
 `ControllerEngine.py:12`, editor `CuemsWsServer.py:23`), `CuemsParser` (editor
 `CuemsDBProject.py:9`, `repair_durations.py:39`), `Timeoutloop` (nodeconf `CuemsNodeConf.py:26`).
+
+**Re-measured 2026-09-25 — one moved, one closed, and one the denominator does not reach:**
+
+- `ControllerEngine.py:12` is now **`:15`**; six commits landed on `cuems-engine`'s working branch and
+  moved every line number in that file. `BaseEngine.py:17` and every editor site are **unchanged**.
+- `Timeoutloop` in `cuems-nodeconf` is **closed** — that repository's features 001 and 002 landed, and
+  `grep -rn "from cuemsutils\.\(xml\|config\)" cuemsnodeconf/` returns no matches.
+- **A sixth consumer the list does not reach**: `../cuems-editor/tests/test_repair_durations.py:6`
+  imports `XmlReaderWriter`. The enumeration above is drawn from `src/` only, so a test import falls
+  outside the required-zero count — and still breaks when the shim goes. `cuems-nodeconf` set the
+  precedent: keep it and **label** it `# test-only (FR-007)`, so a census can tell a shipped consumer
+  from a test deliberately exercising the old path. **T049's census method must state whether it counts
+  test files.** Right now it neither counts them nor says it does not, which is the same class of
+  hand-maintained-denominator failure the repository-identity correction was about.
 
 Then: five shim modules, the seven aliases, the four deprecated-symbol sites, and `__version__` to
 the release every warning since 006 has promised — or the divergence recorded (FR-029c).

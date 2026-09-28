@@ -34,6 +34,26 @@ dual-spelling state, and 008 changed `Media.duration`'s type *and* wire shape an
 strict — both without editing any consumer. **Nothing in the ecosystem ships until this feature
 lands** (007 FR-030c/FR-030d, extended through 008 by D27).
 
+**Amendment 2026-09-25 — "the last one" is true of the XML rebuild, not of the release.** This
+feature closes the rebuild's six-feature arc and its own gate is unchanged: six consumer flows landed
+plus a **measured** census of zero (FR-029). But it is **not** the last thing that must land before the
+ecosystem ships. `cuems-utils` features **011–014** — `/etc/cuems` first install, uuid4 convergence,
+the device-class reshape, and `hardware_outputs` becoming real — are a **hard successor** to this
+feature in exactly the sense this paragraph uses the term, and the shared
+`xml-refactor-merge-candidate` tag that marks the coordinated merge comes **after** them.
+
+So "nothing in the ecosystem ships until this feature lands" remains true, and it is no longer
+sufficient. The full condition is: this feature's six flows, **then** 011–014, **then** the tag. Two of
+those four reach consumers this feature also touches — 013 reaches `cuems-frontend`'s cue-type unions,
+014 moves the port inventory `cuems-editor` and `cuems-frontend` read — so neither this feature's
+consumer edits nor its exit criteria are the last word on those files.
+
+Authority for the ordering: `specs/planning/etc-cuems-first-install-execution.md` §5 (the step
+sequence, with the two forced orderings) and §8 (*"do not ship anything from this branch alone … the
+coordinated merge is what the `xml-refactor-merge-candidate` tag marks, and the tag comes after
+011–014, not before"*). This amendment adds no requirement to this feature and removes none; it
+corrects a claim about sequence that three places in this directory made.
+
 **Settled decisions** (from the planning phase — not reopened by this spec): D1, D2, D3, D5, D9,
 D11, D12, D13, D14, D15, D16, D17, D18, D18b, D19, D20, D21, D22, D23, D24, D25, D26, D27, D28,
 D29, D30, D31, D32, D33, D34, D35, D36, Q11→(c), Q14→(i). The full text is in

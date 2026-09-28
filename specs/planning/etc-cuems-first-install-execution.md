@@ -240,6 +240,24 @@ then passed 9/9 across re-runs of both the modified and the unmodified tree. It 
 assertion with no noise floor of its own on a sub-2 ms figure. **Do not "fix" a schema in
 response to it**; re-run first. If it becomes frequent, the budget needs a floor, not the code.
 
+**Extended 2026-09-25.** Observed twice more on an unmodified tree (only markdown had changed), and
+in two forms the original entry did not record:
+
+- **The skip count moves.** The suite reported `2719 passed, 100 skipped` and `2718 passed, 101
+  skipped` on consecutive runs. The cause is the same test: `:122` skips a schema whose cost falls
+  *"below the noise floor, covered by the total instead"*, and **which** schemas fall below it varies
+  run to run — a clean run skipped `settings` (0.366 ms), `network_map` (0.190 ms),
+  `project_settings` (0.093 ms) and `hardware_outputs` (0.071 ms). So a passed/skipped shift of ±1 in
+  the suite totals is this test breathing, **not** a test being lost.
+- **It can fail two at a time**, not one: a single run reported `2 failed, 2717 passed`. Both
+  re-ran green immediately, and the file in isolation is `4 passed, 4 skipped in 1.45s`.
+
+Consequence for anyone quoting a suite total as evidence: **the honest figure is a range,
+2717–2719 passed with 100–101 skipped**, and a comparison against a single recorded run will
+occasionally look like a regression that is not one. Quote the range, or re-run before recording a
+delta. The recommendation is unchanged and now better supported: the budget needs a **noise floor**,
+not the code.
+
 ---
 
 ## 5. The step sequence

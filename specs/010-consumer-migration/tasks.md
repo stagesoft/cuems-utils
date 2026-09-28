@@ -62,6 +62,58 @@ the two counted as separate — and all three came from maintaining it by hand. 
 must be discovered by its own command and de-duplicated **by git remote, not by directory name**,
 which is the only enumeration that would have caught all three.
 
+### Consumer flow status, and what the release now waits on (2026-09-25)
+
+**Three of six consumer flows have landed**, each with a published `xml-refactor-merge-candidate` tag:
+
+| Flow | Repository | State | Tag |
+|---|---|---|---|
+| 03 | `cuems-common` | **landed** | `3af31cc` — relocated from `f2fc0f5` 2026-09-24, force-pushed |
+| 04 / 04a / 04b | `cuems-nodeconf` | **landed**; open: hardware verification (its 001/T050, T051), the merge-window handshake (001/T042), and **T091–T100** — the carried items from the unmerged hardening branch | `6c0cca7` |
+| 07 | `cuems-power-bridge` | **landed** — two features, `001-node-role-parser` (54/60) and `002-cluster-poweroff-cli` (69/69) | `d5c4226` |
+| 01 | `cuems-engine` | **not started** — no `feat/xml-refactor` branch; bundle vendored 2026-09-25. Bases on `feat/nodelist-modify-dispatch` | — |
+| 02 | `cuems-editor` | **not started** — no branch; C2 re-verified live; bundle vendored. Bases on `feat/nodelist-adoption-api` | — |
+| 05 | `cuems-frontend` | **not started** — no branch; bundle vendored. Carries a **scope decision**: the adoption/liveness UI tier does not exist | — |
+
+**A three-repository feature the flows did not account for.** Found 2026-09-25: fourteen commits from
+**2026-09-04** across `cuems-editor`, `cuems-engine` and `cuems-nodeconf` are one coordinated node
+adoption / cluster-liveness feature, under three different branch names, **none of them merged**, and
+**`cuems-frontend`'s UI tier was never written**. It changes flows 01 and 02's base branches, makes
+FR-047's `initial_mappings` untangling **three-way** rather than two-way, and leaves flow 05 a scope
+question. `cuems-nodeconf`'s third is **not** in its published candidate `6c0cca7`; measured against the
+current tree, two of its four defects are superseded completely, one in effect, and **two are open** — a
+spurious *"Node not found"* in the daemon's start-up window, and a false `<online>` cadence in its own
+`CLAUDE.md`. Analysis: `nodeconf-map-write-divergence.md`; the carried items are **T091–T100** under US7
+in Phase 4. Flow status and the cluster map: `baseline.md`'s final sections.
+
+The three outstanding flows are the Python show/UI path, and they are chained: the editor is gated on
+this repository's wave 0 (**closed**), and the frontend on the editor. Each now carries a
+self-contained bundle at `specs/planning/xml-refactor/` in its own checkout, following
+`cuems-nodeconf`'s and `cuems-power-bridge`'s precedent — see `baseline.md`'s 2026-09-25 section for
+the per-repository measurements and the findings they added.
+
+**⚠ The `xml-refactor-merge-candidate` tag is no longer the last step in the ecosystem.** This file's
+US9 and US10 read as if the coordinated release follows the seventh flow. It does not, any more:
+`cuems-utils` features **011–014** are a **hard successor** to this feature, in the sense 008 was to
+009 — not a follow-up — and the whole-system tag comes **after** them:
+
+| | Feature | Delivers |
+|---|---|---|
+| 011 | `/etc/cuems` first install | a fresh `apt install` leaves a node that boots, loads and is unique. **Blocks 012 hard**, and every "fresh node" claim in the ecosystem |
+| 012 | uuid4 convergence | one uuid version across the project, plus the cross-document re-mint. **Depends on 011** — narrowing `UuidType` first invalidates every node identity in the field with nothing able to repair them |
+| 013 | device-class reshape (F6) | a new hardware class costs data, not schema. Reaches `cuems-frontend`'s four cue-type unions |
+| 014 | `hardware_outputs` becomes real | node hardware capability split from project mappings. Moves the port inventory `cuems-editor`/`cuems-frontend` read |
+
+**This feature's own gate is unchanged and still closes on its own terms** — six consumer flows landed
+plus a **measured** census of zero (FR-029). What changes is only the claim about what happens next:
+US10's deletions and the `v0.1.1` version move remain this feature's, and the *coordinated release*
+they enable waits on 011–014. See `specs/planning/etc-cuems-first-install-execution.md` §5 (the step
+sequence) and §8 (*"do not ship anything from this branch alone … the tag comes after 011–014, not
+before"*).
+
+Recorded here rather than left to the planning document alone, because three separate places in this
+directory describe the release as following the last consumer flow.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: can run in parallel (different files, no dependency on an incomplete task)
@@ -211,6 +263,145 @@ map `cuems-common` ships, `NetworkMap.get_node` raised `TypeError` instead of th
 - [X] T089 [P] [US7] Answer the consumer at `specs/planning/xml-rebuild/010-consumer-prompts/04b-cuems-nodeconf-empty-node-list.md` (flow 04b, following the 04a precedent): the fix lands **inside `0.1.0rc16`**, so that repository's pins do not move and its merge candidate is not re-cut — it only needs to rebuild `cuemsutils` from the fixed commit. Its research.md R3 option A (seeding a fresh node with the same empty map and loading it back) is now implementable, and its `except ValueError` catch needs **no** change
 - [X] T090 [P] [US7] Record that this patch ships inside `0.1.0rc16`, with no version bump (maintainer, 2026-09-21). `src/cuemsutils/__init__.py` verified unchanged at `__version__ = "0.1.0rc16"`. Sound because **rc16 was never released**: tags stop at `v0.1.0rc14`, there is no `debian/` directory, and consumers build the wheel from a checkout. Precedent: `6fe2d3f`. Consequences are all absence of work — pins stay as they are (FR-091 satisfied untouched) and **the merge candidate is not re-cut**. **The caveat**: inside rc16 the version cannot distinguish a build made before this fix from one made after, so the rule is operational — rebuild or reinstall `cuemsutils` from the fixed commit everywhere, with T085's tests as the discriminator
 
+### Third finding — `cuems-nodeconf`'s unmerged hardening branch (raised here 2026-09-25, **OPEN**)
+
+Unlike the two findings above, this one was **not** reported by `cuems-nodeconf`. It was found from this
+side, while checking whether `cuems-engine`'s `feat/nodelist-modify-dispatch` had a counterpart in
+`cuems-editor`. It does, and so does `cuems-nodeconf`: fourteen commits from **2026-09-04** across three
+repositories are one coordinated node-adoption feature, under three different branch names, **none
+merged**. See `baseline.md`'s cluster map.
+
+`cuems-nodeconf`'s third is `origin/feat/nodelist-modify-hardening` — 3 commits ahead of its
+`feat/xml-refactor`, **47 behind**, and absent from its published candidate `6c0cca7`.
+`nodeconf-map-write-divergence.md` measures its **four** defects against the current tree:
+
+| | Defect | Verdict | Carried? |
+|---|---|---|---|
+| A | `engine_callback` answers only `nodelist_modify`; the engine stalls 15 s | **superseded completely** — ported verbatim as `21c2875` | no |
+| B | two writers share the temp path `f"{map_path}.tmp.{os.getpid()}"` → truncated map, cluster will not boot | **superseded by construction** — the daemon renders no temp file; `write_tree` uses `tempfile.mkstemp`. Measured 6/6 distinct names | no |
+| C1 | an adoption lost between the worker loop and the comms thread | **superseded in effect** — 0 of 60 concurrent trials, by aliasing rather than by design intent | **yes, as a test** |
+| C2 | spurious *"Node not found"* in the `set_comms()` → `read_network_map()` window | **OPEN** — needs code | **yes** |
+| D | `CLAUDE.md:26` says `<online>` is a boot-only snapshot; the daemon is resident | **OPEN** — documentation | **yes** |
+
+**Why any of this is in *this* file.** The scope boundary above keeps consumer edits out of this list, and
+C2 and D are `cuems-nodeconf`'s edits. They appear here as **gate references** — the verification each one
+owes and the guide entry this repository owes — exactly as T018–T034 do for the other consumers. **C1 is
+different and is genuinely this repository's work**: the property that makes the lost-adopt race
+unreachable is *half* provided by `cuemsutils`, so a defensive copy added here would break a consumer's
+correctness with a green suite on both sides.
+
+**None of these re-cuts `6c0cca7`.** D is documentation; C2 is a pre-existing bug in a window that
+predates this work. They are on this release's list because both touch code flows 01 and 02 are migrating,
+not because the candidate is wrong.
+
+#### C1 — the aliasing that closes the lost-adopt window is a guarantee nothing states
+
+Measured 2026-09-25: two daemon threads mutating and saving one map lose **0 of 60** adoptions. The reason
+is that node dicts are passed **by reference** end to end, so an `adopted` flag set on the index is
+already visible in the document being serialised. Two of the four links in that chain are in this
+repository:
+
+| Link | Where | What it must keep doing |
+|---|---|---|
+| 1 | `cuems-nodeconf` `_index_from_document` | build the index over the document's node dicts — *"no copies"* |
+| 2 | `cuems-nodeconf` `_network_map_document()` | return `self._document` itself, not a copy |
+| **3** | **`cuemsutils.tools.NodeList.NodeIndex.adopt` / `.unadopt`** | mutate the node dict **in place** (`n["adopted"] = True`), never rebind |
+| **4** | **`cuemsutils.config.network_map.CuemsNetworkMapType.refresh`** | build `current` from `item["node"]` references, and `merge` must refresh discovery fields **in place** |
+
+- [ ] T091 [US7] Add a contract test in **this** repository pinning links 3 and 4 as behaviour rather than
+  as an implementation accident: that `NodeIndex.adopt` sets `adopted` on the *same object* the caller
+  holds (assert by identity, `node is index[mac]`, not by value), that `NodeIndex.merge` refreshes
+  discovery fields in place, and that `CuemsNetworkMapType.refresh` reaches the caller's node dicts rather
+  than copies of them. **Write it so it fails against a defensive-copy implementation**, which is the only
+  thing it is guarding against — a `dict(n)` added anywhere on this chain for tidiness would reopen a
+  consumer's concurrency window silently, and both suites would stay green. This is the durable form of
+  the throwaway probe behind `nodeconf-map-write-divergence.md` §4
+- [ ] T092 [P] [US7] State the aliasing as a **contract** in the three docstrings that currently imply it
+  by accident: `NodeIndex.adopt`/`unadopt` (in-place, by design, because a caller's index and its document
+  share node objects), `NodeIndex.merge` (*"Refresh mutable discovery fields in place"* — say why that
+  matters beyond not clobbering keys), and `CuemsNetworkMapType.refresh` (that `current` aliases the
+  document's nodes). No behaviour change. The point is that a future reader must be able to tell that
+  copying here is a **breaking** change, which none of the three currently says
+- [ ] T093 [P] [US7] Gate: verify `../cuems-nodeconf` carries the other half — a test pinning links 1 and
+  2 — and that it is written to fail against a copy. Record the test path and the failing run in
+  `specs/010-consumer-migration/baseline.md`. **Do not accept "the suite is green" as evidence**: the
+  suite is green today *and* the property is unstated, which is precisely the condition this pair of tasks
+  exists to end
+
+#### C2 — the start-up window, which `cuems-engine`'s readiness probe turns into a wrong answer
+
+`cuems-nodeconf`'s `start()` calls `set_comms()` **before** `run()`, so its NNG responder accepts
+adopt/unadopt for as long as `get_ips()`'s `TimeoutLoop(timeout=10, interval=1)` runs, while
+`self.network_map` is still the empty `NodeIndex()` from `__init__`. An adopt in that window returns
+`{'OK': False, 'error': 'Node <uuid> not found'}` for a node that is present.
+
+Feature 002 closed the **crash** variant deliberately, by assigning `self._document` before
+`self.network_map` — `read_network_map`'s comment names the same `set_comms`-before-`run` fact. The
+wrong-answer variant is live.
+
+- [ ] T094 [US7] Gate: verify `../cuems-nodeconf` answers **"not ready"** rather than **"not found"** in
+  that window — a readiness flag set at the end of `read_network_map`, with `engine_callback` returning a
+  distinguishable refusal until then. Record the fix and a test exercising the window in
+  `specs/010-consumer-migration/baseline.md`. **A mutex is not the fix and must not be accepted as one**:
+  `_map_lock` would serialise the two threads without making the empty index any less empty, which is why
+  `b53ee5f`'s lock would not have fixed this even if it had been merged
+- [ ] T095 [US7] Record in `specs/010-consumer-migration/migration-guide.md` the cross-repository
+  interaction, because it is the reason this is worse than it was and neither repository can see it alone:
+  `cuems-engine`'s `cf5c4ad` replaced a 15 s stall with an instant refusal by checking that
+  **`/tmp/nodeconf.ipc` exists** — a socket `set_comms()` creates *before* the window opens. So the probe
+  reports the daemon **available** during precisely the interval in which it answers wrongly, and the
+  operator reads a confident *"Node not found"* where they used to get a stall. **`cf5c4ad` is correct and
+  is not to be reverted** — the stall was the worse failure on a fleet where nodeconf ships disabled, and
+  it was measured on the rig. What is wrong is the *signal it trusts*. Record it as a readiness-contract
+  gap between two repositories, not as a defect in either
+- [ ] T096 [P] [US7] Gate: verify flow 01 did **not** deepen the dependency on
+  socket-existence-as-readiness, and flow 02 did **not** add client-side retry or interpretation to
+  compensate for the wrong string. Both are recorded as prohibitions in those repositories' bundles
+  (`../cuems-engine/specs/planning/xml-refactor/04-findings-new-to-this-pass.md` F2a,
+  `../cuems-editor/specs/planning/xml-refactor/00-runnable-flow.md` §0a). A heuristic on either side is
+  how the two ends drift; record the check in `baseline.md`
+
+#### D — a false statement about the field two consumer bundles depend on
+
+- [ ] T097 [P] [US7] Gate: verify `../cuems-nodeconf`'s `CLAUDE.md:26` no longer says the daemon *"runs at
+  boot and on explicit reconfigure — not continuously"*. It has been resident since `3e100bb`;
+  `_run_worker_loop` does `self._dirty.wait(timeout=30)`, so `<online>` is a **≤30 s-stale discovery
+  proxy**. `28f26d3`'s replacement text applies almost verbatim. Record the corrected wording in
+  `baseline.md`
+- [ ] T098 [P] [US7] Record in `specs/010-consumer-migration/migration-guide.md` **why a documentation
+  line is a release item here**: `<online>`'s freshness is the fact `cuems-editor`'s `node_status`
+  docstring and `cuems-frontend`'s inventory §4a both rest on when they distinguish nodeconf's discovery
+  view from the engine's sub-second ping/pong. A reader who checks nodeconf's own `CLAUDE.md` for how
+  stale `<online>` is currently gets *"between boots"*, which understates it enough to change the design
+  answer on the screen operators use to adopt hardware. The load-bearing half of that section — `<online>`
+  is **not** runtime liveness, and only the engine's probe gates GO — is correct on both branches and is
+  not in question
+
+#### The branch itself
+
+- [ ] T099 [US7] Record the **disposition** of `origin/feat/nodelist-modify-hardening` in
+  `specs/010-consumer-migration/migration-guide.md`: **retire, do not merge**, against T091–T098. It is 47
+  commits behind, predates the NodeList refactor, and `21c2875` already recorded that merging it
+  auto-merges its tests into a file whose imports no longer define `CuemsNodeDict`; merging it to obtain
+  C2's fix would reintroduce a mutex for a hazard that no longer exists (defect B) and would not fix C2
+  anyway. **This is the maintainer's call, not this feature's** — the branch is another author's, and
+  `cuems-nodeconf`'s own constitution is why its two features reported upstream rather than patching
+  across a boundary. `nodeconf-map-write-divergence.md` is the input to that decision; this task records
+  the decision once taken, including a "merge after all" outcome if that is the one chosen
+- [ ] T100 [P] [US7] Record the **method** lesson in `specs/010-consumer-migration/migration-guide.md`,
+  because it is the fourth time a hand-maintained list in this feature was wrong: `cuems-wsclient` absent,
+  `cuems-power-bridge` absent, the two counted separately — and now three branches of one feature
+  invisible because they carry three different names and two were never checked out locally. The
+  `feat/xml-refactor`-everywhere convention exists to prevent exactly this and **does not extend to work
+  that predates it**. An ecosystem sweep must therefore enumerate branches **by content** — `git cherry`,
+  message subjects, symbol names — never by expected name, and must include remote-only refs
+
+**Checkpoint (US7)**: `cuems-nodeconf`'s migration landed at `6c0cca7`; **T091–T100 are what remain before
+its `feat/xml-refactor` is in a state this release can stand behind.** T091 and T092 are this repository's
+own work and are not blocked by anything. T093–T098 are gates on `cuems-nodeconf` edits that no numbered
+feature there currently owns — if that repository opens a feature `003` for them, these become its gate
+references and the implementation detail moves out of this file.
+
 ### User Story 11 — `cuems-power-bridge` (added 2026-09-17; **merged with US1** 2026-09-18)
 
 **Why it exists**: the wave-1 gate (T023a/T024/T025) measured `cuems-power-bridge` parsing
@@ -251,6 +442,8 @@ them later.
 - [ ] T079 [US11] Record the **root cause** in `specs/010-consumer-migration/migration-guide.md`, because it outlives this defect: the bridge carries a **parallel implementation of the node-identity model** — `role_id → alias → hostname → uuid`, the same resolution `cuemsutils` owns and `cuems-common`'s `cuems-logs` performs. It uses bare `ElementTree` with namespace-agnostic local-name matching and **validates against no schema** (verified 2026-09-17), so a vocabulary change cannot fail loudly there by construction. The vocabulary break is the symptom; the fourth copy of the model is the cause, and 007 FR-030a-i's "the node model lives in `cuemsutils` only" is the rule it violates. **Updated 2026-09-18**: the findings document names option C as the *direction of travel*, but T072 now **schedules** it — the copy is deleted by this feature, so what T079 records is no longer a deferred intention. Record instead **why a fourth copy existed at all**: the repository was absent from the list for two features under one name and re-discovered under another, so nothing ever told it that `cuemsutils` owned the model. That cause outlives this defect; the copy does not
 
 **Checkpoint**: every consumer flow has landed and is recorded. Wave 4 can begin.
+
+**Amended 2026-09-25**: three of six consumer flows have landed; 01, 02 and 05 have not started. And a landed flow is not automatically a closed one — US7's T091–T100 reopened after `cuems-nodeconf`'s candidate was cut. Wave 4 begins when the flows have landed **and** their carried items are closed, not on the merge alone.
 
 ---
 
@@ -369,7 +562,7 @@ difference is a broken daemon.
 | US4 `cuems-engine` | nothing | |
 | US5 discovery cutover | nothing | two repositories, **merged simultaneously** |
 | US6 `cuems-editor` | US2, US3 | |
-| US7 `cuems-nodeconf` | US3 | |
+| US7 `cuems-nodeconf` | US3 | Its flow **landed** (`6c0cca7`). **Reopened 2026-09-25** by the third finding: T091–T100 carry the items left by the unmerged `feat/nodelist-modify-hardening` branch — two open defects and a guarantee nothing states. T091/T092 are this repository's; the rest are gates |
 | US8 `cuems-frontend` | US3, US6 | characterization tests **before** the port |
 | **US11 `cuems-power-bridge`** | nothing | **added 2026-09-17; absorbed US1 2026-09-18.** Independent of every other story — it neither imports the library's deprecated surface nor touches the descriptor. **Run it first**: it is a live silent failure, the failure is *physical*, and it has now gone unfixed across two features and two names. Its one coupling is that `cuems-common`'s `cuems-cluster-poweroff` must merge **simultaneously**, the way US5's two halves do — that tool calls this repository's parser directly |
 | US9 rollout and gate | US2–US8, **US11** (which absorbed US1) | |

@@ -709,3 +709,273 @@ src/cuemspowerbridge/network_map.py:141  if n.node_type != "NodeType.slave":
 T071–T079 remain open. This is now the **only** consumer defect in the ecosystem that is both live
 and silent, and both of its broken features (orderly power-off, and the autoload readiness gate)
 are still broken.
+
+## Sibling pull and re-review (2026-09-25)
+
+`cuems-common` and `cuems-power-bridge` were **behind their own origins** and are now
+fast-forwarded; `cuems-common`'s local candidate tag **disagreed with the published one** and has
+been force-updated. Two items above are superseded, one of them completely.
+
+| Repository | Was (2026-09-21) | Now | Note |
+|---|---|---|---|
+| `cuems-common` | `11fab0e`, tag at `f2fc0f5` | **`3af31cc`**, tag at **`3af31cc`** | 3 commits landed; the tag was **relocated** and force-pushed |
+| `cuems-nodeconf` | `be45dda`, tag at `6c0cca7` | unchanged, in sync | — |
+| `cuems-power-bridge` | `feat/xml-refactor` @ `d7fed47` | **`13a9af4`**, tag at **`d5c4226`** | 22 commits landed: **features 001 and 002, both complete** |
+| `cuems-utils` | — | `b7db53e`, no tag | tags last, by decision |
+
+### ⚠️ "US11 — unchanged, and still the live one" is now FALSE
+
+The section above this one states that `cuems-power-bridge`'s migration *"has **not** started: only the
+docs commit landed"*, and quotes three live sites in the retired vocabulary at `d7fed47`. **All three
+are gone.** Re-measured 2026-09-25 at `13a9af4`:
+
+```
+$ grep -rn 'node_type\|NodeType\.' src/            # cuems-power-bridge
+network_map.py:9    "...converts documents written before the ``node_type`` -> ``node_role`` rename."
+network_map.py:104  "Deliberately has **no** `node_type` attribute and no string role: ..."
+network_map.py:171  _RETIRED_MARKERS = ("node_type", "retired")
+network_map.py:244  f"{network_map_path} still uses the retired <node_type> vocabulary ..."
+```
+
+Four occurrences, **all four deliberate**: two docstrings, the retired-marker tuple, and the loud
+refusal message. The role filter is now `if v.role is NodeRole.node` (`:329`), reached through
+`ConfigManager.network_map`, with `NodeRole` imported lazily from `cuemsutils.tools.NodeList` (`:262`).
+
+This is the **option C** outcome T072 scheduled — the private parser deleted, not migrated, replaced by
+a thin adapter preserving both field-learned resolution policies. It landed as two spec-kit features
+(`specs/001-node-role-parser`, 54/60 tasks; `specs/002-cluster-poweroff-cli`, 69/69) with an evidence
+directory each, including `evidence/pre-migration-parser-failure.txt` — the discriminating-fixture run
+T073 asked for.
+
+**Consequences for this repository's gate tasks**: T018, T019, T071–T079 are all now *verifiable*
+rather than blocked. They are not thereby *done* — each still owes its entry in
+`migration-guide.md` or a recorded verification here — but the premise that the consumer side is
+outstanding no longer holds, and re-stating it would be the third time this repository's record of
+`cuems-power-bridge` lagged the repository itself.
+
+### T076's pin check — partially satisfied, with one gap the task did not anticipate
+
+| File | Required | Measured 2026-09-25 |
+|---|---|---|
+| `pyproject.toml:38` | non-optional, `>=0.1.0rc16,<0.1.1` | ✅ exactly that, out of `[tool.poetry.extras]`, with a comment recording why |
+| `debian/control:18` | floor raised **and bounded** | ◐ `cuems-utils (>= 0.1.0rc16)` — raised, **not bounded**. No `<< 0.1.1~`, no `Breaks:` |
+
+So the source pin expresses the gate and the **packaged** one does not. `cuems-nodeconf`
+(`debian/control:18-19`) and `cuems-common` (`:12-13`) both carry the pair. Record this as the bridge's
+remaining edge rather than closing T076.
+
+### The two edges still entirely absent
+
+| Repository | `pyproject.toml` | `debian/control` |
+|---|---|---|
+| `cuems-engine` | `:41` `>=0.1.0rc10` | `:18` `>= 0.1.0rc4` — **and the two disagree with each other** |
+| `cuems-editor` | `:27` `>=0.1.0rc10` | **no `debian/` directory at all** |
+
+These are the only two consumers that cannot express the gate. Both are unstarted, and **neither has a
+`feat/xml-refactor` branch** — local or remote — as of 2026-09-25:
+
+```
+cuems-engine   feat/nodelist-modify-dispatch @ dbc9e6d   (6 commits ahead of rc_1)
+cuems-editor   rc1 @ d9e0a39                             (in sync with origin/rc1)
+cuems-frontend main @ c69dc1c                            (in sync with origin/main)
+```
+
+Planning bundles were vendored into all three on 2026-09-25 under
+`specs/planning/xml-refactor/`, following `cuems-nodeconf`'s and `cuems-power-bridge`'s precedent, so
+each can run its flow from its own checkout. See §"Consumer flow status" below.
+
+### C2 re-verified live
+
+`cuems-editor`'s import failure is not historical:
+
+```
+$ python -c "from cuemsutils.create_script import create_script, new_uuid"
+ModuleNotFoundError: No module named 'cuemsutils.create_script'
+```
+
+`../cuems-editor/src/cuemseditor/CuemsWsServer.py:24`. Every line number the flow-02 prompt recorded on
+2026-09-03 still resolves to the same line — that repository has not changed since 2026-08-03.
+
+### Consumer flow status, 2026-09-25
+
+| Flow | Repository | Feature dir | State |
+|---|---|---|---|
+| 00 | `cuems-utils` | `010-consumer-migration` | wave 0 landed; waves 4–5 open |
+| 01 | `cuems-engine` | `008-cuems-utils-migration` | **not started** — bundle vendored, base branch decided (below) |
+| 02 | `cuems-editor` | `001-cuems-utils-migration` | **not started** — bundle vendored; C2 still live |
+| 03 | `cuems-common` | `001-node-role-and-conversion-ordering` | **landed**, tag `3af31cc` |
+| 04 / 04a / 04b | `cuems-nodeconf` | `001-…`, `002-public-network-map-path` | **landed**, tag `6c0cca7`. Open: hardware verification (001/T050, T051) and the merge-window handshake (001/T042) |
+| 05 | `cuems-frontend` | `001-schema-descriptor-migration` | **not started** — bundle vendored |
+| 07 | `cuems-power-bridge` | `001-node-role-parser`, `002-cluster-poweroff-cli` | **landed**, tag `d5c4226` |
+
+**Three of six consumer flows have landed.** The three outstanding are the Python show/UI path —
+engine, editor, frontend — and they are chained: the editor is gated on this repository's wave 0
+(closed), and the frontend on the editor.
+
+### A decision recorded here because it changes flow 01's §1
+
+**`cuems-engine` bases `feat/xml-refactor` on `feat/nodelist-modify-dispatch`, not `rc_1`** (maintainer,
+2026-09-25). The flow-01 prompt says `rc_1`, correctly for 2026-09-03. Since then six commits landed
+the adopt/un-adopt hop and runtime cluster liveness, and in doing so added a **second**
+`get_nodes_by_adoption` call site (`ControllerEngine.py:287`) plus two docstrings constraining when it
+may be called (`:272-277`, `:938-943`) — they built *around* the deprecated mutating API this feature
+replaces. Branching from `rc_1` would produce work conflicting with exactly that code.
+
+Consequence for T023: the four `BaseEngine.py` sites it names (`:33`, `:410`, `:440`, `:443`) are
+**unchanged** and the file is still 636 lines, so that entry needs no correction. Every
+`ControllerEngine.py` line number in the flow-01 prompt has moved, and the re-measured table lives in
+`../cuems-engine/specs/planning/xml-refactor/03-migration-inventory.md`.
+
+### Two findings against T023's site list, measured rather than inherited
+
+**`find_hosts` has no caller anywhere in the ecosystem**, and it is broken for a second, independent
+reason. Swept 2026-09-25 across all seven repositories (`*.py`, `*.ts`, `*.sh`): one hit, its own
+definition at `../cuems-engine/src/cuemsengine/core/BaseEngine.py:417`. And it iterates
+`get_nodes_by_adoption`'s **wrappers** while calling `node.get("ip")` / `.get("uuid")` /
+`.get("node_type")` / `.get("online")` — all four read the `{"node": ...}` wrapper, which holds one key,
+so all four are `None`, `hosts` is `[]`, and the method raises `AttributeError("No controller found in
+network map")` unconditionally **today**, before any 007 or 008 consideration.
+
+So two of T023's four sites (`:440`, `:443`) are inside an unreachable, already-broken method. Fixing
+their vocabulary yields something that still does not work and still has nothing calling it. T023's
+verification should require the **decision** (fix-and-wire, or delete) rather than only the comparison.
+
+**`CTimecode(CTimecode(...))` is idempotent** — measured, `CTimecode(CTimecode('00:00:12.500'))` returns
+an equal value and does not raise. So the engine's five re-wrapping sites (`run_cue.py:176`, `:430`;
+`loop_cue.py:112`, `:276`; `CueHandler.py:166`) are redundant rather than broken, and none is a release
+blocker. Recorded so the question is not re-opened as an assumption.
+
+### A sixth consumer of the retired surface, absent from `import-census.md`'s denominator
+
+```
+../cuems-editor/tests/test_repair_durations.py:6   from cuemsutils.xml.XmlReaderWriter import XmlReaderWriter
+```
+
+The release-gate contract's "known live consumers" list is drawn from `src/` only, so this test import is
+outside the required-zero count — and it still breaks when the shims go. `cuems-nodeconf` set the
+precedent for exactly this case: keep the test import and **label** it `# test-only (FR-007)`, so a
+census can distinguish a shipped consumer from a test deliberately exercising the old path. **T049's
+census method should state whether it counts test files**, because right now it neither counts them nor
+says it does not.
+
+### A frontend site absent from flow 05's inventory
+
+Flow 05 names one media-duration display site,
+`../cuems-frontend/src/app/components/projects/project-show/sequence/sequence.component.ts:194`. There
+is a second, in an **Angular template**, which a sweep over `*.ts` cannot find:
+
+```
+../cuems-frontend/src/app/components/projects/project-edit/sequence/sequence.component.html:134
+    {{ getCueData(cue.originalData)?.Media?.duration || '-' }}
+```
+
+Both render `[object Object]` post-008, and **neither fails loudly** — the object is truthy, so the
+`|| '-'` fallback never fires. This is an FR-030a-ii instance rendered to an operator. Two further
+undercounts in the same file, both measured: `getTemplateOutputStructure` has **three** call sites
+(`:1022`, `:1346`, `:1387`), not the one its definition line implies; and the `|| 20` `master_vol`
+fallback appears at **`:502` and `:965`** as well as flow 05's `:688`. The value it diverges from is
+`100`, a **model-layer** default (`src/cuemsutils/cues/AudioCue.py:9`) with no XSD `default` attribute —
+which is the concrete evidence for D25's "defaults are not optional".
+
+All of these are recorded in `../cuems-frontend/specs/planning/xml-refactor/03-migration-inventory.md`.
+
+### An unmerged three-repository feature the consumer flows did not know about (found 2026-09-25)
+
+Found by asking whether `cuems-editor` had a counterpart to `cuems-engine`'s
+`feat/nodelist-modify-dispatch`. It does, under a different name, and so does `cuems-nodeconf`. On
+**2026-09-04**, fourteen commits landed across **three** repositories as one coordinated feature — the
+node adopt/un-adopt hop and cluster liveness. **None of the three branches is merged anywhere.**
+
+| Tier | Repository | Branch | Commits | State |
+|---|---|---|---|---|
+| UI | `cuems-frontend` | — | **none** | **the tier was never written** |
+| middleware | `cuems-editor` | `feat/nodelist-adoption-api` | 5 ahead of `rc1`, 0 behind | pushed; was **not** checked out locally until 2026-09-25 |
+| engine | `cuems-engine` | `feat/nodelist-modify-dispatch` | 6 ahead of `rc_1` | pushed, local in sync |
+| node daemon | `cuems-nodeconf` | `feat/nodelist-modify-hardening` | 3 ahead, **47 behind**, **not merged** | divergent — below |
+
+The pairings are one-to-one: engine `52962d9 expose runtime cluster liveness to the UI` ↔ editor
+`c2eeb80 relay the engine's liveness view as node_status`; engine `cf5c4ad refuse instantly when
+nodeconf is not running` ↔ editor `829c56c nodeconf_available was cached and could tell the UI a
+comfortable lie`. Engine `8e36d13`'s message names the direction: *"land the adopt/un-adopt hop **the
+editor was already calling**"*.
+
+**The chain is Frontend → (WS :9092) → Editor → (NNG, `/tmp/editor.ipc`) → Engine → (NNG) → nodeconf.**
+Three tiers built, the UI tier empty:
+
+```
+$ grep -rn "nodelist_get\|node_status\|cluster_status\|cluster_warning\|nodeconf_available" \
+      ../cuems-frontend/src/
+# no matches
+```
+
+**Why this matters to this feature rather than being someone else's branch hygiene**, three ways:
+
+1. **It changed a base-branch decision.** `cuems-editor`'s flow now branches from
+   `feat/nodelist-adoption-api`, matching the engine decision recorded above. Basing the two halves of one
+   feature on opposite sides of it would migrate one and not the other. Every `CuemsWsServer.py` line
+   number in the flow-02 prompt moves (563 → 651 lines; `CuemsWsUser.py` 806 → 889), while
+   `CuemsDBProject.py` and `repair_durations.py` are untouched — so the prompt is exact for `rc1` and
+   wrong for the base, and the bundle now carries both with `rc1` in brackets.
+2. **It makes the domain entanglement three-way.** `CuemsWsServer.py:491` and `:537` inject
+   `nodeconf_available` into `mappings_dict`, so `initial_mappings` carries `project_mappings`, plus
+   `network_map` node status, plus a liveness fact about a **daemon** that belongs to no schema at all.
+   FR-047's untangling has three things to separate, not two, and the third has no domain to go to. A
+   descriptor-driven `project_mappings` form must not acquire it as a field.
+3. **It adds a liveness distinction a descriptor-driven form can silently destroy.** The editor's own
+   docstring (`../cuems-editor/src/cuemseditor/CuemsWsUser.py:469-472`) separates each node's `online` —
+   `cuems-nodeconf`'s discovery view, refreshed within **~30 s** — from `node_status`'s `alive`, the
+   engine's sub-second ping/pong and *"the only signal the GO gate trusts"*. FR-033's retyping of
+   `online` to `bool` touches only the first. One "is this node up?" control on the adoption screen
+   picks one, probably the staler.
+
+Also: `cluster_status` and `cluster_warning` are **cross-repository contracts**, not internal engine
+names — the editor calls the first at `CuemsWsUser.py:496`, `:501` and relays it as `node_status`.
+Reshaping either during flow 01 is a coordinated change.
+
+Recorded in all three consumer bundles: `../cuems-editor/specs/planning/xml-refactor/00-runnable-flow.md`
+§0a (the cluster map and the base-branch decision),
+`../cuems-engine/specs/planning/xml-refactor/04-findings-new-to-this-pass.md` F2a, and
+`../cuems-frontend/specs/planning/xml-refactor/03-migration-inventory.md` §4a (the missing tier, as a
+**scope decision** for that spec rather than an omission to fill).
+
+#### `cuems-nodeconf`'s third is not in its published candidate — analysed separately
+
+`cuems-nodeconf`'s candidate tag `6c0cca7` does **not** contain the hardening branch, and
+`git cherry -v feat/xml-refactor origin/feat/nodelist-modify-hardening` marks all three commits `+` —
+no equivalent patch upstream.
+
+**Analysed in full in [`nodeconf-map-write-divergence.md`](nodeconf-map-write-divergence.md)**
+(2026-09-25), which measures each of the branch's **four** defects against the current tree rather than
+reasoning from commit messages. Summary:
+
+| | Defect | Verdict |
+|---|---|---|
+| A | `engine_callback` answers only `nodelist_modify` — the engine stalls 15 s | **superseded completely** — ported verbatim as `21c2875` |
+| B | two writers share the temp path `f"{map_path}.tmp.{os.getpid()}"` → truncated map, cluster will not boot | **superseded by construction** — the daemon renders no temp file at all now; `write_tree` uses `tempfile.mkstemp`. Measured: 6 distinct temp names over 6 saves. Worst case degrades to last-writer-wins with a **complete, valid** document |
+| C1 | an adoption lost between the worker loop and the comms thread | **superseded in effect** — 0 of 60 concurrent trials lose it, because feature 001/002 passes node dicts by reference throughout (`_index_from_document`: *"no copies"*) and `NodeIndex.adopt` mutates in place. Carry a **test**, not a lock: a future defensive copy would reopen it silently |
+| C2 | spurious *"Node not found"* in the `set_comms()` → `read_network_map()` window | **OPEN, needs code.** `start()` still calls `set_comms()` before `run()`, and `get_ips()` can hold the window open 10 s. Feature 002 closed the *crash* variant by ordering `self._document` before `self.network_map`; the wrong-answer variant is live — and `cuems-engine`'s `cf5c4ad` makes it answer **confidently wrong** rather than stall, because its readiness probe is the existence of `/tmp/nodeconf.ipc`, which `set_comms()` creates before the window opens |
+| D | `CLAUDE.md` says `<online>` is a boot-only snapshot | **OPEN, documentation.** `CLAUDE.md:26` is still false on the candidate: the daemon has been resident since `3e100bb` and `<online>` is a ≤ 30 s-stale discovery proxy. This is the fact both the editor and frontend bundles depend on for the `online`-versus-`alive` distinction |
+
+**Disposition: do not merge the branch; retire it against C1's test, C2's readiness flag and D's
+paragraph.** It is 47 commits behind, predates the NodeList refactor, and `21c2875` already recorded
+that merging it auto-merges tests into a file whose imports no longer define `CuemsNodeDict`.
+
+**Not acted on from here** — a merge decision in another repository involving another author's work.
+Reported because C2's write path is driven by `cuems-engine`'s `nodelist_modify` handler and reached from
+`cuems-editor`'s WS action, both of which flows 01 and 02 migrate.
+
+**A correction to this section's own first version**, recorded rather than silently edited: it described
+`21c2875` as *"a narrower fix [that] landed in its place"* and the candidate as having *"no guard against
+two threads writing the map at once"*, on the strength of a *"22 against 11 lock-related lines"* count.
+All three were wrong. `21c2875` is an explicit intent-level cherry-pick that **states** which half it
+excludes and why; the hazard the excluded lock guarded no longer exists; and the 11 matches were all
+`master.lock`, a file name unrelated to threading — the honest count is **zero** mutexes on
+`feat/xml-refactor` against **one `threading.RLock`** on the hardening branch. §0 of the report carries
+the correction.
+
+**A note on method, since this is the fourth time a hand-maintained list in this feature was wrong.**
+`cuems-wsclient` was absent, `cuems-power-bridge` was absent, the two were counted separately — and now
+three branches of one feature were invisible because they carry three different names and two were never
+checked out locally. The branch-name convention this work adopted (`feat/xml-refactor` everywhere) exists
+precisely to prevent that, and it does not extend to features that predate it. An ecosystem sweep should
+enumerate **branches by content**, not by expected name.

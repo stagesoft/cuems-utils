@@ -624,3 +624,88 @@ model lives in `cuemsutils` only; this is what violating it costs.
 ## 6. Rollout, rollback and the release gate
 
 *(FR-091–FR-104. Filled by T038a, T040, T041, T043–T045.)*
+
+---
+
+## 7. Status and sequence, as at 2026-09-25
+
+This guide is the hand-off document for the six consumer repositories. Three have taken it; three have
+not. Recorded here so a reader arriving at any section knows which half they are in.
+
+| Flow | Repository | Feature dir | State | Candidate tag |
+|---|---|---|---|---|
+| 03 | `cuems-common` | `001-node-role-and-conversion-ordering` | **landed** | `3af31cc` (relocated from `f2fc0f5`, 2026-09-24) |
+| 04 / 04a / 04b | `cuems-nodeconf` | `001-network-map-object-adoption`, `002-public-network-map-path` | **landed** | `6c0cca7` |
+| 07 | `cuems-power-bridge` | `001-node-role-parser`, `002-cluster-poweroff-cli` | **landed** | `d5c4226` |
+| 01 | `cuems-engine` | `008-cuems-utils-migration` | **not started** — bases on `feat/nodelist-modify-dispatch` | — |
+| 02 | `cuems-editor` | `001-cuems-utils-migration` | **not started** — bases on `feat/nodelist-adoption-api` | — |
+| 05 | `cuems-frontend` | `001-schema-descriptor-migration` | **not started** — carries a scope decision, below | — |
+
+The three outstanding are the Python show/UI path, and they are chained: `cuems-editor` was gated on
+this repository's wave 0 (**closed** — the descriptor has a public path), and `cuems-frontend` on
+`cuems-editor`. None of the three had a `feat/xml-refactor` branch as of 2026-09-25.
+
+**Each now carries a self-contained planning bundle** at `specs/planning/xml-refactor/` in its own
+checkout, following the precedent `cuems-nodeconf` and `cuems-power-bridge` set: a runnable flow, the
+binding decision subset, that repository's consumer-audit findings, a re-measured call-site inventory,
+and — for the two on the wire — the payload contract from their own side. The sibling `cuems-utils`
+checkout is no longer required reading for any of them.
+
+Findings those bundles added, each measured rather than inherited (full detail in `baseline.md`'s
+2026-09-25 section):
+
+- `cuems-engine`'s `find_hosts` has **no caller anywhere in the ecosystem** and reads the node wrapper
+  instead of the node, so it raises unconditionally today — independent of the vocabulary. Two of
+  T023's four sites are inside it.
+- `CTimecode(CTimecode(...))` **is idempotent**, so the engine's five re-wrapping sites are redundant
+  rather than broken.
+- `cuems-frontend` has a **second** media-duration display site, in an Angular **template**, which a
+  sweep over `*.ts` cannot find. `getTemplateOutputStructure` has **three** call sites, not one, and
+  the `|| 20` `master_vol` fallback appears **three** times against a library default of `100`.
+- `cuems-editor`'s `tests/test_repair_durations.py:6` is a **sixth** consumer of the retired surface,
+  outside the census's `src/`-only denominator.
+- **An unmerged three-repository feature from 2026-09-04** — the node adopt/un-adopt hop and cluster
+  liveness — spans `cuems-editor` (`feat/nodelist-adoption-api`), `cuems-engine`
+  (`feat/nodelist-modify-dispatch`) and `cuems-nodeconf` (`feat/nodelist-modify-hardening`), under three
+  different branch names, **none merged**, with **`cuems-frontend`'s UI tier never written**. Three
+  consequences for this guide: it sets flows 01 and 02's base branches; it makes **FR-047's
+  `initial_mappings` untangling three-way** — `project_mappings`, `network_map` node status, **and**
+  `nodeconf_available`, a liveness fact about a daemon belonging to no schema; and it introduces a
+  liveness distinction FR-033 does not cover, between each node's `online` (~30 s discovery) and
+  `node_status`'s `alive` (sub-second ping/pong, *"the only signal the GO gate trusts"*). `cluster_status`
+  and `cluster_warning` are therefore **cross-repository contracts**, not internal engine names.
+- **`cuems-nodeconf`'s candidate `6c0cca7` is missing that feature's node-daemon third**, and the
+  question of whether that matters is answered in `nodeconf-map-write-divergence.md`: of the branch's four
+  defects, the IPC-reply fix was **ported verbatim**, the truncated-map hazard is **superseded by
+  construction** (the daemon renders no temp file now; `write_tree` uses `tempfile.mkstemp` — measured, 6
+  distinct names over 6 saves), and the lost-adopt race is **superseded in effect** (0 of 60 concurrent
+  trials, because feature 001/002 passes node dicts by reference throughout). **Two remain open**: a
+  spurious *"Node not found"* in the `set_comms()` → `read_network_map()` window — which
+  `cuems-engine`'s `cf5c4ad` turns from a stall into a confidently wrong answer, since its readiness probe
+  is the existence of a socket `set_comms()` creates before the window opens — and `CLAUDE.md:26`'s claim
+  that `<online>` is a boot-only snapshot, which is the very fact the editor and frontend bundles depend
+  on for the `online`-versus-`alive` distinction. Reported, not fixed — another repository, another
+  author — but both touch code flows 01 and 02 migrate.
+
+### What the release waits on
+
+**This feature's own gate is unchanged**: six consumer flows landed, plus a measured census of zero
+(FR-029), then the deletions and the version move. What has changed is the claim about what follows.
+
+`cuems-utils` features **011–014** — `/etc/cuems` first install, uuid4 convergence, the device-class
+reshape (F6), and `hardware_outputs` becoming real — are a **hard successor** to this feature, not a
+follow-up, and the shared `xml-refactor-merge-candidate` tag comes **after** them. `cuems-utils` is
+therefore the last repository to cut its tag, by decision: it is the library every other repository
+here pins.
+
+Two of the four reach repositories this guide covers, so a reader should not treat this migration as
+final for those files:
+
+| | Feature | Reaches |
+|---|---|---|
+| 011 | `/etc/cuems` first install | `cuems-common` (hands over `network_map.{xml,xsd}`, gains the identity contract). **Blocks 012 hard** |
+| 012 | uuid4 convergence | every project library — the re-mint is a **cross-document** identity change, and node uuids appear inside compound strings (`<uuid>_<output_id>` in every `<output_name>`) |
+| 013 | device-class reshape | `cuems-frontend`'s four cue-type unions in `project-edit/sequence/sequence.component.ts` |
+| 014 | `hardware_outputs` | `cuems-nodeconf` (transcribes `display.conf`), `cuems-editor` / `cuems-frontend` (read the port inventory from a new place) |
+
+Authority: `specs/planning/etc-cuems-first-install-execution.md` §5 and §8.
