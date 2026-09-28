@@ -1049,3 +1049,57 @@ T092 does not touch.
 `_network_map_document`) in `cuems-nodeconf`, and is a gate rather than work here. Until it lands, half
 the chain is guarded and half is not — the docstrings added by T092 name the consumer explicitly so
 that asymmetry is visible from this side.
+
+### T093 / T097 — the consumer's half, landed in `cuems-nodeconf` (`2e2ae40`, 2026-09-28)
+
+Verified here rather than taken on report, which is this gate's whole job.
+
+| Check | Result |
+|---|---|
+| `tests/test_node_aliasing.py` exists and pins links 1 and 2 | **yes** — 5 tests, 0.28 s |
+| Assertions are on **identity**, not value | **yes** — `index[n['mac']] is n`, `document is nodeconf._document`, `node_list[0]['node'] is n` |
+| Written to fail against a defensive copy | **yes**, two mutations below |
+| That repository's suite | **119 passed** (was 114), no skips introduced |
+| Vendored yardstick unedited | **15/15 passed, byte-identical** to `tests/contract/test_nodeindex_characterization.py` — `diff -q`, not by eye |
+| `CLAUDE.md`'s `<online>` cadence corrected | **yes**, and **two** lines were false, not the one T097 named |
+| Packaged content touched | **none.** That package ships `include = "cuemsnodeconf"` only |
+| Candidate tag `6c0cca7` | **unmoved**, verified after the commit |
+
+**The consumer's two mutation runs**, each reverted:
+
+```
+── _index_from_document -> index[node['mac']] = dict(node) ──
+   FAILED …::TestTheIndexAliasesTheDocument::test_index_from_document_holds_the_documents_own_node_objects
+   1 failed, 4 passed in 0.32s
+
+── _network_map_document -> [{"node": dict(n)} for n in …] ──
+   FAILED …::TestTheDocumentIsKeptNotRebuilt::test_node_list_holds_the_indexs_own_node_objects
+   FAILED …::TestTheAdoptRaceTheseLinksClose::test_an_adopt_after_the_document_is_built_still_reaches_it
+   2 failed, 3 passed in 0.31s
+```
+
+**One finding from writing it, which changes how the end-to-end test had to be built.** An earlier draft
+adopted *before* the worker loop builds the document. That arrangement **survives a copy at link 2** — the
+copy is taken after the flag is set, so it carries it — and therefore proves nothing. The harmful
+interleaving is the reverse: the loop builds the document, *then* the comms thread adopts on the index,
+*then* the pass serialises. The landed test does that, and the link-2 mutation failing **two** tests rather
+than one is the evidence the reordering worked. **A weak ordering would have passed against the very
+defect the test exists to catch** — worth recording, because the same trap applies to any test of an
+aliasing property.
+
+**C1 is now closed on both sides**: four links, six mutations, two repositories. The asymmetry T092's
+docstrings were written to make visible no longer exists — though the docstrings stay, since they explain
+why copying is breaking rather than merely that it is tested.
+
+**What this leaves on the thread.** T094 (C2) is the only code item, and its shape is now known rather than
+guessed: a readiness flag set at the end of `read_network_map`, guarded in `engine_callback`, ~8 lines, and
+**not** a lock — a mutex serialises the two threads without making an empty index any less empty. It needs
+a numbered feature in `cuems-nodeconf` because of what it bears on, not because of its size: Principle IV
+(*"verified end to end against the real dispatch path"* — *"'it compiles' and 'the unit test passes' are
+not evidence that the operator's button still works"*), Principle VI (boot ordering reasoned about
+explicitly; *"a change that is correct only when it wins or only when it loses a race is not correct"*),
+the testing gate's hardware-verification clause, and an unresolved four-tier decision about what the engine
+and the UI should **do** with "not ready" — where retrying contradicts `cuems-engine`'s `cf5c4ad`, which
+made refusals instant on purpose. It also changes packaged content, so it re-cuts `6c0cca7` and is
+announced to the other flows. That repository's Governance section requires a constitution check in a
+feature plan, which is where all four of those belong.

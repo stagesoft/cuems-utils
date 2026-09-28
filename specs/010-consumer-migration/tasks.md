@@ -322,7 +322,7 @@ repository:
   matters beyond not clobbering keys), and `CuemsNetworkMapType.refresh` (that `current` aliases the
   document's nodes). No behaviour change. The point is that a future reader must be able to tell that
   copying here is a **breaking** change, which none of the three currently says
-- [ ] T093 [P] [US7] Gate: verify `../cuems-nodeconf` carries the other half — a test pinning links 1 and
+- [X] T093 [P] [US7] Gate: verify `../cuems-nodeconf` carries the other half — a test pinning links 1 and
   2 — and that it is written to fail against a copy. Record the test path and the failing run in
   `specs/010-consumer-migration/baseline.md`. **Do not accept "the suite is green" as evidence**: the
   suite is green today *and* the property is unstated, which is precisely the condition this pair of tasks
@@ -363,7 +363,7 @@ wrong-answer variant is live.
 
 #### D — a false statement about the field two consumer bundles depend on
 
-- [ ] T097 [P] [US7] Gate: verify `../cuems-nodeconf`'s `CLAUDE.md:26` no longer says the daemon *"runs at
+- [X] T097 [P] [US7] Gate: verify `../cuems-nodeconf`'s `CLAUDE.md:26` no longer says the daemon *"runs at
   boot and on explicit reconfigure — not continuously"*. It has been resident since `3e100bb`;
   `_run_worker_loop` does `self._dirty.wait(timeout=30)`, so `<online>` is a **≤30 s-stale discovery
   proxy**. `28f26d3`'s replacement text applies almost verbatim. Record the corrected wording in
@@ -396,12 +396,27 @@ wrong-answer variant is live.
   that predates it**. An ecosystem sweep must therefore enumerate branches **by content** — `git cherry`,
   message subjects, symbol names — never by expected name, and must include remote-only refs
 
-**Checkpoint (US7)**: `cuems-nodeconf`'s migration landed at `6c0cca7`; **T093–T100 are what remain
-before its `feat/xml-refactor` is in a state this release can stand behind.** T091 and T092 — this
-repository's own half — **landed 2026-09-28**: `tests/contract/test_node_aliasing.py` pins links 3 and 4,
-proven discriminating by four source mutations recorded in `baseline.md`, and the four docstrings now
-state the contract. Half the chain is guarded; T093 is the other half, and until it lands that asymmetry
-is deliberate and named in the docstrings. T093–T098 are gates on `cuems-nodeconf` edits that no numbered
+**Checkpoint (US7)**: `cuems-nodeconf`'s migration landed at `6c0cca7`. **T091–T093 and T097 landed
+2026-09-28; T094–T096 and T098–T100 remain.**
+
+- **C1 is closed on both sides.** All four links of the by-reference chain are now pinned: links 3 and 4
+  here (`tests/contract/test_node_aliasing.py`, plus the contract written into the four docstrings), links
+  1 and 2 in `../cuems-nodeconf` (`tests/test_node_aliasing.py`, commit `2e2ae40`). Six mutations across
+  the two repositories, each reverted, recorded in `baseline.md`. The asymmetry T092's docstrings named is
+  gone.
+- **D is closed.** `../cuems-nodeconf`'s `CLAUDE.md` had **two** false lines, not one; both corrected with
+  the mechanism named and Ion Reguera's original finding attributed.
+- **Neither moved the candidate tag** — `6c0cca7` is unchanged, verified. `tests/` and `CLAUDE.md` are
+  outside that repository's package (`include = "cuemsnodeconf"`), so no re-cut and nothing to announce.
+- **C2 (T094) is the one item that needs a feature rather than a patch**, and its shape is now known
+  rather than guessed: a readiness flag, ~8 lines, **not** a lock. What makes it a feature is the decision
+  surface, not the diff — `cuems-nodeconf`'s Principle IV (the RPC response is a contract with a live UI,
+  *"verified end to end against the real dispatch path"*), Principle VI (boot ordering reasoned about
+  explicitly; *"a change that is correct only when it wins or only when it loses a race is not correct"*),
+  its testing gate's hardware-verification clause, and an unresolved four-tier decision about what the
+  engine and UI should **do** with "not ready". It also changes packaged content, so it re-cuts the
+  candidate. Its Governance section requires a constitution check in a feature plan, which is where all
+  four belong. T093–T098 are gates on `cuems-nodeconf` edits that no numbered
 feature there currently owns — if that repository opens a feature `003` for them, these become its gate
 references and the implementation detail moves out of this file.
 
