@@ -282,8 +282,8 @@ build artifacts, the `pyvenv.cfg` check pinned, the three versions pinned.
 
 ## Phase 10: F1 writer annotations (FR-047, research R13) — one isolated commit
 
-- [ ] T072 Extend `tests/contract/test_duplication_flags.py` with `test_every_schema_declares_its_writer`: each of the six schemas' root element carries exactly one `xs:annotation` whose `xs:appinfo` holds ≥ 1 `cms:writer` element with a `scope` attribute, every writer name is in the allowed set (`cuems-init-node`, `cuems-nodeconf`, `cuems-editor`, `cuems-hardware-discovery`), and the scopes match the table in FR-047 — failing first
-- [ ] T073 Add the annotations to all six `src/cuemsutils/xml/schemas/*.xsd` per FR-047, update the six hashes in `tests/contract/test_schema_scope.py::CURRENT_SCHEMA_HASHES` **in the same commit** with the reason in the message; confirm every golden and every corpus document still validates and no `doc_version` moves
+- [X] T072 Extend `tests/contract/test_duplication_flags.py` with `test_every_schema_declares_its_writer`: each of the six schemas' root element carries exactly one `xs:annotation` whose `xs:appinfo` holds ≥ 1 `cms:writer` element with a `scope` attribute, every writer name is in the allowed set (`cuems-init-node`, `cuems-nodeconf`, `cuems-editor`, `cuems-hardware-discovery`), and the scopes match the table in FR-047 — failing first
+- [X] T073 Add the annotations to all six `src/cuemsutils/xml/schemas/*.xsd` per FR-047, update the six hashes in `tests/contract/test_schema_scope.py::CURRENT_SCHEMA_HASHES` **in the same commit** with the reason in the message; confirm every golden and every corpus document still validates and no `doc_version` moves
 
 ---
 

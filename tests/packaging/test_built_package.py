@@ -62,7 +62,7 @@ def test_hygiene(built_deb):
     assert "dh_python2" not in postinst
     autoscript = postinst.find("dh-virtualenv postinst autoscript")
     set_plus_e = postinst.find("set +e")
-    tool = postinst.find("cuems-init-node")
+    tool = postinst.find('"$CUEMS_INIT_NODE"')  # the invocation, not the header comment
     assert 0 <= autoscript < set_plus_e < tool, "expected autoscript, then set +e, then the tool block"
     pyvenv = deb_file(built_deb, "usr/lib/cuems/pyvenv.cfg").decode()
     assert re.search(r"^home = /usr/bin$", pyvenv, re.M), pyvenv
