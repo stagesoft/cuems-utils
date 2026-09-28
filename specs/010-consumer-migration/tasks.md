@@ -308,7 +308,7 @@ repository:
 | **3** | **`cuemsutils.tools.NodeList.NodeIndex.adopt` / `.unadopt`** | mutate the node dict **in place** (`n["adopted"] = True`), never rebind |
 | **4** | **`cuemsutils.config.network_map.CuemsNetworkMapType.refresh`** | build `current` from `item["node"]` references, and `merge` must refresh discovery fields **in place** |
 
-- [ ] T091 [US7] Add a contract test in **this** repository pinning links 3 and 4 as behaviour rather than
+- [X] T091 [US7] Add a contract test in **this** repository pinning links 3 and 4 as behaviour rather than
   as an implementation accident: that `NodeIndex.adopt` sets `adopted` on the *same object* the caller
   holds (assert by identity, `node is index[mac]`, not by value), that `NodeIndex.merge` refreshes
   discovery fields in place, and that `CuemsNetworkMapType.refresh` reaches the caller's node dicts rather
@@ -316,7 +316,7 @@ repository:
   thing it is guarding against — a `dict(n)` added anywhere on this chain for tidiness would reopen a
   consumer's concurrency window silently, and both suites would stay green. This is the durable form of
   the throwaway probe behind `nodeconf-map-write-divergence.md` §4
-- [ ] T092 [P] [US7] State the aliasing as a **contract** in the three docstrings that currently imply it
+- [X] T092 [P] [US7] State the aliasing as a **contract** in the three docstrings that currently imply it
   by accident: `NodeIndex.adopt`/`unadopt` (in-place, by design, because a caller's index and its document
   share node objects), `NodeIndex.merge` (*"Refresh mutable discovery fields in place"* — say why that
   matters beyond not clobbering keys), and `CuemsNetworkMapType.refresh` (that `current` aliases the
@@ -396,9 +396,12 @@ wrong-answer variant is live.
   that predates it**. An ecosystem sweep must therefore enumerate branches **by content** — `git cherry`,
   message subjects, symbol names — never by expected name, and must include remote-only refs
 
-**Checkpoint (US7)**: `cuems-nodeconf`'s migration landed at `6c0cca7`; **T091–T100 are what remain before
-its `feat/xml-refactor` is in a state this release can stand behind.** T091 and T092 are this repository's
-own work and are not blocked by anything. T093–T098 are gates on `cuems-nodeconf` edits that no numbered
+**Checkpoint (US7)**: `cuems-nodeconf`'s migration landed at `6c0cca7`; **T093–T100 are what remain
+before its `feat/xml-refactor` is in a state this release can stand behind.** T091 and T092 — this
+repository's own half — **landed 2026-09-28**: `tests/contract/test_node_aliasing.py` pins links 3 and 4,
+proven discriminating by four source mutations recorded in `baseline.md`, and the four docstrings now
+state the contract. Half the chain is guarded; T093 is the other half, and until it lands that asymmetry
+is deliberate and named in the docstrings. T093–T098 are gates on `cuems-nodeconf` edits that no numbered
 feature there currently owns — if that repository opens a feature `003` for them, these become its gate
 references and the implementation detail moves out of this file.
 
@@ -562,7 +565,7 @@ difference is a broken daemon.
 | US4 `cuems-engine` | nothing | |
 | US5 discovery cutover | nothing | two repositories, **merged simultaneously** |
 | US6 `cuems-editor` | US2, US3 | |
-| US7 `cuems-nodeconf` | US3 | Its flow **landed** (`6c0cca7`). **Reopened 2026-09-25** by the third finding: T091–T100 carry the items left by the unmerged `feat/nodelist-modify-hardening` branch — two open defects and a guarantee nothing states. T091/T092 are this repository's; the rest are gates |
+| US7 `cuems-nodeconf` | US3 | Its flow **landed** (`6c0cca7`). **Reopened 2026-09-25** by the third finding: T091–T100 carry the items left by the unmerged `feat/nodelist-modify-hardening` branch — two open defects and a guarantee nothing states. **T091/T092 landed 2026-09-28** (this repository's half of the aliasing contract); T093–T100 remain, and all but T095/T099/T100 are gates on `cuems-nodeconf` |
 | US8 `cuems-frontend` | US3, US6 | characterization tests **before** the port |
 | **US11 `cuems-power-bridge`** | nothing | **added 2026-09-17; absorbed US1 2026-09-18.** Independent of every other story — it neither imports the library's deprecated surface nor touches the descriptor. **Run it first**: it is a live silent failure, the failure is *physical*, and it has now gone unfixed across two features and two names. Its one coupling is that `cuems-common`'s `cuems-cluster-poweroff` must merge **simultaneously**, the way US5's two halves do — that tool calls this repository's parser directly |
 | US9 rollout and gate | US2–US8, **US11** (which absorbed US1) | |

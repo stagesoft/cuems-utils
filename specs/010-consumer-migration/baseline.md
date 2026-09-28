@@ -979,3 +979,73 @@ three branches of one feature were invisible because they carry three different 
 checked out locally. The branch-name convention this work adopted (`feat/xml-refactor` everywhere) exists
 precisely to prevent that, and it does not extend to features that predate it. An ecosystem sweep should
 enumerate **branches by content**, not by expected name.
+
+### T091 / T092 — the aliasing contract, and the mutation runs that make its test discriminating
+
+**Landed 2026-09-28.** `tests/contract/test_node_aliasing.py` (4 tests, 0.51 s) pins the two links of
+the by-reference chain that live in this package, and the four docstrings that previously implied the
+property by accident now state it.
+
+**Why an evidence block rather than a "tests pass" line.** Constitution II requires that *"tests fail
+before the implementation and pass after it"*. T091 is a test of **existing** behaviour, so it passes
+on first run and cannot fail-first in the ordinary sense. Its whole value is that it fails against a
+**defensive-copy** implementation — so the fail-first evidence is a set of deliberate source mutations,
+each reverted immediately. Asserting the property in a commit message would leave it unverifiable
+later; this is the record.
+
+Four mutations, one per link, run against `tests/contract/test_node_aliasing.py`:
+
+```
+── mutation: adopt ──          n["adopted"] = True  ->  rebind a dict(n) copy
+   FAILED …::test_adopt_mutates_the_node_object_the_caller_holds
+   1 failed, 3 passed in 0.56s
+
+── mutation: unadopt ──        n["adopted"] = False ->  rebind a dict(n) copy
+   FAILED …::test_unadopt_mutates_the_node_object_the_caller_holds
+   1 failed, 3 passed in 0.55s
+
+── mutation: merge ──          existing_by_uuid holds dict(n) instead of n
+   FAILED …::test_merge_refreshes_discovery_fields_on_the_callers_objects
+   FAILED …::test_refresh_reaches_the_documents_own_node_objects
+   2 failed, 2 passed in 0.53s
+
+── mutation: refresh ──        current built from dict(item["node"])
+   FAILED …::test_refresh_reaches_the_documents_own_node_objects
+   1 failed, 3 passed in 0.57s
+```
+
+Each maps to exactly the test written for it. **The `merge` mutation fails two**, which is correct and
+worth noting rather than trimming: `CuemsNetworkMapType.refresh` calls `merge`, so a copy introduced
+there breaks the document-level guarantee as well as the index-level one. A single-failure expectation
+would have been the wrong assertion.
+
+**The identity assertions are the mechanism.** A value-only check
+(`index[mac]["adopted"] is True`) **passes** against every one of the four mutations — a
+copy-and-replace implementation still ends up with the right value in the index. Only
+`aliased is victim` distinguishes them, which is why the tests assert identity and say so in their
+own docstrings.
+
+**Coverage gap closed.** An earlier readiness pass mutation-tested three links and reasoned about
+`unadopt` rather than measuring it. The run above measures it; the reasoning was right, but it was
+reasoning.
+
+**Not a duplicate of existing coverage**, checked before writing:
+`tests/contract/test_nodeindex_characterization.py` (203 lines, the vendored yardstick feature 008
+wrote and `cuems-nodeconf` runs byte-identical) contains **no** identity, aliasing or in-place
+assertion. It characterises *what* `NodeIndex` computes; this file pins *which objects it computes
+through*.
+
+**Suite and budget.** 2723 passed / 100 skipped / 2 xfailed in 55.75 s = **20.47 ms/test** — under
+Principle IV's 27.27 ms budget and marginally under this feature's own 20.73 ms baseline. Four tests
+at 0.51 s total; no measurable effect.
+
+**No `.xsd`, golden or public symbol is touched**, so `test_schema_scope.py`'s hash pin needs no
+update and no golden is re-based. `pytest` collects no doctests here (verified: no `doctest`
+configuration in `pyproject.toml` or `tests/conftest.py`), and the only test that reads a `__doc__` —
+`test_public_descriptor.py:70` — asserts `ConfigManager.get_schema_descriptor`'s is non-empty, which
+T092 does not touch.
+
+**What remains on this thread**: T093 pins the consumer's two links (`_index_from_document`,
+`_network_map_document`) in `cuems-nodeconf`, and is a gate rather than work here. Until it lands, half
+the chain is guarded and half is not — the docstrings added by T092 name the consumer explicitly so
+that asymmetry is visible from this side.

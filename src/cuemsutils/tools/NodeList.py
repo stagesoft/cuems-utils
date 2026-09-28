@@ -106,6 +106,16 @@ class NodeIndex(dict):
         ``'controller'``, not its MAC, so a MAC-keyed merge orphaned the real
         entry's ``adopted``/``role_id``/``alias``/``hostname``.
 
+        **Existing nodes are refreshed in place, and that is a contract**
+        (T091/T092). The body's own comment says so for a narrower reason —
+        never clobber the real key with the discovered one — but the
+        consequence that binds callers is the aliasing: a caller's index and
+        its document share these dictionaries, so this method must update the
+        node it found rather than substitute the discovered one. Working on
+        copies here is a breaking change; ``adopt``'s docstring has the full
+        reasoning, and ``tests/contract/test_node_aliasing.py`` fails if it
+        happens.
+
         Args:
             discovered: a mapping of freshly-discovered nodes, keyed however
                 the caller's discovery mechanism keys them.
@@ -142,7 +152,22 @@ class NodeIndex(dict):
                 existing_node["online"] = False
 
     def adopt(self, node_uuid) -> bool:
-        """Adopt the node named by ``node_uuid``.
+        """Adopt the node named by ``node_uuid``, **mutating it in place**.
+
+        The in-place write is a **contract, not an implementation detail**
+        (T091/T092). Callers hold the same node objects through more than one
+        reference at once — ``cuems-nodeconf`` keys this index over the very
+        dictionaries its ``network_map`` document holds in ``node_list``, so a
+        flag set here is *already* visible in the document about to be
+        serialised. That aliasing is what makes a concurrent adopt unlosable in
+        a daemon that takes no lock across its worker loop and its comms
+        thread: there is no private copy for the write to be lost into.
+
+        **Rebinding a copy here is therefore a breaking change**, not a
+        tidy-up, and it would break a consumer while leaving every suite green.
+        ``tests/contract/test_node_aliasing.py`` fails if this stops writing
+        through; see
+        ``specs/010-consumer-migration/nodeconf-map-write-divergence.md`` §4.
 
         Returns:
             bool: ``True`` if adopted (including "was already adopted"),
@@ -160,6 +185,10 @@ class NodeIndex(dict):
 
     def unadopt(self, node_uuid) -> bool:
         """Unadopt the node named by ``node_uuid`` — refuses the controller.
+
+        Mutates the node **in place**, and for the same contractual reason as
+        :meth:`adopt`: see that method's docstring. Rebinding a copy here is a
+        breaking change for callers that alias these node objects.
 
         Returns:
             bool: ``True`` if unadopted (including "was already unadopted"),

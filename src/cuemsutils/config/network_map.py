@@ -164,6 +164,21 @@ class CuemsNetworkMapType(ConfigDict):
         :meth:`~cuemsutils.tools.NodeList.NodeIndex.set_controller_always_adopted`
         for why the branch was harmful.
 
+        **The working index aliases this document's own node objects, and that
+        is a contract** (T091/T092). ``current`` is built from ``item["node"]``
+        references, not copies, so everything ``merge`` and
+        ``set_controller_always_adopted`` change is visible to the caller that
+        handed those nodes over — and, symmetrically, a change the caller makes
+        concurrently is visible here. That is what keeps an adoption from being
+        lost in ``cuems-nodeconf``, which drives this method from its worker
+        loop while its comms thread adopts from another thread, holding no lock
+        across either. Copying into ``current`` for isolation would reopen that
+        window silently: nothing in this package would fail, and neither would
+        the consumer's suite. See
+        ``specs/010-consumer-migration/nodeconf-map-write-divergence.md`` §4 for
+        the 60-trial measurement, and
+        ``tests/contract/test_node_aliasing.py`` for the guard.
+
         Args:
             discovered: freshly-discovered nodes, keyed however the caller's
                 discovery mechanism keys them (passed straight to ``merge``
