@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <xs:schema targetNamespace="https://stagelab.coop/cuems/" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:cms="https://stagelab.coop/cuems/">
     <xs:element name="CuemsHardwareOutputs">
+            <xs:annotation>
+                <xs:documentation xml:lang="en">Node hardware capability, discovered. Two writers at element granularity (F1, feature 011): cuems-hardware-discovery owns the probed port inventory; cuems-nodeconf transcribes display.conf's geometry.</xs:documentation>
+                <xs:appinfo>
+                    <cms:writer scope="inventory">cuems-hardware-discovery</cms:writer>
+                    <cms:writer scope="geometry">cuems-nodeconf</cms:writer>
+                </xs:appinfo>
+            </xs:annotation>
         <xs:complexType>
             <xs:sequence>
                 <xs:element name="video_outputs" type="cms:HardwareOutputsType" />

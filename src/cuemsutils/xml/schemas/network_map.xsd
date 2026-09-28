@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <xs:schema targetNamespace="https://stagelab.coop/cuems/" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:cms="https://stagelab.coop/cuems/">
     <xs:element name="CuemsNetworkMap">
+            <xs:annotation>
+                <xs:documentation xml:lang="en">Cluster topology, discovered. Two writers at element granularity (F1, feature 011): cuems-nodeconf owns every other node's row and the adopted/online flags; cuems-init-node seeds this node's own row by plain insert at provisioning.</xs:documentation>
+                <xs:appinfo>
+                    <cms:writer scope="topology">cuems-nodeconf</cms:writer>
+                    <cms:writer scope="self-entry">cuems-init-node</cms:writer>
+                </xs:appinfo>
+            </xs:annotation>
         <xs:complexType>
             <xs:sequence>
                 <xs:element name="node_list" minOccurs="0" maxOccurs="1" type="cms:NodeDictType" />

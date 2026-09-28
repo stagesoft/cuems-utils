@@ -19,6 +19,12 @@
 -->
 <xs:schema targetNamespace="https://stagelab.coop/cuems/" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:cms="https://stagelab.coop/cuems/">
     <xs:element name="CuemsSettings">
+            <xs:annotation>
+                <xs:documentation xml:lang="en">Node-authored settings. Sole writer: cuems-init-node (feature 011, F1); the engine, the editor, cuems-common tools and cuems-power-bridge read it. Identity (node/uuid, node/mac) is minted only by cuemsutils.tools.Uuid through that tool.</xs:documentation>
+                <xs:appinfo>
+                    <cms:writer scope="document">cuems-init-node</cms:writer>
+                </xs:appinfo>
+            </xs:annotation>
         <xs:complexType>
             <xs:sequence>
                 <xs:element name="Settings">

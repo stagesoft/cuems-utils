@@ -13,6 +13,12 @@
 
   <!-- Main and lonsome element in our schema containing all the others -->
   <xs:element name="CuemsProject">
+        <xs:annotation>
+            <xs:documentation xml:lang="en">The show document. Sole writer: cuems-editor; the engine reads it (F1, feature 011).</xs:documentation>
+            <xs:appinfo>
+                <cms:writer scope="document">cuems-editor</cms:writer>
+            </xs:appinfo>
+        </xs:annotation>
     <xs:complexType>
       <xs:sequence>
         <!-- And our lonely script element, there should be just one per project -->
