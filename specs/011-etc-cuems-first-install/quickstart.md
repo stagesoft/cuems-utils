@@ -33,14 +33,19 @@ dpkg-deb -e "$DEB" /tmp/ctl && grep -c '/etc/cuems' /tmp/ctl/conffiles          
 ```bash
 S=~/.cache/cuems-lifecycle
 mkdir -p "$S" && cd "$S"
-mmdebstrap --mode=unshare --variant=apt --include=python3 bookworm bookworm-apt.tar   # ~40 s, once
-export CUEMS_CHROOT_TAR="$S/bookworm-apt.tar"
+# the package's runtime dependencies must be inside (dpkg -i needs them); ~40 s, once
+mmdebstrap --mode=unshare --variant=apt --include=python3,python3-systemd,python3-daemon \
+    bookworm bookworm-deps.tar
+export CUEMS_CHROOT_TAR="$S/bookworm-deps.tar"
 cd ~/cuems-utils && uvx hatch run test.py3.11:run -- -q -m slow tests/packaging/test_lifecycle_chroot.py
 ```
 
-The test extracts a fresh copy per case and runs `dpkg -i`, upgrades, `--reinstall`, remove,
-purge, and the `cuems-common` custody transfer in both unpack orders, all through
-`unshare --map-auto --map-root-user … chroot`. Nothing needs `sudo`.
+The test extracts a fresh copy per case (skipping the device nodes tar cannot create in the
+namespace, with a plain-file `/dev/null` and a fake `sys/class/net/ethernet0` for the tool's MAC)
+and runs `dpkg -i`, upgrades, `--reinstall`, remove, purge, and the `cuems-common` custody
+transfer in both unpack orders, all through `unshare --map-auto --map-root-user … chroot`.
+Nothing needs `sudo`. The custody case builds `../cuems-common`'s package itself and skips when
+that checkout is absent.
 
 ## On a node (after `apt install cuems-utils`)
 

@@ -16,11 +16,12 @@ Rows marked *pending* are filled as the corresponding task lands.
 | bare interpreter start | 0.023 s | — |
 | `import cuemsutils.tools.ConfigManager` | 0.40 – 0.50 s | — |
 | import + `generate_settings_example()` + `save()` | 0.71 – 1.00 s | — |
-| `ConfigManager(load_all=True)`, engine corpus | 1.17 s | — |
-| `cuems-init-node` write, cold | *pending* | ≤ 4 s |
-| `cuems-init-node --check`, cold | *pending* | ≤ 3 s |
-| `postinst`, fresh install (chroot, minus empty-postinst baseline) | *pending* | ≤ 10 s (60 s hard cap) |
-| `postinst`, upgrade, triple present | *pending* | ≤ 2 s |
+| `ConfigManager(load_all=True)`, engine corpus (build host) | 1.17 s | — |
+| `ConfigManager(load_all=True)`, cold, inside the chroot on a freshly provisioned node (SC-001) | **1.22 – 1.35 s** | — |
+| `cuems-init-node` write, cold (chroot, T074) | **1.14 s** fresh triple; **1.26 – 1.34 s** re-run with unchanged inputs | ≤ 4 s ✅ |
+| `cuems-init-node --check`, cold (chroot) | **0.50 s** | ≤ 3 s ✅ |
+| `dpkg -i`, fresh install (chroot; unpack of the 9 MB venv + autoscript + postinst incl. the tool) | **2.87 s** whole `dpkg -i`; the postinst share is the tool's 1.1 s plus the schema copies | ≤ 10 s (60 s hard cap) ✅ |
+| `dpkg -i` again, triple present (upgrade path) | **2.70 s** whole `dpkg -i`, of which the postinst share is ≈ 1.4 s (the tool starts, finds nothing to do, exits) — the rest is dpkg re-unpacking the venv | ≤ 2 s for the postinst share ✅; the whole-`dpkg -i` figure is recorded, not budgeted |
 | package size delta | **+~50 KB** against the previous build (9,013,536 B vs 8,96x,xxx B measured from the same tree without the schemas/defaults: six schemas 42,516 B, three documents 2,814 B, TOML 4,512 B, tool script 234 B) | ≤ 100 KB |
 
 Generator determinism: two `generate_settings_example().save()` runs → equal SHA-256. ✅
@@ -127,3 +128,12 @@ fallback path.
 | **the Breaks** | a bare `dpkg -i` of new `cuems-utils` beside `cuems-common 1.3.0-22` is **refused** ("installing cuems-utils would break cuems-common, and deconfiguration is not permitted"); with `--auto-deconfigure` (what apt does) `cuems-utils` configures, the old `cuems-common` is deconfigured, and the new one upgrades it |
 | **custody transfer, utils first** | live map byte-identical; zero `network_map.*.dpkg-*` siblings; `.xsd` equals the installed library's; a later `purge cuems-common` leaves the map |
 | **custody transfer, common unpacked first** | dpkg's own obsolete-conffile step at unpack parks the modified map as `.dpkg-bak` and removes the `.xsd`; the `postinst` block restores the map from the snapshot, removes the identical `.dpkg-bak`, reinstalls the schema — before the conversion loop, which then reports "already converted". Configuration is dependency-ordered by dpkg (the `cuems-common` postinst refuses to run without the venv), so the realistic form of this order is unpack both, then `dpkg --configure -a` |
+
+## T074 — budgets validated (2026-09-28, chroot on the build host, two runs)
+
+All within budget (table above). Method: `date +%s%N` around each command inside the chroot,
+`CUEMS_LOG_LEVEL=CRITICAL`, an empty `sh -c 'exit 0'` costing 2 ms as the floor. The reference
+node hardware (N97-class) has still not been measured — both production hosts have been
+unreachable since 2026-09-23 — so the 2× allowance research R10 built into the budgets stands
+untested; the hardware ledger entry §5 in `cuems-nodeconf` is where that measurement is recorded
+when a node is available.
