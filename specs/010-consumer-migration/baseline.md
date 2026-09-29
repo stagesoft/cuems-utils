@@ -764,6 +764,43 @@ So the source pin expresses the gate and the **packaged** one does not. `cuems-n
 (`debian/control:18-19`) and `cuems-common` (`:12-13`) both carry the pair. Record this as the bridge's
 remaining edge rather than closing T076.
 
+#### CLOSED 2026-09-29 — `399baf7`
+
+`cuems-utils (<< 0.1.1~)` added at `debian/control:19`, giving the bridge the same pair as its two
+siblings. **No version moved** (`0.3.1-1`), suite unchanged at **276 passed**.
+
+The bound was verified rather than assumed, with `dpkg --compare-versions`:
+
+| Version | `>= 0.1.0rc16` | `<< 0.1.1~` | Net |
+|---|---|---|---|
+| `0.1.0rc16` (the pinned one) | satisfied | satisfied | ✅ installs |
+| `0.1.0rc17` | satisfied | satisfied | ✅ installs |
+| `0.1.1~rc1` | satisfied | **refused** | ⛔ |
+| `0.1.1` | satisfied | **refused** | ⛔ |
+| `0.2.0` | satisfied | **refused** | ⛔ |
+
+`0.1.1` is exactly the release **T060** removes the deprecated surface in. Before this, a host that
+upgraded the library alone satisfied `>= 0.1.0rc16` perfectly and broke the bridge at runtime —
+during a poweroff — with no packaging error anywhere. That is the failure a floor cannot express,
+which is FR-091's whole premise. The trailing `~` is what also catches the pre-release.
+
+**The `debian/changelog` entry was already asserting this.** `0.3.1-1` says cuemsutils "becomes a
+real, non-optional, upper-bounded dependency (>=0.1.0rc16,<0.1.1) in pyproject.toml **and
+debian/control**". It described a package that did not exist. The fix makes the entry true rather
+than the entry being corrected — worth noting, because a changelog is normally the *least* likely
+place to find the discrepancy.
+
+**Why it was missed.** `cuems-power-bridge`'s own feature 001 **T040** reads: *"Update
+`debian/control`: `cuems-utils (>= 0.1.0rc16)`, `cuems-common (>= 1.3.0-23)`, and
+`Breaks: cuems-common (<< 1.3.0-23)`"*. It was executed exactly as written, and its 54/60 is not
+wrong. The upper bound lived only in **T076, in this repository** — a cross-repository requirement
+carried by one side's task list alone. That is the same shape as FR-UX-002's finding one layer
+down: there, a repository was absent from a list; here, a requirement was.
+
+**Consequence**: this changes packaged content, so it **re-cuts** `xml-refactor-merge-candidate`
+from `13a9af4`, and the re-cut is announced to the other flows. The tag operation is the
+maintainer's.
+
 ### The two edges still entirely absent
 
 | Repository | `pyproject.toml` | `debian/control` |

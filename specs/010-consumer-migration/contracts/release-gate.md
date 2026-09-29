@@ -33,7 +33,7 @@ repositories have since moved.
 |---|---|---|---|
 | `cuems-common` | — | `:12` `>= 0.1.0rc16`, `:13` `<< 0.1.1~` | ✅ |
 | `cuems-nodeconf` | `:28` `>=0.1.0rc16,<0.1.1` | `:18` `>= 0.1.0rc16`, `:19` `<< 0.1.1~` | ✅ **the model to copy** |
-| `cuems-power-bridge` | `:38` `>=0.1.0rc16,<0.1.1`, non-optional | `:18` `>= 0.1.0rc16` — **no upper bound, no `Breaks:`** | ◐ source yes, **package no** |
+| `cuems-power-bridge` | `:38` `>=0.1.0rc16,<0.1.1`, non-optional | `:18` `>= 0.1.0rc16`, `:19` `<< 0.1.1~` — **bounded 2026-09-29** (`399baf7`) | ✅ |
 | `cuems-engine` | `:41` `>=0.1.0rc10` | `:18` `>= 0.1.0rc4` | ✗ **and the two disagree with each other** |
 | `cuems-editor` | `:27` `>=0.1.0rc10` | no `debian/` directory | ✗ |
 | `cuems-frontend` | not packaged | not packaged | n/a — handshake only |
