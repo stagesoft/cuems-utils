@@ -110,7 +110,7 @@ no single view of the whole; this is that view.)*
 | `cuems-nodeconf` | network-map object swap · relocated timing helper · Avahi vocabulary (its half) · packaging bounds | **all three stories landed** 2026-09-17 (`8ce7552`), **unmerged** — holds a merge gate with `cuems-common` |
 | `cuems-frontend` | | not started |
 | **`cuems-wsclient`** | | not started |
-| *(`cuems-power-bridge`)* | **not in D32's six** — found carrying the retired vocabulary in shipped code; see [§5](#️-the-denominator-is-wrong-a-seventh-consumer-carries-the-retired-vocabulary) | **unscheduled** |
+| *(`cuems-power-bridge`)* | **not in D32's six** — found carrying the retired vocabulary in shipped code; see [§5](#️-the-denominator-is-wrong-a-seventh-consumer-carries-the-retired-vocabulary) | **landed** 2026-09-24 as its own features `001-node-role-parser` (54/60) and `002-cluster-poweroff-cli` (69/69); tag `13a9af4`. *(Said "unscheduled" until 2026-09-29 — scheduled as US11 on 2026-09-17 and landed on 2026-09-24, so this cell lagged the repository twice.)* |
 
 **`cuems-wsclient` is listed deliberately** (FR-UX-002). It was absent from 007's guide, 008's
 guide and the cross-repo plan's repository list, and that absence is why a silently broken shutdown
@@ -597,8 +597,9 @@ as a fixed list of six or seven checkouts.
 
 **Now scheduled, as US11** (added to [tasks.md](tasks.md) 2026-09-17, T070–T079). The bridge's own
 findings document
-(`/disk/Projects/StageLab/cuems-power-bridge/dev/planning/cuems-power-bridge-node-role-findings.md`,
-untracked) opened it from `cuems-common`'s side; verifying it against the bridge's source turned up
+(`../cuems-power-bridge/specs/planning/cuems-power-bridge-node-role-findings.md` — relocated from
+`dev/planning/` on 2026-09-18 and **committed** on 2026-09-21 at `d7fed47`, so no longer untracked)
+opened it from `cuems-common`'s side; verifying it against the bridge's source turned up
 three things that document could not see, and they widen the defect rather than narrow it:
 
 1. **Three sites, not one.** `cuems-common`'s `usr/bin/cuems-cluster-poweroff:275` is the one the

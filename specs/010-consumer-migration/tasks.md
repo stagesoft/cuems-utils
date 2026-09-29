@@ -149,12 +149,23 @@ already landed in 007 and 008. That is a claim to verify once, here — not per 
 
 - [X] T004 Confirm — do **not** rebuild — the inherited surfaces, recording each with its location in `specs/010-consumer-migration/baseline.md`: `NetworkMap.partition_by_adoption` (`src/cuemsutils/xml/settings.py:209`), the `cuems-convert-documents` entry point (`src/cuemsutils/xml/convert_documents.py` + `pyproject.toml` `[project.scripts]`), the public report types in `src/cuemsutils/errors.py` (`LoadReport`/`Outcome`/`RepairRecord`/`ConversionRecord`), and the strict load path's three outcomes
 - [X] T005 [P] Record the six consumer repositories' measured starting state (branch, spec-kit presence, test runner, packaging) in `specs/010-consumer-migration/baseline.md` — five have no spec-kit, two have no `tests/`, two have no `debian/`
-- [ ] T005a [P] Record **`cuems-power-bridge`**'s measured starting state in `specs/010-consumer-migration/baseline.md` on the same axes as T005's six — branch, spec-kit presence, test runner, packaging, and its `cuemsutils` pin. **Re-measured 2026-09-18** (the 2026-09-17 reading is corrected on three axes, and it is not the seventh repository — it is T005's sixth under its current name; see the identity correction above):
+- [X] T005a [P] Record **`cuems-power-bridge`**'s measured starting state in `specs/010-consumer-migration/baseline.md` on the same axes as T005's six — branch, spec-kit presence, test runner, packaging, and its `cuemsutils` pin. **Re-measured 2026-09-18** (the 2026-09-17 reading is corrected on three axes, and it is not the seventh repository — it is T005's sixth under its current name; see the identity correction above):
   - Branch **`feat/xml-refactor` already exists** at `c201405` (= `main`), clean but for untracked planning documents — not `main` as recorded 2026-09-17.
   - **No spec-kit**, no constitution.
   - `pytest` with **15 test files**, and the suite is **RED before this feature touches anything**: `6 failed, 133 passed`, all six `tests/test_install_mjs.py`, all `TypeError: _patched_code() missing 1 required positional argument: 'force'` — unrelated to this migration and blocking under the never-implement-on-a-red-suite rule.
   - `debian/control` **does** declare `cuems-utils (>= 0.1.0rc5)` at `:18` and `cuems-common (>= 1.0.0)` at `:19` — both unbounded floors. The 2026-09-17 reading ("no `cuems-utils` relation at all") is **wrong**; flow 06 read the same file correctly in 2026-09-03.
   - `pyproject.toml:36` `cuemsutils = {version = ">=0.1.0rc5", optional = true}`, `:40` `production = ["cuemsutils"]`, and **imported nowhere** — verified by grep across `src/` and `tests/`. This is not "the same shape as `cuems-wsclient`'s"; it is the same line of the same file.
+
+  **CLOSED 2026-09-29.** Every axis above is recorded, here and in `baseline.md`, and the one that
+  *blocked* — the red suite — is green. Re-measured at `13a9af4`: **276 passed, 0 failed** (was
+  `6 failed, 133 passed`), with `tests/test_install_mjs.py` at **9 passed** (was 6 failed, all
+  `TypeError: _patched_code() missing 1 required positional argument: 'force'`); **23 test files**,
+  was 15. The repository also acquired spec-kit and a constitution, and ran two features through
+  them (`001-node-role-parser` 54/60, `002-cluster-poweroff-cli` 69/69). The never-implement-on-a-
+  red-suite rule no longer blocks anything here. Reproducing that figure needs `cuemsutils`
+  installed from `../cuems-utils` **with its dependencies** — `poetry install` cannot resolve the
+  bounded pin, because `0.1.0rc16` is not on PyPI, which is the same absence `ca67a99` works around
+  for the `.deb` build.
 
 **Checkpoint**: the inherited surface is confirmed; US3 can begin.
 
