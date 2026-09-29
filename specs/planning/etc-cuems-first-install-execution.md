@@ -292,7 +292,7 @@ floor); and dh-virtualenv's injected postinst autoscript begins with `set -e`, w
 step 0  housekeeping                     no SDD    DONE  2026-09-24
 step 1  F3/F4/F5 ratchets                no SDD    DONE  37489b5
 step 2  D15/D16/D17 values + generator   no SDD    DONE  e421e31
-step 3  feature 011  /etc/cuems first install         SDD   LANDED 2026-09-28 (local branch; nodeconf's 003 gate open)
+step 3  feature 011  /etc/cuems first install         SDD   LANDED 2026-09-28 (82/82; nodeconf 003 gate CLOSED 2026-09-28)
 step 4  feature 012  uuid4 convergence                SDD
 step 5  feature 013  device-class reshape (F6)        SDD
 step 6  feature 014  hardware_outputs + inventory     SDD
@@ -390,6 +390,29 @@ guide.
 `script_file_name` (it is **configuration, not a constant** — `script.xml` in one repo,
 `cue_script.xml` in another; a procedure that hardcodes it skips a library silently and
 completely), and whether `trash/` mirrors `projects/`.
+
+**Readiness re-measured 2026-09-29, against the landed 011.** The hard blocker is gone —
+`cuems-init-node` exists, so the `UuidType` narrowing may land, and the debt entry in
+`test_schema_name_overlap.py` (which says in as many words *"this entry stays until it does"*) is
+now free to be removed by this feature. Its `_substitute()` is the literal-token rewrite §10.2
+demands, already citing §10.2 by name. Two things this brief assumes, which do **not** yet exist,
+and both are scope rather than surprises:
+
+- **`cuems-convert-documents --check` does not exist.** The module has no `argparse` at all. The
+  check mode is feature **010's T037** (with T035/T036 as its tests), still open. This feature
+  either absorbs those three or waits on them — decide it in the clarification pass rather than
+  discovering it mid-implementation.
+- **`cuems-init-node`'s re-mint does not reach the project library.** Its `DOCUMENTS` tuple is
+  exactly `settings.xml`, `network_map.xml`, `default_mappings.xml`. §10.2's trap is that the uuid
+  is *also* embedded in `<output_name>` in every script, where a stale prefix stays schema-valid
+  because `output_name` is a `NameStringType`. Extending the re-mint's **reach** from three
+  documents to the library is the bulk of this feature's work, and §10.7's unconfirmed
+  `script_file_name` is what decides whether that reach can be computed at all.
+
+Also correct on the way in: §9.4's division-of-labour table credits `cuems-common` with rewriting
+the Avahi TXT. Feature 011's D14 **shape B** moved that to `cuems-nodeconf`, which renders the
+record from `settings.xml` at every start and role change (its feature `003-startup-readiness`,
+landed `b305c1c`). The owner is right, the name is stale.
 
 ### Feature 013 — device-class reshape (F6)
 

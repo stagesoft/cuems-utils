@@ -1041,12 +1041,20 @@ measures. A per-document conversion **cannot** perform this safely.
 |---|---|
 | detect a non-uuid4 identity, report it by document and path, change nothing | the conversion registry / `cuems-convert-documents --check` |
 | perform the re-mint across all of §5's locations, atomically | **`cuems-init-node`** (D12) — it already owns the cross-document write and the preserve-identity rule |
-| rewrite the Avahi TXT from the new `settings.xml` value | `cuems-common` (D14's contract) |
+| rewrite the Avahi TXT from the new `settings.xml` value | **`cuems-nodeconf`** — corrected 2026-09-29. D14 settled on **shape B** in feature 011: the daemon renders the record from `settings.xml` at every start and role change (its `003-startup-readiness`, landed `b305c1c`), and `cuems-common` ships only the sentinel templates |
 
 **Consequence: the schema tightening cannot land before `cuems-init-node` exists.** Landing it
 first would invalidate both production maps with no tool able to repair them — shipping a brick.
 The `UuidType` entry therefore stays in F2's `KNOWN_DIVERGENT_DECLARATIONS` until then, with the
 decided resolution recorded in its verdict.
+
+**That precondition is met as of 2026-09-28**: `cuems-init-node` landed with feature 011 as a
+public entry point, owning the cross-document write, the preserve-identity rule and
+`--force-new-identity`. Feature 012 is therefore unblocked, and removing the `UuidType` entry is
+its completion marker. **But the tool's reach is three documents, not the library** — its
+`DOCUMENTS` tuple is `settings.xml`, `network_map.xml`, `default_mappings.xml`. §10.2's embedded
+`<uuid>_<output_id>` occurrences in every script are *outside* that reach today, and stay
+schema-valid when stale. Extending it is 012's work, not something 011 already did.
 
 ### 9.5 One property is lost, and it should be lost knowingly
 
