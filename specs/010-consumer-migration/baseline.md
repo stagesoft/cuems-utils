@@ -1186,3 +1186,105 @@ consumer repository needs an edit. The gate is recorded here; the measurement li
 "re-cuts `6c0cca7` and is announced to the other flows", is **half done**: the re-cut happened,
 the announcement did not reach any other flow. See `specs/011-etc-cuems-first-install/baseline.md`
 §"UX pass and announcements" for the counterpart table and the maintainer actions outstanding.
+
+## The `cuems-power-bridge` gate verifications (T019/T072–T075), recorded 2026-09-29
+
+Verified against `../cuems-power-bridge` at **`399baf7`** — its `feat/xml-refactor` head and its
+re-cut `xml-refactor-merge-candidate` (from `13a9af4`; tag object `cabbb3e`, signed, pushed).
+Two spec-kit features carry the work: `001-node-role-parser` (54/60) and
+`002-cluster-poweroff-cli` (69/69). Suite **276 passed**.
+
+### T019 / T072 — the parser migration, per site
+
+The findings' three sites (T071(a)), each read at `399baf7`:
+
+| Site (before) | After | Verified |
+|---|---|---|
+| `network_map.py:94` `node_type=_text(el, "node_type")` | **gone with the parser** — `grep -nE 'ElementTree\|def parse\|def _text'` returns nothing | ✅ |
+| `network_map.py:110` `if n.node_type != "NodeType.slave"` (`slave_avahi_names`) | `shutdown_targets` (`:337`) over `NodeView`s; role test at `:329` `v.role is NodeRole.node` | ✅ |
+| `network_map.py:141` `if n.node_type != "NodeType.slave"` (`slave_ips`) | `readiness_peers` (`:386`), same role test, `<ip>`-identified | ✅ |
+
+**The private parser is deleted, not re-spelled** — this is T072's settled option C. `NodeRole`
+is imported lazily from `cuemsutils.tools.NodeList` (`:262-264`), reached through
+`ConfigManager.network_map` (`:293-296`).
+
+Four `node_type` strings survive in `src/`, and **all four are deliberate**: two docstrings
+(`:9`, `:104` — the latter reading *"Deliberately has **no** `node_type` attribute and no string
+role"*), the `_RETIRED_MARKERS` tuple (`:171`) that detects an unconverted map, and the refusal
+message (`:244`). A detector for a retired vocabulary must name it.
+
+**`Node`'s other five attributes still behave**, which T072 asks for because the selection logic
+uses all of them: `uuid` and `avahi` carry through to both selectors; `role_id`/`alias`/`hostname`
+remain the resolution chain, and the two field-learned policies are preserved verbatim — avahi
+ignores `<ip>`, `readiness_peers` deliberately trusts it because the NNG hub matches bus peers by
+address (`:392-396`). Self-exclusion moved from the `None`-returning `own_uuid()` to
+`str(cm.node_uuid)` (`:295`).
+
+### T073 — the regression guard is discriminating
+
+The task's premise held: the bridge's fixtures were written in the **retired** vocabulary, so the
+suite was green *because* it certified the defect. Both required fixtures now exist, among ten:
+
+```
+map-pre007        <node_type>NodeType.slave</node_type>   INVALID against network_map.xsd (deliberate)
+map-two-adopted   <node_role>node</node_role>             VALID
+```
+
+`specs/001-node-role-parser/evidence/fixture-validation.txt` validates all ten against
+`../cuems-utils/src/cuemsutils/xml/schemas/network_map.xsd` — **the owning schema**, not a local
+copy. Two are INVALID by design (`map-pre007`, retired vocabulary; `map-incomplete`, a node with
+no `<mac>`), and each is the point of its case.
+
+**The failing run is recorded, and it is the kind that cannot be re-run.**
+`evidence/pre-migration-parser-failure.txt` (T001, `d3382b0`, 2026-09-23) captures the old parser
+against the **post-007** fixture, with the header *"THIS OUTPUT CANNOT BE REPRODUCED AFTER THE
+PRIVATE PARSER IS DELETED"*:
+
+```
+slave_avahi_names(converted) -> ([], [])
+slave_ips(converted)         -> []
+parse(converted) yields three Nodes, every one with node_type=None
+```
+
+Two adopted nodes selected as **zero**, with an **empty unresolvable list** — so not even the
+`has no role_id/alias/hostname` ERROR path fires. No exception, no warning, no log line. That is
+the discriminating evidence the FR-030a-ii discipline demands: the post-007 fixture fails against
+the pre-migration parser, and a passing suite was never evidence here.
+
+Current behaviour on the same fixture: `map-pre007` → `TopologyErrorKind.NETWORK_MAP_RETIRED_VOCABULARY`
+(`tests/test_network_map_adapter.py:171`), plus
+`test_pre007_map_is_refused_not_silently_empty` and `test_pre007_refusal_names_the_conversion_tool`
+(`tests/test_network_map_ips.py:70,79`) — refused loudly, and the refusal names
+`cuems-migrate-network-map`.
+
+### T074 — the empty-selection invariant
+
+**Landed in the bridge**, and it is structural rather than a check bolted on. `TopologyError`'s
+docstring (`:84`) reads *"The topology could not be read. **NEVER** converted into an empty
+selection"*, and the module docstring (`:27-28`) states the two outcomes are *"mutually exclusive,
+and that exclusivity is the point"*. Eight named kinds classify every read failure —
+`CONFIG_DIR_MISSING`, `SETTINGS_XML_MISSING`, `SETTINGS_XML_INVALID`, `NETWORK_MAP_MISSING`,
+`NETWORK_MAP_INVALID`, `NETWORK_MAP_RETIRED_VOCABULARY`, `SELF_ENTRY_MISSING`,
+`CONFIG_DIR_MISMATCH` — each mapping to one refusal the HTTP layer can render.
+
+This is the item that **survives the vocabulary question entirely**: a future field rename breaks
+selection the same silent way, and this invariant is what makes it loud. Note the subtlety
+recorded at `:270`: an *empty* `node_list` does not yield an empty list either — the library cannot
+then resolve this host's own entry, so it raises `SELF_ENTRY_MISSING`.
+
+### T075 — both features recover, measured separately
+
+They fail and recover independently (T071(b)), so one answer would not do:
+
+| Feature | Path | Evidence |
+|---|---|---|
+| (i) orderly cluster power-off | `shutdown_targets` (`:337`) | `tests/test_shutdown_cases.py` (13 tests), `tests/test_shutdown_equivalence.py` (11) — the latter pins that the ExecStop helper and `POST /shutdown` read the **same** selection, including `map-partial-resolve`, `map-none-adopted` → `409 no_adopted_nodes` and `map-unresolvable` → `409 no_resolvable_nodes` |
+| (ii) boot auto-load / NNG-hub readiness | `readiness_peers` (`:386`) | `tests/test_autoload.py` (14 tests) — a distinct selector with its own adopted-only rule and its own `<ip>` identification |
+
+Two selectors, two test files, no shared assertion standing in for both. Suite **276 passed** at
+`399baf7`, re-run here rather than taken from the sibling's own evidence file.
+
+### T076 — closed, and what closing it cost
+
+Recorded in full in the section above (`399baf7`). The one-line `debian/control` bound was the
+last thing between the bridge's *source* pin and its *package* expressing the release gate.

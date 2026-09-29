@@ -622,6 +622,118 @@ passing suite is not evidence there.
 vocabulary change cannot fail loudly there by construction. 007 FR-030a-i already says the node
 model lives in `cuemsutils` only; this is what violating it costs.
 
+## 5a. `cuems-power-bridge` — the fourth copy of the node model, deleted *(US1/US11, landed 2026-09-24)*
+
+**T018/T071/T078/T079.** The sixth consumer, absent from 007's guide, 008's guide and the
+cross-repo plan's repository list — which is why a silently broken shutdown path survived two
+features (FR-UX-002). Recorded here under its **current** name; it was `cuems-wsclient` until the
+2026-06 rename, and treating the two as separate repositories is the double-count this feature
+closed.
+
+### What it did, and why nothing said so
+
+The bridge carried a **private network-map parser** — bare `ElementTree`, namespace-agnostic
+local-name matching, **validated against no schema** — and filtered on a string:
+
+```python
+# src/cuemspowerbridge/network_map.py, before
+node_type=_text(el, "node_type"),          # :94
+if n.node_type != "NodeType.slave":        # :110  slave_avahi_names
+if n.node_type != "NodeType.slave":        # :141  slave_ips
+```
+
+007 renamed that element to `<node_role>`, and `cuems-common`'s `postinst` converts every
+installed map. `_text()` **returns `None` rather than raising** on an absent element, so
+`None != "NodeType.slave"` is true for every node, every node is skipped, and the target list is
+empty. Measured against a converted map: `slave_avahi_names -> ([], [])` and `slave_ips -> []`.
+Note the second element — **the unresolvable list is empty too**, so not even the
+`ERROR … has no role_id/alias/hostname` path fires. There is no log line anywhere saying anything
+is wrong.
+
+### The four corrections to the findings document (T071)
+
+The 2026-09-15 findings document opened this from `cuems-common`'s side. It is right about the
+defect and incomplete about its extent; all four were measured, not argued.
+
+**(a) The defect has three sites, not one.** The document names only `cuems-common`'s
+`usr/bin/cuems-cluster-poweroff:275`. Two more live in the bridge's own parser (`:110`, `:141`).
+Fixing the tool alone — the document's option D — would have left both.
+
+**(b) Two independent features are broken, not one.** `slave_ips()` is **not** on the poweroff
+path; it feeds the boot auto-load / NNG-hub readiness gate. So a converted map silently broke
+**show-playback readiness** as well as orderly power-off. The document's blast-radius section
+misses it entirely.
+
+**(c) §9's first two unknowns resolve to the worse branch.** The model was never migrated, so
+there is no `AttributeError` to hope for — it is §2's *first* row, the silent one.
+
+**(d) The public path adds three preconditions**, all consequences of deleting the parser rather
+than migrating it: `/etc/cuems/settings.xml` must exist and be schema-valid (`ConfigManager`
+loads base settings **unconditionally, even with `load_all=False`**); this host's own uuid must
+have a map entry; and every node entry must be schema-valid, where the old `parse()` required only
+`<uuid>`. Against that cost, an unconverted map now raises a **named, actionable** refusal instead
+of selecting nothing.
+
+### After: option C, the parser deleted rather than migrated
+
+| | Before | After |
+|---|---|---|
+| Reader | private `ElementTree`, no schema | `ConfigManager.network_map`, schema-validated |
+| Role test | `n.node_type != "NodeType.slave"` (string) | `v.role is NodeRole.node` (`NodeRole` enum, lazily imported from `cuemsutils.tools.NodeList`) |
+| Self-exclusion | `own_uuid()` read `/etc/cuems/settings.xml`, **swallowed every exception and returned `None`** | `str(cm.node_uuid)` through `ConfigManager`; a failure raises, classified |
+| Empty selection | indistinguishable from "nothing to do" | `TopologyError`, **never** converted into an empty answer |
+| Unconverted map | silently selects nobody | `NETWORK_MAP_RETIRED_VOCABULARY`, naming `cuems-migrate-network-map` |
+| Two selectors | `slave_avahi_names`, `slave_ips` | `shutdown_targets`, `readiness_peers` — separate, both adopted-only |
+
+What survives is a **thin adapter** preserving both field-learned resolution policies verbatim:
+avahi ignores `<ip>`; `readiness_peers` deliberately trusts it, because the NNG hub matches bus
+peers by address.
+
+### The two secondary findings, decided rather than inherited (T078)
+
+**(i) `own_uuid()` reading a file no package ships — resolved by construction, not by patch.** It
+read `/etc/cuems/settings.xml`, swallowed every exception and returned `None`, silently disabling
+uuid-based self-exclusion on any host lacking it. A controller that cannot identify itself is a
+controller that can put itself in its own shutdown target list. The public path removes the
+question: `ConfigManager` supplies `node_uuid`, and an unreadable or invalid `settings.xml` raises
+`SETTINGS_XML_MISSING` / `SETTINGS_XML_INVALID` rather than degrading. **The decision taken is that
+the file is a hard precondition and its absence is loud** — the opposite of the previous
+behaviour, and the reason (d) above counts it as a cost rather than a free win.
+
+**(ii) The stale docstring at `cuems-cluster-poweroff:240`** — "matches the network_map
+`NodeType.master` entry" — is the same family as the defect: prose asserting a vocabulary the
+system no longer uses. Corrected in `cuems-common` as part of its `1.3.0-23` entry.
+
+### The root cause, which outlives the defect (T079)
+
+The bridge carried a **fourth copy of the node-identity model** — the same
+`role_id → alias → hostname → uuid` resolution `cuemsutils` owns and `cuems-common`'s `cuems-logs`
+performs. It validated against no schema, so a vocabulary change **could not fail loudly there by
+construction**. 007's FR-030a-i — *the node model lives in `cuemsutils` only* — is the rule it
+violated.
+
+T072 deleted the copy, so the deferred intention is discharged. What remains worth recording is
+**why a fourth copy existed at all**: the repository was absent from the consumer list for two
+features under one name, and re-discovered under another, so nothing ever told it that `cuemsutils`
+owned the model. The copy is gone; that cause is not, and it is the same cause FR-UX-002 names.
+
+### The packaging edge (T077)
+
+`cuems-common` ↔ `cuems-power-bridge` had no versioned relation: `Suggests:` carries no version, so
+nothing refused a new tool beside an old bridge or the reverse. **Decision: `Suggests:` stays
+unversioned, and the side that changed first acquires the `Breaks:`.** Both halves are in the tree:
+
+| Side | Relation |
+|---|---|
+| `cuems-common` | `Suggests: cuems-power-bridge` (**unversioned, deliberately** — a host with no bridge at all stays supported, and `cuems-common` must not make a controller-only opt-in feature mandatory for every node) + `Breaks: cuems-power-bridge (<< 0.3.1-1)` |
+| `cuems-power-bridge` | `Breaks: cuems-common (<< 1.3.0-23)` |
+
+`cuems-common` changed first — its `cuems-cluster-poweroff` now selects through the bridge's
+adapter, which older bridges do not have — so it carries the versioned edge, with the reasoning in
+a comment beside it. The pair upgrades together or `dpkg` refuses, instead of the mismatch
+surfacing as an `AttributeError` part-way through a poweroff transaction. This is FR-091's pattern
+applied to an edge FR-091 did not enumerate.
+
 ## 6. Rollout, rollback and the release gate
 
 *(FR-091–FR-104. Filled by T038a, T040, T041, T043–T045.)*
@@ -637,7 +749,7 @@ not. Recorded here so a reader arriving at any section knows which half they are
 |---|---|---|---|---|
 | 03 | `cuems-common` | `001-node-role-and-conversion-ordering` | **landed** | **`e3c9430`** (re-cut 2026-09-29 from `3af31cc`, itself relocated from `f2fc0f5` on 2026-09-24) |
 | 04 / 04a / 04b | `cuems-nodeconf` | `001-network-map-object-adoption`, `002-public-network-map-path`, `003-startup-readiness` | **landed** | **`b305c1c`** (re-cut from `6c0cca7`, 2026-09-28, signed and pushed) |
-| 07 | `cuems-power-bridge` | `001-node-role-parser`, `002-cluster-poweroff-cli` | **landed** | **`13a9af4`** (re-cut 2026-09-29 from `d5c4226`) |
+| 07 | `cuems-power-bridge` | `001-node-role-parser`, `002-cluster-poweroff-cli` | **landed**; recorded here in [§5a](#5a-cuems-power-bridge--the-fourth-copy-of-the-node-model-deleted-us1us11-landed-2026-09-24) | **`399baf7`** (re-cut twice on 2026-09-29: `d5c4226` → `13a9af4` → `399baf7`) |
 | 01 | `cuems-engine` | `008-cuems-utils-migration` | **not started** — bases on `feat/nodelist-modify-dispatch` | — |
 | 02 | `cuems-editor` | `001-cuems-utils-migration` | **not started** — bases on `feat/nodelist-adoption-api` | — |
 | 05 | `cuems-frontend` | `001-schema-descriptor-migration` | **not started** — carries a scope decision, below | — |

@@ -40,12 +40,38 @@ repositories have since moved.
 
 **What this changes for the argument, not just the numbers.** When this contract was written,
 `cuems-common` was the *only* edge and the gate had to be argued for. It is now a convention **three
-sibling repositories follow**, and what remains is two holdouts plus one half-closed edge. Cite
+sibling repositories follow** — `cuems-common`, `cuems-nodeconf` and, since 2026-09-29,
+`cuems-power-bridge` — and what remains is the two holdouts that cannot express it at all. Cite
 `cuems-nodeconf`'s `debian/control:18-19` as the pattern rather than re-deriving the reasoning.
 
-**T076 is not closed by the bridge's `pyproject.toml` alone.** Its source pin expresses the gate and
-its packaged pin does not — which is the *exact* distinction this contract's opening claim rests on. A
-`>=` floor in `debian/control` is what `dpkg` actually enforces; a bound in `pyproject.toml` is not.
+**T076 was not closed by the bridge's `pyproject.toml` alone**, and the distinction is the *exact*
+one this contract's opening claim rests on: a `>=` floor in `debian/control` is what `dpkg` actually
+enforces; a bound in `pyproject.toml` is not. **Closed 2026-09-29** (`../cuems-power-bridge`
+`399baf7`) by adding `cuems-utils (<< 0.1.1~)` at `:19`. Verified with `dpkg --compare-versions`:
+`0.1.0rc16` and `0.1.0rc17` satisfy both bounds; `0.1.1~rc1`, `0.1.1` and `0.2.0` are refused — and
+`0.1.1` is the release **T060** removes the deprecated surface in, so the bound now refuses exactly
+the library version that would break this consumer at runtime.
+
+## T077 — the `cuems-common` ↔ `cuems-power-bridge` edge, decided
+
+An edge FR-091 did not enumerate, because when FR-091 was written this repository was not on the
+list. `Suggests:` carries no version, so nothing refused a new tool beside an old bridge or the
+reverse. **Decision: `Suggests:` stays unversioned; the side that changed first acquires the
+`Breaks:`.** Both halves are in the tree, verified 2026-09-29:
+
+| Side | Relation | Why |
+|---|---|---|
+| `cuems-common` | `Suggests: cuems-power-bridge` — **unversioned, deliberately** — plus `Breaks: cuems-power-bridge (<< 0.3.1-1)` | It changed first: `cuems-cluster-poweroff` now selects through the bridge's topology adapter, which older bridges do not have |
+| `cuems-power-bridge` | `Breaks: cuems-common (<< 1.3.0-23)` | The reciprocal half |
+
+**`Suggests:` must stay as it is.** It is deliberately not `Depends:`/`Recommends:` so `cuems-common`
+remains functional on a host with no bridge — promoting it would make a controller-only, opt-in
+feature a mandatory dependency of the package every node installs. Both scripts already log one
+ERROR and exit 0 when the venv interpreter is absent. The reasoning is recorded in a comment beside
+the relation in `cuems-common`'s `debian/control`, not only here.
+
+The pair now upgrades together or `dpkg` refuses, instead of the mismatch surfacing as an
+`AttributeError` part-way through a poweroff transaction.
 
 **The demonstration is run, not described** (FR-093): install an out-of-order combination and watch
 the package manager refuse it. 007 deferred this here precisely because no releasable package
