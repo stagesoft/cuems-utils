@@ -110,6 +110,16 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   public entry point, `cuems-init-node`. **`hatch` is not installed on the current dev box** —
   use `uvx hatch run test.py3.11:run -- -q` (the `hatch test` env lacks `hypothesis`); see
   `specs/011-etc-cuems-first-install/quickstart.md`.
+- **Feature 012 (`012-uuid4-convergence`, planned 2026-09-29) adds no new runtime dependency.**
+  It converges every node identity on uuid4: three schemas narrow (`network_map` 1→2,
+  `project_mappings` 1→2, `settings` 2→3, each admitting the NOT PROVISIONED sentinel by union),
+  a read-only check classifies identities across `/etc/cuems` and the library, and a cluster-wide
+  re-mint rewrites them by literal 36-character token substitution — including the compound
+  `<uuid>_<output>` prefixes in every script, which a structural rewrite misses while they stay
+  schema-valid. **No registered conversion accompanies the version steps**: the machinery
+  represents an identity step as the *absence* of a registry entry, and the repair is
+  cross-document and out-of-band by design. Scripts are found by **root element, not filename**
+  — `script_file_name` is an editor-internal dict key, in no document this library reads.
 
 ## Recent Changes
 
