@@ -150,16 +150,21 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   - **D14, shape B**: the Avahi record is derived from `settings.xml` by **`cuems-nodeconf`** at every
     start and role change (its feature `003-startup-readiness`, gated here as T049, not implemented
     here); `cuems-config-node` no longer mints and the shipped templates carry the sentinel.
-    **Both counterparts have since landed on their own branches** (2026-09-28): `cuems-nodeconf`
-    003 at `b305c1c`, which **re-cut** its `xml-refactor-merge-candidate` from `6c0cca7` and
-    cleared T049 here; and `cuems-common`'s handover (`b3dd7e1`, `f6750d7`, `e3c9430`), which
-    landed as three direct commits with no feature dir of its own. `cuems-common`'s tag has **not**
-    been re-cut — it is still `3af31cc`, behind those three — and until it moves the two candidate
-    tags do not compose: nodeconf's renderer `sys.exit(-1)`s on the production-uuid controller
-    template `3af31cc` still ships. `cuems-power-bridge`'s tag (`d5c4226`) is likewise behind two
-    packaged commits. The live counterpart table and the maintainer actions are in
-    `specs/011-etc-cuems-first-install/baseline.md` §"UX pass and announcements"; moving a
-    published tag is maintainer-only, never an agent's.
+    **Both counterparts landed on their own branches** 2026-09-28: `cuems-nodeconf` 003 at
+    `b305c1c`, which re-cut its `xml-refactor-merge-candidate` from `6c0cca7` and cleared T049
+    here; and `cuems-common`'s handover (`b3dd7e1`, `f6750d7`, `e3c9430`), three direct commits
+    with no feature dir of its own. **All four candidate tags were reconciled 2026-09-29** —
+    `cuems-common` `3af31cc` → `e3c9430`, `cuems-power-bridge` `d5c4226` → `13a9af4`,
+    `cuems-nodeconf` held at `b305c1c` with its message corrected to name `e3c9430`; `cuems-utils`
+    still tags last by D27. Dated before/after tables in
+    `specs/011-etc-cuems-first-install/baseline.md` §"UX pass and announcements".
+    **The lesson that outlives the incident**: for one day the tag set did not compose, because
+    nodeconf's renderer `sys.exit(-1)`s on a template with no sentinel and `cuems-common`'s tag
+    still pointed at a tree shipping the production uuid in `cuems.service.controller`. Both
+    working trees were already correct and the reciprocal `Breaks:` could not see it — both
+    packages sat at exactly their intended versions. **A candidate tag set is only as current as
+    its least current member, and no packaging relation expresses that**; re-cutting one tag means
+    re-checking its counterparts. Moving a published tag is maintainer-only, never an agent's.
   - **Measured corrections** (M1–M9 in the spec): `cuems-common`'s `node-identity-contract.md`
     already existed; `cuems-config-node` was a second minter; the editor hardcodes
     `/etc/cuems/script.xsd`; the fossil `get_{video,audio}_output_id('default')` raise `KeyError` on

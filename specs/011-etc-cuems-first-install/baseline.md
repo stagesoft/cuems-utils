@@ -93,42 +93,59 @@ this host is used for SC-PERF-001.
   `6c0cca7` (its brief §9.3 records one re-cut for feature 003 and B together). This repository
   creates no tag in this feature (D27); the migration guide §7 carries the table.
 
-**Status of those two re-cuts, re-measured 2026-09-28 after 011 merged here.** One happened, one
-did not, and the pair as tagged does not work — recorded rather than left to the next reader to
-discover:
+**Status of those two re-cuts — first recorded 2026-09-28, CLOSED 2026-09-29.** The entry is kept
+in two dated halves rather than rewritten, because the failure it describes is the reason the
+counterpart check exists and is worth being able to read afterwards.
 
-| Repository | `feat/xml-refactor` head | `xml-refactor-merge-candidate` | Drift | Verdict |
+**As at 2026-09-28** — one re-cut had happened, one had not, and the pair as tagged did not work:
+
+| Repository | head | tag | Drift | Verdict |
 |---|---|---|---|---|
-| `cuems-nodeconf` | `b305c1c` | **`b305c1c`** (tag object `5f0b64a`, re-cut from `6c0cca7`, signed, pushed) | 0 | ✅ **re-cut as announced** — carries features 001, 002 and 003 |
-| `cuems-common` | `e3c9430` | `3af31cc` | **3 commits**, all packaged: `b3dd7e1` (the `network_map.{xml,xsd}` handover, `preinst`/`postinst`/`postrm`, `debian/control`, `debian/install`), `f6750d7` (D14 — `cuems-config-node` stops minting, the three templates take the sentinel), `e3c9430` (the snapshot-wins fix) | ❌ **announced, not performed** |
-| `cuems-power-bridge` | `13a9af4` | `d5c4226` | **6 commits**, two of them packaged: `ca67a99` (`debian/rules` resolves `cuemsutils` from the sibling checkout, not PyPI), `13a9af4` (`debian/rules` strips foreign console scripts; `pyproject.toml` `0.3.0` → `0.3.1`, aligning it with the `0.3.1-1` changelog the tag already carried) | ❌ **not announced either** |
-| `cuems-utils` | `1a4e608` | — | — | ⏳ by decision (D27): tags after 011–014 |
+| `cuems-nodeconf` | `b305c1c` | **`b305c1c`** (re-cut from `6c0cca7`) | 0 | ✅ re-cut as announced |
+| `cuems-common` | `e3c9430` | `3af31cc` | **3 commits**, all packaged: `b3dd7e1` (the `network_map.{xml,xsd}` handover, `preinst`/`postinst`/`postrm`, `debian/control`, `debian/install`), `f6750d7` (D14 — `cuems-config-node` stops minting, the three templates take the sentinel), `e3c9430` (the snapshot-wins fix) | ❌ announced, not performed |
+| `cuems-power-bridge` | `13a9af4` | `d5c4226` | **6 commits**, two packaged: `ca67a99` (`debian/rules` resolves `cuemsutils` from the sibling checkout, not PyPI), `13a9af4` (strips foreign console scripts; `pyproject.toml` `0.3.0` → `0.3.1`) | ❌ not announced either |
+| `cuems-utils` | `1a4e608` | — | — | ⏳ by decision (D27) |
 
-**What the un-moved `cuems-common` tag costs.** `cuems-nodeconf`'s re-cut candidate hard-requires
-the handover — its own tag message says so ("After 003's re-cut requires cuems-utils `73daab6`+ and
-cuems-common's 011 handover") — and its `_render_service_record` calls `sys.exit(-1)` on a template
-with no sentinel. At `3af31cc` the **controller** template still carries
-`a3811d78-099f-11f0-a075-00e04c01b7e3`; at `f6750d7` all three carry the sentinel. So a technician
-checking out the two candidate tags gets a controller whose `cuems-nodeconf` refuses to start. The
-code is right on both sides; only the tag is behind.
+**What the un-moved `cuems-common` tag cost, and it was not cosmetic.** `cuems-nodeconf`'s re-cut
+candidate hard-requires the handover — its own tag message says so — and its
+`_render_service_record` calls `sys.exit(-1)` on a template with no sentinel. At `3af31cc` the
+**controller** template still carried `a3811d78-099f-11f0-a075-00e04c01b7e3`. So a technician
+checking out the two candidate tags got a controller whose `cuems-nodeconf` refused to start,
+with both working trees already correct and the reciprocal `Breaks:` unable to catch it, because
+both packages sat at exactly their intended versions. **A tag set is only as good as its least
+current member**, and nothing in the packaging expresses that.
 
-**And the `cuems-nodeconf` tag message names the wrong counterpart.** Its body says "Counterpart:
-`cuems-common`'s tag of the same name at `f2fc0f5`" — two relocations stale (`f2fc0f5` →
-`3af31cc` on 2026-09-24, and now due at `e3c9430`). Its own appended paragraph says
-`3af31cc`, so the message contradicts itself. Both are fixed by the same re-cut of `cuems-common`
-plus an amended `cuems-nodeconf` tag message.
+**As at 2026-09-29 — all four re-cuts performed, verified against the remotes:**
 
-**Maintainer actions, not agent actions** (`cuems-nodeconf`'s T048, FR-021/research R10; and this
-repository's own rule that moving a published tag is outward-facing):
+| Repository | head | tag | Pushed | Signature |
+|---|---|---|---|---|
+| `cuems-nodeconf` | `9b8f565` | **`b305c1c`** | ✅ matches `origin` | ✅ good, `Adrià Masip <adria@stagelab.coop>` |
+| `cuems-common` | `6a15200` | **`e3c9430`** (was `3af31cc`) | ✅ matches `origin` | ✅ good |
+| `cuems-power-bridge` | `af7acb1` | **`13a9af4`** (was `d5c4226`) | ✅ matches `origin` | ✅ good |
+| `cuems-utils` | `4ef7f91` | — | — | ⏳ by decision (D27): tags after 011–014 |
 
-1. Re-cut `cuems-common`'s tag `3af31cc` → `e3c9430` and force-push it, recording old and new in
-   the message, as its own 2026-09-24 relocation did.
-2. Re-cut `cuems-power-bridge`'s tag `d5c4226` → `13a9af4` (no version moves; `0.3.1-1` either way).
-3. Amend `cuems-nodeconf`'s tag message so its "Counterpart" line names `e3c9430`.
-4. Close `cuems-nodeconf`'s T048's remaining halves: the announcement reached no other flow (no
-   `cuems-common`, `cuems-power-bridge` or `cuems-utils` file named `b305c1c` before this entry),
-   and neither its `specs/003-startup-readiness/evidence/verification-record.md` nor the
-   `xml-refactor-merge-coordination` memory note records the new commit.
+Checked, not assumed:
+
+- **The composability failure is gone.** `git show xml-refactor-merge-candidate:usr/share/cuems/cuems.service.controller`
+  in `cuems-common` now yields `uuid=00000000-0000-0000-0000-000000000000` — the sentinel — so
+  `cuems-nodeconf`'s renderer accepts it and a controller starts.
+- **`cuems-nodeconf`'s tag message now names the right counterpart**: `e3c9430`. It previously said
+  `f2fc0f5`, two relocations stale, and contradicted its own closing paragraph.
+- **Each head is exactly one commit past its tag, and that commit is documentation** — one `specs/`
+  file each. The convention holds: the tag advances only for packaged content.
+- **No version moved**: `0.1.0rc16` / `1.3.0-23` / `0.1.0-8` / `0.3.1-1`, matching `test_no_version_bump.py`.
+- **Every tag signature verifies.** Both signing methods now do: this workstation signs with GPG
+  `B25EB0EDCB9F13C2`, the development server signs over SSH with
+  `SHA256:n2JoMP0xXSuw4NQS2cGBNEaYkcTHMobgcG1gDzRcrUU`, and `gpg.ssh.allowedSignersFile` was
+  configured on 2026-09-29 so the latter verify here instead of erroring. A mixed-signature history
+  across these repositories is two machines, not a defect.
+
+**What remains is validation on real hardware**, which no amount of checking here substitutes for:
+`cuems-nodeconf`'s ledger `specs/002-public-network-map-path/checklists/hardware-verification.md`,
+entries §1–§6, and `cuems-power-bridge`'s
+`specs/002-cluster-poweroff-cli/checklists/hardware-verification.md`. Every box is unchecked, and
+that is the accurate state.
+
 - Repository-wide `ruff` on the integration branch: 365 fixable findings (pre-existing); on this
   branch: 362. Every file this feature touches lints clean.
 

@@ -68,9 +68,9 @@ which is the only enumeration that would have caught all three.
 
 | Flow | Repository | State | Tag |
 |---|---|---|---|
-| 03 | `cuems-common` | **landed**; its 011 handover has since landed on `feat/xml-refactor` (`b3dd7e1`, `f6750d7`, `e3c9430`) | `3af31cc` — relocated from `f2fc0f5` 2026-09-24, force-pushed. **Now 3 packaged commits behind its own head**: re-cut to `e3c9430` is announced but not performed |
-| 04 / 04a / 04b | `cuems-nodeconf` | **landed**; open: hardware verification (its 001/T050, T051, plus ledger §5/§6), the merge-window handshake (001/T042), and its maintainer-only 003/T048. **T091–T094, T096, T097 closed** 2026-09-28 by its feature `003-startup-readiness`; T095, T098–T100 are recording tasks here | **`b305c1c`** — re-cut from `6c0cca7` 2026-09-28 for feature 003; signed and pushed |
-| 07 | `cuems-power-bridge` | **landed** — two features, `001-node-role-parser` (54/60) and `002-cluster-poweroff-cli` (69/69) | `d5c4226`. **Now 6 commits behind its own head**, two of them packaged (`ca67a99`, `13a9af4` — `debian/rules` and the `pyproject.toml` version); re-cut to `13a9af4` due, no version moves |
+| 03 | `cuems-common` | **landed**, including its 011 handover (`b3dd7e1`, `f6750d7`, `e3c9430`) | **`e3c9430`** — re-cut 2026-09-29 from `3af31cc` (itself relocated from `f2fc0f5` 2026-09-24); pushed, signed, verifies |
+| 04 / 04a / 04b | `cuems-nodeconf` | **landed**; open: hardware verification (its 001/T050, T051, plus ledger §5/§6) and the merge-window handshake (001/T042). **T091–T094, T096, T097 closed** 2026-09-28 by its feature `003-startup-readiness`; T095, T098–T100 are recording tasks here | **`b305c1c`** — re-cut from `6c0cca7` 2026-09-28 for feature 003; pushed, signed, message amended 2026-09-29 to name `e3c9430` |
+| 07 | `cuems-power-bridge` | **landed** — two features, `001-node-role-parser` (54/60) and `002-cluster-poweroff-cli` (69/69) | **`13a9af4`** — re-cut 2026-09-29 from `d5c4226`, which predated the two build commits (`ca67a99`, `13a9af4`) without which the `.deb` could not resolve `cuemsutils` at all; no version moved |
 | 01 | `cuems-engine` | **not started** — no `feat/xml-refactor` branch; bundle vendored 2026-09-25. Bases on `feat/nodelist-modify-dispatch` | — |
 | 02 | `cuems-editor` | **not started** — no branch; C2 re-verified live; bundle vendored. Bases on `feat/nodelist-adoption-api` | — |
 | 05 | `cuems-frontend` | **not started** — no branch; bundle vendored. Carries a **scope decision**: the adoption/liveness UI tier does not exist | — |
