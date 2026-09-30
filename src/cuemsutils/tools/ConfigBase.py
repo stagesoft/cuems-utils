@@ -274,11 +274,39 @@ class ConfigBase():
 
     @property
     def node_uuid(self):
+        """This node's own identity.
+
+        Returns:
+            cuemsutils.tools.Uuid.Uuid | str: the identity type on a
+            **provisioned** node; the published sentinel constant
+            (``cuemsutils.tools.SENTINEL``), a plain ``str``, on one that was
+            never provisioned (feature 012, FR-021b, FR-028).
+
+        The type varies **only** between those two states, and identically from
+        every accessor — the one documented exception in FR-028, and the reason a
+        consumer needs exactly one check rather than a conversion at every site
+        (M-d). Both forms compare equal to the equivalent string and hash the
+        same, so ``==``, f-strings, set membership and dict keys are unaffected;
+        what changed is that the value is no longer a ``str`` **subclass**, so
+        string methods are not available on it. Convert with ``str()`` where a
+        string is genuinely wanted — see :attr:`host_name` just below, which is
+        this library's own instance of exactly that.
+        """
         return self.node_conf['uuid']
 
     @property
     def host_name(self):
-        return f"{self.node_uuid.split('-')[-1]}.local"
+        """``<last uuid group>.local`` — the node's mDNS name.
+
+        ``str()`` around the identity is **load-bearing** as of feature 012, not
+        defensive: ``node_uuid`` answers with the identity type on a provisioned
+        node, and that type deliberately does not define ``split`` (data-model
+        §6.2 — string operations would invite treating an identity as text in
+        ways the compound ``<identity>_<output>`` parsing already handles
+        elsewhere). This accessor's own return type is unchanged: still a
+        ``str``, still the same value.
+        """
+        return f"{str(self.node_uuid).split('-')[-1]}.local"
 
     @property
     def node_url(self):

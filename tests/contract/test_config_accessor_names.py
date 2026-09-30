@@ -67,9 +67,35 @@ def test_method_signatures_have_not_changed(class_name, name):
     assert before["signature"] == LIVE[class_name][name]["signature"]
 
 
+#: Feature 012's **one** scalar accessor whose return type moves, and the type
+#: it moves to (FR-021b).
+#:
+#: Recorded rather than allowed generically, and named here rather than folded
+#: into the structural set, because it is the exact class of change
+#: ``test_no_scalar_accessor_moved`` exists to forbid — a scalar accessor that
+#: starts returning an object. It is permitted only as a decision with evidence
+#: behind it: FR-032 makes the consumer census a **blocking precondition**, and
+#: that census is ``specs/012-uuid4-convergence/consumer-census.md``, which
+#: records per repository what every reading site does with the new type (all of
+#: them equality, f-string, set membership or hashing, all supported).
+#:
+#: ``node_uuid`` returns ``Uuid`` on a provisioned node and the published
+#: sentinel constant — a plain ``str`` — on one that was never provisioned. The
+#: golden was captured against a provisioned corpus node, so ``Uuid`` is what it
+#: sees.
+#:
+#: This is a **one-entry allowlist, not a relaxation**: any other scalar
+#: accessor that moves still fails below.
+SCALAR_ACCESSORS_THAT_MOVED = {
+    "ConfigBase.node_uuid": "Uuid",
+    "ConfigManager.node_uuid": "Uuid",
+}
+
+
 def test_only_the_structural_accessors_changed_return_type():
     """The enumerated half of FR-018: *only* return types change, and only
-    where the value is a structure rather than a scalar.
+    where the value is a structure rather than a scalar — plus feature 012's
+    one recorded exception (:data:`SCALAR_ACCESSORS_THAT_MOVED`).
 
     A scalar accessor that started returning an object would satisfy every
     assertion above and still be a breaking change.
@@ -89,7 +115,7 @@ def test_only_the_structural_accessors_changed_return_type():
         for class_name, entries in GOLDEN.items()
         for name, entry in entries.items()
         if entry.get("return") == "dict"
-    }
+    } | set(SCALAR_ACCESSORS_THAT_MOVED)
 
     assert moved == expected, (
         "return types moved outside the structural set:\n"
@@ -100,14 +126,47 @@ def test_only_the_structural_accessors_changed_return_type():
 
 def test_no_scalar_accessor_moved():
     """Stated separately and positively, because it is the promise consumers
-    actually rely on: ``library_path`` still returns a path string."""
+    actually rely on: ``library_path`` still returns a path string.
+
+    Feature 012's one exception is checked **by value**, not skipped: the
+    accessor must return exactly the type recorded for it in
+    :data:`SCALAR_ACCESSORS_THAT_MOVED`, so "allowed to move" does not become
+    "allowed to keep moving".
+    """
     for class_name, entries in GOLDEN.items():
         for name, entry in entries.items():
-            if entry.get("return") in ("str", "int", "float", "bool"):
-                assert LIVE[class_name][name].get("return") == entry["return"], (
-                    f"{class_name}.{name} was a scalar and is now a "
-                    f"{LIVE[class_name][name].get('return')}"
-                )
+            if entry.get("return") not in ("str", "int", "float", "bool"):
+                continue
+            key = f"{class_name}.{name}"
+            expected = SCALAR_ACCESSORS_THAT_MOVED.get(key, entry["return"])
+            assert LIVE[class_name][name].get("return") == expected, (
+                f"{class_name}.{name} was a {entry['return']} and is now a "
+                f"{LIVE[class_name][name].get('return')}"
+                + (f" (recorded as moving to {expected})" if key in SCALAR_ACCESSORS_THAT_MOVED else "")
+            )
+
+
+def test_the_moved_accessor_has_a_recorded_consumer_census():
+    """FR-032 makes the census a **blocking precondition** of the type change,
+    not a follow-up. The type change has landed, so the artifact must exist —
+    and it must carry the second column FR-032a requires, which research R4 did
+    not measure."""
+    from tests.support.corpus import REPO_ROOT
+
+    census = REPO_ROOT / "specs" / "012-uuid4-convergence" / "consumer-census.md"
+    assert census.is_file(), (
+        "the own-identity accessor's return type changed with no recorded "
+        "consumer census (FR-032)."
+    )
+    text = census.read_text()
+    for repository in ("cuems-engine", "cuems-power-bridge", "cuems-nodeconf",
+                       "cuems-editor", "cuems-common", "cuems-frontend"):
+        assert repository in text, f"the census does not name {repository}"
+    assert "network_map" in text, (
+        "the census carries no second column: FR-032a requires what each "
+        "repository does when a map read raises, which is the failure mode R4 "
+        "did not measure."
+    )
 
 
 def test_the_new_public_descriptor_accessor_is_named_as_decided():

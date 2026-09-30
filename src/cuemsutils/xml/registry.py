@@ -39,6 +39,22 @@ from .spec import TypeKey, TypeSpec, derive
 #: recorded in the table, not the absence of an entry.
 GENERIC = "GENERIC"
 
+#: The per-**field** adapter opt-ins, by schema (feature 012, FR-021b).
+#:
+#: ``settings`` names exactly one field: the node's own identity. A provisioned
+#: node's ``ConfigManager.node_uuid`` therefore answers with the identity type
+#: and an unprovisioned node's with the published sentinel constant, which is
+#: what makes **one** comparison enough to tell the two states apart (M-d) — and
+#: what stops the library handing consumers two types for one value.
+#:
+#: Declared here as a table rather than inline at the construction site so that
+#: "which fields are typed, and in which schema" is a question with an answer.
+#: Feature 007's schema-level flag is the precedent; this is the narrower
+#: instrument beside it, not a replacement for it.
+ADAPTER_FIELDS: dict[str, frozenset[tuple[str, str]]] = {
+    "settings": frozenset({("NodeConfType", "uuid")}),
+}
+
 
 @dataclass(frozen=True)
 class Binding:
@@ -55,7 +71,8 @@ class Binding:
 class SchemaRegistry:
     """Bindings for one schema."""
 
-    def __init__(self, schema_name: str, *, runs_adapter_table: bool = False):
+    def __init__(self, schema_name: str, *, runs_adapter_table: bool = False,
+                 adapter_fields: frozenset[tuple[str, str]] = frozenset()):
         self.schema_name = schema_name
         self.root = SCHEMA_ROOTS[schema_name]
         self._by_type: dict[str, Binding] = {}
@@ -67,6 +84,22 @@ class SchemaRegistry:
         #: other four schemas are untouched" is a property of *this* table,
         #: not of code the day it happens to be called from.
         self.runs_adapter_table = runs_adapter_table
+        #: feature 012 — the per-**field** opt-in (FR-021b, research R1).
+        #: ``(type name, field name)`` pairs whose declared adapter runs even
+        #: though this schema's table does not.
+        #:
+        #: It exists because the schema-level flag has the wrong blast radius
+        #: for the requirement. FR-021b asks for **one** field to change type:
+        #: the node's own identity in ``settings.xml``. Flipping
+        #: ``runs_adapter_table`` for ``settings`` would re-decode *every*
+        #: scalar in that document at once — ports to ``int``, unit floats to
+        #: ``float`` — which is a behaviour change across the whole
+        #: configuration surface, invisible in this feature's tests, and it
+        #: would silently retire the property feature 007 measured and pinned
+        #: (its SC-010a: four schemas decode every scalar as text).
+        #:
+        #: A mechanism should have the same blast radius as the requirement.
+        self.adapter_fields = frozenset(adapter_fields)
 
     def bind(self, type_name: str, model) -> SchemaRegistry:
         key = TypeKey(self.schema_name, type_name)
@@ -83,6 +116,18 @@ class SchemaRegistry:
         key = TypeKey(self.schema_name, element_path, is_path=True)
         self._by_path[element_path] = Binding(key, model)
         return self
+
+    def runs_adapter_for(self, type_name: str | None, field_name: str) -> bool:
+        """Whether ``type_name``'s ``field_name`` runs its declared adapter.
+
+        ``True`` when this schema runs the whole table, or when the pair is
+        named in :attr:`adapter_fields`. Asked per field by
+        ``Mapper._decode_config_value``, so a schema that opts one field in
+        leaves every other scalar decoding exactly as it did.
+        """
+        if self.runs_adapter_table:
+            return True
+        return type_name is not None and (type_name, field_name) in self.adapter_fields
 
     def binding_for(self, type_name: str) -> Binding | None:
         return self._by_type.get(type_name)
@@ -356,7 +401,11 @@ def _build_config_registry(schema_name: str) -> SchemaRegistry:
       wrapper is one — which stay generic and decode to plain dicts, exactly
       as the corresponding ``script.xsd`` wrappers do.
     """
-    registry = SchemaRegistry(schema_name, runs_adapter_table=schema_name == "network_map")
+    registry = SchemaRegistry(
+        schema_name,
+        runs_adapter_table=schema_name == "network_map",
+        adapter_fields=ADAPTER_FIELDS.get(schema_name, frozenset()),
+    )
     by_type, by_path = _config_models(schema_name)
 
     registry.bind_path(SCHEMA_ROOTS[schema_name], by_path.get(SCHEMA_ROOTS[schema_name], GENERIC))

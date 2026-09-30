@@ -379,7 +379,7 @@ build-time generation succeeds.
 **Independent Test**: the same identity read through every public accessor has the same type; a
 collection of identities sorts; the published coercion rule matches what the library itself does.
 
-- [ ] T060 [US4] Record the consumer census as an artifact in
+- [X] T060 [US4] Record the consumer census as an artifact in
       `specs/012-uuid4-convergence/consumer-census.md` — every sibling repository by name, with
       **two** results each (FR-032, FR-032a, SC-011):
       1. what it does with the own-identity accessor's changed return type — call sites and the risk
@@ -396,33 +396,33 @@ collection of identities sorts; the published coercion rule matches what the lib
 
 ### Tests for User Story 4
 
-- [ ] T061 [P] [US4] Test in `tests/contract/test_identity_type_parity.py` — on a provisioned node,
+- [X] T061 [P] [US4] Test in `tests/contract/test_identity_type_parity.py` — on a provisioned node,
       the own-identity accessor and a map identity have the same type and compare equal (FR-028,
       SC-010)
-- [ ] T062 [P] [US4] Test in `tests/contract/test_unprovisioned_parity.py` — on an unprovisioned
+- [X] T062 [P] [US4] Test in `tests/contract/test_unprovisioned_parity.py` — on an unprovisioned
       node, **every** accessor yields the published sentinel constant (FR-028, US4 scenario 2)
-- [ ] T063 [P] [US4] Test in `tests/unit/test_identity_ordering.py` — a collection of identities
+- [X] T063 [P] [US4] Test in `tests/unit/test_identity_ordering.py` — a collection of identities
       sorts; ordering agrees with the string form; slicing, `len` and `split` remain absent
       (FR-029, data-model §6.2)
-- [ ] T064 [P] [US4] Test in `tests/contract/test_published_coercion.py` — the published rule and
+- [X] T064 [P] [US4] Test in `tests/contract/test_published_coercion.py` — the published rule and
       the library's own decoding agree on a uuid4, a uuid1, a non-uuid string and an empty value
       (FR-030)
-- [ ] T065 [P] [US4] Test in `tests/contract/test_public_surface.py` — the sentinel constant and
+- [X] T065 [P] [US4] Test in `tests/contract/test_public_surface.py` — the sentinel constant and
       the coercion rule are reachable from `cuemsutils.tools` and declared in `__all__` (FR-031)
 
 ### Implementation for User Story 4
 
-- [ ] T066 [P] [US4] Add a total ordering to `src/cuemsutils/tools/Uuid.py`, consistent with the
+- [X] T066 [P] [US4] Add a total ordering to `src/cuemsutils/tools/Uuid.py`, consistent with the
       string form; add nothing else
-- [ ] T067 [US4] Add the per-**field** adapter opt-in to `src/cuemsutils/xml/registry.py` and
+- [X] T067 [US4] Add the per-**field** adapter opt-in to `src/cuemsutils/xml/registry.py` and
       `src/cuemsutils/xml/adapters.py` — **do not** flip `runs_adapter_table` for `settings`
       (research R1)
-- [ ] T068 [US4] Opt `NodeConfType/uuid` into its declared adapter in the settings registry, so a
+- [X] T068 [US4] Opt `NodeConfType/uuid` into its declared adapter in the settings registry, so a
       provisioned node's own identity decodes to the identity type and the sentinel decodes to the
       published constant (FR-021b)
-- [ ] T069 [US4] Publish the coercion rule in `src/cuemsutils/tools/ids.py` — outside
+- [X] T069 [US4] Publish the coercion rule in `src/cuemsutils/tools/ids.py` — outside
       `cuemsutils.xml`, which consumers may not import (FR-030, Q14)
-- [ ] T070 [US4] Declare `__all__` in `src/cuemsutils/tools/identity_check.py` naming the sentinel
+- [X] T070 [US4] Declare `__all__` in `src/cuemsutils/tools/identity_check.py` naming the sentinel
       constant, and re-export it from `cuemsutils.tools` (FR-031)
 
 **Checkpoint**: consumers see one surface; `cuems-engine`'s mirror can be deleted in a follow-up.

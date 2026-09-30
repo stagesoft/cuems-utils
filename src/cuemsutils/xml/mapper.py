@@ -316,11 +316,16 @@ class Mapper:
             if child is None:
                 # A scalar, or content the schema does not name. Unchanged —
                 # unless this schema opted into the adapter table (research
-                # R1, registry.runs_adapter_table). ``network_map`` is the
-                # only schema that does; every other config schema takes the
-                # branch above unconditionally, so FR-011a-i's "untouched"
-                # holds by construction rather than by convention.
-                if self.registry.runs_adapter_table:
+                # R1, registry.runs_adapter_table), or this **field** did
+                # (feature 012, registry.adapter_fields). ``network_map`` is
+                # still the only schema that runs the whole table; ``settings``
+                # names one field, its node's own identity. Every other scalar
+                # in every other config schema takes the branch below
+                # unconditionally, so FR-011a-i's "untouched" holds by
+                # construction rather than by convention — and the per-field
+                # opt-in is what keeps it holding while one field changes.
+                if self.registry.runs_adapter_for(
+                        None if spec.key.is_path else spec.key.name, key):
                     adapter = adapter_for(field.xsd_type)
                     if adapter is not PASSTHROUGH:
                         decoded[key] = adapter.decode(raw)
