@@ -77,6 +77,7 @@ class Cluster:
     conf: Path
     library: Path
     nodes: list[NodeSpec]
+    avahi: Path
     projects: list[str] = field(default_factory=list)
     script_name: str = "script.xml"
 
@@ -234,6 +235,20 @@ def _video_output(output_name: str) -> str:
     )
 
 
+def avahi_service_xml(uuid: str) -> str:
+    """The live record ``cuems-nodeconf`` derives from ``settings.xml`` (D14,
+    shape B). The check reads it as the fourth identity location."""
+    services = "".join(
+        f'<service protocol="ipv4"><type>_cuems_{kind}._tcp</type><port>9000</port>'
+        f"<txt-record>node_role=node</txt-record><txt-record>uuid={uuid}</txt-record></service>"
+        for kind in ("nodeconf", "osc")
+    )
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        f'<service-group><name replace-wildcards="yes">%h</name>{services}</service-group>\n'
+    )
+
+
 # -- the builder -----------------------------------------------------------------------
 
 
@@ -248,6 +263,7 @@ def build_cluster(
     with_project_mappings: bool = True,
     self_index: int = 0,
     library_path: str | None = None,
+    with_avahi: bool = True,
 ) -> Cluster:
     """Write a whole cluster under ``root`` and return where everything landed.
 
@@ -265,6 +281,10 @@ def build_cluster(
             fixture must be able to omit it.
         self_index: which node's identity ``settings.xml`` carries — i.e. which
             node of the cluster this directory *is*.
+        with_avahi: whether to write the live Avahi record. It is the fourth
+            identity location the check reads, and its *absence* is class 2 on
+            a provisioned node — so a fixture that omitted it would report
+            "absent" for every test that meant to measure something else.
     """
     if identities is None:
         keys = shapes or ["uuid4", "uuid4b"]
@@ -306,7 +326,12 @@ def build_cluster(
                     project_mappings_xml(nodes), encoding="utf-8"
                 )
 
-    return Cluster(root=root, conf=conf, library=library, nodes=nodes,
+    avahi = root / "etc" / "avahi" / "services" / "cuems.service"
+    if with_avahi:
+        avahi.parent.mkdir(parents=True, exist_ok=True)
+        avahi.write_text(avahi_service_xml(me.uuid), encoding="utf-8")
+
+    return Cluster(root=root, conf=conf, library=library, nodes=nodes, avahi=avahi,
                    projects=names, script_name=script_name)
 
 

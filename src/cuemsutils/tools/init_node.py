@@ -36,13 +36,15 @@ from ..xml.seed_values import SeedValueError
 from .identity_check import (  # noqa: F401 — re-exported: the wording constants are this tool's public face
     FIX_NODECONF,
     FIX_PLAIN,
+    FIX_REMINT,
     FIX_RESET,
     FIX_UNMASK,
     NOT_PROVISIONED,
     SENTINEL,
 )
 
-__all__ = ["main", "NOT_PROVISIONED", "MODIFIED_KEPT", "FIX_PLAIN", "FIX_RESET", "FIX_NODECONF", "FIX_UNMASK"]
+__all__ = ["main", "NOT_PROVISIONED", "MODIFIED_KEPT", "FIX_PLAIN", "FIX_RESET", "FIX_NODECONF",
+           "FIX_REMINT", "FIX_UNMASK"]
 
 MODIFIED_KEPT = "modified, kept"
 DOCUMENTS = ("settings.xml", "network_map.xml", "default_mappings.xml")
@@ -87,6 +89,10 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--state-dir", default=DEFAULT_STATE_DIR)
     p.add_argument("--defaults", help="seed file to use instead of the shipped one")
     p.add_argument("--avahi-service", default=None, help="with --check: the live Avahi service file")
+    p.add_argument("--library", default=None,
+                   help="with --check: the project library to survey; by default the "
+                        "library_path in settings.xml, whose absence degrades to a "
+                        "configuration-only survey that says so")
     p.add_argument("--lock-file", default=DEFAULT_LOCK)
     p.add_argument("--sysfs", default=DEFAULT_SYSFS, help=argparse.SUPPRESS)
     p.add_argument("--systemctl", default="systemctl", help=argparse.SUPPRESS)
@@ -526,7 +532,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         from . import identity_check
 
-        report = identity_check.check(Path(args.conf_dir), Path(args.avahi_service) if args.avahi_service else None)
+        report = identity_check.check(
+            Path(args.conf_dir),
+            Path(args.avahi_service) if args.avahi_service else None,
+            library=args.library,
+        )
         print(identity_check.render_json(report) if args.json else identity_check.render(report))
         return report.exit_code
 

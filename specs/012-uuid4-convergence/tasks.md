@@ -99,40 +99,40 @@ modification time are unchanged.
 
 ### Tests for User Story 1
 
-- [ ] T010 [P] [US1] Contract test in `tests/contract/test_check_writes_nothing.py` — after a run
+- [X] T010 [P] [US1] Contract test in `tests/contract/test_check_writes_nothing.py` — after a run
       over a fixture cluster, assert **no** file created, modified, moved or deleted, comparing
       both content hashes and modification times, and that no backup appeared (FR-003, **SC-005**'s
       zero-files half)
-- [ ] T011 [P] [US1] Test in `tests/integration/test_check_classifies.py` — a mixed tree reports
+- [X] T011 [P] [US1] Test in `tests/integration/test_check_classifies.py` — a mixed tree reports
       each occurrence with path, location, value and class, including occurrences embedded in
       compound strings (FR-001, FR-002, **SC-005**'s 100%-classification half)
-- [ ] T012 [P] [US1] Test in `tests/contract/test_check_exit_classes.py` — 0 converged,
+- [X] T012 [P] [US1] Test in `tests/contract/test_check_exit_classes.py` — 0 converged,
       1 migration-needed **and** 1 mirror-disagreement, 2 absent/unreadable, 3 sentinel; and that
       precedence 3 > 2 > 1 still holds (FR-004, contracts/cli-check.md)
-- [ ] T013 [P] [US1] Test in `tests/integration/test_check_degrades.py` — an absent, unreadable or
+- [X] T013 [P] [US1] Test in `tests/integration/test_check_degrades.py` — an absent, unreadable or
       library-path-less `settings.xml` degrades to a configuration-only survey that **says so**,
       and an unrecognised document is named while the survey continues (FR-005, research R9)
-- [ ] T014 [P] [US1] Test in `tests/integration/test_check_on_invalid_documents.py` — the check
+- [X] T014 [P] [US1] Test in `tests/integration/test_check_on_invalid_documents.py` — the check
       runs on documents the tightened schema would refuse, proving it never routes through the
       validating load path (**FR-001a**, which is satisfied by design rather than by a dedicated
       test; this is the test that observes the design holding)
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Extend `src/cuemsutils/tools/identity_check.py` with shape classification, using
+- [X] T015 [US1] Extend `src/cuemsutils/tools/identity_check.py` with shape classification, using
       Phase 2's vocabulary — every identity it already reads gains a class
-- [ ] T016 [US1] Extend `identity_check.py`'s reach to the project library via
+- [X] T016 [US1] Extend `identity_check.py`'s reach to the project library via
       `tools/library_reach.py`, reading with stdlib XML only
-- [ ] T017 [US1] Widen the exit classes in `identity_check.py` — 1 now also means
+- [X] T017 [US1] Widen the exit classes in `identity_check.py` — 1 now also means
       "migration needed"; add the `verdict` field that distinguishes it, per contracts/cli-check.md
-- [ ] T018 [US1] Extend the `--json` output shape in `identity_check.py` with per-occurrence
+- [X] T018 [US1] Extend the `--json` output shape in `identity_check.py` with per-occurrence
       `location`, `classification` and `embedded`, per data-model §3
-- [ ] T018a [US1] Extend the **existing** `tests/contract/test_identity_check.py` for the widened
+- [X] T018a [US1] Extend the **existing** `tests/contract/test_identity_check.py` for the widened
       class 1 and the extended verdict vocabulary — it asserts `verdict == "mismatch"` and the
       current exit-class meanings today, and T017/T018 change both. Extend it in step rather than
       leaving it to pass while testing the superseded vocabulary (Principle III: the vocabulary is
       extended, not replaced, so every shipped verdict must still mean what it meant)
-- [ ] T019 [US1] Add `--library` to the check in `src/cuemsutils/tools/init_node.py`'s parser and
+- [X] T019 [US1] Add `--library` to the check in `src/cuemsutils/tools/init_node.py`'s parser and
       thread it through, defaulting to the configured library path
 
 **Checkpoint**: US1 is independently shippable. It writes nothing and needs no other phase.
