@@ -29,7 +29,7 @@ Commits are **GPG-signed**. On `gpg failed to sign`, retry — never `--no-gpg-s
 | [data-model.md](data-model.md) | the classification vocabulary and the table's invariants |
 | `specs/planning/etc-cuems-first-install.md` §9, §10 | the design and the re-mint procedure |
 
-## The four things that will cost you a revert
+## The six things that will cost you a revert
 
 1. **Do not narrow anything before the re-mint exists.** It invalidates every deployed identity
    with nothing able to repair it. Phase D is last for this reason, not by preference.
@@ -42,6 +42,16 @@ Commits are **GPG-signed**. On `gpg failed to sign`, retry — never `--no-gpg-s
 4. **Negative fixtures fail for a reason, and the reason is the assertion.** After tightening,
    re-check *which* error each one raises — a fixture that still fails while testing the wrong
    thing keeps the suite green and the coverage gone (trap 7.3, FR-027).
+5. **Never restore a rewritten file's modification time.** The substitution replaces 36
+   characters with 36, so every rewritten file is *exactly the size it was*. The library reaches
+   the nodes by `rsync -rt` with no checksum — size and time are all it compares. Preserving
+   times would leave every node's replica stale forever, with no error anywhere (FR-011b,
+   research R11). `os.replace` already does the right thing; the trap is "helpfully" adding
+   `shutil.copystat`.
+6. **"Converged" means uuid4, never uuid4-or-sentinel.** The set the schemas accept is the
+   *admitted* set, and it is two named definitions unioned, not one widened pattern. FR-021b's
+   decode table and the published coercion rule both give the wrong answer if the two words blur
+   (data-model §1.2, FR-021c).
 
 ## Verifying the sentinel premise
 
@@ -72,10 +82,27 @@ delta.
 ```
 A  the check          US1   writes nothing; ships value alone
 B  the library surface US4  blocked on the census artifact (FR-032)
-C  the re-mint        US2   the bulk
+C  the re-mint        US2   the bulk; needs the foundational phase only, not A
 D  the narrowing      US3   LAST — three schemas, three version steps, no conversions (R5)
-E  the migration guide US5  needs C and D measured
+E  the migration guide US5  needs C and D measured — not B
 ```
+
+**Where the re-mint runs.** The configuration documents are per node: every node rewrites its
+own, from the table the controller built and handed it. The library is controller-authoritative:
+rewritten once, on the controller, and replicated to the nodes by the project deployer on the
+next project load. A plain node with no table refuses rather than minting one — but a table whose
+`controller` is another node is the **normal** case, not a refusal (FR-011a, contracts/cli-remint.md).
+
+## The budget, in numbers
+
+| Budget | Value |
+|---|---|
+| Re-mint throughput | ≥ 500 MB/s scanned and rewritten |
+| Agreement between the two node counts | within 1% |
+| Fixture `remint_200` (200 projects, ~4 MB) | ≤ 2.0 s — **provisional**, lower it to the measured figure, never raise it |
+| Operator estimate vs. actual | within ±25% |
+
+The estimate divides surveyed bytes by the same 500 MB/s constant that T077 asserts against.
 
 ## Two tasks that edit things outside this feature
 
@@ -92,3 +119,6 @@ E  the migration guide US5  needs C and D measured
 - Ship from this branch alone (D27). The coordinated tag comes after 011–014.
 - Regenerate `tests/golden/outcomes.json` — it records pre-refactor verdicts that a test asserts
   the *difference* against.
+- Create a `tests/performance/` directory — the timing tests go in `tests/integration/`, where
+  this repository already keeps them.
+- Raise the fixture ceiling to make a slow implementation pass. It moves downward only.

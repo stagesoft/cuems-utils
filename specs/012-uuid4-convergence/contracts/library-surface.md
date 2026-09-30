@@ -8,6 +8,12 @@ SPDX-License-Identifier: GPL-3.0-or-later
 Everything here is **public**: a consumer must be able to name it, and nothing in
 `cuemsutils.xml` counts, because consumers may not import that package (Q14).
 
+## 0. One word, one meaning
+
+*Converged* means uuid4 lowercase, 36 characters. The not-provisioned sentinel is **admitted** by
+the schemas but is never *converged*. Every table below uses the words that way; §2 in particular
+is unreadable if they blur.
+
 ## 1. The identity type — gains a total ordering
 
 Already defines equality and hashing against both itself and `str`. Ordering completes that set,
@@ -27,9 +33,14 @@ The public face of the library's own decoding leniency:
 
 | Input | Output |
 |---|---|
-| a converged value | the identity type |
-| any other non-empty string | unchanged, as a string |
+| a **converged** value — uuid4 lowercase, and only that | the identity type |
+| any other non-empty string, **including the sentinel** | unchanged, as a string |
 | empty | nothing |
+
+"Converged" here is data-model §1.2's sense: uuid4 alone. The sentinel is *admitted* by the
+schemas but is not converged, so it falls through the second branch and a consumer receives the
+published constant as a plain string — which is what makes one comparison enough to recognise an
+unprovisioned node.
 
 Lives in `cuemsutils.tools`, **not** in `cuemsutils.xml`. One consumer has already mirrored this
 rule by hand (M-c); publishing it lets that copy be deleted rather than left to drift.
@@ -39,6 +50,12 @@ rule by hand (M-c); publishing it lets that copy be deleted rather than left to 
 Declared as public surface where it already lives, rather than relocated (assumption 7). A
 consumer compares against it to recognise an unprovisioned node **before** attempting a full
 load, which otherwise raises (M-d).
+
+**Which constant**, stated because the tool holds two that answer to the name: the **nil-uuid
+value** a node carries as its identity placeholder — not the human-readable status string the
+report prints for it, which is already public and answers a different question ("what should this
+line of output say?" rather than "is this node provisioned?"). If both remain published, each
+carries documentation naming the question it answers.
 
 ## 4. The own-identity accessor — changed return type
 

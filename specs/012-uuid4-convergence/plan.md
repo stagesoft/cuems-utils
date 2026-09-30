@@ -16,18 +16,26 @@ without losing a node.
 The work is four things in a forced order. A read-only **check** learns whether a machine needs
 the migration and never writes. A **re-mint** replaces every node identity by literal 36-character
 token substitution across the three configuration documents *and* the project library, from a
-substitution table built once on the controller and persisted before the first write. Only then
-does the **schema narrow** — uuid4 lowercase, plus the not-provisioned sentinel — in two schemas,
-each taking its first document-version step. Finally the **library surface** stops handing
-consumers two types for one value.
+substitution table built once on the controller and persisted before the first write. The two
+reaches have different scopes: configuration documents are rewritten **per node** from that
+distributed table, while the library is rewritten **once on the controller** and replicated by the
+project deployer that already carries every other library change (R11). Only then
+does the **schema narrow** — uuid4 lowercase, plus the not-provisioned sentinel, admitted as a
+union of two separately named definitions — in **three** schemas: the network map and the project
+mappings take their first document-version step, the settings schema takes its second. Finally the
+**library surface** stops handing consumers two types for one value.
 
-The technical approach turns on five measurements (see [research.md](research.md)): the adapter
+The technical approach turns on seven measurements (see [research.md](research.md)): the adapter
 table is a per-schema opt-in that only `network_map` has, so the own-identity type change needs a
 per-**field** opt-in instead (R1); the document-scoped rule tier already supports the cross-row
 uniqueness check, with two precedents (R2); the script filename is **not in any configuration this
 library can read**, so scripts are found by root element rather than by name (R3); the version
 step needs **no** registered conversion, because the machinery represents an identity step as the
-absence of one (R5); and clone detection already has both its inputs in scope (R6).
+absence of one (R5); clone detection already has both its inputs in scope (R6); the library is
+replicated from the controller by rsync with no checksum flag, so a length-preserving rewrite is
+visible to it **only** through the modification time (R11); and the library reach is required
+rather than precautionary, because both a bare and an embedded identity are measured there
+(R12).
 
 ## Technical Context
 
@@ -40,9 +48,11 @@ one new persisted substitution table under the tool's existing state directory
 installed on this box; the `hatch test` env lacks `hypothesis`)
 **Target Platform**: Debian bookworm nodes, shared venv `/usr/lib/cuems`
 **Project Type**: single Python library plus console entry points
-**Performance Goals**: throughput budget in MB/s over the library, measured at two node counts so
-an accidental per-node pass shows as a divergence; wall-clock ceiling on a named fixture; read-path
-timings within feature 008's recorded baseline
+**Performance Goals**: **>= 500 MB/s** scanned and rewritten over the library, measured at two node
+counts that must agree **within 1%** so an accidental per-node pass shows as a divergence; named
+fixture **`remint_200`** (200 projects, ~4 MB) within **2.0 s**, provisional and adjustable
+downward only; operator estimate within **+/-25%** of actual; read-path timings within feature
+008's recorded baseline
 **Constraints**: no library version change (`0.1.0rc16` is pinned by
 `tests/packaging/test_no_version_bump.py`); nothing ships from this branch alone (D27); the
 re-mint must be idempotent and resumable; every path that reads a possibly-invalid document uses
@@ -61,8 +71,8 @@ justified deviation tracked below.*
   carries documentation; every non-obvious decision cites its research item by number, which is
   this repository's established convention.
 - The one readability risk is `init_node.py`, already a large module gaining four behaviours. The
-  re-mint's library reach goes in a **new module** rather than growing it further, with
-  `init_node` calling into it.
+  cluster-wide re-mint and the library enumeration go in **new modules** rather than growing it
+  further, with `init_node` calling into them.
 
 ### II. Testing Standards
 
@@ -71,7 +81,8 @@ justified deviation tracked below.*
 | contract | the tightened patterns against every non-converged shape; the uniqueness rule's registration and unrepairability; rule-target resolution (trap 7.6); schema hashes moved in the same commit (trap 7.5); the divergence entry's removal from the allowlist |
 | integration | the full re-mint over a fixture cluster with a project library; abort on collision; idempotence; resume after interruption; clone refusal; the check's no-write property |
 | unit | token substitution including compound strings; root-element script discovery; the per-field adapter opt-in; identity ordering; the estimate's arithmetic |
-| performance | throughput at two node counts; fixture wall-clock; read-path against feature 008's baseline |
+| performance (in `tests/integration/`) | throughput at two node counts; the `remint_200` fixture's wall-clock; read-path against feature 008's baseline; the estimate's accuracy |
+| the replication property | a rewritten library file's modification time advances, so the size-and-time quick check transfers it (FR-011b, R11) |
 
 Fail-before-pass is required for every behaviour change. Two specific traps are tested rather
 than assumed: negative fixtures are re-checked for *which* error they now raise (trap 7.3,
@@ -87,15 +98,31 @@ destructive step, the same `--dry-run` affordance, and the same exit-class vocab
 
 ### IV. Performance Requirements
 
-Declared and measurable: throughput in MB/s with a stated tolerance between two node counts;
-wall-clock ceiling on a named fixture; read-path timings against feature 008's recorded
-baseline; and the operator estimate within a stated tolerance of actual (SC-PERF-003). Budgets
-are recorded **as measured**, including when exceeded — this repository's standing practice.
+Declared as **values**, not shapes — the analysis pass caught this as the feature's one
+constitution violation, since a budget with no number cannot fail a test:
+
+| Budget | Value | Provisional? |
+|---|---|---|
+| Re-mint throughput | >= **500 MB/s** scanned and rewritten | no |
+| Agreement between the two node counts | within **1%** | no |
+| Named fixture `remint_200` (200 projects, ~4 MB) | <= **2.0 s** wall-clock | **yes** — adjustable downward after measurement, never upward |
+| Operator estimate vs. actual | within **+/-25%** | no |
+| Read path (show and configuration documents) | feature 008's recorded baseline | no |
+
+The fixture ceiling is the only estimate, and it is marked so that adjusting it is a recorded
+decision rather than a silent relaxation. Budgets are recorded **as measured**, including when
+exceeded — this repository's standing practice.
 
 ### Gate result
 
-**PASS.** One deviation is tracked in Complexity Tracking: this feature amends another feature's
-landed decision record.
+**PASS.** Two deviations are tracked in Complexity Tracking: this feature amends another
+feature's landed decision record, and it adds three modules rather than extending one.
+
+**One violation was found after this gate and is now closed.** The `/speckit.analyze` pass
+(2026-09-30) found Principle IV unsatisfied: the budgets were stated in shape only, with no value
+anywhere, so no performance test could fail. The values above close it. Recorded rather than
+quietly fixed, because a gate that passed on an unmeasurable budget is worth a reader knowing
+about.
 
 ## Project Structure
 
@@ -104,7 +131,7 @@ landed decision record.
 ```text
 specs/012-uuid4-convergence/
 ├── plan.md              # This file
-├── research.md          # Phase 0 — R1..R10
+├── research.md          # Phase 0 — R1..R12 (R11, R12 added 2026-09-30)
 ├── data-model.md        # Phase 1
 ├── quickstart.md        # Phase 1
 ├── contracts/           # Phase 1
@@ -113,7 +140,10 @@ specs/012-uuid4-convergence/
 │   └── library-surface.md
 ├── checklists/
 │   └── requirements.md
-└── tasks.md             # /speckit.tasks — NOT created here
+├── tasks.md             # /speckit.tasks
+├── consumer-census.md   # T060 — the FR-032 artifact, blocking Phase 6
+├── migration-guide.md   # Phase 7
+└── baseline.md          # T003 and T081 — every measurement, as measured
 ```
 
 ### Source Code (repository root)
@@ -124,8 +154,9 @@ src/cuemsutils/
 │   ├── Uuid.py                 # + total ordering (FR-029)
 │   ├── identity_check.py       # + shape classification, library reach, __all__ (FR-001..005, FR-031)
 │   ├── init_node.py            # + collision abort, --uuid map check, clone refusal, estimate
-│   ├── remint.py               # NEW — substitution table, library reach, idempotence, resume
-│   └── ids.py                  # NEW — the published coercion rule (FR-030)
+│   ├── remint.py               # NEW — substitution table, apply loop, idempotence, resume
+│   ├── library_reach.py        # NEW — library enumeration; shared by the check and the re-mint
+│   └── ids.py                  # NEW — classification, token scanner, published coercion rule
 ├── xml/
 │   ├── schemas/
 │   │   ├── network_map.xsd     # UuidType narrows; doc_version 1 -> 2
@@ -140,22 +171,29 @@ src/cuemsutils/
 
 tests/
 ├── contract/                   # patterns, rule registration, hashes, allowlist
-├── integration/                # re-mint, abort, resume, idempotence, clone refusal
+├── integration/                # re-mint, abort, resume, idempotence, clone refusal —
+│                               #   and the timings: this repository keeps performance
+│                               #   tests here, so no tests/performance/ is introduced
 ├── unit/                       # substitution, discovery, ordering, estimate
-└── performance/                # throughput at two node counts, fixture ceiling
+└── support/                    # cluster and library fixture builders
 ```
 
-**Structure Decision**: single-project layout, unchanged. Two new modules rather than growth of
-an existing one: `tools/remint.py` carries the cluster-wide operation (which is not
-`init_node`'s per-node job), and `tools/ids.py` carries the published coercion rule, which must
-live outside `cuemsutils.xml` because consumers may not import that package (Q14).
+**Structure Decision**: single-project layout, unchanged. **Three** new modules rather than growth
+of an existing one: `tools/remint.py` carries the cluster-wide operation (which is not
+`init_node`'s per-node job); `tools/ids.py` carries the classification vocabulary, the token
+scanner and the published coercion rule, which must live outside `cuemsutils.xml` because
+consumers may not import that package (Q14); and `tools/library_reach.py` carries library
+enumeration, which is **shared** — the read-only check needs it as much as the re-mint does, so
+folding it into `remint.py` would make a read-only diagnostic import the module that performs the
+destructive operation. Performance tests go in `tests/integration/`, where this repository already
+keeps them.
 
 ## Phase sequencing, and why it is forced
 
 ```
 Phase A  the check                 US1   independent, ships value alone, writes nothing
 Phase B  the library surface       US4   independent of A; blocked on the census (FR-032)
-Phase C  the re-mint               US2   needs A's classification; the bulk of the work
+Phase C  the re-mint               US2   needs the foundational phase only; the bulk
 Phase D  the narrowing             US3   MUST be last — see below
 Phase E  the migration guide       US5   needs C and D measured, not assumed
 ```
@@ -176,11 +214,15 @@ type already supports — but the recorded per-repository artifact is a task.
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
 | This feature **amends feature 011's D13**, a landed decision in another feature's record (FR-019d) | D13's "mint iff there is none" is precisely what makes a cloned disk keep the original's identity. R1 of the collision routes (M-l) cannot be closed without changing it. Leaving it means uuid4 convergence delivers a cluster that re-collides on the next clone — which is how venues provision | Detecting the clone elsewhere (a separate tool, or the check alone) was rejected: the check is read-only by FR-003, and a second tool that can refuse an identity the identity tool just accepted puts two authorities on one decision. The amendment is recorded against 011 as its own task rather than applied silently |
-| Two **new modules** rather than extending `init_node.py` | The cluster-wide re-mint is not the per-node tool's job, and `init_node.py` is already large. The coercion rule must live outside `cuemsutils.xml` because consumers may not import it (Q14) | Extending `init_node.py` was rejected on Principle I — it would grow a module already carrying four new behaviours from this feature alone |
+| **Three** new modules rather than extending `init_node.py` | The cluster-wide re-mint is not the per-node tool's job, and `init_node.py` is already large. The coercion rule must live outside `cuemsutils.xml` because consumers may not import it (Q14). Library enumeration is its own module because it is **shared**: the read-only check needs it as much as the re-mint does | Extending `init_node.py` was rejected on Principle I — it would grow a module already carrying four new behaviours from this feature alone. Folding `library_reach.py` into `remint.py` was rejected separately: it would make a read-only diagnostic import the module that performs the destructive operation, which is the coupling FR-003 exists to keep out |
 
 ## Post-design constitution re-check
 
 Re-evaluated after Phase 1 artifacts: **PASS**, unchanged. The design added no dependency, no new
-storage system, and no user-facing surface outside the conventions feature 011 established. The
-two deviations above are the same two identified before Phase 0; Phase 1 did not introduce a
-third.
+storage system, and no user-facing surface outside the conventions feature 011 established.
+
+**Re-evaluated again after `/speckit.analyze` (2026-09-30): PASS.** One Principle IV violation was
+found and closed with stated values; one deviation row was corrected from two modules to three.
+The analysis pass added no dependency either — the distribution question (U1) was answered by
+naming machinery that already exists rather than by building any, which is why it changes the
+requirements and the guide but not the technical context.

@@ -17,9 +17,13 @@ requirements, and from [research.md](research.md)'s measurements.
 
 | Schema | Element | Today | After | Version step |
 |---|---|---|---|---|
-| `network_map.xsd` | `node_list/node/uuid` (`cms:UuidType`) | any version, either case | uuid4 lowercase **or** sentinel | 1 → 2 |
-| `project_mappings.xsd` | `NodeMappingType/uuid` (`xs:string`) | any text | uuid4 lowercase **or** sentinel | 1 → 2 |
-| `settings.xsd` | `NodeConfType/uuid` (`cms:NonEmptyString`) | any non-empty text | uuid4 lowercase **or** sentinel | 2 → 3 |
+| `network_map.xsd` | `node_list/node/uuid` (`cms:UuidType`) | any version, either case | the **admitted** set (§1.2) | 1 → 2 |
+| `project_mappings.xsd` | `NodeMappingType/uuid` (`xs:string`) | any text | the **admitted** set | 1 → 2 |
+| `settings.xsd` | `NodeConfType/uuid` (`cms:NonEmptyString`) | any non-empty text | the **admitted** set | 2 → 3 |
+
+All three reference the *same* pair of named definitions, so the convergence cannot re-diverge by
+one schema's copy drifting from another's — which is the defect this feature exists to close,
+reproduced one level down if each schema spelled the pattern out for itself.
 
 **Not moving**, and each for a stated reason:
 
@@ -31,13 +35,24 @@ requirements, and from [research.md](research.md)'s measurements.
   (Out of scope), which is exactly why a stale prefix stays schema-valid and why FR-009 uses
   literal substitution.
 
-### 1.2 The shape
+### 1.2 The shape — two definitions, and the union of them
+
+**The word "converged" means uuid4 and only uuid4**, here and in every requirement. The sentinel
+is *admitted*, never *converged*. The set a schema accepts is the **admitted** set. Keeping the
+two words apart is load-bearing: §6.1's decode table and the published coercion rule both turn on
+the sentinel not being converged.
 
 ```
-converged  ::= uuid4-lowercase | sentinel
-uuid4-lowercase ::= [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}   (length 36)
-sentinel        ::= "00000000-0000-0000-0000-000000000000"
+converged ::= [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}   (length 36)
+sentinel  ::= "00000000-0000-0000-0000-000000000000"
+admitted  ::= converged | sentinel
 ```
+
+**Each half is its own named definition** (FR-021c) — in the schemas as two named simple types
+unioned, and in the library as the identity type plus the published sentinel constant. Not one
+widened pattern: two definitions, so each is nameable, testable and removable on its own, and so
+a reader can see the sentinel is admitted by exception rather than by a pattern that happens to
+allow it.
 
 The sentinel is admitted **by union, not by loosening** (assumption 1): no other nil-like value
 becomes valid. It is a documented placeholder, not an identity — FR-021's second sentence.
@@ -71,6 +86,7 @@ The only record linking an old identity to its new one. Persisted **before** the
 | `controller` | identity | the node that built it — the table is built once, centrally (FR-019c) |
 | `entries` | map old → new | one entry per **distinct** old identity |
 | `applied` | list of paths | every file already rewritten, appended as each `os.replace` lands |
+| `scope` | `configuration` / `library` / `both` | which reach this run performed — the controller does both, a plain node only its own configuration (FR-011a) |
 
 ### 2.1 Invariants
 
@@ -83,6 +99,23 @@ The only record linking an old identity to its new one. Persisted **before** the
    rewritten (FR-014).
 5. **Keys are built from node identities only** (FR-010), never from cue or media identifiers,
    which bounds where a replacement can land.
+
+### 2.1a Who rewrites what
+
+| Reach | Rewritten by | Reaches the other nodes by |
+|---|---|---|
+| the configuration documents under the configuration directory | **each node, itself**, from the distributed table | not at all — each node's are its own |
+| the project library | **the controller, once** | the existing project-deployer replication, on project load |
+
+A node that is not the controller MUST NOT rewrite its replica of the library, and MUST NOT mint
+a table of its own. It refuses in the second case; it accepts a table the controller built, which
+is what the table is for (FR-019c).
+
+**The property the replication depends on** (FR-011b): the substitution preserves file size
+exactly — 36 characters become 36 characters — and the replication in use compares size and
+modification time, with no checksum. The modification time is therefore the *only* signal that a
+rewritten file differs. Writing through a temporary and an atomic replace gives a fresh time and
+satisfies this; restoring the original times would strand every node's replica silently.
 
 ### 2.2 Resume
 
@@ -100,9 +133,18 @@ What the read-only check produces (FR-001). Data only, never `None` in place of 
 | Field | Type |
 |---|---|
 | `locations` | list of occurrences |
-| `verdict` | `converged` / `migration-needed` / `undetermined` |
-| `exit_code` | 0 / 1 / 2 |
+| `verdict` | `ok` / `mismatch` / `migration-needed` / `absent` / `not-provisioned` |
+| `exit_code` | 0 / 1 / 2 / 3 |
 | `fix` | the command to run, or empty |
+
+The verdict vocabulary **extends** the shipped one rather than replacing it (Principle III): `ok`,
+`mismatch`, `absent` and `not-provisioned` are what the tool reports today, and
+`migration-needed` is this feature's addition. It is the field that distinguishes the two
+meanings now sharing exit class 1 — a mirror disagreeing with the source, and an identity that is
+not converged. Existing consumers keying on `mismatch` keep their meaning.
+
+Exit codes and their precedence (3 > 2 > 1) are the shipped tool's, unchanged; only class 1
+widens. The four are listed in contracts/cli-check.md.
 
 Each occurrence carries:
 
@@ -201,10 +243,14 @@ budget, and presented with the confirmation (FR-PERF-003).
 
 ### 6.1 The decoded type, by state
 
-| Node state | Own identity accessor | Map identity |
-|---|---|---|
-| provisioned | identity type | identity type |
-| not provisioned | the sentinel constant (a string) | the sentinel constant |
+| Node state | Value on disk | Own identity accessor | Map identity |
+|---|---|---|---|
+| provisioned | converged | identity type | identity type |
+| not provisioned | sentinel (admitted, **not** converged) | the published sentinel constant, a plain string | the same constant |
+
+The published coercion rule (contracts/library-surface.md §2) reads "a **converged** value becomes
+the identity type" in exactly the §1.2 sense, so the sentinel falls through its second branch and
+stays a string. That is the intended result, not an exception to the rule.
 
 The type varies only between provisioned and not, and identically from every accessor — the one
 documented exception in FR-028, and the reason a consumer needs exactly one check (M-d).

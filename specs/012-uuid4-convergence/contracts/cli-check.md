@@ -34,6 +34,11 @@ disagree" will now also see it for "migration needed". Both mean *actionable, ru
 in `fix`*, so the semantics hold; the `verdict` field distinguishes them for anything that needs
 to.
 
+The verdict vocabulary is the shipped one **extended**, not replaced: `ok`, `mismatch`, `absent`
+and `not-provisioned` keep their meanings and `migration-needed` joins them. The tool's existing
+contract test asserts against these values and is extended in step with the widening, not
+rewritten around it.
+
 ## Output
 
 Human-readable by default; one JSON object under `--json`. Both carry, per occurrence: the file
@@ -47,4 +52,4 @@ it was found embedded in a compound string.
 | No writes | no file created, modified, moved or deleted; no backup taken; no modification time changed |
 | Survives invalid documents | reads with stdlib XML only, never through the validating load path — this is what makes it usable when it is needed |
 | Partial failure is reported, not fatal | an unreadable or unrecognised document is named and the survey continues (FR-005) |
-| No dependency on the conversion tool | reporting a document's *version* and classifying an identity's *shape* are separate questions (FR-001a) |
+| No dependency on the conversion tool | reporting a document's *version* and classifying an identity's *shape* are separate questions (FR-001a). Satisfied **by design** — stdlib XML only, never the validating load path — rather than by a dedicated test; reversing it requires a stated justification in the plan |

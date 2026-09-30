@@ -81,5 +81,33 @@ specification pass had not identified as open at all:
   Replaced by a throughput figure plus a named fixture, and extended to an operator-facing duration
   estimate before a stop-the-world run (FR-PERF-001, FR-PERF-003).
 
-The specification grew from 38 to 51 functional requirements and from 14 to 18 success criteria.
+The specification grew from 38 to 52 functional requirements and from 14 to 18 success criteria.
 All checklist items above remain satisfied; re-verified after integration.
+
+---
+
+## Post-analysis (2026-09-30)
+
+`/speckit.analyze` ran over spec, plan and tasks against the constitution. It found **one
+constitution violation, three contradictions and two ambiguities**, all now closed. The checklist
+items above are re-verified and still satisfied; two of them were passing on a technicality:
+
+- **"Success criteria are measurable" was satisfied in form only.** Every performance criterion
+  named a budget and none carried a value — "its stated per-megabyte budget", "a stated
+  tolerance", "a named fixture". A criterion no test can fail is not measurable, and this was the
+  feature's one Principle IV violation. Closed with 500 MB/s, 1%, `remint_200` at 2.0 s, and
+  ±25%. **The lesson for the next feature's checklist pass**: read a measurability item as
+  "could a test fail this?", not "does a threshold get mentioned?".
+- **"Requirements are testable and unambiguous" missed a direct contradiction.** FR-022a forbade
+  a registered conversion while FR-023 required "the registered conversion" to do the detecting.
+  Both read as clear requirements in isolation; only reading them together shows one of them
+  cannot be built. Pairwise consistency is not what a per-item checklist pass measures, which is
+  why the analysis pass exists after it rather than instead of it.
+
+The other four findings — the distribution model, the "converged" vocabulary collision, the
+ambiguous sentinel constant, and a requirement with no task (FR-038) — are recorded in the
+specification's **Session 2026-09-30** clarifications and in `research.md`'s addendum (R11, R12).
+Four requirements and one success criterion were added — FR-011a and FR-011b (the scope split
+and the modification-time property), FR-021c (the union as two named definitions), FR-036a (the
+guide's collision-routes obligation) and SC-002a — bringing the specification to **56 functional
+requirements and 19 success criteria**. Seven tasks were added; the task list is now **93**.

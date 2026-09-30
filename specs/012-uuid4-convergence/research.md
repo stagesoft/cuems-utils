@@ -95,10 +95,11 @@ strictly more completely: it finds a script under *any* filename, including one 
 uses. It also closes §10.7's "the configured `script_file_name` on each machine" without needing
 the hardware that has been unreachable since 2026-09-23.
 
-**Consequence for the spec**: FR-012 says "MUST discover the configured script filename rather
-than assuming a constant". The requirement is met, but by a different mechanism than its wording
-implies. Recorded here; the requirement's intent is unchanged and its acceptance scenario (US2
-scenario 8) passes as written.
+**Consequence for the spec**: FR-012 said "MUST discover the configured script filename rather
+than assuming a constant", which assumed a configuration value that does not exist. **Reworded
+2026-09-30** to its intent — "MUST NOT assume a script filename; scripts are identified by root
+element" — and the measurement recorded as M-n. The acceptance scenario (US2 scenario 8) passed
+as written before the rewording and still does.
 
 **Alternatives considered**:
 
@@ -165,11 +166,12 @@ machinery's own vocabulary. Registering a do-nothing `Conversion` to carry a des
 violate the documented invariant and make a future reader unable to tell a deliberate identity
 step from a transformation that lost its body.
 
-**Consequence for the spec**: FR-022 says the migration needs "a version step for each schema
-whose definition moves, **and** a registered conversion for that step". The second half is
-satisfied by the identity step, which is the absence of an entry. The wording overstates what the
-machinery wants; the requirement's intent — that the step be a recognised, recorded version
-increment rather than an unexplained rejection — is met.
+**Consequence for the spec**: FR-022 has been corrected to require the version step alone, and
+FR-022a states that no conversion is registered. **FR-023 was corrected 2026-09-30** by the
+analysis pass, which found it still requiring "the registered conversion" to detect and report —
+a direct contradiction of FR-022a, and an unimplementable requirement, since the artifact it
+named is one this feature deliberately does not create. It is now a requirement on the **version
+step**, with detection and reporting produced in the validation error path (FR-024).
 
 **Alternatives considered**:
 
@@ -245,7 +247,11 @@ scripts; the first is handled by treating `mappings.xml` as optional per project
 **Decision**: measure megabytes-scanned-per-second over a generated fixture library at **two node
 counts** (a small and a large substitution table) over the *same* library bytes. Budget the
 throughput figure; assert the wall-clock ceiling on the named fixture; and require the two node
-counts to produce throughput within a stated tolerance of each other.
+counts to produce throughput within a stated tolerance of each other. **The values were
+supplied 2026-09-30** by the analysis pass, which found R8 had specified the budget's shape and
+never its magnitude: >= 500 MB/s, the two node counts agreeing within 1%, and the named fixture
+`remint_200` (200 projects, ~4 MB) at <= 2.0 s — the last provisional and adjustable downward
+only. See FR-PERF-001.
 
 **Rationale**: SC-PERF-001's whole point is catching an implementation that loops files per node.
 A single wall-clock number on one fixture cannot see that. Two node counts over identical bytes
@@ -286,3 +292,67 @@ when an operator runs it. It therefore reads with stdlib XML throughout, as
 
 None of these blocks design. The two that would have — the script filename and the `trash/`
 layout — were resolved from code, which is the better source.
+
+
+---
+
+## Addendum, 2026-09-30 — resolved during the `/speckit.analyze` pass
+
+R11 and R12 were measured after Phase 0, when the analysis pass asked how a rewritten library
+reaches a node that did not rewrite it, and whether the library reach was load-bearing at all.
+Both were answered from code in the sibling tree, on the same terms as R1–R10.
+
+## R11 — the library is replicated from the controller, and a length-preserving rewrite is nearly invisible to it
+
+**Measured**, in `cuems-engine`:
+
+- `tools/CuemsDeploy.py:102` — a node syncs from
+  `rsync://cuems_library_rsync@<controller ip>/cuems`. `NodeEngine.py:98` constructs it; the
+  controller is the source, every other node a replica.
+- `tools/CuemsDeploy.py:231` — the command is `rsync -rt --delete --delete-delay …`. **No `-c`,
+  no `--checksum`.** rsync's default quick check is *size plus modification time*.
+
+**Decision**: the re-mint rewrites the library **once, on the controller**, and relies on this
+replication to carry it. Each node rewrites only its own configuration documents, from the
+distributed table. No distribution machinery is added by this feature.
+
+**Rationale**: the machinery exists, is already the path every other library change takes, and is
+already ordered against project load. Adding a second one would put two authorities on the same
+files.
+
+**The property this inherits, and it is a trap**: the substitution replaces 36 characters with 36
+characters, so **every rewritten file is exactly the size it was**. Under `-rt` with no checksum,
+the modification time is the *only* thing that tells rsync the file changed. A rewrite that
+preserved modification times — an easy, well-intentioned thing to add — would leave every node's
+replica stale indefinitely, with no error at any layer; the failure would surface much later as
+an output resolving to nothing. Writing through a temporary plus `os.replace` gives a fresh time
+and satisfies it. Pinned as FR-011b and tested, rather than left as a property that happens to
+hold.
+
+**Alternatives considered**:
+
+- *Have every node re-mint its own library replica* — rejected: N nodes independently rewriting
+  replicas of one authoritative tree, with `--delete` replication running against them. The
+  controller's copy is the only one that means anything.
+- *Add `-c` to the deploy* — rejected as out of scope and the wrong repository: it would slow
+  every project load for every future change to fix one migration's blind spot.
+- *Touch each rewritten file explicitly* — unnecessary; `os.replace` already does it. Recorded
+  because the temptation is to add it, and the real requirement is the opposite — **do not**
+  restore times.
+
+## R12 — the library reach is required, not precautionary
+
+**Measured**: node identities are present outside the configuration directory in **both** forms
+this feature must handle.
+
+- Bare: `project_mappings.xsd:45`, `NodeMappingType/uuid` — carried by each project's
+  `mappings.xml` as well as by `/etc/cuems/default_mappings.xml`.
+- Embedded: the corpus carries `<output_name>0367f391-ebf4-48b2-9f26-000000000001_0</output_name>`
+  and three siblings — the compound `<identity>_<output>` form, in a script.
+
+**Decision**: FR-011's reach into the library stands as required work. Recorded as M-o.
+
+**Rationale**: the analysis pass asked whether files outside `/etc/cuems` genuinely need
+re-minting before committing to the largest part of the feature. They do, and the embedded form
+is why literal substitution is the instrument — a structural rewrite would update the mappings
+and leave every script's output prefix stale and schema-valid.

@@ -44,6 +44,43 @@ partial failure. The conversion machinery's role here is to **detect and report*
 
 ---
 
+### Session 2026-09-30 — resolved by the `/speckit.analyze` pass
+
+The analysis pass found one constitution violation, three contradictions and two ambiguities.
+All six are settled here and applied to the requirements, the plan and the tasks.
+
+- Q: The performance budget was defined in *shape* only — "a stated tolerance", "its
+  per-megabyte budget", "a named fixture" — with no value anywhere, so no test could fail.
+  → A: **500 MB/s** throughput floor, **1%** agreement between the two node counts, and fixture
+  **`remint_200`** (200 projects, ~4 MB) at **≤ 2.0 s**. The ceiling is explicitly provisional and
+  may be adjusted **downward** after measurement; the other two are not. See FR-PERF-001.
+- Q: FR-022a forbids a registered conversion; FR-023 required "the registered conversion" to
+  detect and report. Which holds? → A: FR-022a. FR-023 is restated as a requirement on the
+  **version step**, with detection and reporting produced in the validation error path (FR-024).
+  No conversion is registered for any of the three steps.
+- Q: The re-mint is specified as cluster-wide, but every reach path is a local filesystem path.
+  How does a non-controller node's configuration get rewritten? → A: the two reaches have
+  different scopes. **Configuration documents are per node** — every node, controller or not,
+  rewrites its own from the table the controller built and distributed. **The library is
+  controller-authoritative** — rewritten once, on the controller, reaching the nodes by the
+  existing project-sharing machinery on project load. A node never re-mints its own library
+  replica. See FR-011a. This also resolves the refusal that would otherwise have rejected the
+  distributed table on arrival (FR-019c).
+- Q: Does the library reach actually earn its place — do files outside the configuration
+  directory really carry node identities? → A: **Yes, measured** (M-o). Both forms are present:
+  a bare identity in each project's mappings, and an identity embedded in compound output names
+  in each project's script. The reach is required, not precautionary.
+- Q: "Converged" was being used for two different sets — uuid4 alone in the classification, and
+  uuid4 ∪ sentinel in the schema pattern — while FR-021b and the published coercion rule turn on
+  the difference. → A: *converged* means uuid4 lowercase, always. The set a schema accepts is the
+  **admitted** set. The admitted set is expressed as a union of two separately named definitions,
+  one per half, in the schemas and in the library's identity type alike (FR-021c).
+- Q: Which "sentinel constant" does FR-031 publish, given that two exist — the nil-uuid value and
+  the human-readable status string? → A: the **nil-uuid value**. The status string is already
+  public and answers a different question. See FR-031.
+
+---
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - An operator learns whether a machine needs re-minting (Priority: P1)
@@ -129,6 +166,14 @@ rewrites nothing.
 11. **Given** a node whose stored identity records a hardware address that is not this machine's,
    **When** the identity tool runs, **Then** it refuses to preserve that identity and offers to
    re-mint, rather than silently adopting a cloned node's identity.
+12. **Given** the table the controller built, **When** a node that is not the controller runs the
+   re-mint with it, **Then** that node rewrites **its own** configuration documents from the
+   table and does **not** rewrite its replica of the project library, and **When** it runs
+   without a table, **Then** it refuses rather than minting one of its own.
+13. **Given** a library file rewritten on the controller, **When** its modification time is
+   compared with the one it had before, **Then** it is later — the file is the same size as
+   before, so the modification time is what makes the rewrite visible to the replication that
+   carries it to the nodes.
 
 ---
 
@@ -254,6 +299,10 @@ against the actual trees rather than asserted.
   shape is checked.
 - **A project restored from the deleted-projects area after the re-mint**, reintroducing stale
   identities into a live library.
+- **A rewritten library file that replication declines to transfer.** The substitution changes no
+  file's size, and the replication in use compares size and modification time. A rewrite that
+  preserved modification times would leave every node's replica stale, permanently and silently —
+  the failure would surface as an output resolving to nothing, far from its cause (M-o).
 - **Upper case.** One schema accepts either case today; the converged definition is lowercase only,
   so a mixed-case but otherwise well-formed uuid4 becomes invalid and needs the same repair path as
   a uuid1.
@@ -276,6 +325,11 @@ against the actual trees rather than asserted.
 - **FR-001a**: The check MUST NOT acquire a dependency on the conversion tool's own check mode.
   Reporting a document's *version* and classifying an identity's *shape* are separate questions,
   and the conversion tool's check mode belongs to a different feature that has not delivered it.
+  This is satisfied **by design** rather than by a dedicated test: the check reads with stdlib XML
+  only and never routes through the validating load path, which the no-write and invalid-document
+  tests already exercise. Reversing it — routing any part of the check through the conversion
+  machinery — MUST carry a stated justification in the plan, because it would couple a read-only
+  diagnostic to a feature that has not delivered.
 - **FR-002**: The check MUST classify each identity as converged (uuid4, lowercase), not converged
   (any other well-formed uuid), not provisioned (the sentinel), or unrecognised, and MUST report
   the four classes distinguishably.
@@ -292,7 +346,9 @@ against the actual trees rather than asserted.
   minter, which produces uuid4 and refuses any other shape, so a minted value cannot be one the
   tightened definition will reject.
 - **FR-007**: The substitution table mapping each old identity to exactly one new identity MUST be
-  built once, on the controller, and MUST be persisted before any file is written.
+  built once, on the controller, and MUST be persisted before any file is written. Every node that
+  rewrites its own configuration documents MUST do so from **that** table, never from one it
+  minted itself.
 - **FR-008**: A re-mint re-run after an interruption MUST resume from the persisted table and MUST
   NOT mint a second identity for a node already partly rewritten.
 - **FR-009**: The re-mint MUST replace identities by literal substitution of the whole 36-character
@@ -302,10 +358,27 @@ against the actual trees rather than asserted.
   cannot land on an unrelated value that happens to be a uuid.
 - **FR-011**: The re-mint MUST reach, in addition to the three configuration documents it covers
   today, every project's mappings and every project's script within the configured library,
-  including the deleted-projects area.
-- **FR-012**: The re-mint MUST discover the configured script filename rather than assuming a
-  constant. A run that assumes the wrong name skips a library silently and completely, which is the
-  failure mode this requirement exists to prevent.
+  including the deleted-projects area. Both are measured, not assumed: a project's mappings carry
+  a bare node identity, and a project's script carries it embedded in compound output names.
+- **FR-011a**: The re-mint's two reaches have **different scopes**, and the system MUST treat them
+  as such. The configuration documents under the configuration directory are **per node** — every
+  node rewrites its own, controller or not, from the distributed table (FR-007). The project
+  library is **controller-authoritative**: it is rewritten once, on the controller, and reaches
+  the nodes by the ecosystem's existing project-sharing machinery, which replicates it from the
+  controller on project load. A node MUST NOT re-mint its own replica of the library.
+- **FR-011b**: A rewritten library file MUST NOT carry its pre-rewrite modification time. The
+  substitution is length-preserving — 36 characters become 36 characters — so a replicated copy is
+  **byte-identical in size** to the stale one, and the replication machinery's default quick check
+  compares size and modification time only. Preserving the modification time would leave every
+  node's replica stale indefinitely, with no error anywhere. Writing through a temporary and an
+  atomic replace satisfies this; explicitly restoring times MUST NOT be added.
+- **FR-012**: The re-mint MUST NOT assume a script filename. A run that assumes the wrong name
+  skips a library silently and completely, which is the failure mode this requirement exists to
+  prevent. Scripts MUST be identified by their **content** — the document's root element — because
+  the filename is not recorded in any document this library reads (M-n): it is an editor-internal
+  key, and the two sibling components that use it disagree on its value. Identification by content
+  satisfies the intent strictly more completely than reading a configured name would, since it
+  finds a script under any filename, including one no component uses today.
 - **FR-013**: The re-mint MUST be idempotent: a second run over a converged cluster MUST substitute
   nothing and MUST change no file's bytes.
 - **FR-014**: A node already carrying a valid uuid4 MUST be left unchanged by the re-mint.
@@ -332,7 +405,10 @@ against the actual trees rather than asserted.
   collision and be told the run succeeded.
 - **FR-019c**: The substitution table MUST be built once on the controller and distributed, per
   FR-007. The existing tool mints locally, per node, which §10.3 warns gives the controller's map
-  and the node's own configuration different answers.
+  and the node's own configuration different answers. A node that is **not** the controller MUST
+  refuse to build a table of its own, and MUST accept a table the controller built and handed to
+  it. The refusal is therefore on *minting without being the controller*, never on *using a table
+  another node built* — which is the table's whole purpose.
 - **FR-019d**: A preserved identity whose recorded hardware address does not match the hardware the
   tool is running on MUST be refused, with re-minting offered. This closes disk cloning — the route
   by which a venue provisions nodes, and the one that reproduces a collision after a correct
@@ -341,6 +417,14 @@ against the actual trees rather than asserted.
   amendment MUST be recorded against feature 011 rather than made silently.
 
 #### The converged definition
+
+**Vocabulary, fixed here because the two senses were being used interchangeably.** *Converged*
+means **uuid4, lowercase, exactly 36 characters** — and nothing else, in every requirement, every
+classification and every published rule below. The not-provisioned sentinel is **not** converged;
+it is a documented placeholder that the schemas additionally *admit*. The set a schema accepts is
+therefore the **admitted** set — converged ∪ sentinel — and the two words are never
+interchangeable. The distinction is load-bearing: FR-021b turns on the sentinel *not* being
+converged, and so does the published coercion rule (FR-030).
 
 - **FR-020**: The node identity definition in the network map MUST narrow to the project's
   converged definition: uuid4, lowercase, exactly 36 characters.
@@ -352,16 +436,24 @@ against the actual trees rather than asserted.
   dead schema and handed to the feature that reshapes this schema. This feature MUST NOT delete it:
   removing it carries a model class and a registry binding with it, which is unrelated work to ride
   along on a field re-identification.
-- **FR-021**: The converged definition as applied to a node identity MUST additionally admit the
-  not-provisioned sentinel, because a freshly installed node carries it and the package's own
-  build-time document generation validates what it produces. The sentinel MUST NOT be admitted as
-  a generally valid identity anywhere it is not the documented placeholder.
+- **FR-021**: The definition applied to a node identity MUST admit the not-provisioned sentinel
+  **in addition to** the converged shape, because a freshly installed node carries it and the
+  package's own build-time document generation validates what it produces. The sentinel MUST NOT
+  be admitted as a generally valid identity anywhere it is not the documented placeholder — it is
+  admitted for node identities and nowhere else, and it never becomes *converged* by being
+  admitted.
+- **FR-021c**: The admitted set MUST be expressed as a **union of two separately named
+  definitions** — one for the converged shape, one for the sentinel — rather than as a single
+  widened pattern, in the schemas and in the library's own identity type alike. Each half is then
+  nameable, testable and removable on its own, and a reader can see that the sentinel is a
+  placeholder admitted by exception rather than a shape the converged definition happens to allow.
+  This is assumption 1 made structural: admitted by union, not by loosening.
 - **FR-021a**: The node's own identity, in the configuration document, MUST be typed rather than
   left as free text: uuid4 **or** the not-provisioned sentinel, and nothing else. A uuid1 or uuid5
   written there MUST be refused, as it already is in the network map.
-- **FR-021b**: A provisioned node's own identity MUST decode to the same identity type the network
-  map yields; the sentinel MUST decode to the published sentinel constant (FR-031) and to nothing
-  else. The decoded type therefore varies only between "provisioned" and "not provisioned", and a
+- **FR-021b**: A provisioned node's own identity — a *converged* value — MUST decode to the same
+  identity type the network map yields; the sentinel, which is admitted but not converged, MUST
+  decode to the published sentinel constant (FR-031) and to nothing else. The decoded type therefore varies only between "provisioned" and "not provisioned", and a
   consumer needs exactly one documented check to tell them apart.
 - **FR-022**: The narrowing MUST be carried as a file-format migration under the project's schema
   evolution convention: a document-version step for **each of the three** schemas whose definition
@@ -373,9 +465,13 @@ against the actual trees rather than asserted.
   conversion, and the repair is cross-document and out-of-band by design (FR-023). The version
   increments; the document is untouched; the tightened pattern then rejects a non-converged
   identity, with FR-024's actionable message produced in the validation error path.
-- **FR-023**: The registered conversion for this step MUST detect and report a non-converged
-  identity and MUST NOT attempt to repair one, because the repair is cross-document and a
-  per-document conversion cannot perform it safely.
+- **FR-023**: The version step MUST detect and report a non-converged identity and MUST NOT
+  attempt to repair one, because the repair is cross-document and a per-document conversion cannot
+  perform it safely. The detection and the report are produced in the **validation error path**
+  (FR-024), not by a conversion: FR-022a establishes that no conversion is registered for these
+  steps, so there is no conversion here to carry them. Stated as a requirement on the step rather
+  than on a conversion because the earlier wording named an artifact this feature deliberately
+  does not create.
 - **FR-024**: A document rejected for a non-converged identity MUST produce an error naming the
   document, the path, the offending value, and the tool that repairs it.
 - **FR-025**: The completion marker for the convergence is that the recorded divergence between the
@@ -400,7 +496,12 @@ against the actual trees rather than asserted.
   reimplement the library's leniency by hand. If this is declined, the reason MUST be recorded so
   the existing consumer copy is an accepted duplication rather than undocumented drift.
 - **FR-031**: The not-provisioned sentinel constant MUST be declared public surface with a stated
-  name, so a consumer can recognise an unprovisioned node before attempting a full load.
+  name, so a consumer can recognise an unprovisioned node before attempting a full load. **Which
+  constant this is, stated because two answer to the name**: it is the nil-uuid *value* a node
+  carries as its identity placeholder, not the human-readable *status string* the identity report
+  prints for it. The status string is already public; the value is what a consumer compares an
+  identity against, and it is the one this requirement is about. If both end up published, each
+  MUST carry documentation saying which question it answers.
 - **FR-032**: The change of the own-identity accessor's return type (FR-021b) MUST be **preceded**
   by a census of every consumer that reads it, covering every sibling repository by name, with the
   result recorded per repository. This is a blocking precondition of the change, not a follow-up:
@@ -420,6 +521,10 @@ against the actual trees rather than asserted.
 - **FR-036**: The migration guide MUST include an operator-visible detector of an incomplete
   re-mint: after re-minting, loading each project on the controller and checking the cluster
   warning — a node reported missing under an old identity is a script the re-mint did not reach.
+- **FR-036a**: The migration guide MUST state the four measured collision routes (M-l) and which
+  of them this feature closes, so an operator learns that cloning a provisioned disk is now
+  refused rather than silently duplicating an identity — a change to how venues provision nodes,
+  and the one operator-visible consequence of FR-019d.
 - **FR-037**: Facts the planning documents state that this feature measures to be different MUST be
   recorded as corrections in this specification and then applied to the planning documents, never
   changed silently.
@@ -431,13 +536,23 @@ against the actual trees rather than asserted.
 - **FR-UX-001**: The check and the re-mint MUST follow the conventions the existing node identity
   tooling already established — the same reporting style, the same confirmation requirement for a
   destructive step, and the same dry-run affordance.
-- **FR-PERF-001**: This feature MUST define the re-mint's budget as a **throughput** figure — time
-  per megabyte scanned and rewritten — that is independent of node count, **plus** a named fixture
-  with a wall-clock ceiling for the acceptance test. The throughput shape is required rather than a
+- **FR-PERF-001**: The re-mint's budget is a **throughput** figure — megabytes scanned and
+  rewritten per second — that is independent of node count, **plus** a named fixture with a
+  wall-clock ceiling for the acceptance test. The throughput shape is required rather than a
   single wall-clock figure because it is what catches an implementation that makes one pass per
   node, turning a linear job into one proportional to nodes times files; a ceiling on one fixture
   hides that. The library's real size is unavailable (§10.7), which is why the budget must not
-  depend on knowing it.
+  depend on knowing it. **The three values**:
+
+  | Budget | Value | Basis |
+  |---|---|---|
+  | Throughput floor | **500 MB/s** scanned and rewritten | the operation is read, literal substitution, write — no parsing, no reserialisation. Below this the implementation is doing something other than the operation |
+  | Agreement between the two node counts | **within 1%** | a per-node repeated pass cannot hide inside 1%; ordinary I/O noise fits within it on the fixture's scale |
+  | Named fixture ceiling | **`remint_200`** — 200 projects, ~4 MB — completes in **≤ 2.0 s** | an initial estimate from the floor plus process overhead, **explicitly provisional**: it MAY be adjusted once measured, in one direction only — downward, toward the measured figure — and never raised to accommodate an implementation |
+
+  The ceiling is the one figure stated as an estimate rather than a requirement, and it is marked
+  as such so that adjusting it later is a recorded decision rather than a silent relaxation. The
+  throughput floor and the 1% agreement are **not** provisional: they are what the tests are for.
 - **FR-PERF-002**: The read path MUST be measured against the existing recorded baseline to show the
   tightened definition adds no regression. Budgets are recorded as measured, including when they
   are exceeded.
@@ -474,7 +589,14 @@ against the actual trees rather than asserted.
   search for every pre-migration identity over the configuration directory and the entire project
   library returns **zero** occurrences.
 - **SC-002**: Every document touched by the migration validates against its schema afterwards, and
-  a full load succeeds on **every** node in the cluster.
+  a full load succeeds on **every** node in the cluster — each node's own configuration documents
+  having been rewritten locally from the distributed table, and the library having been rewritten
+  once on the controller (FR-011a).
+- **SC-002a**: After the library is rewritten on the controller, every rewritten file's
+  modification time is later than it was before, so the replication machinery's size-and-time
+  quick check transfers it. Verified by comparison, not assumed — the substitution preserves file
+  size exactly, so the modification time is the **only** thing that makes the change visible to
+  replication (FR-011b).
 - **SC-003**: Adoption and online state is identical for **every** node before and after the
   migration.
 - **SC-004**: Running the migration a second time over the same cluster changes **zero** bytes in
@@ -502,15 +624,19 @@ against the actual trees rather than asserted.
   a cloned identity is refused, an explicit identity colliding with the map is refused, a
   re-mint over an existing collision aborts without writing, and the substitution table is built
   on the controller.
-- **SC-PERF-001**: The re-mint's measured throughput meets its stated per-megabyte budget, and the
-  named fixture completes within its wall-clock ceiling. Throughput is measured at **two** node
-  counts over the same library so that a per-node repeated pass is visible as a departure from a
-  flat line rather than hidden inside one figure.
+- **SC-PERF-001**: The re-mint's measured throughput is **at least 500 MB/s**, and the named
+  fixture `remint_200` completes within **2.0 s** (provisional per FR-PERF-001). Throughput is
+  measured at **two** node counts over the same library and the two figures agree **within 1%**,
+  so that a per-node repeated pass is visible as a departure from a flat line rather than hidden
+  inside one figure.
 - **SC-PERF-002**: The show-document and configuration-document load timings stay within the
   recorded baseline's budget, measured on the same method as that baseline.
-- **SC-PERF-003**: The duration the re-mint estimates before starting is within a stated tolerance
-  of the duration it actually takes, measured on the named fixture at both node counts. An estimate
-  the operator cannot trust is worse than none.
+- **SC-PERF-003**: The duration the re-mint estimates before starting is within **±25%** of the
+  duration it actually takes, measured on the named fixture at both node counts. The tolerance is
+  wide on purpose: the estimate exists so an operator can judge whether a maintenance window is
+  long enough, which is a question about minutes, not milliseconds — and a tight tolerance on a
+  sub-second fixture would measure process startup rather than the operation. An estimate the
+  operator cannot trust is worse than none.
 - **SC-QUALITY-001**: No new lint or type warnings are introduced, and every schema whose content
   changes has its pinned hash updated in the same commit.
 - **SC-TEST-001**: Every behaviour change has a test that fails before the implementation and
@@ -533,6 +659,8 @@ measured 2026-09-29 against `feat/xml-refactor` at `2a88a7c`.
 | **M-l** | A colliding identity is **reachable after a correct migration**, by four routes: (R1) a disk image taken after provisioning — `_resolve_identity` preserves both the stored identity *and* the stored hardware address, so a clone never consults its own hardware; (R2) the explicit-identity option validates shape only and is never checked against the map; (R3) restoring a backup or copying the configuration onto another node; (R4) the substitution table keys on the old value, so two nodes already sharing one receive one new one. **Nothing detects the result**: no `xs:unique` on any node identity (the only two in the six schemas are DMX universe and channel numbers), no registered validation rule, `NodeIndex.merge` collapses duplicates through a dict comprehension, and `ensure` returning false makes the tool adopt the colliding row as its own | §9.5 and the briefs, which treat non-uuid4 identities as the problem and uniqueness as a property the convergence delivers |
 | **M-m** | The node identity tool **mints locally, per node** — `_resolve_identity` calls the minter on the node itself. §10.3 requires the table built "once, on the controller, and distributed", warning that per-node minting gives the controller's map and the node's own configuration different answers. So FR-007 is new work, not a property the existing tool already has | the readiness re-measure, which reads as though only the tool's *reach* were missing |
 | **M-k** | `project_mappings.xsd`'s `MappedToType` — the second of M-g's two free-text identity declarations — is declared but **referenced by no element**. The live `mapped_to` elements (`:75`, `:116`) are bare `xs:string` carrying JACK port names such as `system:playback_1`, so `MappedToType/uuid` is never instantiated by any document. It nonetheless has a model class and a registry binding, and no sibling repository mentions it. Same shape as `PutType`/X9, which feature 007 deleted | M-g's "two places", which counts two identity declarations where only one is reachable |
+| **M-n** | The script filename is recorded in **no document this library reads**. It is an editor-internal settings-dict key, and the two components that use it disagree: the editor's CLI sets `script.xml` while its project manager documents `cue_script.xml`, and the engine hardcodes `script.xml`. A tool cannot "discover the configured filename" because there is no configuration carrying it — scripts must be identified by root element instead (research R3) | FR-012's original wording, "MUST discover the configured script filename", which assumed a configuration value exists. Reworded 2026-09-30 to its intent |
+| **M-o** | Files outside the configuration directory **do** carry node identities, in both forms, so the library reach is required rather than precautionary: each project's mappings carry a bare identity (`NodeMappingType/uuid`), and each project's script carries one embedded in compound output names (corpus: `0367f391-…-000000000001_0`). Separately, the library reaches the nodes by rsync **from the controller** on project load, with `-rt` and no checksum flag — so the quick check is size plus modification time. The substitution is length-preserving, which makes the modification time the **only** signal that a rewritten file differs (FR-011b) | the assumption that the re-mint's reach into the library was a matter of thoroughness, and the absence of any statement about how a rewritten library reaches the nodes |
 | **M-j** | The consumer's four questions arrived as an upstream report from `cuems-engine` feature 008 dated 2026-09-29, measured against this repository at `996617f`. They are input to the clarification pass, not decisions | the planning documents, which predate the report and do not mention it |
 
 The consumer's own measurements (M-a to M-e in the upstream report) are not restated here; they
@@ -549,7 +677,8 @@ argue for it.
 
 1. **The sentinel is admitted by union, not by loosening.** FR-021 is read as "uuid4 **or** the
    documented sentinel", keeping every other value rejected — rather than relaxing the pattern to a
-   shape that would admit other nil-like values.
+   shape that would admit other nil-like values. Made structural by FR-021c (2026-09-30): the union
+   is two separately named definitions, not one widened pattern.
 2. **The deleted-projects area is included** in the re-mint's reach by default (§10.5): a project
    restored from it after the migration would otherwise reintroduce a stale identity. Excluding it
    is defensible only if restoring from there is accepted as requiring a re-run, and that would be a
@@ -575,9 +704,14 @@ argue for it.
    surface explicitly rather than relocating it.
 8. **No library version change.** Schema changes are signalled by the document version marker; the
    library version stays where the coordinated release pins it.
-9. **Nothing ships from this branch alone.** This feature merges toward the coordinated release
+9. **The library reaches the nodes by the machinery that already exists** (2026-09-30). The
+   re-mint rewrites the controller's copy; the ecosystem's project deployer replicates it to each
+   node on project load, as it does for every other project change. This feature adds no
+   distribution mechanism of its own — it inherits one, and states the single property that
+   inheritance depends on (FR-011b, the modification time).
+10. **Nothing ships from this branch alone.** This feature merges toward the coordinated release
    tag, after which the whole ecosystem moves together.
-10. **The frontend needs no change.** Its minting is already uuid4 and its parsing of the compound
+11. **The frontend needs no change.** Its minting is already uuid4 and its parsing of the compound
     form is version-agnostic — measured 2026-09-23, and nothing in this feature changes the
     compound form's shape.
 

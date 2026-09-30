@@ -43,9 +43,10 @@ PYENV_VERSION=3.11.9 uvx hatch run test.py3.11:run -- -q
       configuration directory (`settings.xml`, `network_map.xml`, `default_mappings.xml`) plus a
       library with `projects/<name>/{mappings.xml,<script>}` and a mirrored `trash/projects/`,
       parameterised by node count, identity shape per node, and script filename
-- [ ] T002 [P] Create a performance-fixture generator in `tests/support/library_fixture.py` —
-      parameterised project count and node count, emitting the byte volume the throughput budget
-      is measured over (target ~200 projects, single-digit MB per research R8)
+- [ ] T002 [P] Create the named performance fixture **`remint_200`** in
+      `tests/support/library_fixture.py` — a generator parameterised by project count and node
+      count, with `remint_200` fixed at **200 projects, ~4 MB** (research R8). This is the fixture
+      SC-PERF-001's wall-clock ceiling names, so its scale is part of the budget, not a detail
 - [ ] T003 [P] Record the pre-change suite baseline **as a range** in
       `specs/012-uuid4-convergence/baseline.md`, over at least three runs, noting the
       `test_descriptor_laziness` skip-count drift so a later comparison is not read as a regression
@@ -61,8 +62,11 @@ PYENV_VERSION=3.11.9 uvx hatch run test.py3.11:run -- -q
 **⚠️ CRITICAL**: no user story work can begin until this phase is complete.
 
 - [ ] T004 Create `src/cuemsutils/tools/ids.py` with the identity classification vocabulary —
-      `converged` / `not-converged` / `not-provisioned` / `unrecognised` per data-model §1.3, and
-      the converged pattern as a union of uuid4-lowercase and the sentinel (data-model §1.2)
+      `converged` / `not-converged` / `not-provisioned` / `unrecognised` per data-model §1.3 — and
+      **two separately named definitions**, the converged pattern and the sentinel, plus the
+      `admitted` union of them (data-model §1.2, FR-021c). `converged` means uuid4 lowercase and
+      **only** that: the sentinel is admitted, never converged, and §1.3's classification, §6.1's
+      decode table and the published coercion rule all depend on the two staying distinct
 - [ ] T005 [P] Test the classification in `tests/unit/test_identity_classification.py` — uuid4,
       uuid1, uuid5, upper-case uuid4, the sentinel, and a non-uuid string each land in exactly one
       class; the sentinel is **not** classified as `not-converged`
@@ -121,6 +125,11 @@ modification time are unchanged.
       "migration needed"; add the `verdict` field that distinguishes it, per contracts/cli-check.md
 - [ ] T018 [US1] Extend the `--json` output shape in `identity_check.py` with per-occurrence
       `location`, `classification` and `embedded`, per data-model §3
+- [ ] T018a [US1] Extend the **existing** `tests/contract/test_identity_check.py` for the widened
+      class 1 and the extended verdict vocabulary — it asserts `verdict == "mismatch"` and the
+      current exit-class meanings today, and T017/T018 change both. Extend it in step rather than
+      leaving it to pass while testing the superseded vocabulary (Principle III: the vocabulary is
+      extended, not replaced, so every shipped verdict must still mean what it meant)
 - [ ] T019 [US1] Add `--library` to the check in `src/cuemsutils/tools/init_node.py`'s parser and
       thread it through, defaulting to the configured library path
 
@@ -163,6 +172,20 @@ adoption state per node is unchanged, and a second run rewrites nothing.
       `online` per node are identical before and after (FR-018, SC-003)
 - [ ] T029 [P] [US2] Test in `tests/integration/test_remint_reach.py` — scripts under any filename,
       optional per-project `mappings.xml`, and `trash/projects/` are all rewritten (FR-011, FR-012)
+- [ ] T029a [P] [US2] Test in `tests/integration/test_remint_documents_valid.py` — after a run,
+      **every touched document validates against its schema** and a **full load succeeds for each
+      node** (FR-017, SC-002). Distinct from T027, which proves only that no old token survives:
+      a file can be token-free and still unloadable
+- [ ] T029b [P] [US2] Test in `tests/integration/test_remint_mtime_advances.py` — every rewritten
+      library file is **the same size** as before and its **modification time is later**. The
+      replication that carries the library to the nodes compares size and time with no checksum,
+      so the time is the only signal it has; a rewrite that restored times would strand every
+      replica silently (FR-011b, SC-002a, research R11)
+- [ ] T029c [P] [US2] Test in `tests/integration/test_remint_scope_split.py` — on a node that is
+      **not** the controller: with `--table`, only its own configuration documents are rewritten
+      and the library replica is **untouched**; without `--table`, the run **refuses** rather than
+      minting one locally; and a table whose `controller` is the map's controller is **accepted**,
+      which is the normal case everywhere but one (FR-011a, FR-019c, contracts/cli-remint.md)
 - [ ] T030 [P] [US2] Test in `tests/integration/test_clone_refused.py` — a stored identity whose
       recorded MAC is not this hardware's is refused with re-minting offered, and a **matching**
       MAC still preserves the identity (FR-019d, research R6)
@@ -184,8 +207,14 @@ adoption state per node is unchanged, and a second run rewrites nothing.
       `cuemsutils.tools.Uuid`, checked for minted collisions, persisted before the first write
 - [ ] T037 [US2] Implement the apply loop in `remint.py` — per file: read, substitute every entry,
       write to a temporary, `os.replace`, append the path to `applied`
+- [ ] T037a [US2] Implement the **scope split** in `remint.py` (FR-011a) — determine whether this
+      node is the controller from its role in the network map; the library reach runs **only** on
+      the controller, the configuration reach on every node. A plain node with no table refuses
+      rather than minting; a plain node never rewrites its library replica
 - [ ] T038 [US2] Implement resume in `remint.py` — load an existing table, skip `applied` paths,
-      never re-mint; refuse a table whose controller is not this node
+      never re-mint. Refuse a table whose `controller` is **not the map's controller** — *not* one
+      whose controller is merely not this node, which is the normal, intended case on every node
+      but one (contracts/cli-remint.md, "Not a refusal")
 - [ ] T039 [US2] Implement the verification pass in `remint.py` — zero old tokens, every touched
       document valid, a full load succeeds per node, adoption state unchanged (FR-016–FR-018)
 - [ ] T040 [US2] Add the `--uuid` map check to `_resolve_identity` in
@@ -195,9 +224,14 @@ adoption state per node is unchanged, and a second run rewrites nothing.
       `--force-new-identity`; a `_derive_mac` failure must stay a non-event on the preserve path
       (FR-019d, research R6)
 - [ ] T042 [US2] Implement the estimate and confirmation in `remint.py` — predicted duration from
-      measured throughput and surveyed bytes, presented with the `--yes` confirmation (FR-PERF-003)
+      surveyed bytes divided by the **pinned throughput constant (500 MB/s, FR-PERF-001)**,
+      presented with the `--yes` confirmation (FR-PERF-003). The constant is an **input** declared
+      here, not a value Phase 8 discovers: T077 verifies the implementation meets it, and the
+      estimate is honest only if both use the same number
 - [ ] T043 [US2] Wire `--remint`, `--dry-run`, `--table` and `--resume` into `init_node.py`'s
-      parser, following the tool's existing conventions (FR-UX-001, contracts/cli-remint.md)
+      parser, following the tool's existing conventions (FR-UX-001, contracts/cli-remint.md).
+      `--table` is how a node that is not the controller proceeds, so its help text must say that
+      rather than describing it as an override
 
 **Checkpoint**: a deployed cluster can be repaired. US3 is now safe to land.
 
@@ -326,6 +360,13 @@ component named is verified against the actual trees rather than asserted.
 
 - [ ] T071 [US5] Write `specs/012-uuid4-convergence/migration-guide.md` with §10's procedure made
       executable — survey, stop, table, apply, verify
+- [ ] T071a [US5] In `specs/012-uuid4-convergence/migration-guide.md`, state the **scope split**
+      and its ordering (FR-011a): the controller re-mints the library and its own configuration;
+      every other node re-mints only its own configuration, from the distributed table; the
+      library then reaches the nodes by the ordinary project-deployer replication on the next
+      project load. Give the operator the one check that tells them replication has happened, and
+      say that a node's library replica is **not** re-minted in place — a node re-minted but not
+      re-synced still holds stale output prefixes
 - [ ] T072 [US5] In `specs/012-uuid4-convergence/migration-guide.md`, state the reimage property
       (a re-imaged node no longer regenerates its identity and must be re-adopted) and the backup
       hazard (pre-migration and conversion backups are not rewritten; restoring one reintroduces a
@@ -343,7 +384,7 @@ component named is verified against the actual trees rather than asserted.
       old identity is a script the reach did not cover (FR-036, M-e)
 - [ ] T076 [US5] In `specs/012-uuid4-convergence/migration-guide.md`, state the four collision
       routes (M-l) and which of them this feature closes, so an operator knows cloning a
-      provisioned disk is now refused rather than silently duplicating an identity
+      provisioned disk is now refused rather than silently duplicating an identity (**FR-036a**)
 
 **Checkpoint**: the migration is documented to the standard the field needs.
 
@@ -352,16 +393,25 @@ component named is verified against the actual trees rather than asserted.
 ## Phase 8: Polish & Cross-Cutting Concerns
 
 - [ ] T077 [P] Measure throughput at **two node counts** over identical library bytes in
-      `tests/performance/test_remint_throughput.py` — assert the per-megabyte budget and that the
-      two measurements agree within the stated tolerance, which is what catches a per-node pass
-      (SC-PERF-001, research R8)
-- [ ] T078 [P] Assert the named fixture's wall-clock ceiling in
-      `tests/performance/test_remint_fixture_ceiling.py` (SC-PERF-001)
+      `tests/integration/test_remint_throughput.py` — assert **≥ 500 MB/s** and that the two
+      measurements agree **within 1%**, which is what catches a per-node pass (SC-PERF-001,
+      research R8). Both figures are fixed budgets, not provisional
+- [ ] T078 [P] Assert the `remint_200` fixture's wall-clock ceiling of **≤ 2.0 s** in
+      `tests/integration/test_remint_fixture_ceiling.py` (SC-PERF-001). This ceiling **is**
+      provisional: if the measurement lands well under it, lower it to the measured figure plus
+      headroom and record the change in `baseline.md`. It is never raised to accommodate an
+      implementation
 - [ ] T079 [P] Measure the read path against feature 008's recorded baseline in
-      `tests/performance/test_read_path_regression.py` — show-document and configuration-document
+      `tests/integration/test_read_path_regression.py` — show-document and configuration-document
       load timings, same method as that baseline (SC-PERF-002)
-- [ ] T080 [P] Assert the estimate's accuracy in `tests/performance/test_estimate_tolerance.py` —
-      predicted within the stated tolerance of actual, at both node counts (SC-PERF-003)
+- [ ] T080 [P] Assert the estimate's accuracy in `tests/integration/test_estimate_tolerance.py` —
+      predicted within **±25%** of actual, at both node counts (SC-PERF-003). The tolerance is
+      wide because the estimate answers "is my maintenance window long enough", not "how many
+      milliseconds"
+
+**Note on placement**: these four go in `tests/integration/`, where this repository already keeps
+its timing tests (`test_construction_performance.py`). No `tests/performance/` directory is
+introduced.
 - [ ] T081 Record every measurement in `specs/012-uuid4-convergence/baseline.md`, **as measured**,
       including any budget exceeded — this repository's standing practice
 - [ ] T082 Verify the four collision routes are closed or refused in
@@ -377,6 +427,14 @@ component named is verified against the actual trees rather than asserted.
       `specs/011-etc-cuems-first-install/` — "mint iff there is none" becomes "iff there is none,
       **or** the identity on disk was minted for different hardware". A later reader finds 011's
       decision text first, so the amendment must live there, not only here
+- [ ] T084a Record the §10.7 hardware confirmations in
+      `specs/012-uuid4-convergence/baseline.md` (FR-038) — which items research answered from code
+      (the script filename, R3; the `trash/` layout, R7; the replication path, R11), which remain
+      genuinely unconfirmed (whether every project carries its own `mappings.xml`; whether any
+      other file in a project directory embeds an output name), and the date each was checked.
+      Both production machines have been unreachable since 2026-09-23, so the honest record is
+      what this task produces — an unconfirmed item recorded as unconfirmed, with the mitigation
+      named, not an item quietly dropped. The migration guide's "first real run" step cites it
 - [ ] T085 [P] Run the project's lint and type checks over `src/cuemsutils/` and `tests/`;
       confirm no new warnings (Principle I, SC-QUALITY-001)
 - [ ] T086 Re-run the full suite and record the result as a **range**, comparing against T003's
@@ -399,10 +457,9 @@ Phase 2 Foundational  ← BLOCKS EVERYTHING
     │                Phase 5  US3 narrowing    (P3 — HARD dependency on US2)
     │                     │
     ├──────────────► Phase 6  US4 surface      (P4 — independent; T060 gates the rest)
-    │                     │
-    │                     ▼
-    └──────────────► Phase 7  US5 guide        (P5 — needs US2 and US3 measured)
-                          │
+    │
+    └──────────────► Phase 7  US5 guide        (P5 — needs US2 and US3 measured,
+                          │                          NOT US4)
                      Phase 8 Polish
 ```
 
@@ -413,7 +470,10 @@ Phase 2 Foundational  ← BLOCKS EVERYTHING
 | US2 before US3 | Landing the narrowing first invalidates every deployed identity with nothing able to repair it (§9.3) |
 | T060 before T061–T070 | FR-032 makes the census a blocking precondition of the type change, not a follow-up |
 | T059 as one commit | While the divergence entry is listed, its own test *requires* the collision to still exist (trap 7.5) |
-| US5 after US2 and US3 | The guide must state measured results, not intended ones |
+| US5 after US2 and US3 | The guide must state measured results, not intended ones. It does **not** depend on US4 — the diagram's edge into Phase 7 comes from Phase 5 |
+| T018a with T017/T018 | The shipped contract test asserts the verdict vocabulary those two tasks change; letting it lag leaves it green while testing the superseded values |
+| T029a distinct from T027 | A file can be free of every old token and still fail to validate or load. FR-017 and SC-002 are not implied by SC-001 |
+| T042 uses the pinned 500 MB/s | The estimate and T077's assertion must divide by the same number, or the estimate is honest only by coincidence |
 
 **Independent**: US1 and US4 depend on nothing but Phase 2 and can proceed alongside US2.
 
@@ -425,16 +485,17 @@ Phase 2 Foundational  ← BLOCKS EVERYTHING
 T005, T007, T009
 ```
 
-**Phase 3** — all five US1 tests are independent files:
+**Phase 3** — all five US1 tests are independent files (T018a is **not** among them: it edits an
+existing file that T017 and T018 are changing):
 
 ```
 T010, T011, T012, T013, T014
 ```
 
-**Phase 4** — fourteen US2 tests, all independent files:
+**Phase 4** — seventeen US2 tests, all independent files:
 
 ```
-T020 … T033
+T020 … T029, T029a, T029b, T029c, T030 … T033
 ```
 
 **Phase 5** — nine US3 tests; note T053–T059 are **not** parallel, since T059 must accompany the
@@ -449,6 +510,8 @@ T044 … T052
 ```
 T077, T078, T079, T080
 ```
+
+They go in `tests/integration/`, alongside this repository's existing timing tests.
 
 ## Implementation strategy
 
@@ -472,14 +535,21 @@ comes after features 011–014, and the re-mint is additionally coupled to `cuem
 
 ## Task count
 
-| Phase | Tasks |
-|---|---|
-| 1 Setup | 3 |
-| 2 Foundational | 6 |
-| 3 US1 — check | 10 |
-| 4 US2 — re-mint | 24 |
-| 5 US3 — narrowing | 16 |
-| 6 US4 — surface | 11 |
-| 7 US5 — guide | 6 |
-| 8 Polish | 10 |
-| **Total** | **86** |
+| Phase | Tasks | Added by the analysis pass |
+|---|---|---|
+| 1 Setup | 3 | — |
+| 2 Foundational | 6 | — |
+| 3 US1 — check | 11 | T018a |
+| 4 US2 — re-mint | 28 | T029a, T029b, T029c, T037a |
+| 5 US3 — narrowing | 16 | — |
+| 6 US4 — surface | 11 | — |
+| 7 US5 — guide | 7 | T071a |
+| 8 Polish | 11 | T084a |
+| **Total** | **93** | **7** |
+
+The seven additions close what `/speckit.analyze` found on 2026-09-30: one requirement with an
+implementation and no test (FR-017 → T029a), one property the whole library reach silently
+depends on (FR-011b → T029b), the per-node/controller scope split that answers how a rewritten
+library reaches a node (FR-011a → T029c, T037a, T071a), a shipped contract test the widened exit
+class would have left testing the wrong vocabulary (T018a), and a requirement with no task at all
+(FR-038 → T084a).
