@@ -16,6 +16,8 @@ is never presented as a measurement.
 
 from __future__ import annotations
 
+import pytest
+
 from cuemsutils.tools import remint
 from tests.support.cluster_fixture import build_cluster
 from tests.support.remint_harness import run_remint, state_dir
@@ -41,15 +43,30 @@ def test_the_estimate_is_bytes_over_the_observed_throughput():
 
 
 def test_the_estimate_is_not_bytes_over_the_floor():
-    """The specific wrong answer this test exists to exclude. At 1 GB/s
-    measured, dividing by the 500 MB/s floor would predict twice the truth."""
+    """The specific wrong answer this test exists to exclude.
+
+    A machine running at 1 GB/s takes one second for a gigabyte, and the
+    estimate must say so. Dividing by :data:`remint.THROUGHPUT_FLOOR` — a
+    constant — would say something else entirely, and *how much* else depends on
+    how far this machine is from the floor.
+
+    The expected wrong answer is **derived from the constant**, not written out.
+    It used to read ``abs(floor_answer - 2.0) < 1e-9``, which was the arithmetic
+    for a 500 MB/s floor and silently became false when the floor was
+    re-baselined to 140 MB/s — a test pinning the coincidence rather than the
+    property. The property is that the two answers differ, and that the
+    survey-measured one is the correct one.
+    """
     found = _survey(1_000_000_000, 1.0)          # 1 GB/s measured
     seconds, used_floor = remint.estimate_seconds(found)
     assert used_floor is False
-    assert seconds == 1.0
+    assert seconds == 1.0, "the estimate must reflect the throughput measured here"
+
     floor_answer = 1_000_000_000 / remint.THROUGHPUT_FLOOR
-    assert abs(floor_answer - 2.0) < 1e-9, "the floor's answer is 2 s — twice the truth"
-    assert seconds != floor_answer
+    assert floor_answer != pytest.approx(seconds), (
+        f"dividing by the {remint.THROUGHPUT_FLOOR / 1_000_000:.0f} MB/s floor "
+        f"would predict {floor_answer:.2f} s against a true {seconds:.2f} s"
+    )
 
 
 def test_a_survey_too_small_to_time_falls_back_to_the_floor():

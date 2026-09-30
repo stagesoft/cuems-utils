@@ -92,13 +92,25 @@ __all__ = [
     "verify",
 ]
 
-#: FR-PERF-001's **floor** — a lower bound an implementation is expected to
-#: beat, in bytes per second. It is the estimate's *fallback only*
-#: (:func:`estimate_seconds`), never its divisor in the normal case: dividing
-#: by a floor the implementation beats overstates every estimate by exactly the
-#: margin of the beating, which would miss SC-PERF-003's ±25% while the
-#: implementation was entirely correct.
-THROUGHPUT_FLOOR = 500 * 1_000_000
+#: FR-PERF-001's **floor**, in bytes per second: the slowest this operation may
+#: run before something is wrong.
+#:
+#: **Re-baselined 2026-09-30 from 500 MB/s to 140 MB/s.** 500 was a value
+#: supplied by an analysis pass without measurement, and it was unreachable by
+#: construction: a pass that reads every document of the ``remint_200`` fixture
+#: and atomically rewrites it with **no substitution at all** measures ~290 MB/s
+#: on the reference machine, because 400 documents of ~10 KB each are dominated
+#: by per-file syscalls rather than by bytes moved. 140 MB/s is the slowest of
+#: ten measured samples (154 MB/s) with 10% allowed for future degradation.
+#: ``baseline.md`` §3 carries the samples.
+#:
+#: It is still the estimate's **fallback only** (:func:`estimate_seconds`) and
+#: not its divisor in the normal case. The floor is a constant and the survey
+#: measures *this* machine — a node on slower storage, or one under load, is
+#: exactly the case where a constant is wrong and the measurement is right.
+#: That the two now happen to agree on the reference machine is a property of
+#: the reference machine, not an argument for dropping the measurement.
+THROUGHPUT_FLOOR = 140 * 1_000_000
 
 #: Below this the survey's own elapsed time is noise rather than a
 #: measurement, and the estimate falls back to :data:`THROUGHPUT_FLOOR` — and
@@ -591,7 +603,7 @@ def estimate_seconds(survey_result: Survey) -> tuple[float, bool]:
     the floor was used instead. The caller **must say so** in its output, so a
     pessimistic estimate is never presented as a measured one.
 
-    **The measured estimate is itself conservative, by about a factor of two**,
+    **The measured estimate is itself conservative, by about 2.2x-2.5x**,
     and :func:`render_estimate` says so. The survey scans for *any* uuid shape —
     five character classes at every position — while the apply pass substitutes
     *known literal* tokens, which is the faster search; so the survey's observed

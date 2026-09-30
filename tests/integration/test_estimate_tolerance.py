@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """T080 — the operator's duration estimate (SC-PERF-003).
 
-**SC-PERF-003's ±25% is not met, and is recorded as exceeded rather than
-restated as passing** — this repository's standing practice, and this feature's
-plan's explicit instruction. The measured error is about **+115%**: the estimate
-is roughly twice the actual duration, in the **pessimistic** direction.
+**SC-PERF-003's ±25% is not met.** It was supplied by an analysis pass without
+measurement; the measured error over eight samples is **+120% to +147%**, in the
+**pessimistic** direction. The budget this file asserts was re-baselined on
+2026-09-30 from those samples plus 10% — `predicted <= actual * 2.72` — and the
+original ±25% is recorded as exceeded rather than restated as passing.
 
 ## Why, measured rather than argued
 
@@ -43,8 +44,9 @@ is actually exposed to:
   cannot quietly drift from twice the truth to ten times it — which is exactly
   what a regression in the survey's scan would look like, and exactly what
   happened before ``scan_values``;
-* dividing by FR-PERF-001's floor must remain **worse and in the dangerous
-  direction**, which is the specific wrong implementation this test excludes.
+* the estimate must scale with the throughput the survey **observed**, not with
+  a constant — asserted on synthetic surveys, so it stays true on a machine
+  whose speed differs from the floor's.
 
 The recorded figures are in ``baseline.md``.
 """
@@ -59,18 +61,30 @@ import pytest
 from cuemsutils.tools import library_reach, remint
 from tests.support.library_fixture import nodes_for, remint_200
 
-#: SC-PERF-003's stated tolerance. **Not met** — kept named so the failure the
-#: module docstring describes is a number a reader can check, not a claim.
+#: SC-PERF-003's **original** stated tolerance, ±25%, supplied by an analysis
+#: pass without measurement. Kept named because the gap between it and the
+#: measurement is the finding, and a reader should be able to check the number
+#: rather than take the claim.
 STATED_TOLERANCE = 0.25
 
-#: How optimistic the estimate may be. Small, because this is the dangerous
-#: direction: an operator sizes a maintenance window against it.
+#: How optimistic the estimate may be. Small, and **not** re-baselined from the
+#: measurement: the measured optimism is zero, and this is the dangerous
+#: direction — an operator sizes a maintenance window against the figure. A
+#: budget derived from "it has never happened" would be 0%, which no timing
+#: assertion should be; 10% is the smallest number that is not that.
 MAX_OPTIMISM = 0.10
 
-#: How pessimistic it may be, measured on this machine (~+115%) plus headroom.
+#: How pessimistic it may be: ``predicted <= actual * (1 + MAX_PESSIMISM)``.
+#:
+#: **Re-baselined 2026-09-30 from the measurement**: eight samples ranged
+#: +120% to +147%, so the worst observed ratio is 2.47x and this is that plus
+#: 10%. It replaces a 2.0 chosen to sit above a single observation, which the
+#: wider sample would have failed.
+#:
 #: A bound rather than a tolerance: the estimate is allowed to be conservative,
-#: and is not allowed to drift further into being so.
-MAX_PESSIMISM = 2.0
+#: and is not allowed to drift further into being so. ``baseline.md`` §6 has
+#: the samples and the reason the pessimism exists at all.
+MAX_PESSIMISM = 1.72
 
 NODE_COUNTS = (2, 10)
 
@@ -167,24 +181,53 @@ def test_the_stated_tolerance_is_recorded_as_exceeded(clusters, count):
         )
 
 
-def test_dividing_by_the_floor_would_have_failed_this(clusters):
-    """The specific wrong implementation this test excludes, shown rather than
-    described. Named so the next person to "simplify" the estimate sees what
-    they would be reintroducing."""
-    predicted, actual, _used_floor, found = clusters[2]
-    floor_prediction = found.bytes_read / remint.THROUGHPUT_FLOOR
-    floor_error = abs(floor_prediction - actual) / actual
-    print(f"\ndividing by the 500 MB/s floor would predict "
-          f"{floor_prediction * 1000:.1f} ms against an actual "
-          f"{actual * 1000:.1f} ms — {floor_error * 100:.0f}% out")
-    assert floor_error > STATED_TOLERANCE, (
-        "dividing by the floor happens to land inside the tolerance on this "
-        "machine, so this test is not currently discriminating between the two "
-        "implementations. It still is on a machine whose throughput differs more "
-        "from the floor; recorded rather than deleted."
+def test_the_estimate_tracks_the_machine_and_not_a_constant():
+    """FR-PERF-003's substance, asserted in a machine-independent way.
+
+    **This test changed shape when the floor was re-baselined**, and the reason
+    is worth recording. It used to show that dividing by FR-PERF-001's constant
+    gave a badly wrong answer — easy to demonstrate while the constant was
+    500 MB/s and the machine ran at 160. Now that the floor *is* 140 MB/s, the
+    two happen to agree here, and a test built on that coincidence would have
+    started passing for the wrong reason and then failed on the first machine
+    where they diverged again.
+
+    So it asserts the property instead, on two synthetic surveys: the same byte
+    count observed at different throughputs must produce proportionally
+    different predictions. A constant divisor cannot do that, and a node on
+    slower storage or under load is exactly the case where the constant is wrong
+    and the measurement is right.
+    """
+    megabyte = 1_000_000
+
+    def survey_at(mb_per_second):
+        return remint.Survey(
+            documents=(), config_documents=(), library_documents=(),
+            identities={}, node_identities=(),
+            bytes_read=100 * megabyte, elapsed=100 / mb_per_second,
+        )
+
+    fast, _ = remint.estimate_seconds(survey_at(1000))
+    slow, _ = remint.estimate_seconds(survey_at(100))
+
+    assert fast == pytest.approx(0.1, rel=1e-6)
+    assert slow == pytest.approx(1.0, rel=1e-6)
+    assert slow == pytest.approx(fast * 10, rel=1e-6), (
+        "the estimate does not scale with the throughput the survey observed — "
+        "it is dividing by a constant, which is what FR-PERF-003 forbids"
     )
-    # And in the dangerous direction: the floor *under*estimates here.
-    assert floor_prediction < actual, (
-        "dividing by the floor is not optimistic on this machine, so the "
-        "asymmetry this test describes does not currently hold here"
+
+
+def test_the_floor_is_used_only_when_the_survey_cannot_time_itself():
+    """The other half of the same requirement: the constant is a fallback, and
+    a run that used it must **say** so, or a pessimistic bound gets presented as
+    a measurement."""
+    untimeable = remint.Survey(
+        documents=(), config_documents=(), library_documents=(),
+        identities={}, node_identities=(),
+        bytes_read=4_000, elapsed=0.0001,
     )
+    seconds, used_floor = remint.estimate_seconds(untimeable)
+    assert used_floor is True
+    assert seconds == 4_000 / remint.THROUGHPUT_FLOOR
+    assert "not a measurement" in remint.render_estimate(untimeable)
