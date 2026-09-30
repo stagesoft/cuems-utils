@@ -118,11 +118,37 @@ def test_the_uuid_shape_check_is_not_in_the_t2_registry():
 
     Asserted as an absence because that is what it is. A registry that acquired
     this rule would be correct-looking and would break the editor on first use.
-    """
-    from cuemsutils.xml.validators import RULES
 
-    for name in RULES:
-        assert "uuid" not in name.lower(), name
+    **Asserted behaviourally as of feature 012.** This used to read "no rule
+    name contains 'uuid'", which was a proxy for the property and stopped being
+    one the moment a rule about identity *uniqueness* was registered
+    (``node_uuid_unique``, FR-019a). Uniqueness and shape are different
+    questions with different answers — the map's rows must not collide, and a
+    nil ``Media.id`` is fine — so the name-substring check was rejecting the
+    right thing for the wrong reason. It now runs the rules against the values
+    the proxy existed to protect.
+    """
+    from cuemsutils.xml.validators import RULES, enforce
+
+    nil = "00000000-0000-0000-0000-000000000000"
+    for value in (nil, "not-a-uuid", "0367F391-EBF4-11B2-9F26-000000000001"):
+        for name, rule in RULES.items():
+            for _cls, field in rule.applies_to:
+                if field not in ("id", "uuid", "action_target", "target"):
+                    continue
+                if name == "node_uuid_unique":
+                    # Uniqueness, not shape: it is about a whole document's
+                    # rows and passes on any single value, which is exactly the
+                    # distinction this test now makes rather than assumes.
+                    continue
+                try:
+                    enforce(name, value)
+                except (ValueError, TypeError) as exc:  # pragma: no cover - the failure
+                    raise AssertionError(
+                        f"rule {name!r} rejects the identifier {value!r}. The uuid4 "
+                        "shape check is a coercion concern, not a T2 rule: a registry "
+                        "that acquired it would break the editor on first use."
+                    ) from exc
 
 
 def test_an_unparseable_identifier_is_preserved_as_its_raw_string():

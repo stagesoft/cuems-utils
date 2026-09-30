@@ -15,8 +15,11 @@ sheet: the overlaps that exist today are enumerated below with a verdict each,
 and anything *new* fails. Its first run (2026-09-23) turned up two live
 X14-class defects. ``NodeType`` was resolved the same day — ``project_mappings``'
 became ``NodeMappingType`` — and its entry left this file, which is how a fix is
-completed here. ``UuidType`` remains, recorded as debt rather than blessed,
-because resolving it invalidates every node identity in the field (§9).
+completed here. ``UuidType`` was the other, and it stayed recorded as debt for a
+year because resolving it invalidates every node identity in the field (§9).
+**Feature 012 resolved it**, and its entry left this file too — which is what
+FR-025 calls that feature's completion marker. ``KNOWN_DIVERGENT_DECLARATIONS``
+is now empty, and the comment inside it records how the last entry went.
 
 **Declarations are read as authored**, by regex over the source, rather than
 through a loaded schema object. Two reasons: most element declarations here are
@@ -81,6 +84,16 @@ KNOWN_IDENTICAL_DUPLICATES = {
     "NonEmptyString": ("network_map", "project_mappings", "project_settings", "settings"),
     "PositiveUnitFloat": ("project_mappings", "script"),
     "UnitFloat": ("project_mappings", "script"),
+    # feature 012, uuid4 convergence (FR-021d). Three names, three schemas
+    # each. None of the six schemas includes or imports another -- they share a
+    # target namespace and nothing else -- so sharing a type across them is
+    # three declarations plus this entry. ``NonEmptyString`` above is the
+    # precedent, and ``test_known_identical_duplicates_have_not_diverged`` is
+    # the whole anti-drift guarantee: the convergence cannot re-diverge because
+    # a test says so, not because a schema mechanism prevents it.
+    "ConvergedUuidType": ("network_map", "project_mappings", "settings"),
+    "NotProvisionedUuidType": ("network_map", "project_mappings", "settings"),
+    "NodeUuidType": ("network_map", "project_mappings", "settings"),
 }
 
 #: Named types declared in several schemas with **different** content — the X14
@@ -89,25 +102,29 @@ KNOWN_IDENTICAL_DUPLICATES = {
 #:
 #: Removing an entry here is how a fix is *completed*: while a name is listed,
 #: :func:`test_the_allowlist_has_no_stale_entries` requires it to still collide.
-KNOWN_DIVERGENT_DECLARATIONS = {
-    "UuidType": {
-        "schemas": ("network_map", "script"),
-        "verdict": (
-            "network_map's accepts ANY uuid version, case-insensitive, shape "
-            "only -- deliberately, per feature 007 research R2. script's "
-            "requires uuid4 specifically (version nibble 4, variant [89ab]), "
-            "lowercase, exactly 36 characters. The divergence is semantic, not "
-            "cosmetic: production node identities are uuid1 (MAC-derived) and "
-            "uuid5, which the first accepts and the second would reject. "
-            "RESOLUTION DECIDED 2026-09-23: uuid4 project-wide, so script's is "
-            "the surviving definition and network_map's narrows to match. That "
-            "narrowing invalidates every node identity in the field, so it is a "
-            "rule-4 file-format migration and CANNOT land before cuems-init-node "
-            "exists to perform the cross-document re-mint -- see planning "
-            "section 9. This entry stays until it does."
-        ),
-    },
+KNOWN_DIVERGENT_DECLARATIONS: dict[str, dict] = {
+    # EMPTY, and that is feature 012's completion marker (FR-025).
+    #
+    # ``UuidType`` was the last entry. Its recorded resolution -- "script's is
+    # the surviving definition and network_map's narrows to match" -- turned out
+    # to be impossible once M-f measured that the node identity must admit the
+    # not-provisioned sentinel and FR-021 forbade giving script's ``UuidType``
+    # the same (a nil *cue* id is not a placeholder, it is a bug that would now
+    # validate). The two bodies could therefore never match, which closed the
+    # identical-duplicate route, while the divergent route *requires* the entry
+    # to stay -- so the marker would have been permanently unreachable.
+    #
+    # Research R13's measurement was that the ratchet admits exactly one way
+    # out: retype network_map's node identity to the new named union and
+    # **delete** that schema's own ``UuidType`` declaration (FR-020c). The name
+    # is then declared once, in ``script.xsd``, so it stops overlapping -- and
+    # ``test_the_allowlist_has_no_stale_entries`` *demands* the removal this
+    # entry's absence records.
+    #
+    # An entry added here in future is debt enumerated, not blessed. See §8.5
+    # for the order such things are resolved in.
 }
+
 
 _DECL_PATTERNS = {
     "complexType": re.compile(r'<xs:complexType name="([^"]+)">(.*?)</xs:complexType>', re.S),

@@ -30,6 +30,23 @@ RETAINED = {
     ("settings", "AutoOrIntLatencyMsType"): {"auto"},
     ("network_map", "BoolType"): {"True", "False"},
     ("network_map", "NodeRoleType"): {"controller", "node", "firstrun"},
+    # feature 012, uuid4 convergence. ``NotProvisionedUuidType`` is an
+    # enumeration of exactly **one** value on purpose (FR-021, assumption 1):
+    # the sentinel is admitted by *union*, not by loosening a pattern, so no
+    # other nil-like value becomes valid. ``NodeUuidType`` is that union and
+    # inherits the same single facet through its member types, which is why the
+    # resolver above reports it too.
+    #
+    # Retained rather than audited-and-removed: this is the one value a freshly
+    # installed node carries in all three documents, and the package's own
+    # build-time generation emits it (M-f). Deleting it would make every new
+    # node unloadable.
+    ("network_map", "NotProvisionedUuidType"): {"00000000-0000-0000-0000-000000000000"},
+    ("network_map", "NodeUuidType"): {"00000000-0000-0000-0000-000000000000"},
+    ("project_mappings", "NotProvisionedUuidType"): {"00000000-0000-0000-0000-000000000000"},
+    ("project_mappings", "NodeUuidType"): {"00000000-0000-0000-0000-000000000000"},
+    ("settings", "NotProvisionedUuidType"): {"00000000-0000-0000-0000-000000000000"},
+    ("settings", "NodeUuidType"): {"00000000-0000-0000-0000-000000000000"},
 }
 
 

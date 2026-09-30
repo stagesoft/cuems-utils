@@ -179,11 +179,20 @@ class Rule:
 class _DocumentContext:
     """What a document-scoped rule needs that its enclosing object cannot give.
 
-    One field today. It is a type rather than a bare set so that adding a second
-    kind of document-wide fact later does not change every rule's signature.
+    It is a type rather than a bare set precisely so that a second kind of
+    document-wide fact can be added without changing every rule's signature.
+    Feature 012 is that second kind, and adding it changed no rule but its own.
     """
 
     cue_ids: frozenset[str]
+
+    #: ``(identity, mac)`` for every node row in the document, in document
+    #: order and **with duplicates kept** — a uniqueness rule that received a
+    #: set could not detect the thing it exists to detect. The MAC travels with
+    #: the identity because it is the only thing that tells two colliding rows
+    #: apart, and an abort message that could not name it would leave an
+    #: operator no way to act (data-model §4).
+    node_rows: tuple[tuple[str, str], ...] = ()
 
 
 #: Every registered rule, by name. **The tier's inventory**, and the only one.
@@ -372,6 +381,17 @@ def _walk(obj, cue_type: type, cue_id: str | None = None):
             yield from _walk(item, cue_type, cue_id)
 
 
+def _looks_like_a_node_row(node) -> bool:
+    """Whether ``node`` is a network-map row, for the uniqueness context.
+
+    Keyed on the **class name**, the way rule targets already are, rather than
+    on "has a uuid key" — a project-mappings node entry and a ``mapped_to``
+    both carry one, and folding those into the map's uniqueness context would
+    make a perfectly ordinary mappings document look like a collision.
+    """
+    return type(node).__name__ == "node" and "uuid" in node
+
+
 def _iter_t2_findings(obj):
     """Every T2 violation below ``obj``, paired with **where it happened**.
 
@@ -394,10 +414,14 @@ def _iter_t2_findings(obj):
     # Collected once, before the walk that reports. A document-scoped rule
     # (``Rule.document_scoped``) needs every cue id in the document, and
     # gathering them per node would be quadratic on a real show file.
+    nodes = [n for _cue_id, n in _walk(obj, Cue) if _looks_like_a_node_row(n)]
     context = _DocumentContext(
         cue_ids=frozenset(
             cue_id for cue_id, _node in _walk(obj, Cue) if cue_id is not None
-        )
+        ),
+        node_rows=tuple(
+            (str(n.get("uuid")), str(n.get("mac", "<no mac>"))) for n in nodes
+        ),
     )
 
     for cue_id, node in _walk(obj, Cue):
@@ -806,6 +830,101 @@ def _unwrap_single(wrapper):
         if hasattr(only, "keys"):
             return only
     return wrapper if hasattr(wrapper, "keys") else None
+
+
+# --- feature 012: node-identity uniqueness (FR-019a, research R2) ----------
+
+
+#: The repair an operator runs, named in every message this rule produces
+#: (FR-024). A rejection that does not say what to do about it costs the
+#: operator the time it takes to find someone who knows.
+REMINT_COMMAND = "cuems-init-node --remint"
+
+
+def check_node_identities_unique(rows) -> None:
+    """No two rows of a network map may carry one identity.
+
+    Args:
+        rows: ``(identity, mac)`` per row, **in document order and with
+            duplicates kept**.
+
+    Raises:
+        ValueError: two or more rows share an identity. The message names the
+            identity and every MAC carrying it, because the MAC is the only
+            thing that tells the rows apart.
+
+    **Why the library refuses rather than repairing.** It cannot know which of
+    two colliding rows is the real node, so there is no defensible default to
+    repair *to*. Splitting them is safe in the configuration documents, where
+    the MAC discriminates, and unsafe in the project library, where the
+    compound ``<identity>_<output>`` prefix is the only record of which node an
+    output belongs to — no discriminator exists there, so a split would
+    silently reassign one node's entire output set (data-model §4.2).
+    """
+    seen: dict[str, list[str]] = {}
+    for identity, mac in rows:
+        seen.setdefault(identity, []).append(mac)
+    collisions = {i: m for i, m in seen.items() if len(m) > 1}
+    if not collisions:
+        return
+    detail = "; ".join(
+        f"{identity} is carried by {len(macs)} rows (" + ", ".join(f"mac={m}" for m in macs) + ")"
+        for identity, macs in sorted(collisions.items())
+    )
+    raise ValueError(
+        f"node identities are not unique: {detail}. The library cannot know "
+        "which row is the real node, so it will not choose. Decide from the "
+        "two rows' hardware addresses and the scripts naming the shared token "
+        "which node the outputs belong to, treat the other as never "
+        f"provisioned, and re-mint it — see the migration guide, then run "
+        f"{REMINT_COMMAND}."
+    )
+
+
+def validate_node_identities(processed: dict) -> None:
+    """Both halves of the map's identity contract, over a decoded network map.
+
+    The live call site, mirroring ``validate_custom_templates``'s place in
+    ``ProjectMappings``: ``NetworkMap.process_xml_dict`` runs this on read.
+    The registered rule below is the same check reached through ``run_rules``.
+    """
+    rows = []
+    for wrapper in processed.get("node_list") or []:
+        node = wrapper.get("node") if hasattr(wrapper, "get") else None
+        if node is None:
+            continue
+        rows.append((str(node.get("uuid")), str(node.get("mac", "<no mac>"))))
+    check_node_identities_unique(rows)
+
+
+@register(
+    "node_uuid_unique",
+    [("node", "uuid")],
+    # UNREPAIRABLE, and forced by the domain rather than chosen for
+    # convenience. Repair means *substitute the field's declared default*, and
+    # there is no value that would decide which of two colliding rows is the
+    # real node. Fabricating one would be worse than refusing, because it would
+    # look resolved. Modelled on ``action_target_resolves``, the closest
+    # precedent in both scope and repairability (research R2).
+    repairable=False,
+    document_scoped=True,
+)
+def _node_uuid_unique(value, obj=None, context=None) -> None:
+    """A node identity must be unique across the network map.
+
+    Document-scoped because a row cannot see its siblings, and uniqueness is a
+    question about all of them at once. A ``None`` context means the caller had
+    no document (``enforce``), and a rule that cannot decide passes rather than
+    guessing — the same posture ``action_target_resolves`` takes.
+
+    Fires once per row, so a colliding map reports the collision as many times
+    as there are rows in it. That is the tier's normal behaviour for a
+    document-scoped rule and is not worth special-casing: the first violation
+    is what raises.
+    """
+    if context is None or not context.node_rows:
+        return
+    check_node_identities_unique(context.node_rows)
 
 
 #: Derived, never hand-maintained — see ``_semantic_rules``.

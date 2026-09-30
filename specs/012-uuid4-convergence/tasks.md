@@ -286,36 +286,36 @@ build-time generation succeeds.
 
 ### Tests for User Story 3
 
-- [ ] T044 [P] [US3] Test in `tests/contract/test_uuid_type_narrowed.py` — uuid1, uuid5 and an
+- [X] T044 [P] [US3] Test in `tests/contract/test_uuid_type_narrowed.py` — uuid1, uuid5 and an
       upper-case uuid4 are each rejected in all three schemas; a lowercase uuid4 is accepted
       (FR-020, FR-020a, FR-021a, SC-007)
-- [ ] T044a [P] [US3] Test the overlap end state in
+- [X] T044a [P] [US3] Test the overlap end state in
       `tests/contract/test_uuid_type_name_resolved.py` — `UuidType` is declared in **one** schema
       (`script.xsd`) after the deletion, and `ConvergedUuidType` / `NotProvisionedUuidType` /
       `NodeUuidType` are each declared identically in the three that moved. Assert against the
       shipped allowlist module itself, so the four overlap tests and this one cannot disagree
       (FR-020c, FR-021d, FR-025, SC-009, research R13)
-- [ ] T045 [P] [US3] Test in `tests/contract/test_sentinel_still_valid.py` — the sentinel validates
+- [X] T045 [P] [US3] Test in `tests/contract/test_sentinel_still_valid.py` — the sentinel validates
       in all three schemas, and no other nil-like value does (FR-021, assumption 1)
-- [ ] T046 [P] [US3] Test in `tests/contract/test_generation_under_narrowing.py` — the build-time
+- [X] T046 [P] [US3] Test in `tests/contract/test_generation_under_narrowing.py` — the build-time
       document generation succeeds and its output still validates (SC-008, finding M-f)
-- [ ] T047 [P] [US3] Test in `tests/contract/test_version_steps.py` — the three `CURRENT_VERSION`
+- [X] T047 [P] [US3] Test in `tests/contract/test_version_steps.py` — the three `CURRENT_VERSION`
       bumps; a pre-step document is recognised by its marker and recorded as an **identity** step;
       **no** conversion is registered for any of them, and no repair is attempted on a non-converged
       identity found in one (FR-022, FR-022a, **FR-023**, research R5)
-- [ ] T048 [P] [US3] Test in `tests/contract/test_node_uuid_unique_rule.py` — the rule is
+- [X] T048 [P] [US3] Test in `tests/contract/test_node_uuid_unique_rule.py` — the rule is
       registered, `document_scoped=True`, `repairable=False`, and a colliding map raises
       `ValidationError` naming both rows (FR-019a, **SC-012**, research R2)
-- [ ] T049 [P] [US3] Extend `tests/contract/test_rule_targets_resolve.py` — the new rule's
+- [X] T049 [P] [US3] Extend `tests/contract/test_rule_targets_resolve.py` — the new rule's
       `(class-name, field)` target resolves against the model's MRO (trap 7.6)
-- [ ] T050 [P] [US3] Re-check every negative fixture affected by the tightening in
+- [X] T050 [P] [US3] Re-check every negative fixture affected by the tightening in
       `tests/data/corpus/negative/` — assert **which** error each now raises, not merely that it
       still fails (FR-027, trap 7.3)
-- [ ] T051 [P] [US3] Test in `tests/contract/test_rejection_is_actionable.py` — a rejected document
+- [X] T051 [P] [US3] Test in `tests/contract/test_rejection_is_actionable.py` — a rejected document
       produces an error naming the document, the path, the value and the repair tool (FR-024,
       **FR-023**'s reporting half, produced in the validation error path because no conversion
       exists to produce it)
-- [ ] T052 [P] [US3] Test in `tests/integration/test_pre_step_documents_load.py` — a pre-step
+- [X] T052 [P] [US3] Test in `tests/integration/test_pre_step_documents_load.py` — a pre-step
       document is recognised by its marker as an identity step rather than reported as unknown or
       malformed; a pre-step document whose identity is already converged **loads**, and one carrying a
       uuid1 is **rejected with FR-024's message**. Both halves, because the story's fifth scenario is
@@ -323,7 +323,7 @@ build-time generation succeeds.
 
 ### Implementation for User Story 3
 
-- [ ] T053 [US3] In `src/cuemsutils/xml/schemas/network_map.xsd`: declare `ConvergedUuidType`,
+- [X] T053 [US3] In `src/cuemsutils/xml/schemas/network_map.xsd`: declare `ConvergedUuidType`,
       `NotProvisionedUuidType` and their union `NodeUuidType`, retype `node_list/node/uuid` to
       `cms:NodeUuidType`, and **delete the schema's own `UuidType` declaration** (FR-020c). The
       deletion is the point, not a tidy-up: `UuidType` is also declared in `script.xsd`, and the
@@ -333,23 +333,23 @@ build-time generation succeeds.
       never match, the divergence entry could never be removed, and FR-025's completion marker would
       be permanently unreachable. Deleting leaves the name declared once, which is the only state in
       which the stale-entry test *requires* the removal T059 makes (research R13)
-- [ ] T054 [US3] In `src/cuemsutils/xml/schemas/project_mappings.xsd`: declare the same three types
+- [X] T054 [US3] In `src/cuemsutils/xml/schemas/project_mappings.xsd`: declare the same three types
       — byte-identical bodies, modulo this file's indentation — and retype `NodeMappingType/uuid` to
       `cms:NodeUuidType`. Leave `MappedToType` **untouched** — out of scope by FR-020b
-- [ ] T055 [US3] In `src/cuemsutils/xml/schemas/settings.xsd`: declare the same three types and
+- [X] T055 [US3] In `src/cuemsutils/xml/schemas/settings.xsd`: declare the same three types and
       retype `NodeConfType/uuid` to `cms:NodeUuidType`, replacing `cms:NonEmptyString`. Three
       declarations of one type is the project's established way of sharing across these schemas —
       none of the six includes or imports another (research R13) — and T059 records them as such
-- [ ] T056 [US3] Bump `CURRENT_VERSION` in `src/cuemsutils/xml/versioning.py` — `network_map`
+- [X] T056 [US3] Bump `CURRENT_VERSION` in `src/cuemsutils/xml/versioning.py` — `network_map`
       1→2, `project_mappings` 1→2, `settings` 2→3. Register **no** conversion (research R5)
-- [ ] T057 [US3] Register the node-identity uniqueness rule in
+- [X] T057 [US3] Register the node-identity uniqueness rule in
       `src/cuemsutils/xml/validators.py`, modelled on `action_target_resolves`
-- [ ] T058 [US3] Produce FR-024's actionable message in the validation error path —
+- [X] T058 [US3] Produce FR-024's actionable message in the validation error path —
       `src/cuemsutils/xml/validators.py` for the rule's own text and
       `src/cuemsutils/tools/ConfigBase.py`'s `load_config_document` for the config-domain
       translation, matching on the rule's own wording rather than on exception type, because
       `xmlschema`'s own errors are also `ValueError` subclasses (feature 008's precedent)
-- [ ] T059 [US3] **In one commit**, three pins that T053–T055 invalidate together — any one left
+- [X] T059 [US3] **In one commit**, three pins that T053–T055 invalidate together — any one left
       behind is a test asserting something no longer true (FR-025, FR-026, FR-021d, SC-009, traps 7.5
       and 7.6):
       1. update `CURRENT_SCHEMA_HASHES` in `tests/contract/test_schema_scope.py` for the three

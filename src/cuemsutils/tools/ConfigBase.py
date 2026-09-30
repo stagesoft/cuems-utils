@@ -5,6 +5,8 @@ from ..errors import (
     ValidationError,
     network_map_node_type_message,
     network_map_role_enum_message,
+    node_identity_collision_message,
+    node_identity_shape_message,
     project_mappings_semantic_message,
 )
 from ..log import Logger, logged
@@ -72,6 +74,25 @@ def load_config_document(cls, xmlfile: str, schema_name: str):
             if semantic_message is not None:
                 Logger.error(semantic_message)
                 raise ValidationError(semantic_message) from exc
+        # Feature 012's semantic rule, checked before the structural ones for
+        # the same reason project_mappings' is: it raises a plain ValueError
+        # and so does xmlschema, so only the wording tells them apart.
+        if schema_name == 'network_map':
+            collision = node_identity_collision_message(xmlfile, exc)
+            if collision is not None:
+                Logger.error(collision)
+                raise ValidationError(collision) from exc
+
+        # A non-converged node identity is a **structural** (T1) failure — the
+        # narrowed NodeUuidType refuses it — so it stays a SchemaError. What
+        # changes is that the message names the out-of-band repair, which is
+        # the one thing a generic schema error cannot say (FR-024).
+        if schema_name in ('network_map', 'project_mappings', 'settings'):
+            shape = node_identity_shape_message(xmlfile, exc)
+            if shape is not None:
+                Logger.error(shape)
+                raise SchemaError(shape) from exc
+
         if schema_name == 'network_map':
             for diagnose in (network_map_node_type_message, network_map_role_enum_message):
                 specific_message = diagnose(xmlfile, exc)

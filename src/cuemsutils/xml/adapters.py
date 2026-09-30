@@ -210,6 +210,18 @@ ADAPTERS: dict[str, Adapter] = {
     # identifiers
     "UuidType": _UuidAdapter(),
     "TargetType": _UuidAdapter(),
+    # feature 012 — the node identity's three names. ``NodeUuidType`` is the
+    # one any element references; the two halves are bound as well so that a
+    # future element naming one directly does not silently fall through to the
+    # passthrough and start decoding an identity as text.
+    #
+    # Binding these is not optional housekeeping: ``network_map`` runs the
+    # adapter table (research R1) and its node ``uuid`` used to be a
+    # ``UuidType``. Retyping the element without binding the new name would
+    # have retired feature 007's "uuid decodes to Uuid" without a word.
+    "NodeUuidType": _UuidAdapter(),
+    "ConvergedUuidType": _UuidAdapter(),
+    "NotProvisionedUuidType": _UuidAdapter(),
     # the complex wrapper (R5)
     "CTimecodeType": _CTimecodeAdapter(),
     # integers

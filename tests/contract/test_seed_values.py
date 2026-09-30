@@ -28,6 +28,11 @@ from cuemsutils.xml import seed_values
 from cuemsutils.xml.seed_values import SeedValueError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+#: The generated ``settings.xml``'s digest as feature 011's seed-value move
+#: left it. **Not updated** by feature 012: see
+#: :func:`test_generated_settings_is_byte_identical_after_the_move`, which
+#: normalises the one byte-run that moved rather than re-recording the whole
+#: file — a re-recorded hash asserts nothing about *what* changed.
 PRE_MOVE_SHA256 = "5635a078302cc6513b3a85e795ba0c4f75afa3adbcf9de8385755c604974da3d"
 
 
@@ -110,12 +115,35 @@ def test_the_settings_table_matches_the_python_table_it_replaced(tables):
 
 
 def test_generated_settings_is_byte_identical_after_the_move(tmp_path):
-    """T012 — the move changed no value (SC-005's precondition)."""
+    """T012 — the move changed no value (SC-005's precondition).
+
+    **Feature 012 moves exactly one byte-run**: ``settings`` steps 2 -> 3 for
+    the narrowed node identity, so the document marker reads ``doc_version="3"``
+    where it read ``2``. The version marker is a *document property*, never a
+    seed value (feature 008, research R1), so it is normalised out and the rest
+    of the file is compared against the digest feature 011 recorded.
+
+    Normalised rather than re-recorded, deliberately. A new hash would pass and
+    say nothing: it asserts that the file is whatever it is now. This asserts
+    the thing worth asserting — that a schema version step changed the marker
+    **and nothing else**, which is exactly the claim "no conversion is
+    registered because the documents do not change" rests on.
+    """
     from cuemsutils.xml.descriptor import generate_settings_example
+    from cuemsutils.xml.versioning import CURRENT_VERSION
 
     target = tmp_path / "settings.xml"
     generate_settings_example().save(target)
-    assert hashlib.sha256(target.read_bytes()).hexdigest() == PRE_MOVE_SHA256
+
+    produced = target.read_bytes()
+    current = CURRENT_VERSION["settings"]
+    assert f'doc_version="{current}"'.encode() in produced
+
+    normalised = produced.replace(f'doc_version="{current}"'.encode(),
+                                  b'doc_version="2"')
+    assert hashlib.sha256(normalised).hexdigest() == PRE_MOVE_SHA256, (
+        "the generated settings.xml changed by more than its version marker"
+    )
 
 
 def test_the_shipped_copy_is_package_data():

@@ -56,7 +56,15 @@ def test_other_config_schemas_decode_identically_to_their_goldens(schema_name):
 
 
 def test_every_typed_field_resolves_to_a_non_passthrough_adapter():
-    typed_fields = {"uuid": "UuidType", "node_role": "NodeRoleType", "adopted": "BoolType", "online": "BoolType"}
+    # ``uuid`` was ``cms:UuidType`` through feature 007. Feature 012 retypes it
+    # to ``cms:NodeUuidType`` — the union of the converged shape and the
+    # not-provisioned sentinel — and **deletes** network_map's own ``UuidType``
+    # declaration (FR-020c). The assertion moves with the schema because it is
+    # about the element resolving to a real adapter, not about the type's name:
+    # binding the new name is what kept feature 007's "uuid decodes to Uuid"
+    # from being retired without a word.
+    typed_fields = {"uuid": "NodeUuidType", "node_role": "NodeRoleType",
+                    "adopted": "BoolType", "online": "BoolType"}
     spec = derive_named("network_map", "NodeType")
     for name, xsd_type in typed_fields.items():
         field = spec.field(name)

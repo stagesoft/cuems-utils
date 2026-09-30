@@ -74,7 +74,15 @@ def test_round_trip_diff_is_exactly_the_rename_and_value_mapping(
     # addition every write picks up from here on — orthogonal to the 007
     # rename this test is about, so it is stripped before the comparison
     # rather than left to fail it.
-    stripped_added = stripped_added.replace(' doc_version="1"', "")
+    #
+    # Its **value** is read from the registry rather than spelled, because it
+    # moves whenever the schema does and this test is not about that: feature
+    # 012 took network_map to 2, and hardcoding "1" here would have made a
+    # correct version bump look like a broken rename.
+    from cuemsutils.xml.versioning import CURRENT_VERSION
+
+    stripped_added = stripped_added.replace(
+        f' doc_version="{CURRENT_VERSION["network_map"]}"', "")
     assert stripped_removed == stripped_added
 
 

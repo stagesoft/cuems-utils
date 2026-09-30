@@ -42,7 +42,7 @@
 
     <xs:complexType name="NodeMappingType">
         <xs:sequence>
-            <xs:element name="uuid" minOccurs="1" maxOccurs="1" type="xs:string" />
+            <xs:element name="uuid" minOccurs="1" maxOccurs="1" type="cms:NodeUuidType" />
             <xs:element name="mac" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString" />
             <xs:element name="audio" minOccurs="0" maxOccurs="1" type="cms:DeviceType" />
             <xs:element name="video" minOccurs="0" maxOccurs="1" type="cms:VideoDeviceType" />
@@ -153,6 +153,49 @@
             <xs:element name="name" minOccurs="1" maxOccurs="1" type="xs:string"></xs:element>
         </xs:sequence>
     </xs:complexType>
+
+
+    <!-- feature 012: uuid4 convergence (FR-020, FR-021c, data-model §1.2).
+         THREE declarations, deliberately, not one widened pattern: the
+         converged shape, the not-provisioned sentinel, and the union of them
+         that every node-identity element names. The two halves exist to be
+         nameable, testable and removable on their own; only the union is
+         referenced.
+
+         "Converged" means uuid4 lowercase and ONLY that. The sentinel is
+         ADMITTED and never converged — feature 011 established it as the
+         coherent state of a freshly installed node, and the package's own
+         build-time generation emits it, so a pattern that refused it would make
+         every new node unloadable (M-f).
+
+         Admitted by UNION, not by loosening: the sentinel is an enumeration of
+         exactly one string, so no other nil-like value becomes valid.
+
+         Declared here in all three narrowed schemas because none of the six
+         includes or imports another — they share a target namespace and nothing
+         else (research R13). NonEmptyString, declared identically in four
+         schemas, is the precedent. The anti-drift guarantee is therefore a
+         TEST, not a schema mechanism: the three names are recorded in
+         tests/contract/test_schema_name_overlap.py's KNOWN_IDENTICAL_DUPLICATES
+         (FR-021d), whose drift test fails the moment one copy gains a facet the
+         others lack. -->
+    <xs:simpleType name="ConvergedUuidType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}" />
+            <xs:minLength value="36" />
+            <xs:maxLength value="36" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NotProvisionedUuidType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="00000000-0000-0000-0000-000000000000" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NodeUuidType">
+        <xs:union memberTypes="cms:ConvergedUuidType cms:NotProvisionedUuidType" />
+    </xs:simpleType>
 
     <xs:simpleType name="NonEmptyString">
         <xs:restriction base="xs:string">

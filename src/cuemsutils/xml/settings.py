@@ -8,7 +8,7 @@ from .._deprecation import deprecated_symbol
 from ..helpers import strtobool
 from ..log import Logger
 from .mapper import Mapper, read_versioned_config_document
-from .validators import validate_custom_templates
+from .validators import validate_custom_templates, validate_node_identities
 from .xml_reader_writer import XmlReaderWriter
 
 
@@ -152,6 +152,25 @@ class NetworkMap(Settings):
             xml_root_tag='CuemsNetworkMap',
             **kwargs
         )
+
+    def process_xml_dict(self):
+        """Run the map's one T2 rule on read (feature 012, FR-019a).
+
+        Mirrors ``ProjectMappings.process_xml_dict``, which is this project's
+        established shape for a configuration document that carries a semantic
+        rule: the rule lives in :mod:`cuemsutils.xml.validators`, the reader
+        calls it, and ``ConfigBase.load_config_document`` translates the
+        ``ValueError`` it raises into a ``ValidationError`` by matching the
+        rule's own wording (feature 008, FR-037).
+
+        **This is the feature's only change that turns a successful read into
+        an exception.** A map with two rows sharing one identity loads today —
+        ``NodeIndex.merge`` collapses the duplicate silently (M-l) — and raises
+        for every reader afterwards. It reaches every repository that reads the
+        map, not only the two that read the own-identity accessor, which is why
+        FR-032a makes the census's second column blocking.
+        """
+        validate_node_identities(self.get_dict())
 
     def get_node(self, uuid):
         """This map's node carrying ``uuid``.

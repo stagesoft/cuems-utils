@@ -47,6 +47,7 @@ actually happened.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
 
@@ -159,6 +160,18 @@ _NETWORK_MAP_LEGACY_ROLE_VALUES = {
 #: message can name the accepted values without importing the schema loader
 #: into this module.
 NETWORK_MAP_ACCEPTED_ROLES = ("controller", "node", "firstrun")
+
+#: Feature 012. Spelled here rather than imported from
+#: ``cuemsutils.tools.ids`` because ``errors`` is imported by ``tools`` and the
+#: other direction would close a cycle; ``tests/contract/test_error_types.py``
+#: is where the two are asserted to agree.
+_NODE_UUID_SHAPE = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
+_CONVERGED_UUID = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+)
+_REMINT_COMMAND = "cuems-init-node --remint"
 
 
 def network_map_node_type_message(xmlfile: str, exc: Exception) -> str | None:
@@ -280,6 +293,60 @@ class LoadReport:
     conversions: tuple[ConversionRecord, ...] = ()
     repairs: tuple[RepairRecord, ...] = ()
     file_differs_from_loaded: bool = False
+
+
+def node_identity_collision_message(xmlfile: str, exc: Exception) -> str | None:
+    """Whether ``exc`` is the node-identity uniqueness violation (FR-019a).
+
+    Recognised by **message shape**, matching the pattern this module already
+    uses for ``network_map``'s two known failure modes and for
+    ``project_mappings``' one semantic rule. Not by exception type: the rule
+    raises a plain ``ValueError``, and so does ``xmlschema``'s own
+    ``XMLSchemaValidationError`` for a genuine structural (T1) failure — an
+    ``isinstance`` check cannot tell a semantic violation from a structural one
+    (feature 008, FR-037).
+    """
+    message = str(exc)
+    if "node identities are not unique" not in message:
+        return None
+    return f"{xmlfile}: {message}"
+
+
+def node_identity_shape_message(xmlfile: str, exc: Exception) -> str | None:
+    """A rejection that says what to run (FR-024), for a non-converged identity.
+
+    Produced in the **validation error path** because no conversion exists to
+    produce it (FR-023, research R5). That is not a fallback: a cross-document
+    identity cannot be repaired one document at a time — a per-document mint
+    would give ``settings.xml`` and ``network_map.xml`` different answers for
+    the same node, which is §9.4's measured failure — so the only honest thing
+    a single-document read can do is name the fault and the out-of-band tool.
+
+    Four things an operator would otherwise have to ask someone for: which
+    document, where in it, what value, and what to run. Returns ``None`` when
+    ``exc`` is not this failure, so the caller falls through to the generic
+    wrap.
+    """
+    value = getattr(exc, "obj", None)
+    if not isinstance(value, str):
+        return None
+    if not _NODE_UUID_SHAPE.fullmatch(value) or _CONVERGED_UUID.fullmatch(value):
+        return None
+    elem = getattr(exc, "elem", None)
+    tag = getattr(elem, "tag", "") or ""
+    if tag.rsplit("}", 1)[-1] != "uuid":
+        return None
+    return (
+        f"{xmlfile}: node identity <uuid>{value}</uuid> is not converged. "
+        "Node identities must be uuid4, lowercase, 36 characters (the "
+        "not-provisioned placeholder "
+        "00000000-0000-0000-0000-000000000000 is also accepted). "
+        f"Repairing this is cross-document and out-of-band: run "
+        f"{_REMINT_COMMAND} on the controller, which re-mints every node "
+        "identity across the configuration documents and the project library "
+        "in one operation. Editing this file alone would leave the node's "
+        "other documents naming an identity that no longer exists."
+    )
 
 
 def network_map_role_enum_message(xmlfile: str, exc: Exception) -> str | None:
