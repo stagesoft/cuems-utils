@@ -21,11 +21,14 @@ reaches have different scopes: configuration documents are rewritten **per node*
 distributed table, while the library is rewritten **once on the controller** and replicated by the
 project deployer that already carries every other library change (R11). Only then
 does the **schema narrow** — uuid4 lowercase, plus the not-provisioned sentinel, admitted as a
-union of two separately named definitions — in **three** schemas: the network map and the project
-mappings take their first document-version step, the settings schema takes its second. Finally the
-**library surface** stops handing consumers two types for one value.
+union of two separately named definitions under a third name that every element uses — in **three**
+schemas: the network map and the project mappings take their first document-version step, the
+settings schema takes its second. The network map's node identity is **retyped** to that union and
+its own `UuidType` declaration **deleted**, because the overlap ratchet leaves no other way to
+resolve the divergence this feature exists to close (R13). Finally the **library surface** stops
+handing consumers two types for one value.
 
-The technical approach turns on seven measurements (see [research.md](research.md)): the adapter
+The technical approach turns on nine measurements (see [research.md](research.md)): the adapter
 table is a per-schema opt-in that only `network_map` has, so the own-identity type change needs a
 per-**field** opt-in instead (R1); the document-scoped rule tier already supports the cross-row
 uniqueness check, with two precedents (R2); the script filename is **not in any configuration this
@@ -33,9 +36,11 @@ library can read**, so scripts are found by root element rather than by name (R3
 step needs **no** registered conversion, because the machinery represents an identity step as the
 absence of one (R5); clone detection already has both its inputs in scope (R6); the library is
 replicated from the controller by rsync with no checksum flag, so a length-preserving rewrite is
-visible to it **only** through the modification time (R11); and the library reach is required
+visible to it **only** through the modification time (R11); the library reach is required
 rather than precautionary, because both a bare and an embedded identity are measured there
-(R12).
+(R12); the overlap ratchet admits exactly one resolution for `UuidType`, and it is deletion rather
+than narrowing in place (R13); and feature 008's baseline offers two comparisons, not one, because
+its `network_map` row is recorded there as exceeded-or-marginal (R14).
 
 ## Technical Context
 
@@ -48,15 +53,19 @@ one new persisted substitution table under the tool's existing state directory
 installed on this box; the `hatch test` env lacks `hypothesis`)
 **Target Platform**: Debian bookworm nodes, shared venv `/usr/lib/cuems`
 **Project Type**: single Python library plus console entry points
-**Performance Goals**: **>= 500 MB/s** scanned and rewritten over the library, measured at two node
-counts that must agree **within 1%** so an accidental per-node pass shows as a divergence; named
-fixture **`remint_200`** (200 projects, ~4 MB) within **2.0 s**, provisional and adjustable
-downward only; operator estimate within **+/-25%** of actual; read-path timings within feature
-008's recorded baseline
+**Performance Goals**: **>= 500 MB/s** scanned and rewritten over the library, measured at **2 and
+10** nodes whose elapsed times must agree within a **1.10x ratio** so an accidental per-node pass
+(which would be ~5x) shows as a divergence; named fixture **`remint_200`** (200 projects, ~4 MB)
+within **2.0 s**, provisional and adjustable downward only; operator estimate within **+/-25%** of
+actual, divided by the throughput the survey **measures on the machine** rather than by the floor;
+read path against `specs/008-rebuild-extension/baseline.md` — the show-document row against its
+budget, the `network_map` row against its measured 10.14-10.49 ms band (R14)
 **Constraints**: no library version change (`0.1.0rc16` is pinned by
 `tests/packaging/test_no_version_bump.py`); nothing ships from this branch alone (D27); the
 re-mint must be idempotent and resumable; every path that reads a possibly-invalid document uses
-stdlib XML only
+stdlib XML only — **including the re-mint's survey and collision check**, which is a requirement
+(FR-006a), not just a technique, because after the narrowing every document the tool repairs is
+invalid and the collision abort must read a map the new uniqueness rule refuses
 **Scale/Scope**: cluster of ~2–10 nodes; library of order 10²  projects, single-digit MB
 (largest corpus script ~24 KB, whole corpus 504 KB)
 
@@ -78,11 +87,12 @@ justified deviation tracked below.*
 
 | Level | What it covers |
 |---|---|
-| contract | the tightened patterns against every non-converged shape; the uniqueness rule's registration and unrepairability; rule-target resolution (trap 7.6); schema hashes moved in the same commit (trap 7.5); the divergence entry's removal from the allowlist |
-| integration | the full re-mint over a fixture cluster with a project library; abort on collision; idempotence; resume after interruption; clone refusal; the check's no-write property |
-| unit | token substitution including compound strings; root-element script discovery; the per-field adapter opt-in; identity ordering; the estimate's arithmetic |
-| performance (in `tests/integration/`) | throughput at two node counts; the `remint_200` fixture's wall-clock; read-path against feature 008's baseline; the estimate's accuracy |
+| contract | the tightened patterns against every non-converged shape; the uniqueness rule's registration and unrepairability; rule-target resolution (trap 7.6); schema hashes moved in the same commit (trap 7.5); **all four overlap tests passing together** after the rename-and-delete — no unrecorded name, no diverged copy, no stale entry (R13) |
+| integration | the full re-mint over a fixture cluster with a project library; abort on collision; idempotence; resume after interruption; clone refusal; the check's no-write property; **the re-mint running on documents the tightened schema refuses** (FR-006a) |
+| unit | token substitution including compound strings; root-element script discovery; the per-field adapter opt-in; identity ordering; the estimate's arithmetic and its measured-throughput input |
+| performance (in `tests/integration/`) | throughput at 2 and 10 nodes with a 1.10x ratio bound; the `remint_200` fixture's wall-clock; the read path against feature 008's baseline, budget for one row and measured band for the other (R14); the estimate's accuracy |
 | the replication property | a rewritten library file's modification time advances, so the size-and-time quick check transfers it (FR-011b, R11) |
+| documentation | the migration guide is **checked**, not just written: every FR-033..FR-036c item present, and every version and component it names resolving in the sibling trees (US5's Independent Test, Principle II's "per story") |
 
 Fail-before-pass is required for every behaviour change. Two specific traps are tested rather
 than assumed: negative fixtures are re-checked for *which* error they now raise (trap 7.3,
@@ -104,10 +114,11 @@ constitution violation, since a budget with no number cannot fail a test:
 | Budget | Value | Provisional? |
 |---|---|---|
 | Re-mint throughput | >= **500 MB/s** scanned and rewritten | no |
-| Agreement between the two node counts | within **1%** | no |
+| Agreement between **2 and 10** nodes | slower elapsed time <= **1.10x** the faster | no |
 | Named fixture `remint_200` (200 projects, ~4 MB) | <= **2.0 s** wall-clock | **yes** — adjustable downward after measurement, never upward |
-| Operator estimate vs. actual | within **+/-25%** | no |
-| Read path (show and configuration documents) | feature 008's recorded baseline | no |
+| Operator estimate vs. actual | within **+/-25%**, dividing by the **survey-measured** throughput, not the floor | no |
+| Read path — show document | feature 008's recorded **budget** | no |
+| Read path — `network_map` configuration document | feature 008's recorded **measured band**, 10.14-10.49 ms, because that row's budget is recorded there as exceeded-or-marginal (R14) | no |
 
 The fixture ceiling is the only estimate, and it is marked so that adjusting it is a recorded
 decision rather than a silent relaxation. Budgets are recorded **as measured**, including when
@@ -118,11 +129,21 @@ exceeded — this repository's standing practice.
 **PASS.** Two deviations are tracked in Complexity Tracking: this feature amends another
 feature's landed decision record, and it adds three modules rather than extending one.
 
-**One violation was found after this gate and is now closed.** The `/speckit.analyze` pass
-(2026-09-30) found Principle IV unsatisfied: the budgets were stated in shape only, with no value
-anywhere, so no performance test could fail. The values above close it. Recorded rather than
-quietly fixed, because a gate that passed on an unmeasurable budget is worth a reader knowing
-about.
+**Two violations were found after this gate and both are now closed.** Recorded rather than quietly
+fixed, because a gate that passed twice on something a test could not enforce is worth a reader
+knowing about.
+
+- The first `/speckit.analyze` pass (2026-09-30) found **Principle IV** unsatisfied: the budgets were
+  stated in shape only, with no value anywhere, so no performance test could fail. The values above
+  close it.
+- The second pass the same day found **Delivery Workflow & Quality Gates** unsatisfied — "task
+  breakdowns MUST include testing work and verification steps per story". US5 declared an Independent
+  Test and Phase 7 was six writing tasks with nothing that checked the guide against it. A
+  verification task closes it, and the documentation row in the testing table above now names the
+  level it belongs to. The same pass also found that two of the *first* pass's own numbers could not
+  do their job: the 1% agreement bound was below timing noise on the fixture it applied to, and the
+  estimate, pinned to a throughput **floor**, would have missed its +/-25% tolerance by exactly the
+  margin by which a good implementation beat the floor. Both are corrected above.
 
 ## Project Structure
 
@@ -131,7 +152,8 @@ about.
 ```text
 specs/012-uuid4-convergence/
 ├── plan.md              # This file
-├── research.md          # Phase 0 — R1..R12 (R11, R12 added 2026-09-30)
+├── research.md          # Phase 0 — R1..R14 (R11, R12 after the first analyze pass;
+│                         #   R13, R14 after the second, both 2026-09-30)
 ├── data-model.md        # Phase 1
 ├── quickstart.md        # Phase 1
 ├── contracts/           # Phase 1
@@ -159,7 +181,8 @@ src/cuemsutils/
 │   └── ids.py                  # NEW — classification, token scanner, published coercion rule
 ├── xml/
 │   ├── schemas/
-│   │   ├── network_map.xsd     # UuidType narrows; doc_version 1 -> 2
+│   │   ├── network_map.xsd     # node uuid retyped to NodeUuidType; its own UuidType
+│   │   │                        #   DELETED, not narrowed (R13); doc_version 1 -> 2
 │   │   ├── project_mappings.xsd# NodeMappingType/uuid narrows; doc_version 1 -> 2
 │   │   └── settings.xsd        # NodeConfType/uuid typed; doc_version 2 -> 3
 │   ├── adapters.py             # per-field adapter opt-in (R1)
@@ -226,3 +249,23 @@ found and closed with stated values; one deviation row was corrected from two mo
 The analysis pass added no dependency either — the distribution question (U1) was answered by
 naming machinery that already exists rather than by building any, which is why it changes the
 requirements and the guide but not the technical context.
+
+**Re-evaluated a third time, after the second `/speckit.analyze` pass (2026-09-30b): PASS.** One
+violation of the Delivery Workflow gate, closed with a verification task; two of the first pass's own
+numbers corrected; eight requirements added and none removed. **Still no new dependency and no new
+storage system**, and it is worth saying why, because three of the additions look like they would
+need one:
+
+- The **table's distribution** (FR-007) adds no transport. The operator copies one file, and that
+  copy becomes a numbered step in the guide.
+- The **completion record** (FR-017a) is another file in the state directory the tool already owns —
+  the same directory as the write record and the substitution table — not a new store.
+- The **collision procedure** (FR-036b) is documentation of a manual act, deliberately not automated,
+  because the library cannot know which of two rows is the real node and a tool that guessed would be
+  worse than one that refuses.
+
+The one structural change is in the schema layer and it **removes** a declaration rather than adding
+one: `network_map.xsd`'s `UuidType` is deleted so the name stops overlapping (R13). Three new named
+types appear in its place, in three schemas, which is three declarations more than before — and they
+are pinned by the same allowlist that pinned what they replace, so the surface the ratchet watches is
+unchanged in kind.

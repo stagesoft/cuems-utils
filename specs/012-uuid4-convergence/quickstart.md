@@ -98,11 +98,21 @@ next project load. A plain node with no table refuses rather than minting one �
 | Budget | Value |
 |---|---|
 | Re-mint throughput | ≥ 500 MB/s scanned and rewritten |
-| Agreement between the two node counts | within 1% |
+| Agreement between **2 and 10** nodes | slower elapsed time ≤ **1.10×** the faster |
 | Fixture `remint_200` (200 projects, ~4 MB) | ≤ 2.0 s — **provisional**, lower it to the measured figure, never raise it |
 | Operator estimate vs. actual | within ±25% |
+| Read path — show document | feature 008's recorded **budget** |
+| Read path — `network_map` | feature 008's recorded **measured band**, 10.14–10.49 ms (its budget is recorded there as exceeded-or-marginal) |
 
-The estimate divides surveyed bytes by the same 500 MB/s constant that T077 asserts against.
+**The estimate divides surveyed bytes by the throughput the survey measured on this machine — not by
+the 500 MB/s constant.** 500 is a *floor* T077 asserts the implementation beats, so dividing by it
+would overstate every estimate by the margin of the beating and fail the ±25% while the
+implementation was correct. The floor is the fallback only, for a survey too small to time, and the
+output must say when it was used.
+
+**The agreement bound is a ratio, not a percentage**, because the fixture runs in single-digit
+milliseconds: 1% of that is below this machine's jitter. 1.10× still catches the defect it exists to
+catch, since a per-node repeated pass makes the 10-node run about 5× the 2-node run.
 
 ## Two tasks that edit things outside this feature
 

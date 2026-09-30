@@ -245,13 +245,26 @@ scripts; the first is handled by treating `mappings.xml` as optional per project
 ## R8 — measuring throughput so that a per-node pass is visible
 
 **Decision**: measure megabytes-scanned-per-second over a generated fixture library at **two node
-counts** (a small and a large substitution table) over the *same* library bytes. Budget the
-throughput figure; assert the wall-clock ceiling on the named fixture; and require the two node
-counts to produce throughput within a stated tolerance of each other. **The values were
-supplied 2026-09-30** by the analysis pass, which found R8 had specified the budget's shape and
-never its magnitude: >= 500 MB/s, the two node counts agreeing within 1%, and the named fixture
-`remint_200` (200 projects, ~4 MB) at <= 2.0 s — the last provisional and adjustable downward
-only. See FR-PERF-001.
+counts** over the *same* library bytes. Budget the throughput figure; assert the wall-clock ceiling on
+the named fixture; and require the two node counts to agree. **The values were supplied 2026-09-30**
+by the first analysis pass, which found R8 had specified the budget's shape and never its magnitude:
+>= 500 MB/s and the named fixture `remint_200` (200 projects, ~4 MB) at <= 2.0 s, the last
+provisional and adjustable downward only.
+
+**The agreement bound was corrected the same day** by the second pass, which observed that the
+fixture it applies to runs in milliseconds. The node counts are **2 and 10** — the ends of the
+cluster range — and the bound is a **ratio**: the slower run's elapsed time is **<= 1.10x** the
+faster run's.
+
+| | 1% (first pass) | 1.10x ratio (adopted) |
+|---|---|---|
+| On a ~4 MB fixture, ~8 ms at the floor | 80 microseconds of headroom -- below this machine's timing jitter | ~0.8 ms of headroom, comfortably above it |
+| Against a per-node repeated pass, 2 -> 10 nodes | caught | caught: the defect makes the second run ~5x, not 1.1x |
+| Fails when the machine is noisy | routinely | no |
+
+A test that fails on jitter and a test that cannot fail are the same test. The ratio keeps the
+discriminating power -- a five-fold divergence against a 1.10x bound -- without pretending the
+fixture is a benchmark. See FR-PERF-001.
 
 **Rationale**: SC-PERF-001's whole point is catching an implementation that loops files per node.
 A single wall-clock number on one fixture cannot see that. Two node counts over identical bytes
@@ -262,10 +275,22 @@ A 200-project library is therefore single-digit megabytes, so the operation is I
 absolute terms — which is exactly why the budget must be shaped to catch algorithmic regression
 rather than to police absolute time.
 
-**For FR-PERF-003's operator estimate**: the estimate is
-`measured throughput × measured library bytes`, with the node count entering only through the
-substitution pass count if the implementation has one. SC-PERF-003's tolerance is what keeps the
-estimate honest.
+**For FR-PERF-003's operator estimate**, corrected 2026-09-30 in two ways — the formula was
+inverted here, and the throughput it names was the wrong one:
+
+```
+estimated seconds = surveyed bytes / observed throughput
+```
+
+`observed throughput` is what the **survey measured on this machine** — its own elapsed time over
+its own bytes read — and **not** FR-PERF-001's 500 MB/s floor. The floor is a lower bound an
+implementation is meant to beat, so dividing by it overstates the estimate by exactly the margin of
+the beating: at a real 1 GB/s the estimate would be 2x the actual duration, failing SC-PERF-003's
++/-25% while the implementation is entirely correct. The survey already reads every byte the apply
+pass will read, so the measurement is free. Where the survey is too small to time meaningfully the
+run falls back to the floor **and says that it did**, so a pessimistic estimate is never presented as
+a measured one. The node count enters only through the substitution pass count if the implementation
+has one — which is what the 1.10x bound above exists to catch.
 
 ---
 
@@ -356,3 +381,69 @@ this feature must handle.
 re-minting before committing to the largest part of the feature. They do, and the embedded form
 is why literal substitution is the instrument — a structural rewrite would update the mappings
 and leave every script's output prefix stale and schema-valid.
+
+---
+
+## Addendum, 2026-09-30b — the second `/speckit.analyze` pass
+
+Two measurements were needed to settle it, both in this repository's own test suite rather than in a
+sibling tree. They are R13 and R14.
+
+## R13 — the overlap ratchet leaves exactly one way to resolve `UuidType`
+
+**Measured**, in `tests/contract/test_schema_name_overlap.py`:
+
+- `test_no_unrecorded_type_name_is_declared_in_two_schemas` — any name declared in more than one
+  schema must appear in `KNOWN_IDENTICAL_DUPLICATES` or `KNOWN_DIVERGENT_DECLARATIONS`.
+- `test_known_identical_duplicates_have_not_diverged` — a recorded identical duplicate's
+  declarations must have **one** whitespace-normalised body between them.
+- `test_known_divergent_declarations_are_still_divergent` — a recorded divergent name's declarations
+  must **still differ**, and must still be declared in exactly the schemas the entry records.
+- `test_the_allowlist_has_no_stale_entries` — a recorded name that no longer overlaps must be
+  removed.
+- `xs:import` / `xs:include`: **none, in any of the six schemas.** They share a target namespace and
+  nothing else; `NonEmptyString` is declared identically in four files and recorded as an identical
+  duplicate, which is the project's established way of sharing a type.
+
+**Decision**: retype `network_map.xsd`'s node identity to the new named union and **delete** that
+schema's `UuidType` declaration (FR-020c). Record the three new names as identical duplicates
+(FR-021d).
+
+**Rationale**: the four tests together admit no third state for a twice-declared name. Narrowing
+network_map's `UuidType` in place gives it the sentinel, which FR-021 forbids giving `script.xsd`'s —
+so the bodies can never match, the identical-duplicate route is closed, and the divergent route
+*requires* the entry to stay. FR-025's completion marker would be permanently unreachable, and the
+allowlist's own recorded verdict ("script's is the surviving definition and network_map's narrows to
+match") would be wrong in a way no test could report, because it was written before M-f measured the
+sentinel exception. Deleting the declaration instead makes the name single-declared, which is the one
+state in which the stale-entry test *demands* the removal FR-025 calls the completion marker.
+
+**Alternatives considered**:
+
+- *Give `script.xsd`'s `UuidType` the sentinel too* — rejected: it types cue and media `id`, and
+  FR-021 admits the sentinel "for node identities and nowhere else". A nil cue id is not a
+  placeholder, it is a bug that would now validate.
+- *Move the entry to `KNOWN_IDENTICAL_DUPLICATES`* — rejected: that test compares content and would
+  fail for the same reason.
+- *Leave the entry with a corrected verdict* — rejected: it satisfies the tests and abandons FR-025.
+  The divergence would be permanent, recorded as debt forever, which is precisely what this feature
+  exists to end.
+
+## R14 — feature 008's baseline does not offer one comparison, it offers two
+
+**Measured**, in `specs/008-rebuild-extension/baseline.md`:
+
+- The show-document load row is recorded **within** its budget.
+- The `network_map` configuration row is recorded as **exceeded-or-marginal**: three trials of five
+  runs gave medians 9.984 / 10.486 / 10.214 ms against a 10.20 ms budget, straddling the line, with
+  the mechanism identified (the version probe routes decode through a pre-parsed `ElementTree`) and
+  no mitigation applied in that pass.
+
+**Decision**: SC-PERF-002 compares the show-document row against its **budget** and the `network_map`
+row against its **measured band** (10.14–10.49 ms), naming the baseline by path (FR-PERF-002).
+
+**Rationale**: three baselines exist — features 006, 008 and the 011/010 re-measure — so "the
+recorded baseline" picks none of them. And a test asserting network_map's 10.20 ms budget would fail
+on a tree where this feature had changed nothing, which tells a reader nothing about this feature and
+teaches them to ignore the test. Comparing to the band asks the question that is actually useful: did
+the tightened definition move this number.

@@ -111,3 +111,36 @@ Four requirements and one success criterion were added — FR-011a and FR-011b (
 and the modification-time property), FR-021c (the union as two named definitions), FR-036a (the
 guide's collision-routes obligation) and SC-002a — bringing the specification to **56 functional
 requirements and 19 success criteria**. Seven tasks were added; the task list is now **93**.
+
+---
+
+## Post-analysis (2026-09-30, two passes)
+
+Two `/speckit.analyze` passes ran the same day, the second over the first's output. Between them
+they found **two constitution violations** and re-opened items this checklist had marked complete.
+It is refreshed here rather than left standing, since three of its ticks were not true as written.
+
+**Corrected ticks**:
+
+- *"Success criteria are measurable"* — they were **not**, twice over. The first pass found the
+  performance budgets stated in shape only, with no value anywhere, so no test could fail
+  (Principle IV). The second found that two of the values the first pass supplied could not do their
+  job either: a 1% agreement bound on a fixture that runs in single-digit milliseconds is below
+  timing jitter, and an estimate pinned to a throughput **floor** misses its ±25% tolerance by
+  exactly the margin by which a correct implementation beats the floor. Now measurable: a 1.10×
+  ratio at named node counts, and an estimate dividing by survey-measured throughput.
+- *"All functional requirements have clear acceptance criteria"* — FR-025's was **unreachable**. The
+  overlap ratchet admits a twice-declared type name only as a matching identical duplicate or a
+  still-differing divergent one, and FR-021 forbids the match, so the completion marker could never
+  be reached by narrowing in place. Resolved by FR-020c's rename-and-delete (research R13).
+- *"All acceptance scenarios are defined"* — US5 had an Independent Test and Phase 7 had no task that
+  performed it, which the constitution's Delivery Workflow gate forbids ("testing work and
+  verification steps per story"). Closed by T076c.
+
+**Items the second pass added rather than corrected**: a per-node completion record and roll-call
+(FR-017a, FR-036c), the table's copy step (FR-007, FR-034), a procedure for a pre-existing collision
+(FR-036b), the census's second column (FR-032a), and the re-mint's stdlib-XML property (FR-006a).
+
+**Superseded, deliberately not deleted**: the "three open questions carried into `/speckit.clarify`"
+above, and the first pass's 1% figure. Both are part of the record of what was decided when; the
+Clarifications sections in [spec.md](../spec.md) carry the resolutions.

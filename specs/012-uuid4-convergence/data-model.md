@@ -17,13 +17,39 @@ requirements, and from [research.md](research.md)'s measurements.
 
 | Schema | Element | Today | After | Version step |
 |---|---|---|---|---|
-| `network_map.xsd` | `node_list/node/uuid` (`cms:UuidType`) | any version, either case | the **admitted** set (§1.2) | 1 → 2 |
-| `project_mappings.xsd` | `NodeMappingType/uuid` (`xs:string`) | any text | the **admitted** set | 1 → 2 |
-| `settings.xsd` | `NodeConfType/uuid` (`cms:NonEmptyString`) | any non-empty text | the **admitted** set | 2 → 3 |
+| `network_map.xsd` | `node_list/node/uuid` (`cms:UuidType`) | any version, either case | retyped to `cms:NodeUuidType`, the **admitted** set (§1.2); the schema's own `UuidType` declaration is **deleted** (FR-020c) | 1 → 2 |
+| `project_mappings.xsd` | `NodeMappingType/uuid` (`xs:string`) | any text | `cms:NodeUuidType` | 1 → 2 |
+| `settings.xsd` | `NodeConfType/uuid` (`cms:NonEmptyString`) | any non-empty text | `cms:NodeUuidType`, replacing `cms:NonEmptyString` | 2 → 3 |
 
-All three reference the *same* pair of named definitions, so the convergence cannot re-diverge by
-one schema's copy drifting from another's — which is the defect this feature exists to close,
-reproduced one level down if each schema spelled the pattern out for itself.
+All three spell the node identity as **one type name**, so no schema carries a union expression of
+its own. What that does *not* buy is a single declaration: **none of the six schemas includes or
+imports another** — they only share a target namespace — so each of the three declares its own copy
+of the three named types. `NonEmptyString`, declared identically in four schemas, is the precedent.
+
+**So the anti-drift guarantee is a test, not a schema mechanism.** The three names are recorded in
+`tests/contract/test_schema_name_overlap.py`'s `KNOWN_IDENTICAL_DUPLICATES` (FR-021d), whose drift
+test fails the moment one copy gains a facet the others lack. That is the whole guard, and it is
+worth naming precisely: an earlier draft of this section claimed the three schemas "reference the
+same pair of definitions, so the convergence cannot re-diverge", which is not true of schemas that
+reference nothing. The convergence cannot re-diverge because a test says so.
+
+### 1.1a Why the network map's `UuidType` is deleted rather than edited
+
+`UuidType` is declared in `network_map.xsd` **and** `script.xsd`, and the overlap ratchet allows a
+twice-declared name exactly two states:
+
+| Recorded as | The test's demand |
+|---|---|
+| identical duplicate | the declarations' content must **match** |
+| divergent, with a verdict | the declarations must **still differ** |
+
+After the narrowing, the network map's node identity admits the sentinel and the show script's
+`UuidType` — which types cue and media `id`, not a node identity — must not, by FR-021. The two can
+therefore never match, so the divergence entry could never be removed and FR-025's completion marker
+would be unreachable. Retyping the element to `cms:NodeUuidType` and deleting the network map's
+`UuidType` leaves the name declared **once**, so it stops overlapping, a third test
+(`test_the_allowlist_has_no_stale_entries`) then *requires* the entry's removal, and the convergence
+completes for the reason it claims to.
 
 **Not moving**, and each for a stated reason:
 
@@ -48,13 +74,19 @@ sentinel  ::= "00000000-0000-0000-0000-000000000000"
 admitted  ::= converged | sentinel
 ```
 
-**Each half is its own named definition** (FR-021c) — in the schemas as two named simple types
-unioned, and in the library as the identity type plus the published sentinel constant. Not one
-widened pattern: two definitions, so each is nameable, testable and removable on its own, and so
-a reader can see the sentinel is admitted by exception rather than by a pattern that happens to
-allow it.
+The three names, in the schemas:
 
-The sentinel is admitted **by union, not by loosening** (assumption 1): no other nil-like value
+| Name | Is | Declared in |
+|---|---|---|
+| `cms:ConvergedUuidType` | the converged pattern, length-pinned at 36 | network_map, project_mappings, settings |
+| `cms:NotProvisionedUuidType` | the sentinel, as an enumeration of one value | the same three |
+| `cms:NodeUuidType` | the **union** of the two — the only one any element names | the same three |
+
+Only the union is referenced by an element; the two halves exist to be nameable, testable and
+removable on their own (FR-021c). All three are recorded as identical duplicates (FR-021d, §1.1).
+
+In the library the same split is the identity type plus the published sentinel constant. The
+sentinel is admitted **by union, not by loosening** (assumption 1): no other nil-like value
 becomes valid. It is a documented placeholder, not an identity — FR-021's second sentence.
 
 ### 1.3 Classification
@@ -120,8 +152,39 @@ satisfies this; restoring the original times would strand every node's replica s
 ### 2.2 Resume
 
 `applied` is what makes the operation resumable (FR-008). On re-run the table is loaded, not
-rebuilt; files in `applied` are skipped; minting does not happen again. A run that finds a table
-whose `controller` is not this node refuses — the table is distributed, not regenerated per node.
+rebuilt; files in `applied` are skipped; minting does not happen again.
+
+**The refusal on `controller`, stated exactly, because an earlier draft of this section had it
+backwards.** A table whose `controller` is not **this node** is the *normal* case on every node but
+one — that is what distribution means, and refusing it would refuse the table's whole purpose. The
+refusal is on a table whose `controller` is not **the map's controller**: such a table was minted by
+something with no authority to mint it. See contracts/cli-remint.md, "Not a refusal".
+
+### 2.2a How the table travels
+
+The operator copies it (FR-007). This feature adds no transport: the table is one small file, the
+migration is attended and stop-the-world, and a second distribution mechanism would put two
+authorities on the operation's only durable record. The copy is a numbered step in the migration
+guide (FR-034), and a node invoked without a table refuses by design rather than by accident.
+
+### 2.3 Completion record
+
+One per node per run (FR-017a), written where the tool already keeps its state. It is what makes
+"the cluster is converged" a countable claim rather than an impression.
+
+| Field | Type | Notes |
+|---|---|---|
+| `node` | identity | the node this record is for — its **new** identity |
+| `table` | digest + path | which table this run applied; a record naming a different table is not part of this migration |
+| `scope` | `configuration` / `library` / `both` | mirrors the table's `scope` for this run |
+| `rewritten` | list of paths | what this node actually changed |
+| `verification` | per-check result | FR-016's zero-token search, FR-017's validate-and-load, FR-018's adoption comparison |
+| `finished` | timestamp | |
+
+**The roll-call** (FR-036c): the operator holds the records, keys them by `node`, and compares the
+set against the network map's rows. Equal sets mean the cluster is converged; a row with no record
+is a node the migration did not reach, reported as incomplete rather than inferred to be fine. The
+controller's own run exiting cleanly says nothing about the other nodes, which is why this exists.
 
 ---
 
@@ -217,18 +280,32 @@ same node — where preserving identity is correct and re-minting would cost an 
 ### 5.2 The re-mint
 
 ```
-survey ──► build table ──► persist ──► [abort if collision] ──► estimate ──► confirm
+survey ──► [abort if collision] ──► build table ──► persist ──► estimate ──► confirm
                                                                                │
                               ┌────────────────────────────────────────────────┘
                               ▼
         per file: read ─► substitute ─► temp ─► os.replace ─► append to applied
                               │
                               └──► verify: zero old tokens, all documents valid, loads succeed
+                              │
+                              └──► write the completion record (§2.3)
 ```
 
-The collision check runs **after** the survey and **before** any write, so an abort costs
-nothing. The estimate is produced from the survey's measured byte count and the throughput
-budget, and presented with the confirmation (FR-PERF-003).
+The collision check runs **after** the survey and **before the table is built**, which is earlier
+than "before any write" and is the order contracts/cli-remint.md states: an abort then costs
+nothing at all, not even a minted identity.
+
+Everything up to the verify step reads with **stdlib XML only** (FR-006a) — the survey and the
+collision check both run on documents the tightened definition refuses, which after the narrowing is
+every document they exist to repair. The verify step is the one place validation is wanted, and it
+runs only after the rewrite has made validation possible.
+
+The estimate divides the survey's measured byte count by **the throughput the survey itself
+observed** on this machine — its own elapsed time over its own bytes read — not by FR-PERF-001's
+floor, which an implementation is expected to beat and which would therefore make every estimate
+pessimistic by exactly that margin (FR-PERF-003). Where the survey is too small to time
+meaningfully the run falls back to the floor and says so. The estimate is presented with the
+confirmation.
 
 ---
 

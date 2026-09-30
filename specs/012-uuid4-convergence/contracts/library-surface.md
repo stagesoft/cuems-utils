@@ -76,6 +76,19 @@ Identical from every accessor, so one check distinguishes the two states.
 | `cuems-power-bridge` | yes, one site | none — already converts explicitly |
 | `cuems-nodeconf`, `cuems-editor`, `cuems-common`, `cuems-frontend` | no | — |
 
+### The second column the census must carry (FR-032a)
+
+The accessor's type is not this feature's only change to what a consumer receives. FR-019a makes
+node-identity uniqueness a registered, **not repairable** rule, so a network map carrying two rows
+with one identity — which loads today, `NodeIndex.merge` collapsing the duplicate silently (M-l) —
+raises `ValidationError` for every reader afterwards. That is the feature's only change that turns a
+successful read into an exception, and it reaches every repository that reads the map, not just the
+two that read the accessor.
+
+Each repository is therefore recorded **twice**: what it does with the changed type, and what it does
+when a map read raises. Both are blocking for the same reason and for opposite failure modes — the
+first is silent, the second is loud and lands far from its cause.
+
 **One site named although it is not a library read**: the editor's websocket handler rejects a
 non-`str` node identity by `isinstance`. Fed from the frontend, so out of reach today — and a
 reason not to let the identity type leak into wire payloads.

@@ -52,4 +52,5 @@ it was found embedded in a compound string.
 | No writes | no file created, modified, moved or deleted; no backup taken; no modification time changed |
 | Survives invalid documents | reads with stdlib XML only, never through the validating load path — this is what makes it usable when it is needed |
 | Partial failure is reported, not fatal | an unreadable or unrecognised document is named and the survey continues (FR-005) |
+| Shared with the re-mint | the re-mint's pre-write paths carry the same stdlib-only property, for two further reasons of their own (FR-006a) — so this is a property of the feature, not a quirk of the check |
 | No dependency on the conversion tool | reporting a document's *version* and classifying an identity's *shape* are separate questions (FR-001a). Satisfied **by design** — stdlib XML only, never the validating load path — rather than by a dedicated test; reversing it requires a stated justification in the plan |

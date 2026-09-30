@@ -54,6 +54,10 @@ All six are settled here and applied to the requirements, the plan and the tasks
   → A: **500 MB/s** throughput floor, **1%** agreement between the two node counts, and fixture
   **`remint_200`** (200 projects, ~4 MB) at **≤ 2.0 s**. The ceiling is explicitly provisional and
   may be adjusted **downward** after measurement; the other two are not. See FR-PERF-001.
+  **The 1% figure was superseded the same day** by session 2026-09-30b: the fixture runs in
+  milliseconds, where 1% is below timing noise, so the agreement bound became a ratio (≤ 1.10×) at
+  named node counts. Left standing here rather than rewritten, because what the first pass decided
+  is part of the record.
 - Q: FR-022a forbids a registered conversion; FR-023 required "the registered conversion" to
   detect and report. Which holds? → A: FR-022a. FR-023 is restated as a requirement on the
   **version step**, with detection and reporting produced in the validation error path (FR-024).
@@ -78,6 +82,61 @@ All six are settled here and applied to the requirements, the plan and the tasks
 - Q: Which "sentinel constant" does FR-031 publish, given that two exist — the nil-uuid value and
   the human-readable status string? → A: the **nil-uuid value**. The status string is already
   public and answers a different question. See FR-031.
+
+### Session 2026-09-30b — resolved by the second `/speckit.analyze` pass
+
+The first pass's own output was re-analysed the same day. It had closed the budget's magnitude and
+the distribution question, and left eleven items — two of them blocking. All are settled here.
+
+- Q: FR-025 made "the `UuidType` divergence entry leaves the allowlist" the completion marker, but
+  the overlap ratchet admits a twice-declared name only as a *recorded identical duplicate* (content
+  compared) or a *recorded divergent* one (difference required). The network map's declaration
+  becomes converged ∪ sentinel while the show script's stays converged-only, and FR-021 forbids
+  giving the script's the sentinel — so the two can never be made identical and the entry can never
+  leave. → A: **rename and delete**. The network map's node identity is retyped to the new named
+  union and the network map's own `UuidType` declaration is **deleted**, so the name is declared in
+  one schema only, no longer overlaps, and a *different* test then requires the stale entry's
+  removal. See FR-020c and FR-025.
+- Q: The three new names live in three schemas. Does anything keep the copies in step? → A: **No,
+  and the claim that something did was wrong.** None of the six schemas includes or imports another,
+  so a shared type is declared once per file — `NonEmptyString`'s four-way duplication is the
+  precedent. The copies must be recorded as identical duplicates, and the allowlist's drift test is
+  the only guard. See FR-021d; data-model §1.1 corrected.
+- Q: FR-001 requires the *check* to work on documents the tightened definition refuses. Nothing said
+  it of the **re-mint**, whose whole purpose after the narrowing is repairing documents that are now
+  invalid — and whose collision abort must read a map FR-019a's new rule refuses. → A: stated as
+  FR-006a: stdlib XML only on every pre-write path, with FR-017's post-write validation the one
+  deliberate exception.
+- Q: The estimate was pinned to the 500 MB/s **floor** while SC-PERF-003 requires it within ±25% of
+  actual. An implementation beating the floor by 2× fails the tolerance by construction. → A: the
+  estimate divides by a throughput the **survey measures on that machine**, falling back to the
+  floor only when the survey is too small to time — and saying so when it does. See FR-PERF-003.
+- Q: The two node counts had to agree "within 1%" on a fixture that runs in milliseconds, which is
+  below timing noise, and the counts were never named. → A: **2 and 10 nodes**, and the bound is a
+  **ratio** — the slower run's time ≤ 1.10× the faster's. A per-node pass makes it 5×, so the bound
+  still catches the defect it exists to catch. See FR-PERF-001 and SC-PERF-001.
+- Q: "The recorded baseline" named none of the three that exist, and feature 008's `network_map` row
+  is recorded there as exceeded-or-marginal (10.14–10.49 ms against a 10.20 ms budget) — so a test
+  asserting its budget fails for a reason predating this feature. → A: feature 008's baseline, named
+  by path; the show-document row compared to its budget, the `network_map` row to its measured band.
+  See FR-PERF-002 and SC-PERF-002.
+- Q: FR-017 and SC-002 assert a full load succeeds on **every** node, but the configuration reach is
+  per node and the verification runs only where it runs. What demonstrates the cluster? → A: a
+  per-node **completion record** and a roll-call counted against the map's rows. See FR-017a,
+  SC-002b, FR-036c.
+- Q: How does the substitution table actually reach a node? "Distributed" named no step. → A: the
+  operator copies it; this feature adds no transport, and the copy is a numbered step in the guide.
+  See FR-007 and FR-034.
+- Q: A cluster arriving with a pre-existing collision is stopped by FR-019 (the re-mint aborts) and
+  by FR-019a (the map stops loading after the narrowing), and released by neither. → A: a manual
+  resolution procedure in the guide, run **before** the re-mint while the map still loads. See
+  FR-036b.
+- Q: FR-019a turns a read that succeeds today into a `ValidationError` for every consumer, and the
+  blocking census covered only the accessor's return type. → A: the census covers both changes, two
+  results per repository. See FR-032a.
+- Q: US5 declared an Independent Test and Phase 7 was six writing tasks with nothing that checks the
+  guide — against the constitution's "testing work and verification steps per story". → A: a
+  verification task was added; see tasks.md Phase 7.
 
 ---
 
@@ -170,7 +229,10 @@ rewrites nothing.
    re-mint with it, **Then** that node rewrites **its own** configuration documents from the
    table and does **not** rewrite its replica of the project library, and **When** it runs
    without a table, **Then** it refuses rather than minting one of its own.
-13. **Given** a library file rewritten on the controller, **When** its modification time is
+13. **Given** a completed run on any node, **When** it finishes, **Then** it leaves a completion
+   record naming the table it ran from, the paths it rewrote and its own verification result, so
+   the operator can hold one record per row in the map and see that no node was missed.
+14. **Given** a library file rewritten on the controller, **When** its modification time is
    compared with the one it had before, **Then** it is later — the file is the same size as
    before, so the modification time is what makes the rewrite visible to the replication that
    carries it to the nodes.
@@ -182,8 +244,9 @@ rewrites nothing.
 Once identities in the field can be repaired, the schema stops accepting the shapes that caused
 the divergence. A document carrying a uuid1, a uuid5 or an upper-case uuid is rejected at read
 time with a message that names the offending value and points at the repair tool. A document
-written before the tightening is recognised by its version marker and handled by the established
-convert-on-read path rather than simply failing.
+written before the tightening is recognised by its version marker as an **identity step** — the
+version increments, the document is untouched — and is then judged by the tightened definition like
+any other, so it is rejected with the actionable message rather than reported as malformed.
 
 **Why this priority**: it is the feature's completion marker, and it is deliberately last. Landing
 it before US1 and US2 exist would invalidate both production maps with nothing able to repair them
@@ -193,7 +256,8 @@ the divergence from returning.
 **Independent Test**: validate a corpus document carrying each non-uuid4 shape against the
 tightened schema and confirm rejection with an actionable message; validate a uuid4 document and
 the pristine not-provisioned document and confirm both are accepted; confirm the version marker
-moves and that a pre-tightening document is recognised as such rather than reported as malformed.
+moves, that a pre-tightening document is recognised as an identity step rather than reported as
+malformed, and that no conversion is registered for any of the three steps.
 
 **Acceptance Scenarios**:
 
@@ -207,9 +271,11 @@ moves and that a pre-tightening document is recognised as such rather than repor
 4. **Given** the package build's own generation step, **When** it generates and validates the three
    default documents, **Then** it succeeds — the tightening must not break the build that produces
    the documents the tightening applies to.
-5. **Given** a document written before the tightening, **When** it is read, **Then** its version is
-   recognised and it is handled by the registered conversion path, not reported as an unknown
-   document.
+5. **Given** a document written before the tightening, **When** it is read, **Then** its version
+   marker is recognised as an **identity step** — no conversion is registered for it (FR-022a) —
+   and the document is judged by the tightened definition: a converged identity loads, and a
+   non-converged one is rejected with FR-024's actionable message. It is never reported as an
+   unknown or malformed document.
 
 ---
 
@@ -270,7 +336,16 @@ against the actual trees rather than asserted.
    backups and conversion backups are **not** rewritten and must not be restored afterwards.
 3. **Given** the migration guide, **When** an operator finishes a re-mint, **Then** it gives a
    verification procedure that measures success rather than inferring it from the absence of
-   errors.
+   errors — including the roll-call: one completion record per node in the map, counted against the
+   map's rows, rather than the controller's run exiting cleanly.
+4. **Given** a cluster that arrives at the migration with two nodes already sharing an identity,
+   **When** the operator reads the guide, **Then** it gives the manual resolution procedure to run
+   **before** the re-mint, while the map still loads — because the re-mint aborts on a collision, the
+   library refuses to guess which row is the real node, and after the narrowing that map does not
+   load at all.
+5. **Given** the migration guide, **When** an operator reads the procedure, **Then** the step that
+   copies the substitution table from the controller to each remaining node is numbered among the
+   others, and the guide says that a node invoked without it refuses by design.
 
 ---
 
@@ -345,10 +420,23 @@ against the actual trees rather than asserted.
 - **FR-006**: The system MUST mint every new identity through this library's existing identity
   minter, which produces uuid4 and refuses any other shape, so a minted value cannot be one the
   tightened definition will reject.
+- **FR-006a**: The re-mint MUST remain usable on documents the tightened definition refuses, for the
+  same reason FR-001 states it of the check and for two further ones of its own. After the narrowing
+  lands, every deployed non-converged document **is** invalid, and repairing them is the re-mint's
+  entire purpose; and FR-019's collision abort must read a network map that FR-019a's new rule
+  refuses at read time in order to name the two rows. Every path that reads a possibly-invalid
+  document — the survey, the collision check and the substitution itself — MUST therefore read with
+  stdlib XML only and MUST NOT route through the validating load path. The one exception is the
+  **post-write** verification of FR-017, which validates on purpose and runs only after the
+  rewrite has made validation possible.
 - **FR-007**: The substitution table mapping each old identity to exactly one new identity MUST be
   built once, on the controller, and MUST be persisted before any file is written. Every node that
   rewrites its own configuration documents MUST do so from **that** table, never from one it
-  minted itself.
+  minted itself. **How the table travels MUST be stated, not implied**: the operator copies the
+  persisted table from the controller to each node and names it on that node's invocation. This
+  feature adds no transport of its own — the table is one small file and the migration is already
+  an attended, stop-the-world procedure — but the copy is a step in the procedure and the
+  migration guide MUST carry it (FR-034).
 - **FR-008**: A re-mint re-run after an interruption MUST resume from the persisted table and MUST
   NOT mint a second identity for a node already partly rewritten.
 - **FR-009**: The re-mint MUST replace identities by literal substitution of the whole 36-character
@@ -382,13 +470,20 @@ against the actual trees rather than asserted.
 - **FR-013**: The re-mint MUST be idempotent: a second run over a converged cluster MUST substitute
   nothing and MUST change no file's bytes.
 - **FR-014**: A node already carrying a valid uuid4 MUST be left unchanged by the re-mint.
-- **FR-015**: The re-mint MUST NOT rewrite backup files, and the system MUST state that restoring a
-  pre-migration backup reintroduces a stale identity.
+- **FR-015**: The re-mint MUST NOT rewrite backup files of any kind. The operator-facing half of
+  this — that restoring a pre-migration backup reintroduces a stale identity — is a documentation
+  obligation and is stated once, in the Documentation block, as FR-033a.
 - **FR-016**: After a re-mint, an exhaustive search for every old identity over the configuration
   directory and the whole library MUST return nothing; the system MUST provide this as a
   verification step rather than leaving it to the operator to invent.
 - **FR-017**: After a re-mint, every touched document MUST validate against its schema, and a full
   load MUST succeed on each node.
+- **FR-017a**: Because the configuration reach is per node (FR-011a), each node's run MUST leave a
+  **completion record** naming the table it ran from, the paths it rewrote and the result of its own
+  FR-016/FR-017 verification. The operator MUST be able to assemble those records into a roll-call
+  covering every node in the map, because that is the only thing that distinguishes "the cluster is
+  converged" from "every node I happened to run it on is converged". A node absent from the
+  roll-call is the failure FR-036's detector catches far downstream and much later.
 - **FR-018**: After a re-mint, each node's adoption and online state MUST be exactly what it was
   before — only the identity moves.
 - **FR-019**: Where two nodes are found to share an identity, the re-mint MUST abort before writing
@@ -403,12 +498,13 @@ against the actual trees rather than asserted.
 - **FR-019b**: An identity supplied explicitly to the node identity tool MUST be checked against the
   network map, not only for shape. Today only its shape is validated, so an operator can set a
   collision and be told the run succeeded.
-- **FR-019c**: The substitution table MUST be built once on the controller and distributed, per
-  FR-007. The existing tool mints locally, per node, which §10.3 warns gives the controller's map
-  and the node's own configuration different answers. A node that is **not** the controller MUST
-  refuse to build a table of its own, and MUST accept a table the controller built and handed to
-  it. The refusal is therefore on *minting without being the controller*, never on *using a table
-  another node built* — which is the table's whole purpose.
+- **FR-019c**: The build-once-on-the-controller rule is FR-007's and is not restated here. What
+  this requirement adds is the **refusal that enforces it**: a node that is not the controller MUST
+  refuse to build a table of its own, and MUST accept a table the controller built and handed to it.
+  The existing tool mints locally, per node, which §10.3 warns gives the controller's map and the
+  node's own configuration different answers. The refusal is therefore on *minting without being
+  the controller*, never on *using a table another node built* — which is the table's whole
+  purpose.
 - **FR-019d**: A preserved identity whose recorded hardware address does not match the hardware the
   tool is running on MUST be refused, with re-minting offered. This closes disk cloning — the route
   by which a venue provisions nodes, and the one that reproduces a collision after a correct
@@ -426,8 +522,21 @@ therefore the **admitted** set — converged ∪ sentinel — and the two words 
 interchangeable. The distinction is load-bearing: FR-021b turns on the sentinel *not* being
 converged, and so does the published coercion rule (FR-030).
 
-- **FR-020**: The node identity definition in the network map MUST narrow to the project's
-  converged definition: uuid4, lowercase, exactly 36 characters.
+- **FR-020**: The node identity definition in the network map MUST narrow to the admitted set built
+  on the project's converged definition: uuid4, lowercase, exactly 36 characters.
+- **FR-020c**: The narrowing MUST be carried by **retyping** the network map's node identity to the
+  new node-identity type of FR-021c and **deleting** the network map's own `UuidType` declaration,
+  rather than by editing that declaration in place. Stated as a requirement because the obvious
+  route is blocked and the blockage is mechanical, not aesthetic. `UuidType` is declared in both the
+  network map and the show-script schema, and the project's overlap ratchet admits exactly two
+  states for a name declared twice: recorded as an **identical** duplicate, which the test enforces
+  by comparing the declarations' content, or recorded as a **divergent** one, which the test
+  enforces by requiring them to still differ. The show script's `UuidType` types cue and media
+  identifiers, so FR-021's "admitted for node identities and nowhere else" forbids giving it the
+  sentinel — the two declarations therefore can never be made identical, and editing the network
+  map's in place would leave the divergence permanently unresolvable. Deleting it instead leaves
+  `UuidType` declared in one schema only, so the name no longer overlaps at all, which is the state
+  FR-025's completion marker actually requires.
 - **FR-020a**: The node identity declared as free text in the project mappings MUST narrow to the
   same converged definition, since it names the same nodes as the network map and diverging there
   would reproduce the defect this feature exists to close.
@@ -442,12 +551,6 @@ converged, and so does the published coercion rule (FR-030).
   be admitted as a generally valid identity anywhere it is not the documented placeholder — it is
   admitted for node identities and nowhere else, and it never becomes *converged* by being
   admitted.
-- **FR-021c**: The admitted set MUST be expressed as a **union of two separately named
-  definitions** — one for the converged shape, one for the sentinel — rather than as a single
-  widened pattern, in the schemas and in the library's own identity type alike. Each half is then
-  nameable, testable and removable on its own, and a reader can see that the sentinel is a
-  placeholder admitted by exception rather than a shape the converged definition happens to allow.
-  This is assumption 1 made structural: admitted by union, not by loosening.
 - **FR-021a**: The node's own identity, in the configuration document, MUST be typed rather than
   left as free text: uuid4 **or** the not-provisioned sentinel, and nothing else. A uuid1 or uuid5
   written there MUST be refused, as it already is in the network map.
@@ -455,6 +558,23 @@ converged, and so does the published coercion rule (FR-030).
   identity type the network map yields; the sentinel, which is admitted but not converged, MUST
   decode to the published sentinel constant (FR-031) and to nothing else. The decoded type therefore varies only between "provisioned" and "not provisioned", and a
   consumer needs exactly one documented check to tell them apart.
+- **FR-021c**: The admitted set MUST be expressed as a **union of two separately named
+  definitions** — one for the converged shape, one for the sentinel — rather than as a single
+  widened pattern, in the schemas and in the library's own identity type alike. Each half is then
+  nameable, testable and removable on its own, and a reader can see that the sentinel is a
+  placeholder admitted by exception rather than a shape the converged definition happens to allow.
+  This is assumption 1 made structural: admitted by union, not by loosening. The union itself MUST
+  also be named, so that all three schemas spell the node identity as one type name rather than
+  three copies of a union expression, and so that FR-020c's retyping has something to point at.
+- **FR-021d**: The three names FR-021c introduces MUST be recorded as **identical duplicates** in
+  the project's overlap allowlist, in the same change that introduces them. Stated because the
+  structural fact behind it is easy to get wrong: the six schemas share one target namespace but
+  **none of them includes or imports another**, so a type used by three schemas is declared three
+  times, once per file. Nothing in the schema layer keeps the three copies in step — the guard is
+  the allowlist's own drift test, which fails the moment one copy gains a facet the others lack.
+  A new name declared twice and left unrecorded fails the ratchet at the commit that introduces it,
+  which is the ratchet working; recording it is how the convergence avoids re-diverging one level
+  down, and no claim that the three schemas "reference the same definition" may stand in its place.
 - **FR-022**: The narrowing MUST be carried as a file-format migration under the project's schema
   evolution convention: a document-version step for **each of the three** schemas whose definition
   moves — the network map, the project mappings and the settings. The settings schema moves
@@ -475,11 +595,16 @@ converged, and so does the published coercion rule (FR-030).
 - **FR-024**: A document rejected for a non-converged identity MUST produce an error naming the
   document, the path, the offending value, and the tool that repairs it.
 - **FR-025**: The completion marker for the convergence is that the recorded divergence between the
-  two identity definitions is removed from the duplication allowlist. While that entry is present
-  the corresponding test requires the divergence to still exist, so the entry and the schema change
-  MUST move in the same change.
+  two identity definitions leaves the duplication allowlist **because the name no longer overlaps**
+  — FR-020c's deletion, not a re-converging of two declarations that FR-021 forbids re-converging.
+  The entry and the schema change MUST move in the same change, in both directions: while the entry
+  is listed, its own test requires the divergence to still exist, and once the name is declared in
+  one schema only, a different test requires the now-stale entry to be removed. Either half alone
+  fails.
 - **FR-026**: Every schema whose content changes MUST have its pinned content hash updated in the
-  same commit, with the reason in the commit message.
+  same commit, with the reason in the commit message. The same commit MUST carry FR-021d's
+  allowlist entries and FR-025's removal, for the same reason: each is a pin that the schema edit
+  invalidates, and a pin left behind is a test asserting something that is no longer true.
 - **FR-027**: Negative fixtures affected by the tightening MUST be re-checked for *which* error
   they now raise, not merely that they still fail.
 
@@ -507,14 +632,28 @@ converged, and so does the published coercion rule (FR-030).
   result recorded per repository. This is a blocking precondition of the change, not a follow-up:
   one consumer is measured and the rest are not, and a changed type where a string was is silent
   wherever anything slices, sorts or concatenates it.
+- **FR-032a**: The same census MUST also cover FR-019a's new refusal, because that is the feature's
+  **second** change to what a consumer receives and the only one that turns a successful read into
+  an exception. A network map carrying two rows with one identity loads today — `NodeIndex.merge`
+  collapses the duplicate silently (M-l) — and raises `ValidationError` for every reader afterwards.
+  Each sibling repository MUST therefore be recorded twice over: what it does with the own-identity
+  accessor's type, and what it does when a map read raises. Both are recorded in the one census
+  artifact, and both are blocking for the same reason — the failure is silent in the first case and
+  loud in the wrong place in the second.
 
 #### Documentation
 
 - **FR-033**: The migration guide MUST state that a re-imaged node no longer regenerates its former
   identity and must be re-adopted.
+- **FR-033a**: The migration guide MUST state that backups are not rewritten (FR-015) and that
+  restoring a pre-migration or conversion backup after the re-mint reintroduces a stale identity.
+  This is the operator-facing half of FR-015, stated here rather than there so the hazard has one
+  home.
 - **FR-034**: The migration guide MUST name the components that must be stopped before a re-mint,
   including the one that writes the network map and could otherwise reintroduce an old identity
-  mid-pass.
+  mid-pass. It MUST also carry the **table copy** as a numbered step (FR-007): where the controller
+  leaves the persisted table, how the operator gets it onto each remaining node, and that a node
+  invoked without it refuses by design rather than by accident.
 - **FR-035**: The migration guide MUST state that the re-mint ships in the same upgrade as the
   consumer version that can handle the resulting identity type, and MUST never run under an older
   one. That version MUST be named in the guide's precondition list.
@@ -525,6 +664,18 @@ converged, and so does the published coercion rule (FR-030).
   of them this feature closes, so an operator learns that cloning a provisioned disk is now
   refused rather than silently duplicating an identity — a change to how venues provision nodes,
   and the one operator-visible consequence of FR-019d.
+- **FR-036b**: The migration guide MUST give the operator a procedure for a **pre-existing**
+  collision, because without one the migration has a dead end. The re-mint aborts on a shared
+  identity (FR-019) and the library cannot resolve it (FR-019a is not repairable), and after the
+  narrowing that same map does not load at all — so a cluster that arrives at the migration with a
+  collision is stopped by two requirements and released by neither. The procedure MUST be the manual
+  one the library refuses to automate: how to decide from the two rows' hardware addresses and the
+  scripts naming the shared token which node the outputs belong to, that the other node is treated
+  as never provisioned and re-minted by the identity tool, and that this is done **before** the
+  re-mint, on a map that still loads.
+- **FR-036c**: The migration guide MUST state the **roll-call** FR-017a's records make possible: the
+  operator confirms the cluster is converged by holding one completion record per node in the map,
+  not by the controller's run finishing without error.
 - **FR-037**: Facts the planning documents state that this feature measures to be different MUST be
   recorded as corrections in this specification and then applied to the planning documents, never
   changed silently.
@@ -547,21 +698,34 @@ converged, and so does the published coercion rule (FR-030).
   | Budget | Value | Basis |
   |---|---|---|
   | Throughput floor | **500 MB/s** scanned and rewritten | the operation is read, literal substitution, write — no parsing, no reserialisation. Below this the implementation is doing something other than the operation |
-  | Agreement between the two node counts | **within 1%** | a per-node repeated pass cannot hide inside 1%; ordinary I/O noise fits within it on the fixture's scale |
+  | Agreement between the two node counts — **2 and 10**, the ends of the cluster range | the slower measurement's time over the faster one's is **≤ 1.10×** | a per-node repeated pass multiplies the work by five between these two counts, so it cannot hide inside 1.10×. Stated as a **ratio**, not a percentage: the fixture's absolute time is a few milliseconds, where a 1% tolerance is below ordinary timing noise and would have measured the machine's jitter rather than the implementation. 2 and 10 are named because the tolerance is meaningless without knowing what it separates |
   | Named fixture ceiling | **`remint_200`** — 200 projects, ~4 MB — completes in **≤ 2.0 s** | an initial estimate from the floor plus process overhead, **explicitly provisional**: it MAY be adjusted once measured, in one direction only — downward, toward the measured figure — and never raised to accommodate an implementation |
 
   The ceiling is the one figure stated as an estimate rather than a requirement, and it is marked
   as such so that adjusting it later is a recorded decision rather than a silent relaxation. The
-  throughput floor and the 1% agreement are **not** provisional: they are what the tests are for.
-- **FR-PERF-002**: The read path MUST be measured against the existing recorded baseline to show the
-  tightened definition adds no regression. Budgets are recorded as measured, including when they
-  are exceeded.
+  throughput floor and the 1.10× agreement are **not** provisional: they are what the tests are for.
+- **FR-PERF-002**: The read path MUST be measured against feature 008's recorded baseline —
+  `specs/008-rebuild-extension/baseline.md`, the load-timing table, named exactly because three
+  later baselines exist and "the recorded baseline" does not pick one. Two rows are compared
+  differently, and the difference is not a convenience: the show-document row is compared against
+  its **budget**, while the `network_map` configuration row is compared against its **measured
+  band** of 10.14–10.49 ms, because that row is recorded there as exceeded-or-marginal against its
+  own 10.20 ms budget. Comparing it to the budget would assert a threshold the baseline itself does
+  not meet, and a test that fails for a reason predating the feature tells a reader nothing about
+  the feature. Budgets are recorded as measured, including when they are exceeded.
 - **FR-PERF-003**: Before the re-mint writes anything, it MUST report an **estimated duration** to
-  the operator, derived from the measured throughput, the library's actual measured size and the
-  node count. The re-mint is a stop-the-world operation on a live installation — services stopped,
-  no shows running — so the operator must be able to decide whether the window is long enough
-  before committing, not discover it midway. The estimate MUST be presented alongside the
-  confirmation FR-UX-001 requires for a destructive step.
+  the operator: the surveyed byte volume divided by a throughput the run **measures on the machine
+  it is running on**, not by the FR-PERF-001 floor. The distinction is what makes the estimate meet
+  SC-PERF-003's tolerance rather than miss it by construction — 500 MB/s is a *floor*, so an
+  implementation that beats it by 2× would report an estimate twice the actual duration and still be
+  a correct implementation. The measurement MUST come from the survey itself, which already reads
+  every byte the apply pass will read: the survey records its own elapsed time and bytes read, and
+  that observed rate is what the estimate divides by. Where the survey is too small to time
+  meaningfully, the run MUST fall back to the FR-PERF-001 floor and MUST say that it did, so a
+  pessimistic estimate is never passed off as a measured one. The re-mint is a stop-the-world
+  operation on a live installation — services stopped, no shows running — so the operator must be
+  able to decide whether the window is long enough before committing, not discover it midway. The
+  estimate MUST be presented alongside the confirmation FR-UX-001 requires for a destructive step.
 
 ### Key Entities
 
@@ -576,8 +740,14 @@ converged, and so does the published coercion rule (FR-030).
   identity. Coherent but actionable: not a stale identity, and not a converged one.
 - **Identity report** — what the read-only check produces: every occurrence, by document and path,
   with its classification.
-- **Version step and conversion** — the pair the schema evolution convention requires for any
-  change that invalidates documents already on disk.
+- **Completion record** — what each node's run leaves behind: the table it ran from, the paths it
+  rewrote, its own verification result. One per node; the set of them is the roll-call that answers
+  "is the cluster converged?" rather than "did my run finish?".
+- **Version step** — what the schema evolution convention requires for a change that invalidates
+  documents already on disk. Here it is an **identity** step in all three schemas: the version
+  increments and **no conversion is registered**, because the machinery represents an identity step
+  as the absence of a registry entry and the repair is cross-document and out-of-band by design
+  (FR-022a, FR-023).
 
 ---
 
@@ -592,6 +762,10 @@ converged, and so does the published coercion rule (FR-030).
   a full load succeeds on **every** node in the cluster — each node's own configuration documents
   having been rewritten locally from the distributed table, and the library having been rewritten
   once on the controller (FR-011a).
+- **SC-002b**: "Every node" is demonstrated rather than assumed: the operator holds **one completion
+  record per node in the network map**, each naming the table it ran from and its own verification
+  result, and the count of records equals the count of rows (FR-017a). A cluster with a node missing
+  from the roll-call is reported as incomplete, not as converged.
 - **SC-002a**: After the library is rewritten on the controller, every rewritten file's
   modification time is later than it was before, so the replication machinery's size-and-time
   quick check transfers it. Verified by comparison, not assumed — the substitution preserves file
@@ -609,15 +783,17 @@ converged, and so does the published coercion rule (FR-030).
   and uuid5 — is rejected by the tightened definition, and the pristine freshly-installed document
   set is accepted.
 - **SC-008**: The package's build-time document generation succeeds under the tightened definition.
-- **SC-009**: The recorded divergence between the two identity definitions is removed from the
-  duplication allowlist, and the test that requires the divergence to exist while the entry is
-  present passes without it.
+- **SC-009**: `UuidType` is declared in **one** schema, the divergence entry is gone from the
+  duplication allowlist, and the three new node-identity type names are recorded there as identical
+  duplicates instead (FR-020c, FR-021d, FR-025). All three overlap tests pass together: no
+  unrecorded name is declared twice, no recorded name has diverged, and no recorded name is stale.
 - **SC-010**: On a provisioned node, a node identity read through **every** public accessor returns
   the same type, and a collection of them sorts without error. On a node that is not provisioned,
   **every** accessor returns the published sentinel constant.
-- **SC-011**: The consumer census for the own-identity accessor's changed return type covers
-  **every** sibling repository by name, with the result recorded per repository, and is complete
-  **before** the type changes.
+- **SC-011**: The consumer census covers **every** sibling repository by name, with **two** results
+  recorded per repository — what it does with the own-identity accessor's changed return type, and
+  what it does when a network-map read raises for a colliding identity (FR-032, FR-032a) — and is
+  complete **before** either change lands.
 - **SC-012**: A network map carrying two rows with one identity is refused at read time by the
   registered rule, and reported as not repairable.
 - **SC-013**: Each of the four measured collision routes (M-l) is closed or explicitly refused:
@@ -626,13 +802,19 @@ converged, and so does the published coercion rule (FR-030).
   on the controller.
 - **SC-PERF-001**: The re-mint's measured throughput is **at least 500 MB/s**, and the named
   fixture `remint_200` completes within **2.0 s** (provisional per FR-PERF-001). Throughput is
-  measured at **two** node counts over the same library and the two figures agree **within 1%**,
-  so that a per-node repeated pass is visible as a departure from a flat line rather than hidden
-  inside one figure.
-- **SC-PERF-002**: The show-document and configuration-document load timings stay within the
-  recorded baseline's budget, measured on the same method as that baseline.
+  measured at **2 and 10** nodes over the same library bytes, and the slower run's elapsed time is
+  **≤ 1.10×** the faster run's — a ratio rather than a percentage, because the fixture runs in
+  milliseconds and a 1% tolerance would have measured machine jitter. A per-node repeated pass makes
+  the 10-node run about five times the 2-node run, so it cannot pass this bound.
+- **SC-PERF-002**: Measured on feature 008's method against
+  `specs/008-rebuild-extension/baseline.md`: the show-document load stays within its recorded
+  **budget**, and the `network_map` configuration load stays within its recorded **measured band**
+  of 10.14–10.49 ms — that row's budget is recorded there as exceeded-or-marginal, so the band is
+  what a regression is measured against (FR-PERF-002).
 - **SC-PERF-003**: The duration the re-mint estimates before starting is within **±25%** of the
-  duration it actually takes, measured on the named fixture at both node counts. The tolerance is
+  duration it actually takes, measured on the named fixture at both node counts — achievable
+  because the estimate divides by the throughput the survey measured on that machine, not by the
+  FR-PERF-001 floor, which an implementation is expected to beat. The tolerance is
   wide on purpose: the estimate exists so an operator can judge whether a maintenance window is
   long enough, which is a question about minutes, not milliseconds — and a tight tolerance on a
   sub-second fixture would measure process startup rather than the operation. An estimate the
@@ -662,6 +844,8 @@ measured 2026-09-29 against `feat/xml-refactor` at `2a88a7c`.
 | **M-n** | The script filename is recorded in **no document this library reads**. It is an editor-internal settings-dict key, and the two components that use it disagree: the editor's CLI sets `script.xml` while its project manager documents `cue_script.xml`, and the engine hardcodes `script.xml`. A tool cannot "discover the configured filename" because there is no configuration carrying it — scripts must be identified by root element instead (research R3) | FR-012's original wording, "MUST discover the configured script filename", which assumed a configuration value exists. Reworded 2026-09-30 to its intent |
 | **M-o** | Files outside the configuration directory **do** carry node identities, in both forms, so the library reach is required rather than precautionary: each project's mappings carry a bare identity (`NodeMappingType/uuid`), and each project's script carries one embedded in compound output names (corpus: `0367f391-…-000000000001_0`). Separately, the library reaches the nodes by rsync **from the controller** on project load, with `-rt` and no checksum flag — so the quick check is size plus modification time. The substitution is length-preserving, which makes the modification time the **only** signal that a rewritten file differs (FR-011b) | the assumption that the re-mint's reach into the library was a matter of thoroughness, and the absence of any statement about how a rewritten library reaches the nodes |
 | **M-j** | The consumer's four questions arrived as an upstream report from `cuems-engine` feature 008 dated 2026-09-29, measured against this repository at `996617f`. They are input to the clarification pass, not decisions | the planning documents, which predate the report and do not mention it |
+| **M-p** | The overlap ratchet (`tests/contract/test_schema_name_overlap.py`) leaves **one** way to resolve `UuidType`: four tests together admit a twice-declared name only as a recorded *identical* duplicate (bodies must match, whitespace-normalised) or a recorded *divergent* one (bodies must still differ), and require a name that stops overlapping to leave the file. And **none of the six schemas imports or includes another** — they share only a target namespace, so a shared type is declared once per file, `NonEmptyString`'s four-way duplication being the precedent | the allowlist's own recorded verdict, written 2026-09-23 before M-f: "script's is the surviving definition and network_map's narrows to **match**". With the sentinel exception it can never match, so the narrowing must be a rename-and-delete (FR-020c) and the three new names must be recorded as identical duplicates (FR-021d). The verdict text is removed by the same commit, so the correction lands where the claim lived |
+| **M-q** | Feature 008's baseline records the `network_map` configuration-load row as **exceeded-or-marginal**, not passing: three trials of five runs gave medians 9.984 / 10.486 / 10.214 ms against a 10.20 ms budget, with the mechanism identified and no mitigation applied in that pass | FR-PERF-002's original "the existing recorded baseline", which named none of the three baselines that exist and, for this row, would have asserted a budget the baseline itself does not meet. The show-document row is compared to its budget; this row is compared to its measured band |
 
 The consumer's own measurements (M-a to M-e in the upstream report) are not restated here; they
 are cited by the requirements they drive — FR-028 and FR-029 (one type, sortable), FR-030 (the
@@ -678,7 +862,12 @@ argue for it.
 1. **The sentinel is admitted by union, not by loosening.** FR-021 is read as "uuid4 **or** the
    documented sentinel", keeping every other value rejected — rather than relaxing the pattern to a
    shape that would admit other nil-like values. Made structural by FR-021c (2026-09-30): the union
-   is two separately named definitions, not one widened pattern.
+   is two separately named definitions, not one widened pattern, and the union itself is named so
+   all three schemas spell the node identity as one type name. Its two consequences are requirements
+   rather than assumptions, because both are mechanical: the named union is what the network map's
+   node identity is **retyped to**, which is what lets its `UuidType` declaration be deleted and the
+   divergence resolved at all (FR-020c); and the three names, being declared once per schema in a
+   set of schemas that import nothing, must be recorded as identical duplicates (FR-021d).
 2. **The deleted-projects area is included** in the re-mint's reach by default (§10.5): a project
    restored from it after the migration would otherwise reintroduce a stale identity. Excluding it
    is defensible only if restoring from there is accepted as requiring a re-run, and that would be a
