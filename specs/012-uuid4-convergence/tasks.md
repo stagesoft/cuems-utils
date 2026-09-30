@@ -149,69 +149,69 @@ adoption state per node is unchanged, and a second run rewrites nothing.
 
 ### Tests for User Story 2
 
-- [ ] T020 [P] [US2] Test the table's invariants in `tests/unit/test_substitution_table.py` —
+- [X] T020 [P] [US2] Test the table's invariants in `tests/unit/test_substitution_table.py` —
       every new value is uuid4 minted through the library's only minter (**FR-006**), all distinct,
       no new value appears as an old one, an already-converged node has no entry, keys built from
       node identities only (**FR-010**, data-model §2.1)
-- [ ] T021 [P] [US2] Test in `tests/integration/test_remint_persists_first.py` — the table exists
+- [X] T021 [P] [US2] Test in `tests/integration/test_remint_persists_first.py` — the table exists
       on disk **before** the first document is written (FR-007)
-- [ ] T022 [P] [US2] Test in `tests/integration/test_remint_resume.py` — interrupted after some
+- [X] T022 [P] [US2] Test in `tests/integration/test_remint_resume.py` — interrupted after some
       files, a re-run loads the table rather than rebuilding it and no node receives a second new
       identity (FR-008, **SC-006**, data-model §2.2). Also assert the refusal rule in the direction
       data-model §2.2a and contracts/cli-remint.md state it: a table whose `controller` is not
       **this node** is accepted, and only one whose `controller` is not **the map's** controller is
       refused
-- [ ] T023 [P] [US2] Test in `tests/integration/test_remint_idempotent.py` — a second run over a
+- [X] T023 [P] [US2] Test in `tests/integration/test_remint_idempotent.py` — a second run over a
       converged cluster substitutes nothing and changes zero bytes in zero files (FR-013, **SC-004**)
-- [ ] T024 [P] [US2] Test in `tests/integration/test_remint_compound.py` — `<output_name>` values
+- [X] T024 [P] [US2] Test in `tests/integration/test_remint_compound.py` — `<output_name>` values
       of the form `<old>_<output>` carry the new identity with the rest of the value byte-identical,
       and every other byte in the file is unchanged (FR-009)
-- [ ] T025 [P] [US2] Test in `tests/integration/test_remint_collision_aborts.py` — two nodes
+- [X] T025 [P] [US2] Test in `tests/integration/test_remint_collision_aborts.py` — two nodes
       sharing an identity: the run aborts, names both rows **with their MACs** and every script
       referencing the token, and **no file is modified** (FR-019)
-- [ ] T026 [P] [US2] Test in `tests/integration/test_remint_leaves_converged.py` — a node already
+- [X] T026 [P] [US2] Test in `tests/integration/test_remint_leaves_converged.py` — a node already
       carrying a valid uuid4 is untouched and no file mentioning only that node is rewritten (FR-014)
-- [ ] T027 [P] [US2] Test in `tests/integration/test_remint_exhaustive.py` — after a run, a
+- [X] T027 [P] [US2] Test in `tests/integration/test_remint_exhaustive.py` — after a run, a
       recursive search for every old token over the configuration directory and the whole library
       returns nothing (FR-016, SC-001)
-- [ ] T028 [P] [US2] Test in `tests/integration/test_remint_preserves_adoption.py` — `adopted` and
+- [X] T028 [P] [US2] Test in `tests/integration/test_remint_preserves_adoption.py` — `adopted` and
       `online` per node are identical before and after (FR-018, SC-003)
-- [ ] T029 [P] [US2] Test in `tests/integration/test_remint_reach.py` — scripts under any filename,
+- [X] T029 [P] [US2] Test in `tests/integration/test_remint_reach.py` — scripts under any filename,
       optional per-project `mappings.xml`, and `trash/projects/` are all rewritten (FR-011, FR-012)
-- [ ] T029a [P] [US2] Test in `tests/integration/test_remint_documents_valid.py` — after a run,
+- [X] T029a [P] [US2] Test in `tests/integration/test_remint_documents_valid.py` — after a run,
       **every touched document validates against its schema** and a **full load succeeds for each
       node** (FR-017, SC-002). Distinct from T027, which proves only that no old token survives:
       a file can be token-free and still unloadable
-- [ ] T029b [P] [US2] Test in `tests/integration/test_remint_mtime_advances.py` — every rewritten
+- [X] T029b [P] [US2] Test in `tests/integration/test_remint_mtime_advances.py` — every rewritten
       library file is **the same size** as before and its **modification time is later**. The
       replication that carries the library to the nodes compares size and time with no checksum,
       so the time is the only signal it has; a rewrite that restored times would strand every
       replica silently (FR-011b, SC-002a, research R11)
-- [ ] T029c [P] [US2] Test in `tests/integration/test_remint_scope_split.py` — on a node that is
+- [X] T029c [P] [US2] Test in `tests/integration/test_remint_scope_split.py` — on a node that is
       **not** the controller: with `--table`, only its own configuration documents are rewritten
       and the library replica is **untouched**; without `--table`, the run **refuses** rather than
       minting one locally; and a table whose `controller` is the map's controller is **accepted**,
       which is the normal case everywhere but one (FR-011a, FR-019c, contracts/cli-remint.md)
-- [ ] T029d [P] [US2] Test in `tests/integration/test_remint_on_invalid_documents.py` — the survey
+- [X] T029d [P] [US2] Test in `tests/integration/test_remint_on_invalid_documents.py` — the survey
       and the collision abort both run to completion on documents the **tightened** schema refuses:
       a uuid1 cluster, and a network map with two rows sharing an identity, which FR-019a's new rule
       refuses at read time. Assert the abort still names both rows and their MACs, which it can only
       do by having read the map. This is the re-mint's half of the property FR-001 states for the
       check, and it is not implied by ordering — US2 lands before US3, but the re-mint is what a
       deployed cluster runs *after* upgrading to the narrowed library (FR-006a)
-- [ ] T029e [P] [US2] Test in `tests/integration/test_remint_completion_record.py` — each run leaves
+- [X] T029e [P] [US2] Test in `tests/integration/test_remint_completion_record.py` — each run leaves
       a completion record naming the table's digest, the scope, the paths rewritten and each
       verification result; two nodes' records assemble into a roll-call whose key set equals the
       map's rows; and a run on a three-node map with only two records present is reported as
       **incomplete**, not converged (FR-017a, SC-002b, data-model §2.3)
-- [ ] T030 [P] [US2] Test in `tests/integration/test_clone_refused.py` — a stored identity whose
+- [X] T030 [P] [US2] Test in `tests/integration/test_clone_refused.py` — a stored identity whose
       recorded MAC is not this hardware's is refused with re-minting offered, and a **matching**
       MAC still preserves the identity (FR-019d, research R6)
-- [ ] T031 [P] [US2] Test in `tests/contract/test_uuid_flag_checked.py` — an explicit identity that
+- [X] T031 [P] [US2] Test in `tests/contract/test_uuid_flag_checked.py` — an explicit identity that
       collides with a row in the network map is refused; a non-colliding uuid4 is accepted (FR-019b)
-- [ ] T032 [P] [US2] Test in `tests/integration/test_remint_backups_untouched.py` — `.bak-*` and
+- [X] T032 [P] [US2] Test in `tests/integration/test_remint_backups_untouched.py` — `.bak-*` and
       conversion backups are **not** rewritten (FR-015)
-- [ ] T033 [P] [US2] Test in `tests/unit/test_remint_estimate.py` — the estimate is surveyed bytes
+- [X] T033 [P] [US2] Test in `tests/unit/test_remint_estimate.py` — the estimate is surveyed bytes
       divided by the throughput **the survey observed on this machine**, not by the 500 MB/s floor:
       feed the survey a known elapsed time and byte count and assert the arithmetic, then assert that
       a survey too small to time falls back to the floor **and says so in its output**. `--dry-run`
@@ -219,44 +219,44 @@ adoption state per node is unchanged, and a second run rewrites nothing.
 
 ### Implementation for User Story 2
 
-- [ ] T034 [US2] Create `src/cuemsutils/tools/remint.py` with the survey — classify every identity
+- [X] T034 [US2] Create `src/cuemsutils/tools/remint.py` with the survey — classify every identity
       across the configuration documents and the library, reading with **stdlib XML only** and never
       through the validating load path (FR-006a), and returning the byte volume **and its own elapsed
       time**, which together are the observed throughput the estimate divides by (FR-PERF-003)
-- [ ] T035 [US2] Implement collision detection in `remint.py`, run **after** the survey and
+- [X] T035 [US2] Implement collision detection in `remint.py`, run **after** the survey and
       **before the table is built** — earlier than "before any write", so an abort costs not even a
       minted identity — aborting per contracts/cli-remint.md. It reads the map with stdlib XML,
       because a colliding map is exactly what FR-019a's rule refuses at read time and the abort
       message must name both rows (FR-006a)
-- [ ] T036 [US2] Implement table build and persistence in `remint.py` — minted through
+- [X] T036 [US2] Implement table build and persistence in `remint.py` — minted through
       `cuemsutils.tools.Uuid`, checked for minted collisions, persisted before the first write
-- [ ] T037 [US2] Implement the apply loop in `remint.py` — per file: read, substitute every entry,
+- [X] T037 [US2] Implement the apply loop in `remint.py` — per file: read, substitute every entry,
       write to a temporary, `os.replace`, append the path to `applied`
-- [ ] T037a [US2] Implement the **scope split** in `remint.py` (FR-011a) — determine whether this
+- [X] T037a [US2] Implement the **scope split** in `remint.py` (FR-011a) — determine whether this
       node is the controller from its role in the network map; the library reach runs **only** on
       the controller, the configuration reach on every node. A plain node with no table refuses
       rather than minting; a plain node never rewrites its library replica
-- [ ] T038 [US2] Implement resume in `remint.py` — load an existing table, skip `applied` paths,
+- [X] T038 [US2] Implement resume in `remint.py` — load an existing table, skip `applied` paths,
       never re-mint. Refuse a table whose `controller` is **not the map's controller** — *not* one
       whose controller is merely not this node, which is the normal, intended case on every node
       but one (contracts/cli-remint.md, "Not a refusal")
-- [ ] T039 [US2] Implement the verification pass in `remint.py` — zero old tokens, every touched
+- [X] T039 [US2] Implement the verification pass in `remint.py` — zero old tokens, every touched
       document valid, a full load succeeds **on this node**, adoption state unchanged
       (FR-016–FR-018). This is the one place the validating load path is used, and it runs only after
       the rewrite has made validation possible
-- [ ] T039a [US2] Implement the completion record in `remint.py` — written after the verification
+- [X] T039a [US2] Implement the completion record in `remint.py` — written after the verification
       pass, into the state directory the tool already owns, carrying the table's digest, the scope,
       the paths rewritten and each verification result (FR-017a, data-model §2.3). Include the
       roll-call helper that keys records by node and compares the set against the map's rows: the
       controller's run exiting cleanly is not evidence about any other node, which is the whole
       reason this exists
-- [ ] T040 [US2] Add the `--uuid` map check to `_resolve_identity` in
+- [X] T040 [US2] Add the `--uuid` map check to `_resolve_identity` in
       `src/cuemsutils/tools/init_node.py` (FR-019b)
-- [ ] T041 [US2] Add clone refusal to `_resolve_identity` in `init_node.py` — derive the hardware
+- [X] T041 [US2] Add clone refusal to `_resolve_identity` in `init_node.py` — derive the hardware
       MAC unconditionally, compare with the stored one, refuse on mismatch pointing at
       `--force-new-identity`; a `_derive_mac` failure must stay a non-event on the preserve path
       (FR-019d, research R6)
-- [ ] T042 [US2] Implement the estimate and confirmation in `remint.py` — predicted duration is
+- [X] T042 [US2] Implement the estimate and confirmation in `remint.py` — predicted duration is
       surveyed bytes divided by **the throughput T034's survey observed on this machine**, presented
       with the `--yes` confirmation (FR-PERF-003). **Not** the 500 MB/s constant: that is a *floor*
       T077 asserts the implementation beats, so dividing by it would overstate every estimate by the
@@ -264,7 +264,7 @@ adoption state per node is unchanged, and a second run rewrites nothing.
       correct. The floor is the **fallback only**, used when the survey is too small to time
       meaningfully, and the output must say when it was used so a pessimistic estimate is never
       presented as a measured one
-- [ ] T043 [US2] Wire `--remint`, `--dry-run`, `--table` and `--resume` into `init_node.py`'s
+- [X] T043 [US2] Wire `--remint`, `--dry-run`, `--table` and `--resume` into `init_node.py`'s
       parser, following the tool's existing conventions (FR-UX-001, contracts/cli-remint.md).
       `--table` is how a node that is not the controller proceeds, so its help text must say that
       rather than describing it as an override
