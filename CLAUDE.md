@@ -242,7 +242,14 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     with no feature dir of its own. **All four candidate tags were reconciled 2026-09-29** —
     `cuems-common` `3af31cc` → `e3c9430`, `cuems-power-bridge` `d5c4226` → `13a9af4`,
     `cuems-nodeconf` held at `b305c1c` with its message corrected to name `e3c9430`; `cuems-utils`
-    still tags last by D27. Dated before/after tables in
+    still tags last by D27. **`cuems-power-bridge` moved once more the same day, `13a9af4` →
+    `399baf7`, for one line of `debian/control`** — verified 2026-09-30 against the tag itself,
+    which says so in its own message; this line said `13a9af4` until then, which is exactly the
+    drift the lesson below warns about. Local tags verified in sync with `origin` on that date:
+    `cuems-common` → `e3c9430`, `cuems-nodeconf` → `b305c1c`, `cuems-power-bridge` → `399baf7`;
+    `cuems-engine`, `cuems-editor`, `cuems-frontend` and `cuems-utils` carry **no** tag yet.
+    Tag messages are authored as files in `../.xml-refactor-tag-messages/` and applied with
+    `git tag -a -F`. Dated before/after tables in
     `specs/011-etc-cuems-first-install/baseline.md` §"UX pass and announcements".
     **The lesson that outlives the incident**: for one day the tag set did not compose, because
     nodeconf's renderer `sys.exit(-1)`s on a template with no sentinel and `cuems-common`'s tag
