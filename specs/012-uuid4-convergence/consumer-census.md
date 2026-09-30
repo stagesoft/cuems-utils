@@ -21,6 +21,20 @@ Column 1's measurement is research R4's; this document records it per repository
 2026-09-30, against each sibling's `feat/xml-refactor` branch. It found one
 repository R4 does not list at all.
 
+> **Superseded in part by [sibling-repository-updates.md](sibling-repository-updates.md),
+> 2026-09-30.** This census is a grep and a reading of exception handlers, which
+> is what FR-032 asked for. That document is a **measurement**: every sibling's
+> own test suite run twice, once against `cuems-utils` at `a451036` and once
+> against this branch.
+>
+> Both of this census's predicted risks produced **zero** test failures — rc7 had
+> already absorbed the type change, and no sibling has a colliding-map fixture
+> for the second column to fire on. The four failures that did occur came from
+> somewhere neither column looked: **test fixtures carrying identities that are
+> not uuid4**, in `cuems-nodeconf`. A census of *call sites* cannot find those,
+> because they are data. Read both; this one for the reasoning, that one for
+> what to change.
+
 ---
 
 ## The table

@@ -172,6 +172,21 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     gains a total ordering. `specs/012-uuid4-convergence/consumer-census.md` is the **blocking
     precondition** (FR-032) and found what R4's question could not: the **map read** change
     reaches four repositories, not two — `cuems-editor` reads the map and appears nowhere in R4.
+  - **The sibling impact was then *measured*, not inferred**
+    (`specs/012-uuid4-convergence/sibling-repository-updates.md`): each sibling's own suite run
+    against `a451036` and against this branch. `cuems-engine` 939/939 both arms,
+    `cuems-power-bridge` 276/276 both, `cuems-editor` unchanged (7 pre-existing failures, plus
+    two modules that have not imported since feature 008 retired `create_script`).
+    **`cuems-nodeconf` is the only repository with work to do: 4 failures, one cause, four
+    lines** — test fixtures whose node identities are not uuid4. The fix is verified to pass
+    against **both** library versions, so it can land ahead of the coordinated tag. Note what
+    this reverses: both risks the census predicted produced zero failures, and the real breakage
+    was in *data* a call-site census cannot see.
+  - **No rollback once `cuems-nodeconf` restarts**, measured: the re-mint is a literal
+    substitution and leaves `doc_version` alone, so a re-minted document is still readable by the
+    old library — but `CuemsNetworkMapType.save()` bumps the marker and nodeconf rewrites the map
+    every 30 s, after which an older `cuems-utils` refuses it with `DocumentTooNewError`. Stated
+    in the migration guide §9b.
   - **Two budgets recorded as exceeded, not restated as passing** (`baseline.md` §3, §6).
     FR-PERF-001's 500 MB/s floor is **unreachable** for this operation — a pass that reads and
     atomically rewrites `remint_200` with *no substitution at all* measures 298 MB/s, so the

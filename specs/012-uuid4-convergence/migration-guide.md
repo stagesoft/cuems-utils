@@ -49,7 +49,7 @@ All of these, before step 2.
 
 | Precondition | Why |
 |---|---|
-| **`cuems-engine 0.1.0rc7` or later on every node** | The re-mint ships in the same upgrade. An older engine's `cluster_status` cannot sort the resulting identities — it sorts node identities directly, and the identity type had no ordering before this release (FR-035, upstream report). Verify with `cuems-controller-engine --version` or `dpkg -s cuems-engine` |
+| **`cuems-engine 0.1.0rc7` or later on every node** | The re-mint ships in the same upgrade (FR-035). Verify with `cuems-controller-engine --version` or `dpkg -s cuems-engine`. **The originally stated reason no longer applies** — FR-035 cited an older engine's `cluster_status` being unable to sort the resulting identities, and this feature's FR-029 gives the identity type a total ordering, so that particular failure can no longer happen. rc7 carries other work and the coupling stands; see `sibling-repository-updates.md` §4.1 |
 | **`cuemsutils` at the coordinated `xml-refactor-merge-candidate` tag** | Nothing ships from feature 012's branch alone (D27). The tag comes after features 011–014 and is cut across seven repositories |
 | **No pre-existing identity collision** | See [§7](#7-a-pre-existing-collision-must-be-resolved-first). This one is not optional and cannot be done later |
 | **A backup of `/etc/cuems` and the project library on the controller** | See [§6](#6-the-backup-hazard) for what a backup does *not* protect you from |
@@ -117,9 +117,14 @@ This writes **nothing at all, not even a substitution table**. It reports:
 The estimate is the surveyed bytes divided by the throughput the survey just
 measured **on this machine**. If the survey was too small to time meaningfully
 the output says so and the figure is a pessimistic bound rather than a
-measurement — it will say `the 500 MB/s floor … not a measurement`.
+measurement — it will say `the 140 MB/s floor … not a measurement`.
 
-Use the predicted duration to size the window. It is accurate to within ±25%.
+**Use the predicted duration to size the window. It is deliberately
+conservative — measured at about 2.2–2.5× the actual time — and the output says
+so.** The survey scans for *any* uuid shape, which costs more per byte than the
+substitution's literal search, so it finishes slower than the rewrite it is
+predicting. Erring long is the right direction for a maintenance window; the
+measurements are in `baseline.md` §6.
 
 ---
 
@@ -384,7 +389,40 @@ mapping keyed to the old identity has to be re-made.
 became which new one, and it is what lets you reconstruct an output set after a
 node is lost.
 
-### 9b. A cloned disk is now refused (FR-019d, FR-036a)
+### 9b. There is no rollback once `cuems-nodeconf` has restarted
+
+**Measured, and it is not the re-mint's doing.** Plan the window on the
+assumption that the upgrade is one-way from the moment step 8 starts services.
+
+The three configuration schemas take a document-version step
+(`network_map` 1→2, `project_mappings` 1→2, `settings` 2→3), and the version
+marker is what a reader checks *before* decoding. A document carrying a marker
+newer than the library reading it is refused, distinguishably:
+
+```
+network_map document is version 2, newer than this library's current version 1
+for network_map.xsd — upgrade cuemsutils to read it
+```
+
+That is the marker working as designed. The trap is *when* it starts to bite:
+
+| Action | `doc_version` afterwards | Readable by the old `cuems-utils`? |
+|---|---|---|
+| the re-mint rewrites a document | **unchanged** | **yes** |
+| anything writes a document through the library | **bumped** | **no** |
+
+The re-mint is a literal token substitution and never touches the marker, so a
+freshly re-minted node can still be rolled back. But `cuems-nodeconf` **writes
+`network_map.xml` on every debounced Avahi event, or every 30 seconds
+regardless** — so within about a minute of step 8 the map carries the new marker
+and a `cuems-utils` downgrade leaves the node unable to read its own topology.
+
+**If you need a rollback path**, take a copy of `/etc/cuems` *after* the re-mint
+and *before* starting services (§2's stop list is still in force at that point).
+Restoring that copy together with the old package is a working rollback; note
+§6 — the copy is a backup, and everything §6 says about backups applies to it.
+
+### 9c. A cloned disk is now refused (FR-019d, FR-036a)
 
 `cuems-init-node` derives this hardware's MAC on every run and compares it with
 the one stored in `settings.xml`. A mismatch is **refused**, not resolved:
@@ -409,11 +447,11 @@ This changes how a venue provisions. Cloning a provisioned disk used to work by
 accident and produced two nodes with one identity. Clone an **unprovisioned**
 image instead, and let each machine mint its own on first boot.
 
-### 9c. The four collision routes, and which this feature closes (FR-036a, M-l)
+### 9d. The four collision routes, and which this feature closes (FR-036a, M-l)
 
 | Route | Before | After |
 |---|---|---|
-| Cloning a provisioned disk | two nodes share one identity, silently | **refused** (§9b) |
+| Cloning a provisioned disk | two nodes share one identity, silently | **refused** (§9c) |
 | `--uuid` naming an identity already in the map | accepted and written | **refused**, naming the other row's MAC |
 | A map that already collides | loads; `NodeIndex.merge` collapses the duplicate silently | **raises for every reader**; the re-mint aborts (§7) |
 | Two nodes minting independently | possible whenever two tables exist | **closed by design**: the table is built once, on the controller, and a plain node without one refuses |
@@ -427,6 +465,7 @@ why §7 comes before the narrowing and not after.
 
 | Symptom | What it means | What to do |
 |---|---|---|
+| A node reports a document is "newer than this library" | `cuems-utils` was rolled back after a restart | §9b. Reinstall the newer `cuems-utils`; the documents are fine |
 | The run **aborted** naming two rows and their MACs | a pre-existing collision. **Nothing was written** | §7 |
 | The run **refused**: "not the controller and no substitution table" | you are on a plain node. **Nothing was written** | §4a, then §5 |
 | The run **refused**: "the table was built by …, which is not this cluster's controller" | the table was minted by something with no authority | discard it; copy the controller's |
