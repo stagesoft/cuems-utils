@@ -110,7 +110,8 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   public entry point, `cuems-init-node`. **`hatch` is not installed on the current dev box** —
   use `uvx hatch run test.py3.11:run -- -q` (the `hatch test` env lacks `hypothesis`); see
   `specs/011-etc-cuems-first-install/quickstart.md`.
-- **Feature 012 (`012-uuid4-convergence`, planned 2026-09-29) adds no new runtime dependency.**
+- **Feature 012 (`012-uuid4-convergence`, landed on its branch 2026-09-30) adds no new runtime
+  dependency.**
   It converges every node identity on uuid4: three schemas narrow (`network_map` 1→2,
   `project_mappings` 1→2, `settings` 2→3, each admitting the NOT PROVISIONED sentinel by union),
   a read-only check classifies identities across `/etc/cuems` and the library, and a cluster-wide
@@ -120,8 +121,68 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   represents an identity step as the *absence* of a registry entry, and the repair is
   cross-document and out-of-band by design. Scripts are found by **root element, not filename**
   — `script_file_name` is an editor-internal dict key, in no document this library reads.
+  Three new modules: `tools/{ids,library_reach,remint}.py`. Suite after landing:
+  **3239 passed, 115 skipped, 2 xfailed, 52.90–53.57 s = 16.33–16.54 ms/test** (from 2800 /
+  15.64–15.76 ms before).
 
 ## Recent Changes
+
+- `012-uuid4-convergence` (**landed on its local branch** 2026-09-30; merges into
+  `feat/xml-refactor`; nothing ships until the coordinated `xml-refactor-merge-candidate` tag
+  after 011–014): one identity shape across the project, and the machinery that gets a deployed
+  cluster there without losing a node.
+  - **`UuidType` leaves `KNOWN_DIVERGENT_DECLARATIONS`** — the allowlist in
+    `tests/contract/test_schema_name_overlap.py` is now **empty**, which is this feature's
+    completion marker (FR-025) and closes the last X14-class defect the F2 ratchet recorded.
+    It got there by **deletion, not narrowing** (research R13): the node identity must admit the
+    sentinel (the package's own build-time generation emits it), `script.xsd`'s `UuidType` types
+    cue and media `id` and must not, so the two could never match — which closed the
+    identical-duplicate route while the divergent route *requires* the entry to stay. Retyping
+    the element to `cms:NodeUuidType` and deleting network_map's declaration leaves the name
+    declared once, the only state in which the stale-entry test *demands* the removal.
+  - **Three named types, three schemas each** (`ConvergedUuidType`, `NotProvisionedUuidType`,
+    and their union `NodeUuidType` — the only one any element references). None of the six
+    schemas includes or imports another, so the anti-drift guarantee is a **test**
+    (`KNOWN_IDENTICAL_DUPLICATES`), not a schema mechanism.
+  - **`cuems-init-node --check` widens exit class 1** to "an identity is not converged", adds
+    the verdict `migration-needed` and reaches the project library. Every shipped verdict keeps
+    its exact spelling and meaning; the shipped contract test was extended **in the same
+    commit**, since its identities are uuid4 and it would otherwise have stayed green while
+    testing a superseded vocabulary.
+  - **`cuems-init-node --remint`** (`tools/remint.py`): survey → abort on collision *before the
+    table is built* → build once on the controller → persist before the first write → estimate
+    and confirm → apply → verify → completion record. **The scope is split** (FR-011a): the
+    controller rewrites its configuration *and* the library, every other node rewrites only its
+    own configuration from a table the operator copies to it, and its library replica arrives by
+    the project deployer's existing `rsync -rt`. A plain node without a table **refuses**; a
+    table whose controller is *another node* is the **normal** case, not a refusal.
+  - **Never restore a modification time.** The substitution is length-preserving and the
+    replication compares size and time with no checksum (research R11), so the time is rsync's
+    only signal. `os.replace` does the right thing; `shutil.copystat` is the trap. Pinned by
+    `test_remint_mtime_advances.py`.
+  - **Two collision routes closed in `init_node`**, and one of them **amends feature 011's D13**
+    (recorded in *that* feature's spec, where a later reader finds it first): "mint iff there is
+    none" becomes "…or the identity on disk was minted for different hardware". It **refuses**
+    rather than re-minting, because the same evidence describes a replaced NIC, where preserving
+    is correct; `--mac` is the operator answering that question.
+  - **One type for one value** (FR-021b) via a per-**field** adapter opt-in — not by flipping
+    `runs_adapter_table` for `settings`, which would re-decode every scalar in that document and
+    silently retire feature 007's measured guarantee. `ConfigManager.node_uuid` answers with
+    `Uuid` on a provisioned node and the published sentinel constant on one that is not; `Uuid`
+    gains a total ordering. `specs/012-uuid4-convergence/consumer-census.md` is the **blocking
+    precondition** (FR-032) and found what R4's question could not: the **map read** change
+    reaches four repositories, not two — `cuems-editor` reads the map and appears nowhere in R4.
+  - **Two budgets recorded as exceeded, not restated as passing** (`baseline.md` §3, §6).
+    FR-PERF-001's 500 MB/s floor is **unreachable** for this operation — a pass that reads and
+    atomically rewrites `remint_200` with *no substitution at all* measures 298 MB/s, so the
+    budget conflates bulk throughput with per-file syscall cost on 400 small files. SC-PERF-003's
+    ±25% estimate tolerance is missed by ~2×, **pessimistically**: the survey scans for *any*
+    uuid shape while the apply pass substitutes *known literals*, so dividing by the survey's
+    throughput overstates. `ids.scan_values` took that from +884% to +121%; the rest is inherent.
+  - Corrections applied to `specs/planning/etc-cuems-first-install{,-execution}.md` (FR-037),
+    never silently: §9.2's narrowing description, §9.4's detection assignment (it is
+    `cuems-init-node --check`, not the conversion tool), §10.5's script-filename procedure, the
+    two-versus-three schema count, and §10.7's items now answered from code.
 
 - `011-etc-cuems-first-install` (**landed on the local feature branch** 2026-09-28; merges into
   `feat/xml-refactor`; nothing ships until the coordinated `xml-refactor-merge-candidate` tag after

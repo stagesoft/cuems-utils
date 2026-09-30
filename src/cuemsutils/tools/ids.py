@@ -55,6 +55,7 @@ __all__ = [
     "is_converged",
     "scan_text",
     "scan_file",
+    "scan_values",
 ]
 
 # -- the three definitions -------------------------------------------------------------
@@ -285,6 +286,33 @@ def scan_text(text: str) -> list[TokenOccurrence]:
             TokenOccurrence(match.group(0), start, element, body != match.group(0), body)
         )
     return found
+
+
+#: The token pattern over **bytes**. Every uuid is hex and hyphens, so the byte
+#: pattern is the text pattern encoded with no escaping subtlety.
+_ANY_UUID_BYTES_RE = re.compile(_ANY_UUID.encode("ascii"))
+
+
+def scan_values(data: bytes) -> set[str]:
+    """The **distinct token values** in ``data``, and nothing else.
+
+    The cheap half of :func:`scan_text`, for callers that need to know *which*
+    identities a document carries and not where each occurrence sat.
+
+    It exists because the two questions have very different costs and the
+    re-mint's survey only asks the cheap one. :func:`scan_text` tracks the
+    enclosing element for every token and builds a :class:`TokenOccurrence` per
+    occurrence, which is what the operator-facing report needs and is an order
+    of magnitude more work per byte. Running it in the survey made the survey's
+    own measured throughput about a tenth of the apply pass's — which mattered,
+    because that measurement is the operator's duration estimate (FR-PERF-003):
+    the estimate came out ten times too pessimistic while the apply loop was
+    perfectly fast.
+
+    Bytes rather than text for the same reason :meth:`SubstitutionTable.byte_substituter`
+    is: the decode is pure overhead when the tokens are ASCII by construction.
+    """
+    return {m.group(0).decode("ascii") for m in _ANY_UUID_BYTES_RE.finditer(data)}
 
 
 def scan_file(path) -> list[TokenOccurrence]:

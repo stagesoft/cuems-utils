@@ -21,7 +21,6 @@ reader needs to know it was measured rather than assumed.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 

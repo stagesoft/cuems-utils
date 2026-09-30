@@ -16,7 +16,7 @@ to be fine.
 from __future__ import annotations
 
 from cuemsutils.tools import remint
-from tests.support.cluster_fixture import SHAPES, build_cluster
+from tests.support.cluster_fixture import build_cluster
 from tests.support.remint_harness import run_remint, state_dir
 
 

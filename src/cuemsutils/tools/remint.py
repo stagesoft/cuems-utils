@@ -241,6 +241,35 @@ class SubstitutionTable:
         table = self.entries
         return lambda text: pattern.sub(lambda m: table[m.group(0)], text)
 
+    def byte_substituter(self):
+        """:meth:`substituter`, over **bytes**.
+
+        What :func:`apply_table` uses, for two reasons that point the same way.
+
+        *Correctness*: the substitution is defined as replacing a 36-character
+        ASCII token with another, and it must be **length-preserving in bytes**
+        (FR-011b) because the replication compares size. Decoding a document to
+        text and re-encoding it is a round trip that has nothing to do with the
+        edit and can only lose — a document read with ``surrogateescape`` and
+        written back is not guaranteed byte-identical outside the tokens, which
+        is precisely what FR-009 promises.
+
+        *Cost*: decode plus encode is measurably the second-largest item in the
+        apply loop after the write itself (see ``baseline.md``). Skipping both
+        is free.
+
+        Every token is ASCII by construction — a uuid is hex and hyphens — so
+        the byte pattern is the text pattern encoded, with no escaping subtlety.
+        """
+        if not self.entries:
+            return lambda data: data
+        pattern = re.compile(
+            b"|".join(re.escape(old.encode("ascii")) for old in sorted(self.entries))
+        )
+        table = {old.encode("ascii"): new.encode("ascii")
+                 for old, new in self.entries.items()}
+        return lambda data: pattern.sub(lambda m: table[m.group(0)], data)
+
 
 def build_table(identities, controller: str, scope: str = BOTH) -> SubstitutionTable:
     """One new uuid4 per **distinct non-converged** identity (FR-006, FR-014).
@@ -353,13 +382,18 @@ def survey(conf, reach: library_reach.LibraryReach) -> Survey:
     bytes_read = 0
     for path in config_documents + library_documents:
         try:
-            text = path.read_text(encoding="utf-8", errors="surrogateescape")
+            data = path.read_bytes()
         except OSError as exc:
             notes.append(f"{path}: unreadable ({exc}); not surveyed")
             continue
-        bytes_read += len(text.encode("utf-8", errors="surrogateescape"))
-        for occurrence in ids.scan_text(text):
-            identities.setdefault(occurrence.value, occurrence.classification)
+        bytes_read += len(data)
+        # The **cheap** scan (``scan_values``), not ``scan_text``. The survey
+        # needs to know which identities a document carries, not where each
+        # occurrence sat — and this loop's elapsed time is the operator's
+        # duration estimate, so work the survey does not need makes the estimate
+        # pessimistic rather than merely slow (FR-PERF-003).
+        for value in ids.scan_values(data):
+            identities.setdefault(value, ids.classify(value))
 
     node_identities = tuple(sorted(set(_node_identities(conf))))
     elapsed = time.perf_counter() - started
@@ -473,44 +507,71 @@ def apply_table(table: SubstitutionTable, documents, table_file=None) -> list[Pa
     length-preserving, so the time is the only thing that tells the replication
     a file changed (FR-011b, research R11).
     """
-    substitute = table.substituter()
+    substitute = table.byte_substituter()
     already = set(table.applied)
     rewritten: list[Path] = []
     for path in documents:
         path = Path(path)
         if str(path) in already:
             continue
-        text = _safe_read(path)
-        if not text:
+        try:
+            data = path.read_bytes()
+        except OSError:
             continue
-        new_text = substitute(text)
-        if new_text == text:
+        if not data:
+            continue
+        new_data = substitute(data)
+        if new_data == data:
             # Nothing of this node's is in this file. Not recorded as applied:
             # it was not, and a second run reaching the same conclusion costs a
             # read it would have done anyway.
             continue
-        handle, temporary = tempfile.mkstemp(
-            dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(handle, "w", encoding="utf-8", errors="surrogateescape") as out:
-                out.write(new_text)
-            try:
-                os.chmod(temporary, path.stat().st_mode & 0o777)
-            except OSError:
-                pass
-            os.replace(temporary, str(path))
-        except BaseException:
-            try:
-                os.unlink(temporary)
-            except OSError:
-                pass
-            raise
+        _atomic_write(path, new_data)
         table.applied.append(str(path))
         rewritten.append(path)
         if table_file is not None:
             table.save(table_file)
     return rewritten
+
+
+def _atomic_write(path: Path, data: bytes) -> None:
+    """Write ``data`` to ``path`` through a temporary and an ``os.replace``.
+
+    Hand-rolled rather than ``tempfile.mkstemp`` + ``os.fdopen`` + ``os.chmod``,
+    and measured rather than assumed: the write is the apply loop's dominant
+    cost (``baseline.md``), ``mkstemp`` creates at ``0600`` so a ``chmod`` is
+    always needed after it, and its name generation is a retry loop this does
+    not need. Opening once with the mode the target already has drops two
+    syscalls per document.
+
+    ``O_EXCL`` keeps the exclusivity ``mkstemp`` was there for. The name carries
+    the pid, so two processes cannot collide on it — the operation is
+    stop-the-world, but a temporary file that could be clobbered is not
+    something to leave resting on that.
+
+    **The modification time is deliberately not restored.** ``os.replace`` gives
+    a fresh one, and that is the only signal the size-and-time replication has
+    that the file changed (FR-011b, research R11). Adding ``shutil.copystat``
+    here is the trap.
+    """
+    try:
+        mode = path.stat().st_mode & 0o777
+    except OSError:
+        mode = 0o644
+    temporary = f"{path}.remint-{os.getpid()}.tmp"
+    try:
+        handle = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+        try:
+            os.write(handle, data)
+        finally:
+            os.close(handle)
+        os.replace(temporary, str(path))
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+        raise
 
 
 # -- the estimate (step 5) -------------------------------------------------------------
@@ -529,6 +590,15 @@ def estimate_seconds(survey_result: Survey) -> tuple[float, bool]:
     The second element is ``True`` when the survey was too small to time and
     the floor was used instead. The caller **must say so** in its output, so a
     pessimistic estimate is never presented as a measured one.
+
+    **The measured estimate is itself conservative, by about a factor of two**,
+    and :func:`render_estimate` says so. The survey scans for *any* uuid shape —
+    five character classes at every position — while the apply pass substitutes
+    *known literal* tokens, which is the faster search; so the survey's observed
+    throughput understates the apply pass's. SC-PERF-003's ±25% is recorded as
+    exceeded in ``baseline.md`` for this reason, in the safe direction.
+    ``tests/integration/test_estimate_tolerance.py`` holds the measurement and
+    the bound.
     """
     throughput = survey_result.observed_throughput
     if throughput is None:
@@ -545,10 +615,15 @@ def render_estimate(survey_result: Survey) -> str:
         else f"{survey_result.observed_throughput / 1_000_000:.1f} MB/s, measured by "
              "the survey on this machine"
     )
+    caveat = "" if used_floor else (
+        " — a conservative bound: the survey scans for any uuid shape, which "
+        "costs more per byte than the substitution's literal search, so the "
+        "rewrite typically finishes in about half this (see baseline.md)"
+    )
     return (
         f"{len(survey_result.documents)} document(s), "
         f"{survey_result.bytes_read / 1_000_000:.2f} MB to rewrite; "
-        f"estimated {seconds:.2f} s at {how}"
+        f"estimated {seconds:.2f} s at {how}{caveat}"
     )
 
 

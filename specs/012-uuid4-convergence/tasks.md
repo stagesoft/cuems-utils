@@ -498,7 +498,7 @@ checked rather than trusted.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T077 [P] Measure throughput at **2 and 10 nodes** — the ends of the cluster range — over
+- [X] T077 [P] Measure throughput at **2 and 10 nodes** — the ends of the cluster range — over
       identical library bytes in `tests/integration/test_remint_throughput.py`. Assert
       **≥ 500 MB/s**, and that the slower run's elapsed time is **≤ 1.10× the faster run's**
       (SC-PERF-001, research R8). A **ratio, not a percentage**: the fixture runs in single-digit
@@ -506,12 +506,12 @@ checked rather than trusted.
       jitter, so the assertion would have measured noise. The bound keeps its discriminating power
       because a per-node repeated pass makes the 10-node run about **5×** the 2-node run, not 1.1×.
       Both figures are **FR-PERF-001**'s non-provisional budgets
-- [ ] T078 [P] Assert the `remint_200` fixture's wall-clock ceiling of **≤ 2.0 s** in
+- [X] T078 [P] Assert the `remint_200` fixture's wall-clock ceiling of **≤ 2.0 s** in
       `tests/integration/test_remint_fixture_ceiling.py` (SC-PERF-001). This ceiling **is**
       provisional — the one figure **FR-PERF-001** states as an estimate: if the measurement lands
       well under it, lower it to the measured figure plus headroom and record the change in
       `baseline.md`. It is never raised to accommodate an implementation
-- [ ] T079 [P] Measure the read path against `specs/008-rebuild-extension/baseline.md` in
+- [X] T079 [P] Measure the read path against `specs/008-rebuild-extension/baseline.md` in
       `tests/integration/test_read_path_regression.py`, same method as that baseline
       (SC-PERF-002, **FR-PERF-002**, research R14). **Two rows, two comparisons, and the difference is
       not a convenience**: the show-document load is asserted against its recorded **budget**, while
@@ -520,7 +520,7 @@ checked rather than trusted.
       10.20 ms budget, so asserting the budget would fail on a tree where this feature changed
       nothing — which teaches a reader to ignore the test rather than telling them anything about the
       narrowing
-- [ ] T080 [P] Assert the estimate's accuracy in `tests/integration/test_estimate_tolerance.py` —
+- [X] T080 [P] Assert the estimate's accuracy in `tests/integration/test_estimate_tolerance.py` —
       predicted within **±25%** of actual, at both node counts (SC-PERF-003). This passes only
       because T042 divides by the **survey-measured** throughput: dividing by the 500 MB/s floor, as
       an earlier draft did, would put the estimate at `measured ÷ 500` times the actual duration, so
@@ -531,12 +531,12 @@ checked rather than trusted.
 **Note on placement**: these four go in `tests/integration/`, where this repository already keeps
 its timing tests (`test_construction_performance.py`). No `tests/performance/` directory is
 introduced.
-- [ ] T081 Record every measurement in `specs/012-uuid4-convergence/baseline.md`, **as measured**,
+- [X] T081 Record every measurement in `specs/012-uuid4-convergence/baseline.md`, **as measured**,
       including any budget exceeded — this repository's standing practice
-- [ ] T082 Verify the four collision routes are closed or refused in
+- [X] T082 Verify the four collision routes are closed or refused in
       `tests/integration/test_collision_routes.py` — clone refused, colliding explicit identity
       refused, re-mint over an existing collision aborts, table built on the controller (SC-013)
-- [ ] T083 Apply this feature's corrections to `specs/planning/etc-cuems-first-install.md` and
+- [X] T083 Apply this feature's corrections to `specs/planning/etc-cuems-first-install.md` and
       `specs/planning/etc-cuems-first-install-execution.md` (FR-037), never silently: §9.2's
       narrowing description (the sentinel exception, M-f), §9.4's detection assignment (it extends
       the identity check, not the conversion tool), §10.5's script-filename procedure (root element,
@@ -545,11 +545,11 @@ introduced.
       network_map's `UuidType` as narrowing to match script's, which M-p measures to be impossible
       once the sentinel is admitted — the declaration is deleted and the element retyped instead
       (M-p, FR-020c)
-- [ ] T084 Record the D13 amendment against feature 011 in
+- [X] T084 Record the D13 amendment against feature 011 in
       `specs/011-etc-cuems-first-install/` — "mint iff there is none" becomes "iff there is none,
       **or** the identity on disk was minted for different hardware". A later reader finds 011's
       decision text first, so the amendment must live there, not only here
-- [ ] T084a Record the §10.7 hardware confirmations in
+- [X] T084a Record the §10.7 hardware confirmations in
       `specs/012-uuid4-convergence/baseline.md` (FR-038) — which items research answered from code
       (the script filename, R3; the `trash/` layout, R7; the replication path, R11), which remain
       genuinely unconfirmed (whether every project carries its own `mappings.xml`; whether any
@@ -557,9 +557,9 @@ introduced.
       Both production machines have been unreachable since 2026-09-23, so the honest record is
       what this task produces — an unconfirmed item recorded as unconfirmed, with the mitigation
       named, not an item quietly dropped. The migration guide's "first real run" step cites it
-- [ ] T085 [P] Run the project's lint and type checks over `src/cuemsutils/` and `tests/`;
+- [X] T085 [P] Run the project's lint and type checks over `src/cuemsutils/` and `tests/`;
       confirm no new warnings (Principle I, SC-QUALITY-001)
-- [ ] T086 Re-run the full suite and record the result as a **range**, comparing against T003's
+- [X] T086 Re-run the full suite and record the result as a **range**, comparing against T003's
       baseline; confirm per-test timing is within budget (SC-TEST-001)
 
 ---

@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 from cuemsutils.tools import init_node
-from tests.support.cluster_fixture import SHAPES, mac_for, network_map_xml, NodeSpec
+from tests.support.cluster_fixture import SHAPES, NodeSpec, mac_for, network_map_xml
 
 
 def _sysfs(tmp_path: Path) -> Path:

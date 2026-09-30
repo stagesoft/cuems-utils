@@ -102,7 +102,7 @@ consumers' `<< 0.1.1~` ceilings).
 | 6 | OPEN-1…6 | 1,2,3,4 open · 5 closed · 6 closed by F3, **now marked as such** (§4.1) |
 | 7 | `hardware_outputs` | Rename + F4 landed; capability descriptor not started → §3.4 |
 | 8 | Basis, writers, flags | → §3.3 |
-| 9–10 | uuid4 + re-mint | Decided and written; no code. Gated on `cuems-init-node` |
+| 9–10 | uuid4 + re-mint | **Landed as feature 012, 2026-09-30.** §9.2's narrowing description, §9.4's detection assignment, §10.5's script-filename procedure and §10.7's open items are corrected in place (FR-037) |
 | 11–12 | Schema pin, version | Done |
 
 ### 3.2 The seventeen decisions
@@ -130,7 +130,7 @@ So of the fourteen, **three are done** and eleven remain, all of them packaging 
 | Flag | State |
 |---|---|
 | **F1** — one writer per document, declared in the schema's annotation | ◐ **011's T072/T073** (decision Q11, 2026-09-28): the annotations land in one isolated commit that also moves the six hashes in `test_schema_scope`; the check joins `test_duplication_flags`. Before it: five of six schemas contain zero `xs:annotation` |
-| **F2** — a fact is declared once | ✅ `tests/contract/test_schema_name_overlap.py`. One entry left in `KNOWN_DIVERGENT_DECLARATIONS`: `UuidType`, gated on `cuems-init-node` |
+| **F2** — a fact is declared once | ✅ `tests/contract/test_schema_name_overlap.py`. `KNOWN_DIVERGENT_DECLARATIONS` is now **empty** — `UuidType`, its last entry, was resolved by feature 012 (2026-09-30), which is that feature's completion marker (FR-025) |
 | **F3** — derived facts computed, never stored | ✅ ratchet in `tests/contract/test_duplication_flags.py`. Two live violations enumerated → §4.2 |
 | **F4** — one provenance per document | ✅ same file. `network_map`'s straddle recorded as a decision |
 | **F5** — references volatile → stable | ✅ same file. **Zero violations today** |
@@ -363,15 +363,37 @@ Nothing in this feature may `rm -rf /etc/cuems` (D6).
 **Delivers**: one uuid version across the project, and the machinery that gets deployed clusters
 there.
 
-**Scope**: narrow `network_map.xsd`'s `UuidType` to `script.xsd`'s (already exactly
-`Uuid.UUID4_REGEX`); the version step and conversion; `cuems-convert-documents --check` gaining
-detect-and-report; `cuems-init-node`'s cross-document re-mint; §10's procedure as a migration
-guide.
+**Scope**, as landed and corrected 2026-09-30 (FR-037). The brief below was written before the
+feature's research phase and three of its four scope items turned out to be wrong; each is struck
+rather than edited away, because the reasoning that replaced it is the useful part.
+
+- ~~narrow `network_map.xsd`'s `UuidType` to `script.xsd`'s~~ → **retype and delete.** The node
+  identity must admit the not-provisioned sentinel (measured as M-f: the package's own build-time
+  generation emits it), and `script.xsd`'s `UuidType` — which types cue and media `id` — must not.
+  The two can never match, which closes both states the overlap ratchet allows and would make the
+  completion marker unreachable. `network_map`'s node identity is retyped to a new named union
+  and that schema's `UuidType` declaration is deleted, leaving the name declared once (M-p).
+- ~~two schemas~~ → **three.** `settings.xsd`'s `NodeConfType/uuid` and
+  `project_mappings.xsd`'s `NodeMappingType/uuid` are typed too. Version steps: `network_map`
+  1→2, `project_mappings` 1→2, `settings` 2→3.
+- ~~the version step **and conversion**~~ → **no conversion is registered for any of the three**
+  (research R5). The machinery represents an identity step by the *absence* of a registry entry,
+  and a per-document mint would give `settings.xml` and `network_map.xml` different answers for
+  the same node — §9.4's measured failure. Detection and reporting happen in the validation error
+  path instead.
+- ~~`cuems-convert-documents --check` gaining detect-and-report~~ → **`cuems-init-node --check`.**
+  Reporting a document's *version* and classifying an identity's *shape* are separate questions,
+  and the identity check already reads with stdlib XML only — which is what lets it run on the
+  documents the tightened schema refuses. See the correction in §9.4 of the design document.
+- `cuems-init-node`'s cross-document re-mint, and §10's procedure as a migration guide — **both
+  as briefed**, plus two things the brief did not anticipate: the reach is split (the controller
+  rewrites the library once, every node rewrites its own configuration from a distributed table)
+  and each run leaves a completion record so "converged" is a count rather than an impression.
 
 | | |
 |---|---|
 | **Depends on** | **011 — hard.** §9.4 |
-| **Completion marker** | `UuidType` leaves `KNOWN_DIVERGENT_DECLARATIONS` in `test_schema_name_overlap.py`. While the entry is there, that test *requires* the collision to still exist |
+| **Completion marker** | `UuidType` leaves `KNOWN_DIVERGENT_DECLARATIONS` in `test_schema_name_overlap.py`. While the entry is there, that test *requires* the collision to still exist. **Reached 2026-09-30**; the allowlist is now empty |
 
 **The two things that make this harder than it looks**, both already established:
 
@@ -386,10 +408,23 @@ guide.
   uuid4 does not. After this, reimaging a node produces a new identity and the node must be
   re-adopted. That belongs in the migration guide, not in a venue's discovery.
 
-**Before a first real run**, confirm §10.7 on hardware: library layout, the configured
-`script_file_name` (it is **configuration, not a constant** — `script.xml` in one repo,
-`cue_script.xml` in another; a procedure that hardcodes it skips a library silently and
-completely), and whether `trash/` mirrors `projects/`.
+**Before a first real run**, confirm §10.7 — **but two of its three items were answered from
+code instead** (corrected 2026-09-30, FR-037/FR-038; both production machines have been
+unreachable since 2026-09-23):
+
+- **library layout / does `trash/` mirror `projects/`** — answered from code (research R7):
+  `ConfigBase.set_dir_hierarchy` creates `trash/projects` beside `projects`. The library makes
+  both, which is stronger evidence than one machine's layout.
+- **the configured `script_file_name`** — **moot** (research R3). It is *not* configuration: it
+  appears in no document this library reads, only in the editor's private settings dict. Scripts
+  are identified by **root element**, which finds one under any filename and needs no hardware to
+  confirm.
+- **whether every project carries its own `mappings.xml`, and whether any other file embeds an
+  output name** — genuinely unconfirmed, and mitigated rather than answered: mappings are treated
+  as optional per project, and root-element identification decides the second question per file.
+
+The dated record of which item was answered how is in
+`specs/012-uuid4-convergence/baseline.md`.
 
 **Readiness re-measured 2026-09-29, against the landed 011.** The hard blocker is gone —
 `cuems-init-node` exists, so the `UuidType` narrowing may land, and the debt entry in
@@ -398,10 +433,11 @@ now free to be removed by this feature. Its `_substitute()` is the literal-token
 demands, already citing §10.2 by name. Two things this brief assumes, which do **not** yet exist,
 and both are scope rather than surprises:
 
-- **`cuems-convert-documents --check` does not exist.** The module has no `argparse` at all. The
-  check mode is feature **010's T037** (with T035/T036 as its tests), still open. This feature
-  either absorbs those three or waits on them — decide it in the clarification pass rather than
-  discovering it mid-implementation.
+- ~~**`cuems-convert-documents --check` does not exist.**~~ **Resolved by not needing it**
+  (corrected 2026-09-30). The clarification pass moved detect-and-report to
+  `cuems-init-node --check`, which already existed and already read with stdlib XML only — the
+  property that matters, since every document this feature diagnoses is one the tightened schema
+  refuses. Feature 010's T037 is neither absorbed nor waited on; it stands on its own merits.
 - **`cuems-init-node`'s re-mint does not reach the project library.** Its `DOCUMENTS` tuple is
   exactly `settings.xml`, `network_map.xml`, `default_mappings.xml`. §10.2's trap is that the uuid
   is *also* embedded in `<output_name>` in every script, where a stale prefix stays schema-valid

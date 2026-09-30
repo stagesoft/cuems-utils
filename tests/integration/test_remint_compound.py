@@ -15,9 +15,9 @@ file that is not one of the 36-character tokens is exactly where it was.
 
 from __future__ import annotations
 
+from cuemsutils.tools import remint
 from tests.support.cluster_fixture import SHAPES, build_cluster
 from tests.support.remint_harness import run_remint, state_dir
-from cuemsutils.tools import remint
 
 
 def test_the_compound_prefix_carries_the_new_identity(tmp_path):
