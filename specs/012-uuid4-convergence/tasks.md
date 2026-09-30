@@ -39,15 +39,15 @@ PYENV_VERSION=3.11.9 uvx hatch run test.py3.11:run -- -q
 
 **Purpose**: the fixtures every later phase measures against.
 
-- [ ] T001 Create a fixture-cluster builder in `tests/support/cluster_fixture.py` — writes a
+- [X] T001 Create a fixture-cluster builder in `tests/support/cluster_fixture.py` — writes a
       configuration directory (`settings.xml`, `network_map.xml`, `default_mappings.xml`) plus a
       library with `projects/<name>/{mappings.xml,<script>}` and a mirrored `trash/projects/`,
       parameterised by node count, identity shape per node, and script filename
-- [ ] T002 [P] Create the named performance fixture **`remint_200`** in
+- [X] T002 [P] Create the named performance fixture **`remint_200`** in
       `tests/support/library_fixture.py` — a generator parameterised by project count and node
       count, with `remint_200` fixed at **200 projects, ~4 MB** (research R8). This is the fixture
       SC-PERF-001's wall-clock ceiling names, so its scale is part of the budget, not a detail
-- [ ] T003 [P] Record the pre-change suite baseline **as a range** in
+- [X] T003 [P] Record the pre-change suite baseline **as a range** in
       `specs/012-uuid4-convergence/baseline.md`, over at least three runs, noting the
       `test_descriptor_laziness` skip-count drift so a later comparison is not read as a regression
 
@@ -61,26 +61,26 @@ PYENV_VERSION=3.11.9 uvx hatch run test.py3.11:run -- -q
 
 **⚠️ CRITICAL**: no user story work can begin until this phase is complete.
 
-- [ ] T004 Create `src/cuemsutils/tools/ids.py` with the identity classification vocabulary —
+- [X] T004 Create `src/cuemsutils/tools/ids.py` with the identity classification vocabulary —
       `converged` / `not-converged` / `not-provisioned` / `unrecognised` per data-model §1.3 — and
       **two separately named definitions**, the converged pattern and the sentinel, plus the
       `admitted` union of them (data-model §1.2, FR-021c). `converged` means uuid4 lowercase and
       **only** that: the sentinel is admitted, never converged, and §1.3's classification, §6.1's
       decode table and the published coercion rule all depend on the two staying distinct
-- [ ] T005 [P] Test the classification in `tests/unit/test_identity_classification.py` — uuid4,
+- [X] T005 [P] Test the classification in `tests/unit/test_identity_classification.py` — uuid4,
       uuid1, uuid5, upper-case uuid4, the sentinel, and a non-uuid string each land in exactly one
       class; the sentinel is **not** classified as `not-converged`
-- [ ] T006 Implement the token scanner in `src/cuemsutils/tools/ids.py` — finds every
+- [X] T006 Implement the token scanner in `src/cuemsutils/tools/ids.py` — finds every
       36-character uuid token in a file's bytes, reporting whether each was the whole value of an
       element or **embedded** in a compound string
-- [ ] T007 [P] Test the scanner in `tests/unit/test_token_scanner.py` — bare elements, compound
+- [X] T007 [P] Test the scanner in `tests/unit/test_token_scanner.py` — bare elements, compound
       `<uuid>_<output>` values, `<uuid>_custom_<n>`, the three `default_*_output` forms, and a
       file with no tokens at all
-- [ ] T008 Implement library-reach resolution in `src/cuemsutils/tools/library_reach.py` —
+- [X] T008 Implement library-reach resolution in `src/cuemsutils/tools/library_reach.py` —
       `library_path` from `settings.xml`, enumerating `projects/*/` and `trash/projects/*/`, with
       scripts identified **by root element, not filename** (research R3) and `mappings.xml`
       treated as optional per project
-- [ ] T009 [P] Test the reach in `tests/unit/test_library_reach.py` — a script named
+- [X] T009 [P] Test the reach in `tests/unit/test_library_reach.py` — a script named
       `script.xml`, one named `cue_script.xml`, one named neither, a project with no mappings, a
       non-script `.xml` in a project directory that is **not** selected, and `trash/` included
 
