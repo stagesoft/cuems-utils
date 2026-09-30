@@ -436,41 +436,41 @@ collection of identities sorts; the published coercion rule matches what the lib
 **Independent Test**: every stated loss, hazard and precondition appears, and every version and
 component named is verified against the actual trees rather than asserted.
 
-- [ ] T071 [US5] Write `specs/012-uuid4-convergence/migration-guide.md` with §10's procedure made
+- [X] T071 [US5] Write `specs/012-uuid4-convergence/migration-guide.md` with §10's procedure made
       executable — survey, stop, table, apply, verify
-- [ ] T071a [US5] In `specs/012-uuid4-convergence/migration-guide.md`, state the **scope split**
+- [X] T071a [US5] In `specs/012-uuid4-convergence/migration-guide.md`, state the **scope split**
       and its ordering (FR-011a): the controller re-mints the library and its own configuration;
       every other node re-mints only its own configuration, from the distributed table; the
       library then reaches the nodes by the ordinary project-deployer replication on the next
       project load. Give the operator the one check that tells them replication has happened, and
       say that a node's library replica is **not** re-minted in place — a node re-minted but not
       re-synced still holds stale output prefixes
-- [ ] T072 [US5] In `specs/012-uuid4-convergence/migration-guide.md`, state the reimage property
+- [X] T072 [US5] In `specs/012-uuid4-convergence/migration-guide.md`, state the reimage property
       (a re-imaged node no longer regenerates its identity and must be re-adopted) and the backup
       hazard (pre-migration and conversion backups are not rewritten; restoring one reintroduces a
       stale identity) (FR-033, FR-033a, §9.5)
-- [ ] T073 [US5] In `specs/012-uuid4-convergence/migration-guide.md`, name every component that
+- [X] T073 [US5] In `specs/012-uuid4-convergence/migration-guide.md`, name every component that
       must be stopped before the re-mint, including `cuems-nodeconf` — it **writes** the network
       map, so a discovery pass mid-rewrite can reintroduce an old identity (FR-034, §10.4)
-- [ ] T073a [US5] In `specs/012-uuid4-convergence/migration-guide.md`, carry the **table copy** as a
+- [X] T073a [US5] In `specs/012-uuid4-convergence/migration-guide.md`, carry the **table copy** as a
       numbered step (FR-007, FR-034): where the controller leaves the persisted table, how the
       operator gets it onto each remaining node, and that a node invoked without it refuses **by
       design** — a node that mints its own table is the divergence §10.3 warns about, so the refusal
       is the design working, not a fault to work around. This feature adds no transport; the copy is
       an operator step and must read as one
-- [ ] T074 [US5] Add the coupled consumer version to the precondition list in
+- [X] T074 [US5] Add the coupled consumer version to the precondition list in
       `specs/012-uuid4-convergence/migration-guide.md` — the re-mint ships in the same upgrade as
       `cuems-engine 0.1.0rc7` and never runs under an older engine, whose `cluster_status` cannot
       sort the resulting identities (FR-035, upstream report)
-- [ ] T075 [US5] Add the incomplete-re-mint detector to the verification steps in
+- [X] T075 [US5] Add the incomplete-re-mint detector to the verification steps in
       `specs/012-uuid4-convergence/migration-guide.md` — after re-minting, load each project on the
       controller and check `cuems-engine`'s `cluster_warning`; a non-empty "missing" list naming an
       old identity is a script the reach did not cover (FR-036, M-e)
-- [ ] T076 [US5] In `specs/012-uuid4-convergence/migration-guide.md`, state the four collision
+- [X] T076 [US5] In `specs/012-uuid4-convergence/migration-guide.md`, state the four collision
       routes (M-l) and which of them this feature closes, so an operator knows cloning a
       provisioned disk is now refused rather than silently duplicating an identity (**FR-036a**)
 
-- [ ] T076a [US5] In `specs/012-uuid4-convergence/migration-guide.md`, give the procedure for a
+- [X] T076a [US5] In `specs/012-uuid4-convergence/migration-guide.md`, give the procedure for a
       **pre-existing collision** (FR-036b). Without it the migration has a dead end: the re-mint
       aborts on a shared identity (FR-019) and the library refuses to guess which row is real
       (FR-019a is not repairable), so a cluster arriving with a collision is stopped by two
@@ -479,11 +479,11 @@ component named is verified against the actual trees rather than asserted.
       which node the outputs belong to, treat the other as never provisioned and re-mint it with the
       identity tool — and it MUST be run **before** the re-mint, while the map still loads, because
       after the narrowing a colliding map does not load at all
-- [ ] T076b [US5] In `specs/012-uuid4-convergence/migration-guide.md`, state the **roll-call**
+- [X] T076b [US5] In `specs/012-uuid4-convergence/migration-guide.md`, state the **roll-call**
       (FR-036c): the operator confirms the cluster is converged by holding one completion record per
       row in the network map and counting them, not by the controller's run exiting cleanly. Say what
       a missing record means and what to do about it
-- [ ] T076c [US5] **Verify the guide** in `tests/contract/test_migration_guide.py` — every item
+- [X] T076c [US5] **Verify the guide** in `tests/contract/test_migration_guide.py` — every item
       FR-033 through FR-036c requires is present, and every version and component the guide names
       resolves in the actual trees rather than being asserted: the coupled `cuems-engine` version, the
       components on the stop list, and the paths the procedure tells an operator to type. This is
