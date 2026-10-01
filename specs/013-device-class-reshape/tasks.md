@@ -67,14 +67,14 @@ same commit as the entry point; it does not amend the spec afterwards.
 **Purpose**: the four experiments and the snapshot that later phases are measured against.
 Nothing in `src/` changes in this phase.
 
-- [ ] T001 Run E1 from [quickstart.md](quickstart.md) and record the decoded dict, pass or
+- [x] T001 Run E1 from [quickstart.md](quickstart.md) and record the decoded dict, pass or
       fail, in `specs/013-device-class-reshape/baseline.md`. If the discriminator is absent
       from the item dict, stop and follow the E1 fallback in [research.md](research.md)
       before any schema work — that fallback changes `Mapper._decode_member`
-- [ ] T002 [P] Run E2 and record the attribute path from which `@class='VALUE'` is
+- [x] T002 [P] Run E2 and record the attribute path from which `@class='VALUE'` is
       extractable, in `baseline.md`. Derivation in T012 reads that path and no other. If
       `alternatives` is not exposed, record the `xs:appinfo` fallback and T012 follows it
-- [ ] T003 [P] Run E3 and record whether `count(d) = count(distinct-values(d/@class))`
+- [x] T003 [P] Run E3 and record whether `count(d) = count(distinct-values(d/@class))`
       rejects a duplicate, in `baseline.md`. If the assert does not, T022 uses `xs:unique`
       on `class`. That is still a schema constraint, so SC-011 and a writer that only
       validates against the XSD still hold. A T2 rule does not satisfy FR-013: the editor
@@ -83,7 +83,7 @@ Nothing in `src/` changes in this phase.
       duplicate, stop. Record that in `baseline.md` and reopen the FR-013 clarification.
       Do not implement a load-path-only check, and do not tell the migration guide that
       XSD-only writers are uncovered
-- [ ] T004 [P] Run E4 before any `src/` edit. Three full-suite runs, plus the load path for
+- [x] T004 [P] Run E4 before any `src/` edit. Three full-suite runs, plus the load path for
       `project_mappings`, `settings`, `script` and `hardware_outputs` by the method in
       `tests/integration/test_read_path_regression.py` (best of 3 medians of 5 warm runs).
       Write every denominator into `baseline.md`. SC-PERF-001 is a ratio to this number;
@@ -93,12 +93,12 @@ Nothing in `src/` changes in this phase.
       SC-PERF-003 budget (FR-PERF-003). T062 compares against this number and does not
       choose another. Quote ranges — `test_descriptor_laziness` moves the skip count by
       ±1 on an unmodified tree
-- [ ] T005 Copy one old-shape example of each reshaped document (`project_mappings`,
+- [x] T005 Copy one old-shape example of each reshaped document (`project_mappings`,
       `settings`, a script, `hardware_outputs`) into `tests/data/corpus/pre-013/`, with a
       README stating these are the pre-narrowing snapshots and that `pre-008/` is left
       alone (R13). This directory is the migration fixture and the FR-027 fixture. It
       cannot be produced from the tree after T020
-- [ ] T006 [P] Confirm `spec.md` already records M10–M13, FR-012a, the widened
+- [x] T006 [P] Confirm `spec.md` already records M10–M13, FR-012a, the widened
       FR-030, FR-032, FR-033 and FR-042, and A4's three arms. Do not re-fold research.
       If a site in R7–R10 is missing from the spec, stop and add it before any schema
       edit. The guide (T051) is checked against that text, not against a later amendment
@@ -118,44 +118,44 @@ cannot decode is not an intermediate state.
 
 ### Tests first
 
-- [ ] T007 [P] Failing-first unit test `tests/unit/test_fieldspec_alternatives.py` — a
+- [x] T007 [P] Failing-first unit test `tests/unit/test_fieldspec_alternatives.py` — a
       conditional element yields `(class value, type)` pairs in schema order; an
       unconditional element yields `()`; a test that is not exactly `@class='VALUE'` is a
       derivation error, not a silently ignored alternative (contracts/schema-conventions.md
       rules 2–3)
-- [ ] T008 [P] Failing-first unit test `tests/unit/test_alternative_dispatch.py` — a body
+- [x] T008 [P] Failing-first unit test `tests/unit/test_alternative_dispatch.py` — a body
       whose `class` matches an alternative decodes to that type's model; an unknown class
       and a missing class both decode through `member.child`
-- [ ] T009 [P] Contract test `tests/contract/test_class_conditional_convention.py`
+- [x] T009 [P] Contract test `tests/contract/test_class_conditional_convention.py`
       enforcing the five rules in [contracts/schema-conventions.md](contracts/schema-conventions.md)
       against every file in `src/cuemsutils/xml/schemas/`. Passes on today's schemas
       (nothing is conditional yet) and fails when a later edit breaks a rule
-- [ ] T010 [P] Failing-first test `tests/unit/test_unknown_class_report.py` — decoding a
+- [x] T010 [P] Failing-first test `tests/unit/test_unknown_class_report.py` — decoding a
       class that selects the fallback logs the INFO line in the FR-014 decision above,
       including schema, document, element path, class value and the spelling check.
       Assert the message text. No new field on `LoadReport`
 
 ### Implementation
 
-- [ ] T011 Add `alternatives: tuple[tuple[str, TypeKey], ...] = ()` to `FieldSpec` in
+- [x] T011 Add `alternatives: tuple[tuple[str, TypeKey], ...] = ()` to `FieldSpec` in
       `src/cuemsutils/xml/spec.py`. A tuple of pairs, not a dict: `FieldSpec` is frozen
       and hashed, and derivation is `lru_cache`d (data-model §5.1)
-- [ ] T012 Derive `alternatives` inside `spec.derive` from the schema, using the attribute
+- [x] T012 Derive `alternatives` inside `spec.derive` from the schema, using the attribute
       path T002 recorded. Accept only `@class='VALUE'`. Do not map `"video"` to
       `VideoDeviceType` by name — `registry.py`'s docstring records what that cost last time
-- [ ] T013 Rewrite the counting claim in `_derive_attributes`' docstring
+- [x] T013 Rewrite the counting claim in `_derive_attributes`' docstring
       (`src/cuemsutils/xml/spec.py`, the paragraph that states how many declared attributes
       exist). `class` is the third kind (R4). It is a dict key named `class`; no Python
       `@property` takes that name, and it is not added to `ATTRIBUTES_THE_MODEL_DOES_NOT_OWN`
-- [ ] T014 Implement `Mapper._alternative_for` and call it from `_decode_member` in
+- [x] T014 Implement `Mapper._alternative_for` and call it from `_decode_member` in
       `src/cuemsutils/xml/mapper.py` — the only decode-side change, because
       `_decode_repeated` and `_decode_wrapper` already funnel through there (R1). The
       discriminator is the bare key `class` (`attr_prefix=""`). Unknown or absent class
       falls back to `member.child`
-- [ ] T015 On the build side in `src/cuemsutils/xml/mapper.py`, `_tag_for_item` emits the
+- [x] T015 On the build side in `src/cuemsutils/xml/mapper.py`, `_tag_for_item` emits the
       declared element name when the field carries alternatives, and `class` is written by
       the existing attribute path (`element.set`) because it is a declared field
-- [ ] T016 When `_alternative_for` selects the fallback for a class that is present, log
+- [x] T016 When `_alternative_for` selects the fallback for a class that is present, log
       the INFO line T010 asserts, from `src/cuemsutils/xml/mapper.py`. Include the
       schema, the document, the element path, the class and the decoded type, plus the
       spelling check (FR-UX-001). Do not warn on a class that matched an alternative.

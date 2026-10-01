@@ -61,9 +61,12 @@ def encode_wildcard(value):
 class Mapper:
     """Encodes model objects to XML, driven by the derived specification."""
 
-    def __init__(self, schema_name: str):
+    def __init__(self, schema_name: str, *, document: str | None = None):
         self.schema_name = schema_name
         self.registry = get_registry(schema_name)
+        #: The file being decoded, when there is one. The unknown-class line
+        #: names it; a decode with no file says so instead of omitting it.
+        self.document = document
 
     # -- decode ------------------------------------------------------------
 
@@ -85,9 +88,9 @@ class Mapper:
 
         body_tag = next(iter(source))
         spec = _body_spec(self.schema_name, body_tag)
-        return self.decode(source[body_tag], spec)
+        return self.decode(source[body_tag], spec, path=(body_tag,))
 
-    def decode(self, value, spec: TypeSpec | None):
+    def decode(self, value, spec: TypeSpec | None, path=()):
         """Decode one value against its type specification."""
         if value is None or spec is None:
             return value
@@ -96,7 +99,7 @@ class Mapper:
 
         decoded = {}
         for key, raw in value.items():
-            decoded[key] = self._decode_field(key, raw, spec)
+            decoded[key] = self._decode_field(key, raw, spec, path)
 
         model = self._model_for_spec(spec)
         if model is None:
@@ -143,7 +146,7 @@ class Mapper:
     #: unreachable all along.
     RAW_TYPES = frozenset({"AudioChannelsType"})
 
-    def _decode_field(self, key: str, raw, spec: TypeSpec):
+    def _decode_field(self, key: str, raw, spec: TypeSpec, path=()):
         field = spec.field(key)
 
         if field is None:
@@ -170,7 +173,7 @@ class Mapper:
         child_spec = derive(field.child)
 
         if isinstance(raw, list):
-            return self._decode_repeated(raw, child_spec)
+            return self._decode_repeated(raw, child_spec, (*path, key))
 
         if child_spec.wildcard:
             # Wildcard content — ``ui_properties`` is the only one. Its
@@ -186,11 +189,11 @@ class Mapper:
             return as_cuemsdict(raw) if isinstance(raw, dict) else raw
 
         if self._is_wrapper(child_spec):
-            return self._decode_wrapper(raw, child_spec)
+            return self._decode_wrapper(raw, child_spec, (*path, key))
 
-        return self.decode(raw, child_spec)
+        return self.decode(raw, child_spec, (*path, key))
 
-    def _decode_repeated(self, items: list, child_spec: TypeSpec):
+    def _decode_repeated(self, items: list, child_spec: TypeSpec, path=()):
         """A repeated block: ``[{Tag: {...}}, ...]`` in document order.
 
         Each wrapper key names the element, which is how an ``xs:choice`` of
@@ -207,15 +210,49 @@ class Mapper:
             if member is None or member.child is None:
                 out.append(item)
                 continue
-            out.append(self._decode_member(body, member))
+            out.append(self._decode_member(body, member, path))
         return out
 
-    def _decode_member(self, body, member):
+    def _alternative_for(self, body, member, path=()):
+        """The type key for this member.
+
+        A class that matches an alternative selects that type. An unknown
+        class and a missing class both fall back to ``member.child``. Only
+        the unknown class is reported: a missing class is a different
+        document, and a match is the ordinary case.
+        """
+        chosen = member.child
+        if not getattr(member, "alternatives", ()) or not isinstance(body, dict):
+            return chosen
+        class_value = body.get("class")
+        if class_value is None:
+            return chosen
+        for value, key in member.alternatives:
+            if value == class_value:
+                return key
+        self._log_unknown_class(member, class_value, path)
+        return chosen
+
+    def _log_unknown_class(self, member, class_value, path) -> None:
+        parts = (*path, member.name)
+        element_path = "/" + "/".join(parts) + f"[@class='{class_value}']"
+        document = self.document if self.document else "(no file path)"
+        type_name = member.child.name if member.child is not None else "the declared type"
+        Logger.info(
+            f"{self.schema_name} {document}: {element_path} has no conditional type; "
+            f"decoded as {type_name}. Check the spelling — an unknown class is valid, "
+            "and this line is the only report."
+        )
+
+    def _decode_member(self, body, member, path=()):
         """Decode one member of a repeated block, honouring ``OPAQUE_TYPES``."""
-        if member.child.name in self.OPAQUE_TYPES:
-            model = self._model_for_spec(derive(member.child))
+        chosen = self._alternative_for(body, member, path)
+        if chosen is None:
+            return body
+        if chosen.name in self.OPAQUE_TYPES:
+            model = self._model_for_spec(derive(chosen))
             return model(body) if model is not None else body
-        return self.decode(body, derive(member.child))
+        return self.decode(body, derive(chosen), (*path, member.name))
 
     @staticmethod
     def _is_wrapper(child_spec: TypeSpec) -> bool:
@@ -228,7 +265,7 @@ class Mapper:
         elements = [f for f in child_spec.fields if f.kind is FieldKind.ELEMENT]
         return bool(elements) and all(f.repeated for f in elements)
 
-    def _decode_wrapper(self, raw, child_spec: TypeSpec):
+    def _decode_wrapper(self, raw, child_spec: TypeSpec, path=()):
         if not isinstance(raw, dict):
             return raw
         out = []
@@ -239,7 +276,7 @@ class Mapper:
                 continue
             items = body if isinstance(body, list) else [body]
             for item in items:
-                out.append(self._decode_member(item, member))
+                out.append(self._decode_member(item, member, path))
         return out
 
     def _model_for_spec(self, spec: TypeSpec):
@@ -297,7 +334,7 @@ class Mapper:
         """
         return self._decode_config_value(raw, root_spec(self.schema_name))
 
-    def _decode_config_value(self, value, spec: TypeSpec | None):
+    def _decode_config_value(self, value, spec: TypeSpec | None, path=()):
         if spec is None or not isinstance(value, dict):
             return value
 
@@ -332,7 +369,7 @@ class Mapper:
                         continue
                 decoded[key] = raw
                 continue
-            decoded[key] = self._decode_config_child(raw, derive(child))
+            decoded[key] = self._decode_config_child(raw, derive(child), (*path, key))
 
         model = self._model_for_spec(spec)
         if model is None:
@@ -371,21 +408,22 @@ class Mapper:
             return None
         return candidate
 
-    def _decode_config_child(self, value, child_spec: TypeSpec):
+    def _decode_config_child(self, value, child_spec: TypeSpec, path=()):
         if child_spec.wildcard:
             return value
         if isinstance(value, list):
-            return [self._decode_config_item(item, child_spec) for item in value]
-        return self._decode_config_value(value, child_spec)
+            return [self._decode_config_item(item, child_spec, path) for item in value]
+        return self._decode_config_value(value, child_spec, path)
 
-    def _decode_config_item(self, item, child_spec: TypeSpec):
+    def _decode_config_item(self, item, child_spec: TypeSpec, path=()):
         """One member of a repeated block, **keeping** its single-key wrapper."""
         if isinstance(item, dict) and len(item) == 1:
             tag, body = next(iter(item.items()))
             member = child_spec.field(tag)
             if member is not None and member.child is not None:
-                return {tag: self._decode_config_child(body, derive(member.child))}
-        return self._decode_config_value(item, child_spec)
+                chosen = self._alternative_for(body, member, path)
+                return {tag: self._decode_config_child(body, derive(chosen), (*path, tag))}
+        return self._decode_config_value(item, child_spec, path)
 
     # -- encode: wire ---------------------------------------------------
 
@@ -712,8 +750,7 @@ class Mapper:
         )
         self.encode_xml(item, child_spec, element, tag)
 
-    @staticmethod
-    def _tag_for_item(item, spec: TypeSpec | None) -> str:
+    def _tag_for_item(self, item, spec: TypeSpec | None) -> str:
         """The element name for a list member — **from the schema**.
 
         The Python class name is only a fallback, and using it unconditionally
@@ -723,11 +760,15 @@ class Mapper:
         assumed. The names come from the content model, so a type in that
         position needs no new code.
 
-        Two cases, in order:
+        Three cases, in order:
 
         * the class name **is** one of the declared children — cue types in a
           cue list, output types in ``outputs`` — so use it, which is what
           picks the right branch of an ``xs:choice``;
+        * the field carries alternatives and this object's model is the
+          field's fallback or one of those alternatives — the declared element
+          name wins (``AudioCue`` is written as ``Cue``). ``class`` itself is
+          a declared attribute, so the existing attribute path writes it;
         * the content model declares exactly **one** child element, so there is
           nothing to choose and the declared name wins over the class name.
         """
@@ -735,11 +776,20 @@ class Mapper:
         if spec is None:
             return class_name
 
-        candidates = [f.name for f in spec.fields if f.kind is FieldKind.ELEMENT]
-        if class_name in candidates:
+        candidates = [f for f in spec.fields if f.kind is FieldKind.ELEMENT]
+        names = [f.name for f in candidates]
+        if class_name in names:
             return class_name
+        item_spec = self._spec_for_model(type(item))
+        if item_spec is not None:
+            for field in candidates:
+                if not field.alternatives or field.child is None:
+                    continue
+                accepted = {field.child.name, *(key.name for _value, key in field.alternatives)}
+                if item_spec.key.name in accepted:
+                    return field.name
         if len(candidates) == 1:
-            return candidates[0]
+            return candidates[0].name
         return class_name
 
     def _child_spec_for(self, spec: TypeSpec | None, key: str, field) -> TypeSpec | None:

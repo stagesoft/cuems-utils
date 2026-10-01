@@ -394,7 +394,7 @@ class CuemsScript(CuemsDict):
         except Exception as exc:
             raise SchemaError(f"{path} is not a valid script document: {exc}") from exc
 
-        obj = cls._decode(source)
+        obj = cls._decode(source, document=str(path))
         repairs = repair(obj)
 
         if repairs:
@@ -597,12 +597,12 @@ class CuemsScript(CuemsDict):
         return {cls.__name__: dict(payload)}
 
     @classmethod
-    def _decode(cls, source: dict) -> 'CuemsScript':
+    def _decode(cls, source: dict, *, document: str | None = None) -> 'CuemsScript':
         """The one decode path both public entry points share (FR-001)."""
         from ..xml.mapper import Mapper
 
         try:
-            return Mapper(SCHEMA_NAME).decode_document(source)
+            return Mapper(SCHEMA_NAME, document=document).decode_document(source)
         except (ValueError, TypeError, KeyError) as exc:
             raise SchemaError(
                 f"the payload does not match {SCHEMA_NAME}.xsd: {exc}"

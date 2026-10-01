@@ -125,7 +125,7 @@ class XmlReaderWriter(CuemsXml):
         carry a deprecation warning without the library tripping contract C8
         on itself.
         """
-        return Mapper(self.schema_name).decode_document(self.read())
+        return Mapper(self.schema_name, document=self.xmlfile).decode_document(self.read())
 
 @deprecated(
     reason="Use XmlReaderWriter instead",

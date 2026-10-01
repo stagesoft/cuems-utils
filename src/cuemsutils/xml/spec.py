@@ -15,6 +15,7 @@ the number of objects, which is SC-PERF-002.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
@@ -65,6 +66,10 @@ class FieldSpec:
     order: int
     kind: FieldKind
     child: TypeKey | None = None
+    #: ``(class value, type)`` in schema order. Empty when the element has no
+    #: conditional type. A tuple of pairs, not a dict: this dataclass is frozen
+    #: and hashed, and :func:`derive` is ``lru_cache``d (data-model §5.1).
+    alternatives: tuple[tuple[str, TypeKey], ...] = ()
 
     @property
     def is_wildcard(self) -> bool:
@@ -138,6 +143,54 @@ class TypeSpec:
         return known + unknown
 
 
+#: E2: ``XsdAlternative.path`` is the test text. Nothing else is read.
+_CLASS_TEST = re.compile(r"^@class='([^']+)'$")
+
+
+def class_alternatives(element, schema_name: str) -> tuple[tuple[str, TypeKey], ...]:
+    """Conditional ``(class value, type)`` pairs, in schema order.
+
+    The unconditional alternative is not one of them — it is the fallback
+    :func:`fallback_alternative` returns. A test that is not exactly
+    ``@class='VALUE'`` is a derivation error, not a skipped alternative.
+    """
+    pairs = []
+    for alt in getattr(element, "alternatives", None) or ():
+        path = getattr(alt, "path", None)
+        if path is None:
+            continue
+        text = path if isinstance(path, str) else str(path)
+        match = _CLASS_TEST.fullmatch(text)
+        if match is None:
+            raise ValueError(
+                f"derivation error: alternative test {text!r} is not exactly @class='VALUE'"
+            )
+        key = _type_key(schema_name, alt.type)
+        if key is None:
+            raise ValueError(
+                f"derivation error: alternative for class {match.group(1)!r} "
+                "has no named complex type"
+            )
+        pairs.append((match.group(1), key))
+    return tuple(pairs)
+
+
+def fallback_alternative(element, schema_name: str) -> TypeKey | None:
+    """The unconditional alternative's type, or ``None`` when there is none.
+
+    ``xmlschema`` requires every alternative type to derive from the element's
+    declared type. ``VideoDeviceType`` does not derive from ``DeviceType``, so
+    the element's declared type is a class-only base and this function is the
+    type an unknown class actually validates as. With no alternatives it
+    returns ``None`` and the declared type stays ``FieldSpec.child``.
+    """
+    chosen = None
+    for alt in getattr(element, "alternatives", None) or ():
+        if getattr(alt, "path", None) is None:
+            chosen = _type_key(schema_name, alt.type)
+    return chosen
+
+
 def _type_key(schema_name: str, xsd_type) -> TypeKey | None:
     """A key for ``xsd_type``, or ``None`` if it is simple."""
     if xsd_type is None or xsd_type.is_simple():
@@ -178,6 +231,8 @@ def _derive_fields(schema_name: str, xsd_type) -> tuple[tuple[FieldSpec, ...], b
             )
             continue
 
+        alternatives = class_alternatives(element, schema_name)
+        fallback = fallback_alternative(element, schema_name)
         fields.append(
             FieldSpec(
                 name=element.local_name,
@@ -194,7 +249,8 @@ def _derive_fields(schema_name: str, xsd_type) -> tuple[tuple[FieldSpec, ...], b
                 repeated=not element.is_single(),
                 order=index,
                 kind=FieldKind.ELEMENT,
-                child=_type_key(schema_name, element.type),
+                child=fallback if fallback is not None else _type_key(schema_name, element.type),
+                alternatives=alternatives,
             )
         )
     return tuple(fields), has_wildcard
@@ -227,16 +283,23 @@ ATTRIBUTES_THE_MODEL_DOES_NOT_OWN = frozenset({"doc_version", "schemaLocation"})
 def _derive_attributes(schema_name: str, xsd_type, start: int) -> tuple[FieldSpec, ...]:
     """Attributes, recorded separately from elements (research R7).
 
-    Only two attribute declarations exist across all six schemas: the
-    ``anyAttribute`` on ``UiPropertiesType`` and ``universe_num`` on
-    ``DmxUniverseType`` — which *also* declares an element of the same name.
-    With the converter's ``attr_prefix=''`` the decoded key is ambiguous
-    between the two. That ambiguity is pre-existing and preserved, not
-    resolved: fixing it would be a wire change (FR-010, R7).
+    Declared attributes come in three kinds (feature 013, research R4):
 
-    ``doc_version`` (feature 008, ITEM E) is a **third** declared attribute,
-    added to every schema's root type, and it is excluded here deliberately —
-    see :data:`ATTRIBUTES_THE_MODEL_DOES_NOT_OWN`.
+    * ``universe_num`` on ``DmxUniverseType``, which also declares an element
+      of the same name. With the converter's ``attr_prefix=''`` the decoded
+      key is ambiguous between the two. That ambiguity is pre-existing and
+      preserved, not resolved: fixing it would be a wire change (FR-010, R7).
+    * ``doc_version`` on every root type, excluded deliberately — see
+      :data:`ATTRIBUTES_THE_MODEL_DOES_NOT_OWN`. ``schemaLocation`` is listed
+      there for symmetry and is never a declared attribute of a complex type,
+      so ``xsd_type.attributes`` does not enumerate it.
+    * ``class``, the device-class discriminator. It is a dict key named
+      ``class``. No Python ``@property`` takes that name, and it is not added
+      to :data:`ATTRIBUTES_THE_MODEL_DOES_NOT_OWN`: it is domain data and it
+      round-trips.
+
+    ``UiPropertiesType``'s ``anyAttribute`` is a wildcard (``name is None``),
+    not a named declaration, and the loop below skips it.
     """
     declared = getattr(xsd_type, "attributes", None) or {}
     specs = []

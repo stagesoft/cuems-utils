@@ -107,7 +107,7 @@ class Settings(XmlReaderWriter):
         raw, self.document_version, self.document_conversions = read_versioned_config_document(
             self.schema_object, self.schema_name, self.xmlfile
         )
-        self.xml_dict = Mapper(self.schema_name).decode_config(raw)
+        self.xml_dict = Mapper(self.schema_name, document=self.xmlfile).decode_config(raw)
         if (hasattr(self, 'process_xml_dict')):
             self.process_xml_dict() # type: ignore[attr-defined]
         self.loaded = True

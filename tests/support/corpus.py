@@ -192,11 +192,18 @@ def by_relpath(relpath: str) -> CorpusDoc:
 #: machinery is asked to cover.
 PRE_008_ROOT = CORPUS_ROOT / "pre-008"
 
+#: Old-shape snapshots taken before feature 013 narrows four schemas (R13).
+#: Same exclusion as ``pre-008/``: the files are the migration fixture and
+#: FR-027's, and they stop validating once the schemas narrow. ``pre-008/``
+#: is not part of this set and is not migrated.
+PRE_013_ROOT = CORPUS_ROOT / "pre-013"
+
 
 def discovered_xml_relpaths() -> list[str]:
-    """Every ``.xml`` actually on disk under the corpus root, excluding ``pre-008/``."""
+    """Every ``.xml`` under the corpus root, excluding ``pre-008/`` and ``pre-013/``."""
+    retained = (PRE_008_ROOT, PRE_013_ROOT)
     return sorted(
         str(p.relative_to(CORPUS_ROOT))
         for p in CORPUS_ROOT.rglob("*.xml")
-        if PRE_008_ROOT not in p.parents
+        if not any(root in p.parents for root in retained)
     )
