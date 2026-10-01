@@ -114,13 +114,13 @@ Verified: the editor reads `default_mappings.xml` at
 
 | | Editor | Frontend |
 |---|---|---|
-| Work US6/US8 asks for | 9 call sites in 2 files (1190 lines): 4 × `CuemsParser(data).parse()`, 2 × `XmlReaderWriter`, plus 3 in the repair tool | port `projects.service.ts` (640), `project-edit/sequence/sequence.component.ts` (**1662**), `settings.component.ts` (140) |
+| Work US6/US8 asks for | **14 call sites in 3 files**: `CuemsDBProject.py` 4 × `CuemsParser` + 2 × `XmlReaderWriter`; `repair_durations.py` 3; `CuemsWsServer.py` 1 × `get_nodes_by_adoption`, 1 × `create_script`, 3 × `new_uuid`. *(Said "9 in 2 files" until 2026-10-01 — the deprecated-shim sites only, omitting `CuemsWsServer.py` with the census detail it was derived from.)* | port `projects.service.ts` (640), `project-edit/sequence/sequence.component.ts` (**1662**), `settings.component.ts` (140) |
 | Touched by 013 | **no** | **yes — `sequence.component.ts` is 013's named site** |
 | Touched by 014 | **yes, but at one site that is not among the nine** (`cli.py:59`) | yes (the inventory read) |
 | Characterization tests required first | its own suite exists (61 tests) | T032 requires them committed **before** the port; only 5 spec files exist today |
 
 So the editor's deprecated-surface migration — the part that unblocks T049 — is
-**orthogonal to 013 and 014**. Moving 9 call sites from `CuemsParser`/
+**orthogonal to 013 and 014**. Moving those call sites from `CuemsParser`/
 `XmlReaderWriter` to `CuemsScript.load`/`save`/`from_json` changes *how it reads
 a script*, not *what the hardware inventory looks like*.
 
@@ -138,8 +138,9 @@ Its bundle is already vendored at `specs/planning/xml-refactor/` (six documents)
 and its prompt is at
 `specs/planning/xml-rebuild/010-consumer-prompts/02-cuems-editor.md`.
 
-**In scope** — the nine call sites, and the two things US6 asks for that are
-actually the work:
+**In scope** — the fourteen call sites (three of which, `new_uuid`, are a
+one-line re-source that makes the process start at all), and the two things US6
+asks for that are actually the work:
 
 - **T027a, the fixup split.** Delete the editor's dangling-reference walk (now
   the library's `target_resolves`, FR-043a, and deleting it is specified — two
