@@ -121,7 +121,7 @@ def test_the_renamed_mappings_type_is_the_one_carrying_the_rule():
     pair whose divergence the generic checks were written after.
     """
     rule = RULES["one_custom_template_per_node"]
-    assert rule.applies_to == (("NodeMappingType", "video"),)
+    assert rule.applies_to == (("NodeMappingType", "devices"),)
     assert rule.repairable is False
 
     mappings = get_registry("project_mappings")

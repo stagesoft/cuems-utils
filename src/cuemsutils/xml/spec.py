@@ -208,7 +208,9 @@ def _model_group(xsd_type) -> ModelGroup | None:
 
 def _derive_fields(schema_name: str, xsd_type) -> tuple[tuple[FieldSpec, ...], bool]:
     content = getattr(xsd_type, "content", None)
-    if content is None:
+    # Simple content (a default port's text) has no element particles. The
+    # text arrives as the converter's ``&`` key and is not a field to derive.
+    if content is None or not hasattr(content, "iter_elements"):
         return (), False
 
     fields: list[FieldSpec] = []
@@ -280,6 +282,27 @@ def _derive_fields(schema_name: str, xsd_type) -> tuple[tuple[FieldSpec, ...], b
 ATTRIBUTES_THE_MODEL_DOES_NOT_OWN = frozenset({"doc_version", "schemaLocation"})
 
 
+def _simple_content_text(xsd_type, order: int) -> tuple[FieldSpec, ...]:
+    """The converter's text key for a simple-content type.
+
+    A default port's text is not an element. It arrives and leaves as ``&``.
+    Deriving it keeps the model's declared set equal to the schema's.
+    """
+    has_simple = getattr(xsd_type, "has_simple_content", None)
+    if has_simple is None or not has_simple():
+        return ()
+    return (
+        FieldSpec(
+            name="&",
+            xsd_type=None,
+            required=False,
+            repeated=False,
+            order=order,
+            kind=FieldKind.ELEMENT,
+        ),
+    )
+
+
 def _derive_attributes(schema_name: str, xsd_type, start: int) -> tuple[FieldSpec, ...]:
     """Attributes, recorded separately from elements (research R7).
 
@@ -335,11 +358,14 @@ def derive(key: TypeKey) -> TypeSpec:
     xsd_type = _resolve(key, schema)
 
     element_fields, has_wildcard = _derive_fields(key.schema, xsd_type)
-    attribute_fields = _derive_attributes(key.schema, xsd_type, len(element_fields))
+    text_fields = _simple_content_text(xsd_type, len(element_fields))
+    attribute_fields = _derive_attributes(
+        key.schema, xsd_type, len(element_fields) + len(text_fields)
+    )
 
     return TypeSpec(
         key=key,
-        fields=element_fields + attribute_fields,
+        fields=element_fields + text_fields + attribute_fields,
         model_group=_model_group(xsd_type),
         wildcard=has_wildcard,
         mixed=bool(getattr(xsd_type, "mixed", False)),

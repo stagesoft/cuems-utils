@@ -62,11 +62,21 @@ def _sha(path: Path) -> str:
 
 def test_a_plain_run_writes_a_coherent_triple(env, tmp_path, monkeypatch):
     conf, state, base = env
-    # seed a compound default so FR-026's substitution is exercised
-    from cuemsutils.xml import seed_values
-    tables = seed_values.load_seed_values()
-    tables["project_mappings"]["CuemsProjectMappingsType"]["default_video_output"] = f"{SENTINEL}_0"
-    monkeypatch.setattr(init_node, "_seed_tables", lambda *_a, **_k: tables)
+    # Plant a compound token on the video output port. The six ports are built
+    # by the generator, not seeded as scalars, so a seed-table key would be a
+    # stale field (V2).
+    from cuemsutils.xml import make_defaults
+    original = make_defaults._default_mappings
+
+    def _plant(tables, identity):
+        doc = original(tables, identity)
+        for item in doc["defaults"]:
+            port = item["default"]
+            if port["class"] == "video" and port["direction"] == "output":
+                port["&"] = f"{SENTINEL}_0"
+        return doc
+
+    monkeypatch.setattr(make_defaults, "_default_mappings", _plant)
 
     assert _run(base) == 0
 
@@ -79,7 +89,8 @@ def test_a_plain_run_writes_a_coherent_triple(env, tmp_path, monkeypatch):
     assert _uuid_in(conf / "network_map.xml") == uuid
     mappings = ET.parse(conf / "default_mappings.xml").getroot()
     assert mappings.findtext("./nodes/node/uuid") == uuid
-    assert mappings.findtext("default_video_output") == f"{uuid}_0", "compound string not specialised (FR-026)"
+    video_out = mappings.find("./defaults/default[@class='video'][@direction='output']")
+    assert video_out is not None and video_out.text == f"{uuid}_0", "compound string not specialised (FR-026)"
     settings = ET.parse(conf / "settings.xml").getroot()
     assert settings.findtext(".//node/mac") == "aabbccddee01", "MAC must come from ethernet0 (FR-025a)"
     row = ET.parse(conf / "network_map.xml").getroot().find(".//node")

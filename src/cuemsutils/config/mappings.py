@@ -19,6 +19,8 @@ says so in a comment. The **classes** are not shared: registries are per schema
 
 from __future__ import annotations
 
+import re
+
 from ..helpers import Unset
 from .base import ConfigDict, save_document
 
@@ -97,10 +99,22 @@ class VideoPutGroupType(ConfigDict):
     }
 
 
-class DeviceType(ConfigDict):
-    """Audio or DMX on one node: output groups and input groups."""
+class DeviceClassType(ConfigDict):
+    """The class-only base every device alternative extends.
+
+    ``class`` is a dict key. It is not a Python property.
+    """
 
     DECLARED_DEFAULTS = {
+        "class": Unset,
+    }
+
+
+class DeviceType(ConfigDict):
+    """Audio, DMX, or any class with no special fields."""
+
+    DECLARED_DEFAULTS = {
+        "class": Unset,
         "outputs": Unset,
         "inputs": Unset,
     }
@@ -108,9 +122,101 @@ class DeviceType(ConfigDict):
 
 class VideoDeviceType(ConfigDict):
     DECLARED_DEFAULTS = {
+        "class": Unset,
         "outputs": Unset,
         "inputs": Unset,
     }
+
+
+class DevicesType(ConfigDict):
+    """The ``<devices>`` container. The decoded field holds the repeated list."""
+
+    DECLARED_DEFAULTS = {
+        "device": Unset,
+    }
+
+
+class DefaultPortType(ConfigDict):
+    """One default port. ``&`` is the converter's text key: the element text."""
+
+    DECLARED_DEFAULTS = {
+        "class": Unset,
+        "direction": Unset,
+        "&": Unset,
+    }
+
+
+class DefaultsType(ConfigDict):
+    """The ``<defaults>`` container. The decoded field holds the repeated list."""
+
+    DECLARED_DEFAULTS = {
+        "default": Unset,
+    }
+
+
+def _devices_of(node) -> list:
+    devices = dict.get(node, "devices")
+    return devices if isinstance(devices, list) else []
+
+
+def device_of_class(node, device_class: str):
+    """The device whose ``class`` is ``device_class``, or ``None``.
+
+    No class list. The document is the vocabulary (FR-012a).
+    """
+    for item in _devices_of(node):
+        if not isinstance(item, dict):
+            continue
+        device = dict.get(item, "device")
+        if isinstance(device, dict) and dict.get(device, "class") == device_class:
+            return device
+    return None
+
+
+_DEFAULT_KEY = re.compile(r"^default_(.+)_(input|output)$")
+
+
+def _legacy_default(root, device_class: str, direction: str):
+    defaults = dict.get(root, "defaults")
+    if not isinstance(defaults, list):
+        raise KeyError(f"default_{device_class}_{direction}")
+    for item in defaults:
+        if not isinstance(item, dict):
+            continue
+        port = dict.get(item, "default")
+        if (
+            isinstance(port, dict)
+            and dict.get(port, "class") == device_class
+            and dict.get(port, "direction") == direction
+        ):
+            text = dict.get(port, "&")
+            return "" if text in (None, Unset) else text
+    raise KeyError(f"default_{device_class}_{direction}")
+
+
+def _set_legacy_default(root, device_class: str, direction: str, value) -> None:
+    defaults = dict.get(root, "defaults")
+    if not isinstance(defaults, list):
+        defaults = []
+        dict.__setitem__(root, "defaults", defaults)
+    for item in defaults:
+        if not isinstance(item, dict):
+            continue
+        port = dict.get(item, "default")
+        if (
+            isinstance(port, dict)
+            and dict.get(port, "class") == device_class
+            and dict.get(port, "direction") == direction
+        ):
+            port["&"] = value
+            return
+    defaults.append({
+        "default": DefaultPortType({
+            "class": device_class,
+            "direction": direction,
+            "&": value,
+        })
+    })
 
 
 class NodeMappingType(ConfigDict):
@@ -130,10 +236,25 @@ class NodeMappingType(ConfigDict):
     DECLARED_DEFAULTS = {
         "uuid": Unset,
         "mac": Unset,
-        "audio": Unset,
-        "video": Unset,
-        "dmx": Unset,
+        "devices": Unset,
     }
+
+    def __getitem__(self, key):
+        try:
+            return super().__getitem__(key)
+        except KeyError:
+            device = device_of_class(self, key) if isinstance(key, str) else None
+            if device is None:
+                raise
+            return device
+
+    def get(self, key, default=None):
+        # ``dict.get`` does not call ``__getitem__``. NodeEngine reads a class
+        # with ``.get`` (FR-012a); a missing class stays the default.
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
 
 class NodesType(ConfigDict):
@@ -184,15 +305,29 @@ class CuemsProjectMappingsType(ConfigDict):
 
     DECLARED_DEFAULTS = {
         "number_of_nodes": Unset,
-        "default_audio_input": Unset,
-        "default_audio_output": Unset,
-        "default_video_input": Unset,
-        "default_video_output": Unset,
-        "default_dmx_input": Unset,
-        "default_dmx_output": Unset,
+        "defaults": Unset,
         "nodes": Unset,
         "new_nodes": Unset,
     }
+
+    def __getitem__(self, key):
+        match = _DEFAULT_KEY.fullmatch(key) if isinstance(key, str) else None
+        if match is not None and key not in self.keys():
+            return _legacy_default(self, match.group(1), match.group(2))
+        return super().__getitem__(key)
+
+    def __setitem__(self, key, value):
+        match = _DEFAULT_KEY.fullmatch(key) if isinstance(key, str) else None
+        if match is not None and key not in self.keys():
+            _set_legacy_default(self, match.group(1), match.group(2), value)
+            return
+        super().__setitem__(key, value)
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
     def save(self, path) -> None:
         """Validate (T1), then write atomically (feature 008, FR-013/FR-015/FR-017).

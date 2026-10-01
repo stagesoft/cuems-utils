@@ -52,10 +52,13 @@ def test_the_shape_is_declared_once_per_level(manager):
     node = manager.node_mappings
     assert type(node) is models.NodeMappingType
 
-    groups = node["audio"]
-    assert isinstance(groups, list), type(groups).__name__
+    device = node["audio"]
+    assert type(device) is models.DeviceType
+    assert device["class"] == "audio"
 
-    ports = groups[0]["outputs"]
+    groups = device["outputs"]
+    assert isinstance(groups, list) and groups, type(groups).__name__
+    ports = groups[0]
     assert isinstance(ports, list)
 
     port = next(iter(ports[0].values()))
@@ -72,7 +75,8 @@ def test_the_video_shape_is_the_same_shape(manager):
     the deleted fossils could legitimately have been about."""
     node = manager.node_mappings
     video = node["video"]
-    port = next(iter(video[0]["outputs"][0].values()))
+    assert type(video) is models.VideoDeviceType
+    port = next(iter(video["outputs"][0][0].values()))
     assert type(port) is models.VideoPutType
     assert set(models.VideoPutType.declared_fields()) - set(
         models.PutType.declared_fields()
@@ -125,16 +129,17 @@ def test_every_call_site_reads_the_same_shape(manager):
     """The two live readers agree, because they call the same helper.
 
     ``load_net_and_node_mappings`` and ``check_project_mappings`` both unwrap a
-    port with ``_unwrap_put`` and both address the device sections through
-    ``_DEVICE_SECTIONS``. That is what "one shape, identical at every call
-    site" means operationally.
+    port with ``_unwrap_put`` and both walk devices through ``_each_device``.
+    That is what "one shape, identical at every call site" means operationally.
+    The class tuple is gone: a name in either method would be a second vocabulary.
     """
     from cuemsutils.tools import ConfigManager as module
 
+    assert "_DEVICE_SECTIONS" not in inspect.getsource(module)
     for method in (
         module.ConfigManager.load_net_and_node_mappings,
         module.ConfigManager.check_project_mappings,
     ):
         source = inspect.getsource(method)
-        assert "_DEVICE_SECTIONS" in source
+        assert "_each_device" in source
         assert "_unwrap_put" in source

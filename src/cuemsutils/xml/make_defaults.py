@@ -61,6 +61,18 @@ def _network_map(tables: Tables, identity: dict):
     return CuemsNetworkMapType({"node_list": [{"node": row}]})
 
 
+#: The six ports a fresh node used to carry as ``default_*`` elements. Empty
+#: text, one ``<default>`` each. A repeated element is not a seed scalar.
+_EMPTY_DEFAULTS = (
+    ("audio", "input"),
+    ("audio", "output"),
+    ("video", "input"),
+    ("video", "output"),
+    ("dmx", "input"),
+    ("dmx", "output"),
+)
+
+
 def _default_mappings(tables: Tables, identity: dict):
     """Retires with feature 014 (FR-012). One node entry, no hardware, empty defaults."""
     from ..config import mappings as m
@@ -68,8 +80,13 @@ def _default_mappings(tables: Tables, identity: dict):
     root_values = dict(tables["project_mappings"]["CuemsProjectMappingsType"])
     entry = m.NodeMappingType({"uuid": identity["uuid"], "mac": identity["mac"]})
     entry.update(tables["project_mappings"].get("NodeMappingType", {}))
+    defaults = [
+        {"default": m.DefaultPortType({"class": device_class, "direction": direction, "&": ""})}
+        for device_class, direction in _EMPTY_DEFAULTS
+    ]
     return m.CuemsProjectMappingsType({
         **root_values,
+        "defaults": defaults,
         "nodes": [{"node": entry}],
         "new_nodes": None,
     })

@@ -163,9 +163,14 @@ def project_mappings_xml(nodes: list[NodeSpec], version: int = 1,
         "<?xml version='1.0' encoding='utf-8'?>\n"
         f'<cms:CuemsProjectMappings {_NS} doc_version="{version}">'
         f"<number_of_nodes>{len(nodes)}</number_of_nodes>"
-        "<default_audio_input /><default_audio_output /><default_video_input />"
-        f"<default_video_output>{default_video}</default_video_output>"
-        "<default_dmx_input /><default_dmx_output />"
+        "<defaults>"
+        "<default class=\"audio\" direction=\"input\"/>"
+        "<default class=\"audio\" direction=\"output\"/>"
+        "<default class=\"video\" direction=\"input\"/>"
+        f"<default class=\"video\" direction=\"output\">{default_video}</default>"
+        "<default class=\"dmx\" direction=\"input\"/>"
+        "<default class=\"dmx\" direction=\"output\"/>"
+        "</defaults>"
         f"<nodes>{entries}</nodes><new_nodes /></cms:CuemsProjectMappings>\n"
     )
 

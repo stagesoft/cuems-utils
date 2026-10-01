@@ -52,8 +52,15 @@ def _mappings(uuid, default_video=""):
     return (
         "<?xml version='1.0' encoding='utf-8'?>\n"
         '<cms:CuemsProjectMappings xmlns:cms="https://stagelab.coop/cuems/"><number_of_nodes>1</number_of_nodes>'
-        f"<default_audio_input/><default_audio_output/><default_video_input/><default_video_output>{default_video}</default_video_output>"
-        f"<default_dmx_input/><default_dmx_output/><nodes><node><uuid>{uuid}</uuid><mac>aabbccddeeff</mac></node></nodes><new_nodes/>"
+        "<defaults>"
+        "<default class=\"audio\" direction=\"input\"/>"
+        "<default class=\"audio\" direction=\"output\"/>"
+        "<default class=\"video\" direction=\"input\"/>"
+        f"<default class=\"video\" direction=\"output\">{default_video}</default>"
+        "<default class=\"dmx\" direction=\"input\"/>"
+        "<default class=\"dmx\" direction=\"output\"/>"
+        "</defaults>"
+        f"<nodes><node><uuid>{uuid}</uuid><mac>aabbccddeeff</mac></node></nodes><new_nodes/>"
         "</cms:CuemsProjectMappings>\n"
     )
 

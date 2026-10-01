@@ -30,6 +30,12 @@ whole ``errors`` module, so that file's hash necessarily changes to record
 the new entry. ``tests/contract/test_public_api_surface.py``'s
 ``PUBLIC_ERRORS`` tuple gained the one new name in the same commit.
 
+**Feature 013 re-hashes the eight project-mappings dict goldens once,
+deliberately** (T024, FR-055). ``project_mappings``' device and default
+elements changed shape, so the four corpus documents and both of each
+document's recorded dicts (``*.reader.json``, ``*.config.json``) moved with
+the schema. No other golden in this manifest was rewritten.
+
 
 ``MANIFEST.sha256`` pins the hash of every file under this directory at the
 moment T002 ran (after T003b/T003c added the two new corpus documents' goldens,

@@ -202,6 +202,12 @@ PROVENANCE = {
 #: choice is authored intent, so a discovered document may not declare one.
 _AUTHORED_CHOICE_PREFIX = "default_"
 
+
+def _is_authored_choice(name: str) -> bool:
+    """``default_*`` was one element per port. Axis A collapsed those into
+    ``<default class direction>``. Both spellings are an authored choice."""
+    return name == "default" or name.startswith(_AUTHORED_CHOICE_PREFIX)
+
 #: ``network_map`` straddles, knowingly. §8.1 puts the cluster's discovered
 #: facts and its adoption flags in the same file, and that fusion is accepted
 #: rather than scheduled: adoption is a cluster-level authored act with no other
@@ -229,7 +235,7 @@ def test_no_discovered_document_declares_an_authored_choice():
     them, or a ``default_dmx_output``, from returning.
     """
     offenders = {
-        stem: sorted(n for n in names if n.startswith(_AUTHORED_CHOICE_PREFIX))
+        stem: sorted(n for n in names if _is_authored_choice(n))
         for stem, names in _elements().items()
         if PROVENANCE[stem] == "discovered"
     }
@@ -252,7 +258,7 @@ def test_authored_choices_are_declared_in_exactly_one_schema():
     per_name: dict[str, list[str]] = collections.defaultdict(list)
     for stem, names in _elements().items():
         for name in names:
-            if name.startswith(_AUTHORED_CHOICE_PREFIX):
+            if _is_authored_choice(name):
                 per_name[name].append(stem)
 
     assert per_name, "no default_* choice is declared anywhere -- did they all move?"

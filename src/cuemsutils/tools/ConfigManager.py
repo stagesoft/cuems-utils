@@ -60,13 +60,50 @@ class SchemaName(Enum):
     #: answers for it, with two unbound types.
     HARDWARE_OUTPUTS = 'hardware_outputs'
 
-#: The three device sections a node can carry, in ``NodeMappingType``'s schema order.
-#:
-#: Named rather than discovered, and that is the point of T051: the walk that
-#: built ``node_hw_outputs`` used to iterate every key of the node mapping and
-#: test ``isinstance(content, list)`` to decide which ones were devices. Which
-#: keys are devices is stated by ``project_mappings.xsd``.
-_DEVICE_SECTIONS = ('audio', 'video', 'dmx')
+class HardwareOutputs(dict):
+    """Ports by ``{class}_{inputs|outputs}``.
+
+    Filled by walking the document's devices. A well-formed key the walk did
+    not fill answers ``[]``. A typo stays a ``KeyError``. ``dict.get`` does
+    not consult ``__missing__``, so a missing class stays missing for a caller
+    that uses ``.get`` (``NodeEngine``).
+    """
+
+    def __missing__(self, key):
+        if _well_formed_hw_key(key):
+            return []
+        raise KeyError(key)
+
+
+def _well_formed_hw_key(key) -> bool:
+    if not isinstance(key, str):
+        return False
+    device_class, _, direction = key.rpartition("_")
+    return bool(device_class) and direction in {"inputs", "outputs"}
+
+
+def _each_device(node):
+    """Each device object on a node. The document names the classes."""
+    devices = node.get("devices") if isinstance(node, dict) else None
+    if not isinstance(devices, list):
+        return
+    for item in devices:
+        if not isinstance(item, dict):
+            continue
+        device = item.get("device")
+        if isinstance(device, dict) and isinstance(device.get("class"), str):
+            yield device
+
+
+def _port_groups(value):
+    """One direction's groups, each a list of port wrappers."""
+    if not isinstance(value, list):
+        return
+    for group in value:
+        if isinstance(group, list):
+            yield group
+        elif isinstance(group, dict):
+            yield [group]
 
 #: The accessors whose value is a config **object** and can therefore project
 #: itself (T056b). The scalar accessors are excluded because a ``str`` has no
@@ -156,14 +193,7 @@ class ConfigManager(ConfigBase):
         self.network_map = {}
         self.network_mappings = {}
         self.node_mappings = {}
-        self.node_hw_outputs = {
-            'audio_inputs':[],
-            'audio_outputs':[],
-            'video_inputs':[],
-            'video_outputs':[],
-            'dmx_inputs':[],
-            'dmx_outputs':[]
-        }
+        self.node_hw_outputs = HardwareOutputs()
         super().__init__(config_dir)
 
         if load_all:
@@ -280,14 +310,7 @@ class ConfigManager(ConfigBase):
         self.network_map = {}
         self.network_mappings = {}
         self.node_mappings = {}
-        self.node_hw_outputs = {
-            'audio_inputs':[],
-            'audio_outputs':[],
-            'video_inputs':[],
-            'video_outputs':[],
-            'dmx_inputs':[],
-            'dmx_outputs':[]
-        }
+        self.node_hw_outputs = HardwareOutputs()
 
         self.set_dir_hierarchy()
         self.load_network_map()
@@ -383,18 +406,13 @@ class ConfigManager(ConfigBase):
         # iteration. Each level below is addressed by the name the schema gives
         # it, so a reader can check the code against ``project_mappings.xsd``
         # instead of against a sample document.
-        for section in _DEVICE_SECTIONS:
-            device_groups = self.node_mappings.get(section)
-            if not isinstance(device_groups, list):
-                # Absent (``<dmx />`` decodes to None) or scalar. Not an error:
-                # every device element is ``minOccurs="0"``.
-                continue
-            for group in device_groups:
-                for direction, ports in group.items():
+        for device in _each_device(self.node_mappings):
+            section = device["class"]
+            for direction in ("inputs", "outputs"):
+                bucket = self.node_hw_outputs.setdefault(f"{section}_{direction}", [])
+                for ports in _port_groups(device.get(direction)):
                     for port in ports:
-                        self.node_hw_outputs[f'{section}_{direction}'].append(
-                            _hw_name(_unwrap_put(port))
-                        )
+                        bucket.append(_hw_name(_unwrap_put(port)))
 
         Logger.debug(f"Node hardware outputs are: {self.node_hw_outputs}")
 
@@ -656,13 +674,11 @@ class ConfigManager(ConfigBase):
         if not node:
             return True
 
-        for section in _DEVICE_SECTIONS:
-            device_groups = node.get(section)
-            if not isinstance(device_groups, list):
-                continue
-            for group in device_groups:
-                for direction, ports in group.items():
-                    available = self.node_hw_outputs.get(f'{section}_{direction}', [])
+        for device in _each_device(node):
+            section = device["class"]
+            for direction in ("inputs", "outputs"):
+                available = self.node_hw_outputs.get(f"{section}_{direction}", [])
+                for ports in _port_groups(device.get(direction)):
                     for port in ports:
                         put = _unwrap_put(port)
                         name = _hw_name(put)

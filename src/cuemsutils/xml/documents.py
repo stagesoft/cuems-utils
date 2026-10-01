@@ -24,6 +24,7 @@ from xml.etree.ElementTree import ElementTree
 
 from xmlschema import XMLSchema11
 
+from ..errors import SchemaError
 from ..log import Logger
 from .converter import CuemsConverter
 from .mapper import build_document
@@ -146,8 +147,53 @@ def read_document_versioned(schema_name: str, source: str | PathLike):
     if version > current:
         raise DocumentTooNewError(schema_name, version, current)
     steps = convert(schema_name, tree, version, current) if version < current else []
+    raise_if_old_device_shape(schema_name, source, tree)
     decoded = schema_object(schema_name).to_dict(tree, **DOCUMENT_READER_OPTIONS)
     return decoded, version, tuple(steps)
+
+
+_OLD_NODE_DEVICES = frozenset({"audio", "video", "dmx"})
+_OLD_DEFAULTS = frozenset({
+    "default_audio_input",
+    "default_audio_output",
+    "default_video_input",
+    "default_video_output",
+    "default_dmx_input",
+    "default_dmx_output",
+})
+
+
+def _local(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def raise_if_old_device_shape(schema_name: str, source: str, tree: ElementTree) -> None:
+    """Name the migration when a document is still in the pre-013 shape.
+
+    After the version probe and before schema decode. A bare ``xs:sequence``
+    complaint is the X13 failure this exists to prevent (FR-027). This pass
+    covers ``project_mappings`` only; settings and scripts name their own
+    old elements when those schemas narrow.
+    """
+    if schema_name != "project_mappings":
+        return
+    root = tree.getroot()
+    root_names = {_local(child.tag) for child in list(root)}
+    old = bool(root_names & _OLD_DEFAULTS)
+    if not old:
+        for node in root.iter():
+            if _local(node.tag) != "node":
+                continue
+            names = {_local(child.tag) for child in list(node)}
+            if names & _OLD_NODE_DEVICES:
+                old = True
+                break
+    if not old:
+        return
+    raise SchemaError(
+        f"project_mappings document {source} is in the pre-013 device shape "
+        "(<audio>/<video>/<dmx> on <node>). Run `cuems-reshape-devices` to migrate it."
+    )
 
 
 def build_tree(obj, schema_name: str) -> ElementTree:

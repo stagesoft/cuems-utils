@@ -76,10 +76,15 @@ def test_project_mappings_semantic_violation_raises_validation_error_not_schema_
     node = tampered["nodes"][0]["node"]
     # Give the alias output (id 0) a canvas_region too, so the node now
     # carries two "custom templates" where at most one is allowed.
+    video = next(
+        item["device"]
+        for item in node["devices"]
+        if item["device"]["class"] == "video"
+    )
     outputs = [
-        o["output"]
-        for group in node["video"]
-        for o in (group.get("outputs") or [])
+        port["output"]
+        for group in video["outputs"]
+        for port in (group if isinstance(group, list) else [group])
     ]
     outputs[0]["canvas_region"] = {"x": 0.0, "y": 0.0, "width": 0.1, "height": 0.1}
 

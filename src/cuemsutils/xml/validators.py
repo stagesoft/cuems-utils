@@ -87,30 +87,39 @@ def validate_custom_templates(processed: dict) -> None:
             node = node_wrapper.get("node") if isinstance(node_wrapper, dict) else None
             if not node:
                 continue
-            video = node.get("video")
-            if not video:
-                continue
-
             node_uuid = node.get("uuid", "<unknown>")
             template_count = 0
-            for video_group in video:
-                if not isinstance(video_group, dict):
+            for output in _video_outputs(node):
+                region = output.get("canvas_region")
+                if region is None:
                     continue
-                for output_wrapper in video_group.get("outputs", []) or []:
-                    output = (
-                        output_wrapper.get("output")
-                        if isinstance(output_wrapper, dict)
-                        else None
-                    )
-                    if not output:
-                        continue
-                    region = output.get("canvas_region")
-                    if region is None:
-                        continue
-                    check_canvas_region_containment(region, node_uuid)
-                    template_count += 1
+                check_canvas_region_containment(region, node_uuid)
+                template_count += 1
 
             check_one_custom_template_per_node(template_count, node_uuid)
+
+
+def _video_outputs(node):
+    """Video-port bodies, reached by ``class``, not by an element name."""
+    devices = node.get("devices") if isinstance(node, dict) else None
+    if not isinstance(devices, list):
+        return
+    for item in devices:
+        if not isinstance(item, dict):
+            continue
+        device = item.get("device")
+        if not isinstance(device, dict) or device.get("class") != "video":
+            continue
+        for group in device.get("outputs") or []:
+            ports = group if isinstance(group, list) else [group]
+            for wrapper in ports:
+                output = (
+                    wrapper.get("output")
+                    if isinstance(wrapper, dict)
+                    else None
+                )
+                if output:
+                    yield output
 
 
 # --- the named-rule registry (T072) ----------------------------------------
@@ -791,7 +800,7 @@ def _cuelist_shape(value, obj=None) -> None:
 
 @register(
     "one_custom_template_per_node",
-    [("NodeMappingType", "video")],
+    [("NodeMappingType", "devices")],
     # No default (``Unset``), and a count violation has no single substitute
     # value that would decide which duplicate template to keep.
     repairable=False,
@@ -803,24 +812,31 @@ def _one_custom_template_per_node(value, obj=None) -> None:
     *project mappings* rather than over a script. Registered against the
     mappings ``NodeMappingType`` so ``run_rules`` reaches it if a config object is
     ever validated; the live call site remains ``validate_custom_templates``,
-    which ``ProjectMappings`` runs on read.
+    which ``ProjectMappings`` runs on read. The body keeps only ``class``
+    ``video``; the field is ``devices`` because ``video`` is no longer one.
     """
     if not value:
         return
     node_uuid = obj.get("uuid", "<unknown>") if obj is not None else "<unknown>"
     count = 0
-    for group in value if isinstance(value, list) else [value]:
-        if not hasattr(group, "keys"):
+    items = value if isinstance(value, list) else [value]
+    for item in items:
+        if not hasattr(item, "get"):
             continue
-        for wrapper in group.get("outputs") or []:
-            output = _unwrap_single(wrapper)
-            if output is None:
-                continue
-            region = output.get("canvas_region")
-            if region is None:
-                continue
-            check_canvas_region_containment(region, node_uuid)
-            count += 1
+        device = item.get("device", item)
+        if not hasattr(device, "get") or device.get("class") != "video":
+            continue
+        for group in device.get("outputs") or []:
+            ports = group if isinstance(group, list) else [group]
+            for wrapper in ports:
+                output = _unwrap_single(wrapper)
+                if output is None:
+                    continue
+                region = output.get("canvas_region")
+                if region is None:
+                    continue
+                check_canvas_region_containment(region, node_uuid)
+                count += 1
     check_one_custom_template_per_node(count, node_uuid)
 
 

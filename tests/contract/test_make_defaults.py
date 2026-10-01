@@ -81,12 +81,18 @@ def test_the_network_map_has_exactly_one_firstrun_row(generated):
 def test_the_default_mappings_claim_no_hardware(generated):
     root = ET.parse(generated / "default_mappings.xml").getroot()
     assert root.findtext("number_of_nodes") == "1"
-    for field in ("default_audio_input", "default_audio_output", "default_video_input",
-                  "default_video_output", "default_dmx_input", "default_dmx_output"):
-        assert (root.findtext(field) or "") == "", field
+    for device_class, direction in (
+        ("audio", "input"), ("audio", "output"),
+        ("video", "input"), ("video", "output"),
+        ("dmx", "input"), ("dmx", "output"),
+    ):
+        port = root.find(
+            f"./defaults/default[@class='{device_class}'][@direction='{direction}']"
+        )
+        assert port is not None and (port.text or "") == "", (device_class, direction)
     nodes = root.findall("./nodes/node")
     assert len(nodes) == 1 and nodes[0].findtext("uuid") == SENTINEL
-    assert nodes[0].find("audio") is None and nodes[0].find("video") is None and nodes[0].find("dmx") is None
+    assert nodes[0].find("devices") is None
     assert root.find("new_nodes") is not None and len(root.find("new_nodes")) == 0
 
 

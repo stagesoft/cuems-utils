@@ -178,20 +178,20 @@ two devices of the same class are rejected by the schema alone.
 
 ### Tests for User Story 1
 
-- [ ] T017 [P] [US1] Failing-first contract test `tests/contract/test_device_class_open.py`
+- [x] T017 [P] [US1] Failing-first contract test `tests/contract/test_device_class_open.py`
       — a mappings document with `<device class="lighting">` validates and decodes to a
       device whose `class` is `lighting`, and no name `lighting` exists under
       `src/cuemsutils/` except the test itself (scenario 1, FR-004, SC-001)
-- [ ] T018 [P] [US1] Failing-first contract test
+- [x] T018 [P] [US1] Failing-first contract test
       `tests/contract/test_class_conditional_fields.py` — `canvas_region` on a device
       whose class is not `video` is rejected; the same element on `video` is accepted
       (scenario 3, FR-003)
-- [ ] T019 [P] [US1] Failing-first contract test
+- [x] T019 [P] [US1] Failing-first contract test
       `tests/contract/test_device_class_uniqueness.py` — two `audio` devices on one node
       are rejected by `XMLSchema11.is_valid` **with this library's load path not imported**
       (SC-011, FR-013). Uses the mechanism T003 recorded. If T003 stopped because no
       schema construct rejects the duplicate, this test is not rewritten as a T2 test
-- [ ] T067 [P] [US1] Failing-first contract test
+- [x] T067 [P] [US1] Failing-first contract test
       `tests/contract/test_special_field_class_cost.py` — a class that needs a special
       field costs exactly one `xs:alternative` plus the type it names, in one schema,
       and nowhere else (FR-005, SC-002). Build the fixture from the reshaped
@@ -206,7 +206,7 @@ two devices of the same class are rejected by the schema alone.
 without the diagnosis is the X13 failure mode FR-027 exists to prevent. The hash pin
 moves in that same commit (US5, done here because it cannot lag).
 
-- [ ] T020 [US1] Reshape `src/cuemsutils/xml/schemas/project_mappings.xsd` per
+- [x] T020 [US1] Reshape `src/cuemsutils/xml/schemas/project_mappings.xsd` per
       [data-model.md](data-model.md) §2. `NodeMappingType` keeps single `uuid` and `mac`
       children; devices move into `DevicesType`, a container holding only repeated
       `device` (R2 — a type that mixes single children with a repeated one silently drops
@@ -216,7 +216,7 @@ moves in that same commit (US5, done here because it cannot lag).
       `default_*` elements become `DefaultsType` of repeated `default` with required
       `class` and `direction` (`input`|`output`). A schema comment states why the
       containers exist, pointing at R2
-- [ ] T021 [US1] In the same commit: old-shape diagnosis in
+- [x] T021 [US1] In the same commit: old-shape diagnosis in
       `read_document_versioned` (`src/cuemsutils/xml/documents.py`), after the version
       probe and before `to_dict`. An old-shape `project_mappings` raises a message naming
       the document path, `<audio>/<video>/<dmx> on <node>`, and `cuems-reshape-devices`,
@@ -224,18 +224,18 @@ moves in that same commit (US5, done here because it cannot lag).
       This task covers `project_mappings` only. The script load path is T047, not a
       leftover to confirm later. Asserted by `tests/integration/test_old_shape_diagnosis.py`
       against `tests/data/corpus/pre-013/`, on the message text (SC-005)
-- [ ] T022 [US1] In the same commit: the class-uniqueness `xs:assert` on `DevicesType` and
+- [x] T022 [US1] In the same commit: the class-uniqueness `xs:assert` on `DevicesType` and
       the class+direction assert on `DefaultsType`, using the mechanism T003 recorded
       (the assert, or `xs:unique` — not a T2 rule; data-model §2.1, §2.2, R5). The
       defaults assert is the same FR-013 rule applied
       to the root pairs, not an extra requirement
-- [ ] T023 [US1] In the same commit: move `project_mappings`' entry in `CURRENT_SCHEMA_HASHES`
+- [x] T023 [US1] In the same commit: move `project_mappings`' entry in `CURRENT_SCHEMA_HASHES`
       (`tests/contract/test_schema_scope.py`) to the new file's sha256. If a type name is
       now declared in more than one schema, add it to `KNOWN_IDENTICAL_DUPLICATES`
       (`tests/contract/test_schema_name_overlap.py`). `KNOWN_DIVERGENT_DECLARATIONS` stays
       empty. `CURRENT_VERSION`, the conversion registry and `DELIBERATE_IDENTITY_STEPS`
       are not edited (FR-020, SC-006)
-- [ ] T024 [US1] In the same commit: the seed and generator side of axis A, so the package
+- [x] T024 [US1] In the same commit: the seed and generator side of axis A, so the package
       build still produces a valid `default_mappings.xml` (R14, FR-043's mappings half).
       `src/cuemsutils/defaults/system-defaults.toml` (the six `default_*` keys),
       `TABLE_KEYS` in `src/cuemsutils/xml/seed_values.py`, and whatever
@@ -246,14 +246,14 @@ moves in that same commit (US5, done here because it cannot lag).
       any golden that this schema invalidates, so each validates against the reshaped
       schema. The schema is the source of truth; the files are updated to match it
       (FR-055, SC-004)
-- [ ] T025 [US1] Derived legacy keys in `src/cuemsutils/tools/ConfigManager.py`, with no
+- [x] T025 [US1] Derived legacy keys in `src/cuemsutils/tools/ConfigManager.py`, with no
       class tuple: `node_mappings["audio"]` (and any other class the document carries)
       answers from `devices` (FR-012a, D1, R10 — `NodeEngine.py:508,598` uses `.get` and
       would otherwise configure no ports, silently); `default_audio_output` and its five
       siblings answer from `defaults`. Test
       `tests/integration/test_legacy_mapping_keys.py` asserts each spelling against a
       reshaped document
-- [ ] T026 [US1] One `HardwareOutputs` definition in `src/cuemsutils/tools/ConfigManager.py`
+- [x] T026 [US1] One `HardwareOutputs` definition in `src/cuemsutils/tools/ConfigManager.py`
       replacing the six-key literals at `:159` and `:283` (data-model §5.3, R11). It is
       filled by walking the document's devices, not `_DEVICE_SECTIONS`. `__missing__`
       returns `[]` for a well-formed `{class}_{inputs|outputs}` key and the subscript of
@@ -261,7 +261,7 @@ moves in that same commit (US5, done here because it cannot lag).
       keeps `NodeEngine.py:456` truthful. Test
       `tests/unit/test_hardware_outputs_missing.py` covers the empty answer (scenario 4,
       FR-012), the lighting entry (scenario 2, FR-011) and the typo
-- [ ] T027 [US1] Retarget `one_custom_template_per_node` in `src/cuemsutils/xml/validators.py`
+- [x] T027 [US1] Retarget `one_custom_template_per_node` in `src/cuemsutils/xml/validators.py`
       off `("NodeMappingType", "video")`. `run_rules` skips a rule whose field is absent
       (`validators.py` around the absent-field continue), so a stale binding does not
       fail — two custom templates would start loading (R12, FR-015). The body filters by
@@ -351,7 +351,7 @@ inventory T026 builds is the only definition, and the video T2 rule still fires.
 answers from every public accessor that reports devices or hardware outputs, and a
 contract test — not a grep by hand — asserts that no class list remains.
 
-- [ ] T037 [P] [US3] Failing-first: invert `tests/unit/test_mappings_shape.py` (the
+- [x] T037 [P] [US3] Failing-first: invert `tests/unit/test_mappings_shape.py` (the
       assertion `"_DEVICE_SECTIONS" in source`, around lines 136–141) to assert the name
       is **absent**. Deleting the constant without inverting this test leaves a ratchet
       that stays green while the behaviour it guarded is gone (R13)
@@ -361,10 +361,10 @@ contract test — not a grep by hand — asserts that no class list remains.
       Exempt, by name in the test: the schema files, and the migration tool's table of
       **old element names** (those are spellings being deleted, not a vocabulary being
       supported). A new exemption is a review item, not a quiet addition (FR-010, SC-003)
-- [ ] T039 [US3] Delete `_DEVICE_SECTIONS` from `src/cuemsutils/tools/ConfigManager.py`
+- [x] T039 [US3] Delete `_DEVICE_SECTIONS` from `src/cuemsutils/tools/ConfigManager.py`
       (`:69`) and both loops that iterate it (`:386`, `:659`). T026's walk is the only
       remaining definition (scenario 5, FR-011)
-- [ ] T040 [US3] Confirm T027's retarget is what `validate_custom_templates` actually
+- [x] T040 [US3] Confirm T027's retarget is what `validate_custom_templates` actually
       calls, with a test that two custom video templates are still rejected **on the
       rule's own wording** (scenario 3, FR-015) and that `check_canvas_region_containment`
       still runs on a video output reached by class (scenario 4, FR-016). If T027 left

@@ -65,7 +65,7 @@ SCHEMAS_DIR = REPO_ROOT / "src" / "cuemsutils" / "xml" / "schemas"
 CURRENT_SCHEMA_HASHES = {
     "hardware_outputs.xsd": "385c97036794353c60723af7c298f106d4e0e020451dd86e3cbd26837d66ef01",
     "network_map.xsd": "bdabd064febfa1d38e6b9f6e67e5347f3a7805151e7476f10731d067fa6d67b0",
-    "project_mappings.xsd": "f5509473be473b0bf9443e2fe087d94838d88c8deb5d5014f467ef188f2a5d0f",
+    "project_mappings.xsd": "a94822901155e8ea8b07edd604cfbde56766f5e3a2f5b0747d8f49dde2e0e956",
     "project_settings.xsd": "5cd80b9d2a5239365a764526a40c17426e158a9ec057acda2ffc97b552ea254f",
     "script.xsd": "f4f42419332388af9b183c13c0eb606ccd0eea62d53ec05e9d0b187ae5274298",
     "settings.xsd": "8a793922589d79c99178735d9765a8073e08389fe69b623da41d1e11f290faab",

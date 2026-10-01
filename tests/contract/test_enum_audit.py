@@ -43,6 +43,7 @@ RETAINED = {
     # node unloadable.
     ("network_map", "NotProvisionedUuidType"): {"00000000-0000-0000-0000-000000000000"},
     ("network_map", "NodeUuidType"): {"00000000-0000-0000-0000-000000000000"},
+    ("project_mappings", "PortDirectionType"): {"input", "output"},
     ("project_mappings", "NotProvisionedUuidType"): {"00000000-0000-0000-0000-000000000000"},
     ("project_mappings", "NodeUuidType"): {"00000000-0000-0000-0000-000000000000"},
     ("settings", "NotProvisionedUuidType"): {"00000000-0000-0000-0000-000000000000"},

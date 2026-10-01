@@ -371,6 +371,16 @@ class Mapper:
                 continue
             decoded[key] = self._decode_config_child(raw, derive(child), (*path, key))
 
+        # Attributes arrive before elements (the converter's upstream shape
+        # when a repeated child collapses the rebuild). The projection emits
+        # schema order. Store that order so the two recorded dicts agree.
+        if spec.attributes or any(field.name == "&" for field in spec.fields):
+            decoded = {
+                key: decoded[key]
+                for key in spec.order_keys(list(decoded))
+                if key in decoded
+            }
+
         model = self._model_for_spec(spec)
         if model is None:
             return decoded
@@ -416,7 +426,13 @@ class Mapper:
         return self._decode_config_value(value, child_spec, path)
 
     def _decode_config_item(self, item, child_spec: TypeSpec, path=()):
-        """One member of a repeated block, **keeping** its single-key wrapper."""
+        """One member of a repeated block, **keeping** its single-key wrapper.
+
+        A collapsed group arrives as a list (the converter's rule for a type
+        whose content is one repeated child). Walk it; do not return it raw.
+        """
+        if isinstance(item, list):
+            return [self._decode_config_item(member, child_spec, path) for member in item]
         if isinstance(item, dict) and len(item) == 1:
             tag, body = next(iter(item.items()))
             member = child_spec.field(tag)
@@ -644,6 +660,12 @@ class Mapper:
             SubElement(element, type(obj).__name__).text = str(obj)
             return
 
+        # The field's child is the unconditional alternative. A video device is
+        # a narrower type; its spec is what puts ``canvas_region`` in schema
+        # order. Same type: no change.
+        model_spec = self._spec_for_model(type(obj))
+        if model_spec is not None and spec is not None and model_spec.key != spec.key:
+            spec = model_spec
         keys = self._selected_keys(obj)
         ordered = spec.order_keys(keys) if spec is not None else keys
 
@@ -826,6 +848,13 @@ class Mapper:
         return None
 
     def _emit_field(self, element: Element, key: str, value, spec: TypeSpec | None) -> None:
+        # The converter's text key. Simple content (a default port's text)
+        # arrives and leaves under this name; it is not an element.
+        if key == "&":
+            if value is not None:
+                element.text = "" if value == "" else self._lexical(value, None)
+            return
+
         field = spec.field(key) if spec is not None else None
 
         if field is not None and field.kind is FieldKind.ATTRIBUTE:
@@ -1068,6 +1097,9 @@ def read_versioned_config_document(schema_object, schema_name: str, xmlfile: str
     if version > current:
         raise DocumentTooNewError(schema_name, version, current)
     steps = convert(schema_name, tree, version, current) if version < current else []
+    # Function-level: documents imports this module at load.
+    from .documents import raise_if_old_device_shape
+    raise_if_old_device_shape(schema_name, xmlfile, tree)
     raw = schema_object.to_dict(tree, **CONFIG_READER_OPTIONS)
     return raw, version, tuple(steps)
 
