@@ -100,8 +100,7 @@ node_role = "firstrun"
 # A fresh, unconfigured node claims no hardware: every default is empty rather
 # than an invented output (research R12). A non-empty value is spelled
 # <uuid>_<output id>, never an output name.
-# The six ports are not scalar fields any more. _default_mappings emits one
-# empty <default class direction> for each of audio/video/dmx × input/output.
+# <defaults> is emitted empty. A fresh node names no device class.
 [project_mappings.CuemsProjectMappingsType]
 number_of_nodes = 1
 

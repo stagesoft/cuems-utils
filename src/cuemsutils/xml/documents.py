@@ -152,15 +152,13 @@ def read_document_versioned(schema_name: str, source: str | PathLike):
     return decoded, version, tuple(steps)
 
 
-_OLD_NODE_DEVICES = frozenset({"audio", "video", "dmx"})
-_OLD_DEFAULTS = frozenset({
-    "default_audio_input",
-    "default_audio_output",
-    "default_video_input",
-    "default_video_output",
-    "default_dmx_input",
-    "default_dmx_output",
+#: Children the current ``project_mappings`` root and node declare. Anything
+#: else is the pre-013 shape. These are element names from the schema, not a
+#: device-class vocabulary (FR-010).
+_CURRENT_ROOT_CHILDREN = frozenset({
+    "number_of_nodes", "defaults", "nodes", "new_nodes",
 })
+_CURRENT_NODE_CHILDREN = frozenset({"uuid", "mac", "devices"})
 
 
 def _local(tag: str) -> str:
@@ -179,13 +177,13 @@ def raise_if_old_device_shape(schema_name: str, source: str, tree: ElementTree) 
         return
     root = tree.getroot()
     root_names = {_local(child.tag) for child in list(root)}
-    old = bool(root_names & _OLD_DEFAULTS)
+    old = bool(root_names - _CURRENT_ROOT_CHILDREN)
     if not old:
         for node in root.iter():
             if _local(node.tag) != "node":
                 continue
             names = {_local(child.tag) for child in list(node)}
-            if names & _OLD_NODE_DEVICES:
+            if names - _CURRENT_NODE_CHILDREN:
                 old = True
                 break
     if not old:

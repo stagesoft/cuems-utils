@@ -191,7 +191,9 @@ def _legacy_default(root, device_class: str, direction: str):
         ):
             text = dict.get(port, "&")
             return "" if text in (None, Unset) else text
-    raise KeyError(f"default_{device_class}_{direction}")
+    # A class the document does not carry has no port. Empty, not an error:
+    # a fresh node names no classes (FR-010).
+    return ""
 
 
 def _set_legacy_default(root, device_class: str, direction: str, value) -> None:

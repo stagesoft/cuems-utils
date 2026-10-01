@@ -355,7 +355,7 @@ contract test — not a grep by hand — asserts that no class list remains.
       assertion `"_DEVICE_SECTIONS" in source`, around lines 136–141) to assert the name
       is **absent**. Deleting the constant without inverting this test leaves a ratchet
       that stays green while the behaviour it guarded is gone (R13)
-- [ ] T038 [P] [US3] Contract test `tests/contract/test_no_device_class_list.py` — an AST
+- [x] T038 [P] [US3] Contract test `tests/contract/test_no_device_class_list.py` — an AST
       walk of `src/cuemsutils/` (precedent `tests/contract/test_node_field_coercion.py`)
       asserting no tuple, list, set or enum whose members are device-class names.
       Exempt, by name in the test: the schema files, and the migration tool's table of

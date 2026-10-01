@@ -69,11 +69,14 @@ def test_a_plain_run_writes_a_coherent_triple(env, tmp_path, monkeypatch):
     original = make_defaults._default_mappings
 
     def _plant(tables, identity):
+        from cuemsutils.config.mappings import DefaultPortType
+
         doc = original(tables, identity)
-        for item in doc["defaults"]:
-            port = item["default"]
-            if port["class"] == "video" and port["direction"] == "output":
-                port["&"] = f"{SENTINEL}_0"
+        doc["defaults"] = [{
+            "default": DefaultPortType({
+                "class": "video", "direction": "output", "&": f"{SENTINEL}_0",
+            })
+        }]
         return doc
 
     monkeypatch.setattr(make_defaults, "_default_mappings", _plant)
