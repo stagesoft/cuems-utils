@@ -406,10 +406,17 @@ def _script_cue_builders():
             "ui_properties": {"warning": None},
         })
 
+    # Keyed by **element name**, which since feature 013 is no longer the same
+    # thing as "one key per cue class": ``Cue`` is one element whose class
+    # selects the type, so its entry is a per-class table rather than a single
+    # thunk. ``ActionCue`` and ``FadeCue`` keep their own elements and their
+    # own single thunks (FR-050a).
     return {
-        "AudioCue": build_audio_cue,
-        "VideoCue": build_video_cue,
-        "DmxCue": build_dmx_cue,
+        "Cue": {
+            "audio": build_audio_cue,
+            "video": build_video_cue,
+            "dmx": build_dmx_cue,
+        },
         "ActionCue": build_action_cue,
         "FadeCue": build_fade_cue,
     }
@@ -421,7 +428,17 @@ def _assert_every_choice_member_has_a_builder(builders: dict) -> tuple[str, ...]
     ever names one this module has no builder for, rather than a silently
     incomplete example (mirrors
     ``test_generated_example_covers_every_cue_subclass``'s intent, now
-    enforced at generation time too)."""
+    enforced at generation time too).
+
+    Since feature 013 the check has a second half, and it is the half that
+    keeps the loudness: a conditional member needs one builder **per class the
+    schema names an alternative for**. Without it, adding a fourth
+    ``xs:alternative`` to ``Cue`` would leave the example silently one cue
+    short — the element name ``Cue`` would still have *an* entry, which is
+    exactly the "silently incomplete example" this function exists to prevent.
+    A class with no alternative needs no builder: it has no special fields, so
+    it adds nothing an example could show.
+    """
     choice = derive(TypeKey("script", "CueListContentsType"))
     leaf_names = tuple(f.name for f in choice.fields if f.name != "CueList")
     missing = [name for name in leaf_names if name not in builders]
@@ -430,7 +447,32 @@ def _assert_every_choice_member_has_a_builder(builders: dict) -> tuple[str, ...]
             f"CueListContentsType offers {missing} with no example builder in "
             f"descriptor._script_cue_builders — add one"
         )
+    for field in choice.fields:
+        if field.name == "CueList" or not field.alternatives:
+            continue
+        by_class = builders[field.name]
+        absent = [value for value, _key in field.alternatives if value not in by_class]
+        if absent:
+            raise RuntimeError(
+                f"{field.name} names an xs:alternative for {absent} with no "
+                f"example builder in descriptor._script_cue_builders — add one"
+            )
     return leaf_names
+
+
+def _build_choice_members(builders: dict, leaf_names: tuple[str, ...]) -> list:
+    """One object per element name, and per class where the element is
+    conditional — in schema order, then alternative order."""
+    choice = derive(TypeKey("script", "CueListContentsType"))
+    cues = []
+    for name in leaf_names:
+        builder = builders[name]
+        if isinstance(builder, dict):
+            field = choice.field(name)
+            cues.extend(builder[value]() for value, _key in field.alternatives)
+            continue
+        cues.append(builder())
+    return cues
 
 
 def generate_script_example():
@@ -446,7 +488,7 @@ def generate_script_example():
 
     builders = _script_cue_builders()
     leaf_names = _assert_every_choice_member_has_a_builder(builders)
-    cues = [builders[name]() for name in leaf_names]
+    cues = _build_choice_members(builders, leaf_names)
 
     # Point every action reference at a cue that is actually here (T015a).
     #

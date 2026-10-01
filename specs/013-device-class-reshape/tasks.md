@@ -430,17 +430,17 @@ before (`isinstance`, equality, hash unchanged); a cue whose class the registry 
 not name decodes to `MediaCue` / `CueOutput`; `ActionCue`, `FadeCue` and `CueList`
 keep their own elements; the wire form is `{"Cue": {…, "class": "audio"}}`.
 
-- [ ] T045 [P] [US1] Failing-first contract test `tests/contract/test_cue_class_dispatch.py`
+- [x] T045 [P] [US1] Failing-first contract test `tests/contract/test_cue_class_dispatch.py`
       — `AudioCue`, `VideoCue`, `DmxCue` and the three `*CueOutput` classes still import
       and still come back from a class-carrying element; equality, hashing and
       `isinstance` give the same answers; an unknown class decodes to the base model
       rather than failing (FR-050a, FR-052, SC-012). `ActionCue`, `FadeCue` and
       `CueList` are still their own elements
-- [ ] T046 [P] [US1] Failing-first test `tests/contract/test_cue_wire_key.py` — `to_wire()`
+- [x] T046 [P] [US1] Failing-first test `tests/contract/test_cue_wire_key.py` — `to_wire()`
       emits `Cue` / `CueOutput` plus a `class` value, and nothing else about the
       projection changed (FR-052). This is the golden event's oracle; do not regenerate
       goldens to make it pass
-- [ ] T047 [US1] Reshape the two choices in `src/cuemsutils/xml/schemas/script.xsd` per
+- [x] T047 [US1] Reshape the two choices in `src/cuemsutils/xml/schemas/script.xsd` per
       [data-model.md](data-model.md) §4.1. `CueListContentsType` becomes `CueList`,
       `Cue` (alternatives `audio`/`video`/`dmx`, fallback the base media cue), `ActionCue`,
       `FadeCue`. `OutputsType` becomes repeated `CueOutput` with the same three
@@ -451,14 +451,14 @@ keep their own elements; the wire form is `{"Cue": {…, "class": "audio"}}`.
       elements. If `CuemsScript.load` does not call `read_document_versioned`, raise
       the same message from `src/cuemsutils/cues/CuemsScript.py`. Assert it on a
       `pre-013` script, on the message text — this is the half that used to sit in T021
-- [ ] T066 [US1] In the same commit as T047: the script example generator in
+- [x] T066 [US1] In the same commit as T047: the script example generator in
       `src/cuemsutils/xml/descriptor.py`. `_assert_every_choice_member_has_a_builder`
       keys builders by element name (`AudioCue`, `VideoCue`, `DmxCue` around line 410)
       and raises when a choice member has no builder. After T047 that member is `Cue`.
       Build `Cue` by class (`audio` / `video` / `dmx` still construct `AudioCue` /
       `VideoCue` / `DmxCue`); leave `ActionCue` and `FadeCue` as they are. A generated
       example must validate against the reshaped `script.xsd`
-- [ ] T048 [US1] Reshape `src/cuemsutils/xml/schemas/hardware_outputs.xsd` per
+- [x] T048 [US1] Reshape `src/cuemsutils/xml/schemas/hardware_outputs.xsd` per
       data-model §4.2 and FR-053: container `output_groups`, repeated child `outputs`
       with `class`, replacing `video_outputs` and `audio_outputs`. The container and
       the child do not share a name. Same commit: its hash pin and its old-shape
@@ -466,13 +466,13 @@ keep their own elements; the wire form is `{"Cue": {…, "class": "audio"}}`.
       014 replaces the schema outright, and the spec records it as the cheapest item.
       Dropping it leaves a per-class declaration standing; record the SC-003 exception
       in the migration guide rather than pretending the criterion holds
-- [ ] T049 [US2] Add the axis D transformations to `src/cuemsutils/xml/reshape_devices.py`
+- [x] T049 [US2] Add the axis D transformations to `src/cuemsutils/xml/reshape_devices.py`
       (data-model §6), including compound documents where a cue output sits inside a cue.
       `ActionCue`, `FadeCue` and `CueList` are not rewritten. Extend the round-trip test
       with a `pre-013` script found under a name other than `script.xml`. Element order:
       the new element occupies the position of the first old sibling, so `xs:sequence`
       stays valid without reordering anything else
-- [ ] T050 [US1] Migrate every corpus or golden file the reshape invalidates, schemas
+- [x] T050 [US1] Migrate every corpus or golden file the reshape invalidates, schemas
       as the source of truth (FR-054, FR-055, SC-004). Regenerate goldens from the
       schema-derived writer, as a named event, and update `tests/golden/MANIFEST.sha256`
       for exactly the paths that changed. **Do not regenerate

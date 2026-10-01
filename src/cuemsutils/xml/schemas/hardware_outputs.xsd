@@ -10,8 +10,12 @@
             </xs:annotation>
         <xs:complexType>
             <xs:sequence>
-                <xs:element name="video_outputs" type="cms:HardwareOutputsType" />
-                <xs:element name="audio_outputs" type="cms:HardwareOutputsType" />
+                <!-- Container, not one element per class (feature 013, axis D,
+                     FR-053). The container and the child do not share a name:
+                     output_groups is the wrapper, outputs is the per-class
+                     list. A repeated child beside nothing else, which is the
+                     shape research R2 requires. -->
+                <xs:element name="output_groups" minOccurs="1" maxOccurs="1" type="cms:OutputGroupsType" />
             </xs:sequence>
             <!-- Document-property version marker (feature 008, ITEM E, FR-048a).
                  Not a domain field: excluded from spec._derive_attributes and
@@ -28,10 +32,32 @@
     </xs:element>
 
     <!-- TYPES DEFINITIONS -->
+    <xs:complexType name="OutputGroupsType">
+        <xs:sequence>
+            <xs:element name="outputs" minOccurs="0" maxOccurs="unbounded" type="cms:HardwareOutputsType" />
+        </xs:sequence>
+        <!-- FR-013 applied to the discovered inventory: one list per class.
+             No xs:alternative: no class here needs a special field, so a new
+             one costs nothing at all (SC-001). -->
+        <xs:assert test="count(outputs) = count(distinct-values(outputs/@class))" />
+    </xs:complexType>
+
     <xs:complexType name="HardwareOutputsType">
         <xs:sequence>
             <xs:element name="output" type="xs:string" minOccurs="0" maxOccurs="unbounded" />
         </xs:sequence>
+        <xs:attribute name="class" type="cms:NonEmptyString" use="required" />
     </xs:complexType>
+
+    <!-- The discriminator's type. Byte-identical to the five other
+         declarations; the anti-drift guarantee is
+         tests/contract/test_schema_name_overlap.py's
+         KNOWN_IDENTICAL_DUPLICATES. -->
+    <xs:simpleType name="NonEmptyString">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1" />
+            <xs:pattern value=".*[^\s].*" />
+        </xs:restriction>
+    </xs:simpleType>
 
 </xs:schema>

@@ -6,6 +6,17 @@ from ..tools.CTimecode import CTimecode
 
 REQ_ITEMS = {
     'Media': None,
+    # The device-class discriminator (feature 013, axis D). Declared on this
+    # class and on ``DmxCue`` because ``MediaCueType`` and ``DmxCueType`` are
+    # the two types that extend ``CueClassType``; ``Cue``, ``CueList``,
+    # ``ActionCue`` and ``FadeCue`` extend ``CueType`` and carry none
+    # (FR-050a).
+    #
+    # ``Unset`` on the *base*: ``MediaCue`` is the unconditional alternative,
+    # the type an unknown class validates as, so its class is whatever the
+    # document carried. Each concrete subclass declares its own literal, which
+    # is what makes ``AudioCue({...}).save()`` produce a valid document.
+    'class': Unset,
     'outputs': None,
 }
 # ``fade_profiles`` moved to AudioCue and VideoCue (feature 004, T059).

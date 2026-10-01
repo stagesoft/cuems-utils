@@ -59,6 +59,24 @@
     </xs:complexContent>
   </xs:complexType>
 
+  <!-- The derivation root every class-conditional cue alternative extends
+       (feature 013, axis D). ``class`` is deliberately *not* on CueType:
+       CueListType, ActionCueType and FadeCueType extend that one and carry no
+       hardware class (FR-050a). An alternative type must derive from the
+       element's declared type, and DmxCueType cannot extend MediaCueType
+       (it carries no <Media>), so the declared type is this class-only
+       extension of CueType and the unconditional alternative, MediaCueType,
+       is what an unknown class validates as. Same shape as
+       project_mappings.xsd's DeviceClassType and settings.xsd's
+       PlayerClassType. -->
+  <xs:complexType name="CueClassType">
+    <xs:complexContent>
+      <xs:extension base="cms:CueType">
+        <xs:attribute name="class" type="cms:NonEmptyString" use="required" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
   <xs:complexType name="CommonPropertiesType">
     <xs:sequence>
       <!-- A flag to indicate auto arming -->
@@ -100,10 +118,20 @@
     <xs:choice minOccurs="0" maxOccurs="unbounded">
       <!-- Can have any other cuelists, recursively -->
       <xs:element name="CueList" type="cms:CueListType" />
-      <!-- Can have any specific type cues -->
-      <xs:element name="AudioCue" type="cms:AudioCueType" />
-      <xs:element name="DmxCue" type="cms:DmxCueType" />
-      <xs:element name="VideoCue" type="cms:VideoCueType" />
+      <!-- One element for every hardware class (feature 013, axis D). A class
+           with no special fields costs nothing; one that needs them costs one
+           xs:alternative plus the type it names, here and nowhere else
+           (FR-005). The Python classes survive: audio still decodes to
+           AudioCue, so every isinstance and singledispatch site in
+           cuems-engine is untouched (FR-050a, FR-052). -->
+      <xs:element name="Cue" type="cms:CueClassType">
+        <xs:alternative test="@class='audio'" type="cms:AudioCueType" />
+        <xs:alternative test="@class='video'" type="cms:VideoCueType" />
+        <xs:alternative test="@class='dmx'" type="cms:DmxCueType" />
+        <xs:alternative type="cms:MediaCueType" />
+      </xs:element>
+      <!-- Cue *kinds*, not hardware classes: these keep their own elements and
+           no new class adds one (FR-050a). -->
       <xs:element name="ActionCue" type="cms:ActionCueType" />
       <xs:element name="FadeCue" type="cms:FadeCueType" />
     </xs:choice>
@@ -112,7 +140,7 @@
   <!-- MediaCue -->
     <xs:complexType name="MediaCueType">
       <xs:complexContent>
-        <xs:extension base="cms:CueType">
+        <xs:extension base="cms:CueClassType">
           <xs:sequence>
             <xs:element name="Media" type="cms:MediaType" />
             <xs:element name="outputs" type="cms:OutputsType" />
@@ -145,12 +173,43 @@
     </xs:sequence>
   </xs:complexType>
 
+  <!-- The cue-output counterpart of CueClassType. The three output types share
+       no base, so the derivation root is attribute-only. -->
+  <xs:complexType name="CueOutputClassType">
+    <xs:attribute name="class" type="cms:NonEmptyString" use="required" />
+  </xs:complexType>
+
+  <!-- The unconditional alternative: the content every class shares. An
+       unknown class validates as this and decodes to CueOutput, the way an
+       unknown device class decodes to DeviceType. DmxCueOutputsType carries
+       the same single field and stays its own type, because the class 'dmx'
+       must still select DmxCueOutput. -->
+  <xs:complexType name="CueOutputType">
+    <xs:complexContent>
+      <xs:extension base="cms:CueOutputClassType">
+        <!-- 1..1, not the pre-013 shape's 0..unbounded. A cue output has one
+             name: the model has always held one, and two <output_name>
+             children never decoded to one output anyway (they decoded to two
+             outputs). The cardinality also has to be right for the converter,
+             which reads it from the child alone: a non-single output_name
+             shatters into a list, which @class's presence would now carry all
+             the way to the wire. -->
+        <xs:sequence minOccurs="1" maxOccurs="1">
+          <xs:element name="output_name" type="cms:NameStringType" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
   <xs:complexType name="OutputsType">
-    <xs:choice minOccurs="0" maxOccurs="unbounded">
-      <xs:element name="AudioCueOutput" type="cms:AudioCueOutputsType" />
-      <xs:element name="VideoCueOutput" type="cms:VideoCueOutputsType" />
-      <xs:element name="DmxCueOutput" type="cms:DmxCueOutputsType" />
-    </xs:choice>
+    <xs:sequence>
+      <xs:element name="CueOutput" minOccurs="0" maxOccurs="unbounded" type="cms:CueOutputClassType">
+        <xs:alternative test="@class='audio'" type="cms:AudioCueOutputsType" />
+        <xs:alternative test="@class='video'" type="cms:VideoCueOutputsType" />
+        <xs:alternative test="@class='dmx'" type="cms:DmxCueOutputsType" />
+        <xs:alternative type="cms:CueOutputType" />
+      </xs:element>
+    </xs:sequence>
   </xs:complexType>
 
   <xs:complexType name="RegionsType">
@@ -254,12 +313,16 @@
   </xs:complexType>
 
   <xs:complexType name="AudioCueOutputsType">
-    <xs:sequence minOccurs="0" maxOccurs="unbounded">
-      <!-- <xs:element name="node_uuid" type="cms:UuidType" /> -->
-      <xs:element name="output_name" type="cms:NameStringType" />
-      <xs:element name="output_vol" type="cms:PercentType" />
-      <xs:element name="channels" type="cms:AudioChannelsType" />
-    </xs:sequence>
+    <xs:complexContent>
+      <xs:extension base="cms:CueOutputClassType">
+        <xs:sequence minOccurs="0" maxOccurs="unbounded">
+          <!-- <xs:element name="node_uuid" type="cms:UuidType" /> -->
+          <xs:element name="output_name" type="cms:NameStringType" />
+          <xs:element name="output_vol" type="cms:PercentType" />
+          <xs:element name="channels" type="cms:AudioChannelsType" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
   </xs:complexType>
 
   <xs:complexType name="AudioChannelsType">
@@ -292,14 +355,18 @@
   <xs:complexType name="VideoCueOutputsType">
     <!-- Video outputs type -->
     <!-- Specify n virtual video outputs -->
-    <xs:sequence minOccurs="1" maxOccurs="1">
-      <!-- <xs:element name="node_uuid" type="cms:UuidType" /> -->
-      <xs:element name="output_name" type="cms:NameStringType" />
-      <xs:element name="output_geometry" type="cms:VideoOutputGeometryType" />
-      <!-- canvas_region present only when output_name is <uuid>_custom_<n>.
-           Semantic rule enforced in VideoCueOutput Python model. -->
-      <xs:element name="canvas_region" type="cms:CanvasRegionType" minOccurs="0" />
-    </xs:sequence>
+    <xs:complexContent>
+      <xs:extension base="cms:CueOutputClassType">
+        <xs:sequence minOccurs="1" maxOccurs="1">
+          <!-- <xs:element name="node_uuid" type="cms:UuidType" /> -->
+          <xs:element name="output_name" type="cms:NameStringType" />
+          <xs:element name="output_geometry" type="cms:VideoOutputGeometryType" />
+          <!-- canvas_region present only when output_name is <uuid>_custom_<n>.
+               Semantic rule enforced in VideoCueOutput Python model. -->
+          <xs:element name="canvas_region" type="cms:CanvasRegionType" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
   </xs:complexType>
 
   <!-- DUPLICATE: CanvasRegionType / UnitFloat / PositiveUnitFloat are also
@@ -350,7 +417,7 @@
   <!-- DMX -->
   <xs:complexType name="DmxCueType">
     <xs:complexContent>
-      <xs:extension base="cms:CueType">
+      <xs:extension base="cms:CueClassType">
         <xs:sequence>
           <xs:element name="fadein_time" type="xs:float" />
           <xs:element name="fadeout_time" type="xs:float" />
@@ -362,10 +429,15 @@
   </xs:complexType>
 
   <xs:complexType name="DmxCueOutputsType">
-    <xs:sequence minOccurs="0" maxOccurs="unbounded">
-      <!-- <xs:element name="node_uuid" type="cms:UuidType" /> -->
-      <xs:element name="output_name" type="cms:NameStringType" />
-    </xs:sequence>
+    <xs:complexContent>
+      <xs:extension base="cms:CueOutputClassType">
+        <!-- 1..1 for the reason recorded on CueOutputType. -->
+        <xs:sequence minOccurs="1" maxOccurs="1">
+          <!-- <xs:element name="node_uuid" type="cms:UuidType" /> -->
+          <xs:element name="output_name" type="cms:NameStringType" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
   </xs:complexType>
 
   <!-- Dmx scene type -->
@@ -458,6 +530,18 @@
   <xs:simpleType name="LoopType">
     <xs:restriction base="xs:integer">
       <xs:minInclusive value="-1" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- The device-class discriminator's type. Byte-identical to the
+       declarations in network_map, project_mappings, project_settings and
+       settings. No schema here includes or imports another, so the anti-drift
+       guarantee is tests/contract/test_schema_name_overlap.py's
+       KNOWN_IDENTICAL_DUPLICATES, not a schema mechanism. -->
+  <xs:simpleType name="NonEmptyString">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1" />
+      <xs:pattern value=".*[^\s].*" />
     </xs:restriction>
   </xs:simpleType>
 

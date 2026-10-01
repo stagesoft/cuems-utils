@@ -39,7 +39,7 @@
                 },
                 "contents": [
                     {
-                        "AudioCue": {
+                        "Cue": {
                             "id": "e4ea9c60-095b-41f0-b8a5-c51263c224e4",
                             "name": "New AudioCue",
                             "description": null,
@@ -98,7 +98,7 @@
                             "master_vol": 80,
                             "outputs": [
                                 {
-                                    "AudioCueOutput": {
+                                    "CueOutput": {
                                         "output_name": "0367f391-ebf4-48b2-9f26-000000000001_system:playback_1",
                                         "output_vol": 80,
                                         "channels": [
@@ -108,15 +108,17 @@
                                                     "channel_vol": 80
                                                 }
                                             }
-                                        ]
+                                        ],
+                                        "class": "audio"
                                     }
                                 }
                             ],
-                            "fade_profiles": null
+                            "fade_profiles": null,
+                            "class": "audio"
                         }
                     },
                     {
-                        "VideoCue": {
+                        "Cue": {
                             "id": "0438d500-095c-41f0-b8a5-c51263c224e4",
                             "name": "New VideoCue",
                             "description": null,
@@ -162,7 +164,7 @@
                             },
                             "outputs": [
                                 {
-                                    "VideoCueOutput": {
+                                    "CueOutput": {
                                         "output_name": "0367f391-ebf4-48b2-9f26-000000000001_0",
                                         "output_geometry": {
                                             "x_scale": 0,
@@ -185,16 +187,18 @@
                                                     "y": 0
                                                 }
                                             }
-                                        }
+                                        },
+                                        "class": "video"
                                     }
                                 }
                             ],
                             "fade_profiles": null,
-                            "opacity": 100
+                            "opacity": 100,
+                            "class": "video"
                         }
                     },
                     {
-                        "AudioCue": {
+                        "Cue": {
                             "id": "e4ea9c60-095b-41f0-b8a5-c51263c224e4",
                             "name": "New AudioCue",
                             "description": null,
@@ -240,7 +244,7 @@
                             "master_vol": 80,
                             "outputs": [
                                 {
-                                    "AudioCueOutput": {
+                                    "CueOutput": {
                                         "output_name": "0367f391-ebf4-48b2-9f26-000000000001_system:playback_1",
                                         "output_vol": 80,
                                         "channels": [
@@ -250,11 +254,13 @@
                                                     "channel_vol": 80
                                                 }
                                             }
-                                        ]
+                                        ],
+                                        "class": "audio"
                                     }
                                 }
                             ],
-                            "fade_profiles": null
+                            "fade_profiles": null,
+                            "class": "audio"
                         }
                     },
                     {

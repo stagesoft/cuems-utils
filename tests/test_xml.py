@@ -349,8 +349,10 @@ def test_json_readwrite(caplog):
     for key in ('id', 'name', 'description', 'created', 'modified'):
         assert after[key] == before[key]
     assert after['CueList']['id'] == before['CueList']['id']
-    audio_before = before['CueList']['contents'][0]['AudioCue']
-    audio_after = after['CueList']['contents'][0]['AudioCue']
+    # One ``Cue`` key, the class inside the body (feature 013, axis D).
+    audio_before = before['CueList']['contents'][0]['Cue']
+    audio_after = after['CueList']['contents'][0]['Cue']
+    assert audio_after['class'] == audio_before['class'] == 'audio'
     assert audio_after['master_vol'] == audio_before['master_vol'] == 80
     # ``Media.duration`` reshapes (enumerated as difference (d) below); every
     # other ``Media`` field passes through untouched.

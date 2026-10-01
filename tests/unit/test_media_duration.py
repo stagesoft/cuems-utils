@@ -92,7 +92,7 @@ def test_xsd_accepts_corrected_duration(tmp_path):
     XmlReaderWriter(schema_name='script', xmlfile=f).write_from_object(script)
     # strict read re-validates against the schema
     data = XmlReaderWriter(schema_name='script', xmlfile=f).read()
-    media = data['CuemsScript']['CueList']['contents'][0]['AudioCue']['Media']
+    media = data['CuemsScript']['CueList']['contents'][0]['Cue']['Media']
     assert media['duration'] == {'CTimecode': '00:00:53.840'}
 
 

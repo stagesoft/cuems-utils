@@ -8,10 +8,9 @@ from pathlib import Path
 
 from cuemsutils.xml.reshape_devices import main
 
-_OLD = (
-    Path(__file__).resolve().parents[1]
-    / "data" / "corpus" / "pre-013" / "project_mappings.xml"
-)
+_CORPUS = Path(__file__).resolve().parents[1] / "data" / "corpus" / "pre-013"
+_OLD = _CORPUS / "project_mappings.xml"
+_OLD_SCRIPT = _CORPUS / "script.xml"
 
 
 def test_no_paths_finds_conf_the_library_and_names_an_unknown_root(tmp_path, capsys):
@@ -27,10 +26,19 @@ def test_no_paths_finds_conf_the_library_and_names_an_unknown_root(tmp_path, cap
     )
     mappings = conf / "default_mappings.xml"
     mappings.write_bytes(_OLD.read_bytes())
+    # Deliberately **not** called script.xml: discovery is by root element, and
+    # ``script_file_name`` is an editor-internal dict key that appears in no
+    # document this library reads (feature 012's finding, still true).
     script = project / "show.xml"
-    script.write_text(
-        '<?xml version="1.0"?><cms:CuemsProject xmlns:cms="https://stagelab.coop/cuems/">'
-        "<name>n</name></cms:CuemsProject>",
+    script.write_bytes(_OLD_SCRIPT.read_bytes())
+    # The "not applicable" arm. Until axis D landed, any script answered this
+    # way because the tool had no script transformation; it now has one, so the
+    # verdict has to come from a schema this feature does not reshape.
+    untouched = conf / "project_settings.xml"
+    untouched.write_text(
+        '<?xml version="1.0"?>'
+        '<cms:CuemsProjectSettings xmlns:cms="https://stagelab.coop/cuems/">'
+        "</cms:CuemsProjectSettings>",
         encoding="utf-8",
     )
     stranger = project / "notes.xml"
@@ -40,6 +48,8 @@ def test_no_paths_finds_conf_the_library_and_names_an_unknown_root(tmp_path, cap
     out = capsys.readouterr().out
     assert code == 1
     assert f"{mappings}: old-shape" in out
-    assert f"{script}: not applicable" in out
+    assert f"{script}: old-shape" in out
+    assert f"{untouched}: not applicable" in out
     assert f"{stranger}: skipped (unrecognised root Nope)" in out
     assert mappings.read_bytes() == _OLD.read_bytes()
+    assert script.read_bytes() == _OLD_SCRIPT.read_bytes()

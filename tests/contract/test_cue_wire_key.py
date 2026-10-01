@@ -113,6 +113,30 @@ def test_to_json_round_trips_through_the_new_key(tmp_path):
     assert again.to_wire() == script.to_wire()
 
 
+def _key_paths(value, path="") -> set:
+    """Every key path in a wire payload, values discarded.
+
+    Structure is what this module is about. Values are deliberately **not**
+    compared across a document round trip: built-and-projected and
+    saved-reloaded-and-projected were never equal as Python objects, and are
+    not now — feature 005 recorded fourteen surviving scalar-type differences
+    and left them open (its SC-001, not met as written). This example carries
+    five of them (``x_scale``/``y_scale`` ``1`` vs ``1.0``, ``DmxScene.id``
+    ``0`` vs ``'0'``). Asserting value equality here would either fail for a
+    reason that is not this feature's, or need a normaliser loose enough to
+    hide one that is.
+    """
+    out = set()
+    if isinstance(value, dict):
+        for key, body in value.items():
+            out.add(f"{path}.{key}")
+            out |= _key_paths(body, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            out |= _key_paths(item, f"{path}[{index}]")
+    return out
+
+
 def test_a_saved_document_reloads_to_the_same_wire_payload(tmp_path):
     """Build side and decode side agree on the key and the attribute."""
     script = generate_script_example()
@@ -120,6 +144,35 @@ def test_a_saved_document_reloads_to_the_same_wire_payload(tmp_path):
     script.save(path)
     text = Path(path).read_text(encoding="utf-8")
     assert "<Cue " in text and 'class="audio"' in text
+    assert "<CueOutput " in text
     for retired in RETIRED_KEYS:
         assert f"<{retired}" not in text, f"{retired} is still written as an element"
-    assert CuemsScript.load(path).to_wire() == script.to_wire()
+
+    built = script.to_wire()
+    reloaded = CuemsScript.load(path).to_wire()
+    assert _key_paths(reloaded) == _key_paths(built)
+    # Every class value survived the document, wrapper for wrapper and in order.
+    assert [(key, body["class"]) for key, body in _cue_wrappers(reloaded)] == [
+        (key, body["class"]) for key, body in _cue_wrappers(built)
+    ]
+
+
+def test_reloading_a_saved_document_is_a_fixed_point(tmp_path):
+    """Save, load, save, load: the second pass changes nothing at all.
+
+    The strict value comparison the test above cannot make, made where it
+    *is* true — both sides have been through the decode, so the pre-existing
+    scalar-type asymmetry is not in play.
+    """
+    path = tmp_path / "script.xml"
+    generate_script_example().save(path)
+    once = CuemsScript.load(path)
+    again_path = tmp_path / "again.xml"
+    once.save(again_path)
+    twice = CuemsScript.load(again_path)
+    assert twice.to_wire() == once.to_wire()
+    # The *bytes* are not asserted equal to the first save's: the first save
+    # writes a built object, whose scalars carry their Python lexical form
+    # (``1``, not ``1.0``). That asymmetry is feature 005's open item, not
+    # this feature's, and `tests/contract/test_roundtrip_stability.py` is where
+    # byte stability is pinned for the documents it holds true for.

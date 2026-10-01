@@ -63,11 +63,11 @@ SCHEMAS_DIR = REPO_ROOT / "src" / "cuemsutils" / "xml" / "schemas"
 #: exists to surface, and the two hashes moving beside the correction is the
 #: mechanism working rather than an inconvenience.
 CURRENT_SCHEMA_HASHES = {
-    "hardware_outputs.xsd": "385c97036794353c60723af7c298f106d4e0e020451dd86e3cbd26837d66ef01",
+    "hardware_outputs.xsd": "e509dcee2ae8f461e3c25dfc680a73a0da31519159c1f0e3fb1199cc6dc46f5a",
     "network_map.xsd": "bdabd064febfa1d38e6b9f6e67e5347f3a7805151e7476f10731d067fa6d67b0",
     "project_mappings.xsd": "a94822901155e8ea8b07edd604cfbde56766f5e3a2f5b0747d8f49dde2e0e956",
     "project_settings.xsd": "5cd80b9d2a5239365a764526a40c17426e158a9ec057acda2ffc97b552ea254f",
-    "script.xsd": "f4f42419332388af9b183c13c0eb606ccd0eea62d53ec05e9d0b187ae5274298",
+    "script.xsd": "c34e4d659832948759d56fcb7cc98a0f116a61d16dc171582f3f7bc227ca913a",
     "settings.xsd": "dcc095cd128d8d99c52adee57f2f60f4cbe11c787ddc674e3605568ce0eae777",
 }
 

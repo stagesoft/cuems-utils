@@ -3,6 +3,8 @@ from ..tools.CTimecode import CTimecode
 from ..helpers import ensure_items
 
 REQ_ITEMS = {
+    # Alphabetical, for the reason recorded in ``AudioCue.REQ_ITEMS``.
+    'class': 'video',
     'opacity': 100,  # Default to fully opaque — 0-100 percent scale (cms:PercentType)
 }
 

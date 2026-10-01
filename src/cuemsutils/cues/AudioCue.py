@@ -6,6 +6,11 @@ from ..helpers import ensure_items
 from ..log import logged, Logger
 
 REQ_ITEMS = {
+    # The class value ``script.xsd``'s ``@class='audio'`` alternative selects
+    # this type on (feature 013, axis D). First because ``REQ_ITEMS`` keeps its
+    # second job, the alphabetical developer index (FR-018) — pinned by
+    # ``test_the_two_reordered_dicts_are_now_alphabetical``.
+    'class': 'audio',
     'master_vol': 100,  # Default to full volume — 0-100 percent scale (cms:PercentType)
 }
 

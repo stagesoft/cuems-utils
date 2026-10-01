@@ -86,6 +86,32 @@ def _with_declared_defaults(value, spec, mapper):
             adapter = adapter_for(field.xsd_type)
             result[key] = adapter.to_wire(raw) if adapter is not PASSTHROUGH else raw
 
+    # Each key added above goes in its **schema position**, not at the end.
+    # Appending was indistinguishable from positioning while every added field
+    # was the last one declared; feature 013's ``class`` is a declared
+    # *attribute*, derived after every element, so an appended ``opacity``
+    # landed after it and ``encode_wire`` — which orders by the spec — put it
+    # before. The golden's own keys keep the golden's own order, so a real
+    # disagreement between the converter and ``encode_wire`` is still caught;
+    # only the keys this function invented are placed.
+    added = [key for key in result if key not in value]
+    if added:
+        position = {field.name: field.order for field in spec.fields}
+        keys = list(value)
+        for key in added:
+            order = position.get(key)
+            if order is None:
+                keys.append(key)
+                continue
+            index = len(keys)
+            for offset, existing in enumerate(keys):
+                existing_order = position.get(existing)
+                if existing_order is not None and existing_order > order:
+                    index = offset
+                    break
+            keys.insert(index, key)
+        result = {key: result[key] for key in keys}
+
     for key, v in list(result.items()):
         field = spec.field(key)
         if field is None or field.child is None:
@@ -107,7 +133,13 @@ def _with_defaults_in_item(item, child_spec, mapper):
     member = child_spec.field(tag)
     if member is None or member.child is None:
         return item
-    return {tag: _with_declared_defaults(body, derive(member.child), mapper)}
+    # ``member.child`` is the unconditional alternative, so for a conditional
+    # element it is the *fallback* type, not the one this body decodes as:
+    # a ``<Cue class="video">`` resolves to ``VideoCueType``, and only that
+    # type's model declares ``opacity``. The oracle has to run the same
+    # dispatch the mapper runs, rather than a second approximation of it.
+    chosen = mapper._alternative_for(body, member)
+    return {tag: _with_declared_defaults(body, derive(chosen), mapper)}
 
 
 @pytest.mark.parametrize("doc", SCRIPT_DOCS, ids=IDS)

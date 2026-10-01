@@ -119,30 +119,29 @@ def _dmx_cue() -> str:
         </CueOutput>
       </outputs>
       <DmxScene>
-        <contents>
-          <DmxUniverse universe_num="0">
-            <universe_num>0</universe_num>
-            <contents><DmxChannel channel_num="0"><channel_num>0</channel_num><channel_value>0</channel_value></DmxChannel></contents>
-          </DmxUniverse>
-        </contents>
+        <id>0</id>
+        <DmxUniverse universe_num="0">
+          <dmx_channels><DmxChannel><channel>0</channel><value>0</value></DmxChannel></dmx_channels>
+          <universe_num>0</universe_num>
+        </DmxUniverse>
       </DmxScene>
     </Cue>
 """
 
 
-def _action_cue() -> str:
+def _action_cue(target: str = "ffffffff-0000-4000-8000-000000000006") -> str:
     return f"""    <ActionCue>
 {_COMMON.format(id="dddddddd-0000-4000-8000-000000000004")}
-      <action_target>aaaaaaaa-0000-4000-8000-000000000001</action_target>
+      <action_target>{target}</action_target>
       <action_type>play</action_type>
     </ActionCue>
 """
 
 
-def _fade_cue() -> str:
+def _fade_cue(target: str = "ffffffff-0000-4000-8000-000000000006") -> str:
     return f"""    <FadeCue>
 {_COMMON.format(id="eeeeeeee-0000-4000-8000-000000000005")}
-      <action_target>aaaaaaaa-0000-4000-8000-000000000001</action_target>
+      <action_target>{target}</action_target>
       <action_type>play</action_type>
       <curve_type>linear</curve_type>
       <duration><CTimecode>00:00:02.000</CTimecode></duration>

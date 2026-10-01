@@ -245,7 +245,12 @@ def _build_script_registry() -> SchemaRegistry:
     from ..cues.Cue import Cue, UI_properties
     from ..cues.CueList import CueList
     from ..cues.CuemsScript import CuemsScript
-    from ..cues.CueOutput import AudioCueOutput, DmxCueOutput, VideoCueOutput
+    from ..cues.CueOutput import (
+        AudioCueOutput,
+        CueOutput,
+        DmxCueOutput,
+        VideoCueOutput,
+    )
     from ..cues.DmxCue import DmxChannel, DmxCue, DmxScene, DmxUniverse
     from ..cues.FadeCue import FadeCue
     from ..cues.MediaCue import Media, MediaCue, Region
@@ -278,6 +283,11 @@ def _build_script_registry() -> SchemaRegistry:
     registry.bind("AudioCueOutputsType", AudioCueOutput)
     registry.bind("VideoCueOutputsType", VideoCueOutput)
     registry.bind("DmxCueOutputsType", DmxCueOutput)
+    # The unconditional alternative of the single ``<CueOutput>`` element
+    # (feature 013, axis D). An unknown class decodes to the base class, the
+    # way an unknown device class decodes to ``DeviceType`` — which is why
+    # ``CueOutput`` stopped being an unbound abstract base with that feature.
+    registry.bind("CueOutputType", CueOutput)
 
     # DMX.
     registry.bind("DmxSceneType", DmxScene)
@@ -297,6 +307,16 @@ def _build_script_registry() -> SchemaRegistry:
     # bespoke class would change the output.
     for type_name in (
         "CommonPropertiesType",  # abstract base, never instantiated directly
+        # The two derivation roots feature 013 adds. Each is a declared
+        # element type that is never *selected*: the unconditional
+        # ``xs:alternative`` on the element names a different type
+        # (``MediaCueType`` and ``CueOutputType``), so nothing ever decodes as
+        # one. They exist because xmlschema requires every alternative type to
+        # derive from the element's declared type, and the alternatives share
+        # no narrower base — ``DmxCueType`` carries no ``<Media>``, and the
+        # three output types share no base at all.
+        "CueClassType",
+        "CueOutputClassType",
         "CueListContentsType",  # the repeated-choice wrapper
         "CTimecodeType",  # handled by an adapter, not a model class (R5)
         "RegionsType",

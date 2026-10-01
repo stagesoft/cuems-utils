@@ -62,7 +62,10 @@ def _payload(cue_fields: dict) -> dict:
         "CuemsScript": {
             "CueList": {
                 "id": "8726353c-5c8c-41fe-bab7-1b9d765ced77",
-                "contents": [{"AudioCue": {**cue_fields}}],
+                # One ``Cue`` element, the class selecting ``AudioCue``
+                # (feature 013, axis D). The wrapper key is the schema's
+                # element name; the class travels inside the body.
+                "contents": [{"Cue": {"class": "audio", **cue_fields}}],
             }
         }
     }

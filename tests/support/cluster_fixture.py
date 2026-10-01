@@ -189,7 +189,7 @@ def script_xml(name: str, nodes: list[NodeSpec], cue_id: str | None = None) -> s
     """
     cue_id = cue_id or "12345678-aaaa-4aaa-abcd-123456789000"
     cues = "".join(
-        "<VideoCue>"
+        '<Cue class="video">'
         + _common(f"{i:08x}-bbbb-4bbb-abcd-1234567890{i:02d}", f"cue {i}")
         + "<Media><file_name>v.mp4</file_name><id />"
         "<duration><CTimecode>00:00:10.000</CTimecode></duration>"
@@ -199,7 +199,7 @@ def script_xml(name: str, nodes: list[NodeSpec], cue_id: str | None = None) -> s
         "<outputs>"
         + _video_output(f"{n.uuid}_0")
         + _video_output(f"{n.uuid}_custom_1")
-        + "</outputs></VideoCue>"
+        + "</outputs></Cue>"
         for i, n in enumerate(nodes)
     )
     return (
@@ -233,13 +233,13 @@ def _common(identifier: str, name: str) -> str:
 
 def _video_output(output_name: str) -> str:
     return (
-        f"<VideoCueOutput><output_name>{output_name}</output_name>"
+        f'<CueOutput class="video"><output_name>{output_name}</output_name>'
         "<output_geometry><x_scale>1</x_scale><y_scale>1</y_scale>"
         "<corners><top_left><x>0</x><y>0</y></top_left>"
         "<top_right><x>1</x><y>0</y></top_right>"
         "<bottom_left><x>0</x><y>1</y></bottom_left>"
         "<bottom_right><x>1</x><y>1</y></bottom_right></corners>"
-        "</output_geometry></VideoCueOutput>"
+        "</output_geometry></CueOutput>"
     )
 
 

@@ -129,8 +129,10 @@ def test_from_json_reaches_the_same_error():
     data = json.loads(script.to_json())
 
     contents = data["CuemsScript"]["CueList"]["contents"]
-    dmx_cue = next(c for c in contents if "DmxCue" in c)
-    dmx_cue["DmxCue"]["DmxScene"]["DmxUniverse"]["dmx_channels"] = [
+    dmx_cue = next(
+        c for c in contents if "Cue" in c and c["Cue"].get("class") == "dmx"
+    )
+    dmx_cue["Cue"]["DmxScene"]["DmxUniverse"]["dmx_channels"] = [
         {"not_dmxchannel_key": 1}
     ]
 

@@ -10,6 +10,12 @@ Exempt, by name: schema files (this walk is Python only; an ``.xsd`` is not a
 Python collection), and the migration tool's tables of **old element names**
 in ``reshape_devices.py``. Those spellings are being deleted. A further
 exemption is a review item and has to be named here, not added quietly.
+
+Not exempt, and worth stating because it looks like it should be: a single
+element name such as ``Cue`` or ``CueOutput`` is not a device class and never
+appears in ``_CLASS_NAMES``. ``cues/DmxCue.py``'s ``CUE_OUTPUT_ELEMENT`` is
+one of those — one schema element name, which is the opposite of a class
+list.
 """
 
 from __future__ import annotations
@@ -26,6 +32,16 @@ _EXEMPT = frozenset({
     ("reshape_devices.py", "_OLD_DEFAULTS"),
     ("reshape_devices.py", "_OLD_DEFAULT_NAMES"),
     ("reshape_devices.py", "_OLD_DEVICE_ELEMENTS"),
+    # Axis D's four tables, same status as the three above: each pairs an old
+    # element name with the class that name *becomes*. The element names are
+    # being deleted; the class values are there to be written into the
+    # documents being rewritten, not to be consulted when reading one. Listed
+    # individually rather than exempting the file, so a genuine class list
+    # added to this module would still be caught.
+    ("reshape_devices.py", "_OLD_CUES"),
+    ("reshape_devices.py", "_OLD_CUE_OUTPUTS"),
+    ("reshape_devices.py", "_OLD_OUTPUT_GROUPS"),
+    ("reshape_devices.py", "_OLD_OUTPUT_GROUP_NAMES"),
 })
 
 

@@ -104,7 +104,7 @@ def _script(name: str, nodes: list[NodeSpec], cues: int) -> str:
     comparable over the *same* total bytes rather than over different work.
     """
     body = "".join(
-        "<VideoCue>"
+        '<Cue class="video">'
         + _common(f"{i:08x}-bbbb-4bbb-abcd-{i:012x}", f"cue {i}")
         + "<Media><file_name>v.mp4</file_name><id />"
         "<duration><CTimecode>00:00:10.000</CTimecode></duration>"
@@ -114,7 +114,7 @@ def _script(name: str, nodes: list[NodeSpec], cues: int) -> str:
         "<outputs>"
         + _video_output(f"{nodes[i % len(nodes)].uuid}_0")
         + _video_output(f"{nodes[i % len(nodes)].uuid}_custom_1")
-        + "</outputs></VideoCue>"
+        + "</outputs></Cue>"
         for i in range(cues)
     )
     root_id = "12345678-aaaa-4aaa-abcd-123456789000"

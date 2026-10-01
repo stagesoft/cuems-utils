@@ -126,7 +126,17 @@ def test_every_schema_follows_the_class_conditional_convention():
                 None,
             )
             group_repeated = group is not None and group.get("maxOccurs") not in (None, "1")
-            if singles and (repeated or group_repeated):
+            # R2's hazard is a **single** group holding one repeated child
+            # beside single ones: converter.py drops the single ones. A group
+            # that repeats as a whole does not have that shape — every member
+            # repeats with it, so none of them is single relative to the
+            # content, which is exactly what CueListContentsType and
+            # OutputsType are. Checking `singles` without this distinction
+            # reported the reshaped cue list as a violation of the rule it
+            # actually satisfies.
+            if group_repeated:
+                pass
+            elif singles and repeated:
                 failures.append(
                     f"{where}: the container mixes single children {singles} with a repeated one"
                 )

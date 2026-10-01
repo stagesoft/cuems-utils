@@ -186,14 +186,21 @@ def test_coverage_reaches_every_bound_model():
     schema type itself — so the number was **36**. Feature 013 binds four more
     project-mappings types (``DeviceClassType``, ``DevicesType``,
     ``DefaultsType``, ``DefaultPortType``) and two settings types
-    (``PlayerClassType``, ``PlayersType``), so the number is now **42**.
+    (``PlayerClassType``, ``PlayersType``), so the number is now **42** — and
+    axis D makes it **43**. The one it adds is ``CueOutput``, which stopped
+    being an unbound abstract base: ``CueOutputType`` is the unconditional
+    alternative of the single ``<CueOutput>`` element, so an unknown class
+    decodes to that class and it needs a declared field set like any other
+    bound model. ``CueClassType`` and ``CueOutputClassType`` are bound
+    ``GENERIC`` and so are not counted — they are declared element types that
+    are never selected.
 
     Kept as an exact count rather than a lower bound, and rewritten rather than
     relaxed. A count that only ever grows would let a binding disappear in
     silence, which is the whole reason this assertion is stated positively
     alongside the ``UNCOVERED`` one.
     """
-    assert len(COVERED) == 42
+    assert len(COVERED) == 43
     assert not UNCOVERED
 
 

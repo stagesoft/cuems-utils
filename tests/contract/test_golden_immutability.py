@@ -39,6 +39,30 @@ commit (T035): its ``scripts`` array gains ``cuems-reshape-devices`` and no
 other key moves. The four settings dict goldens move with axis C (T042):
 ``videoplayer`` / ``audioplayer`` / ``dmxplayer`` became ``players``.
 
+**Axis D re-hashes eleven more, once** (T050, FR-054, FR-055). Named rather
+than swept, because "the goldens moved" is not a reason:
+
+* ``xml/cuems-editor__script_minimal.xml``,
+  ``xml/cuems-engine__projects__complex_test__script.xml``,
+  ``xml/cuems-utils__fade_showcase.xml``,
+  ``xml/cuems-utils__unicode_showcase.xml`` and
+  ``generated/example_script.xml`` — written documents, whose cue and
+  cue-output elements are now ``<Cue class="…">`` and ``<CueOutput class="…">``.
+* the five matching ``dict/*.reader.json`` plus
+  ``generated/example_script.reader.json`` — the same rename on the decoded
+  side, plus the ``class`` key.
+* ``dict/cuems-utils__outputs.reader.json`` — ``hardware_outputs``' two flat
+  lists became ``output_groups`` / ``outputs class="…"`` (T048).
+
+``outcomes.json`` is **not** regenerated (T050, stated as a prohibition rather
+than left implicit). It records, per document, whether reading and writing
+succeed and with which error — the accept/reject parity ledger — and a capture
+run does move it: four configuration documents' *write* failures change their
+error **type** (``AttributeError`` from a raw-dict write path to
+``XMLSchemaChildrenValidationError``). That is a real change in how a failure
+surfaces and it belongs to the config-write path, not to axis D; regenerating
+it here would record it without anyone having decided it.
+
 
 ``MANIFEST.sha256`` pins the hash of every file under this directory at the
 moment T002 ran (after T003b/T003c added the two new corpus documents' goldens,

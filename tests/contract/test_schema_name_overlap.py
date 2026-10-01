@@ -81,7 +81,10 @@ KNOWN_IDENTICAL_DUPLICATES = {
     "CanvasRegionType": ("project_mappings", "script"),
     "BoolType": ("network_map", "script", "settings"),
     "DateType": ("script", "settings"),
-    "NonEmptyString": ("network_map", "project_mappings", "project_settings", "settings"),
+    "NonEmptyString": (
+        "hardware_outputs", "network_map", "project_mappings", "project_settings",
+        "script", "settings",
+    ),
     "PositiveUnitFloat": ("project_mappings", "script"),
     "UnitFloat": ("project_mappings", "script"),
     # feature 012, uuid4 convergence (FR-021d). Three names, three schemas

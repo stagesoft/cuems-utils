@@ -27,3 +27,24 @@ original corpus carries their shape:
 - `script_v1_all_transforms.xml` (T080a) — all three `script` 1→2 transformations at once (old-shape
   duration, both retired `action_type` values, and a `fade_profiles` block); no single document in the
   tree combines all three.
+
+## One exception to "never regenerated", recorded rather than quiet
+
+**Feature 013, T050.** `script_v1_all_transforms.xml`'s one `<AudioCue>` is now
+`<Cue class="audio">`. Nothing else in the file changed, and its `doc_version` is still absent
+(version 1), so all three 1→2 transformations are still exactly what it exercises.
+
+Why it had to move, since "`pre-008/` is not touched" is what T050 says. The device shape is
+**orthogonal to `doc_version`** — feature 013 takes no version step (FR-020) — so a document can be
+version 1 in either device shape. A version-1 document in the *old* device shape is one that neither
+tool can migrate on its own: `cuems-reshape-devices` validates the reshaped tree and sees a
+version-1 `<duration>`, while `cuems-convert-documents` validates after converting and sees
+old-shape cues. The reshape tool resolves that by validating the document *as the load path will see
+it* — registered conversions applied to a throwaway copy, nothing written — which fixes the
+migration order at **reshape, then convert**. This fixture is the version-1 half of that pair, so it
+is carried in the new device shape; the old-shape fixtures the reshape tool is tested against live in
+`pre-013/`, which does stay old-shape.
+
+Every other file here is untouched. The snapshot copies that still carry `<AudioCue>` and friends
+are never loaded — `test_pre008_corpus_retained.py` asserts only that they parse — so they keep
+their byte-for-byte provenance.

@@ -40,7 +40,11 @@ def test_sequence_type_reports_declaration_order():
     spec = derive_named("script", "AudioCueType")
     assert spec.ordered
     assert spec.field_names[:3] == ("autoload", "description", "enabled")
-    assert spec.field_names[-2:] == ("outputs", "master_vol")
+    # ``class`` sorts last because attributes are derived after elements
+    # (``_derive_attributes``' ``start`` offset), not because of its name. The
+    # element tail is still the schema's: ``master_vol`` after ``outputs``,
+    # which is what the next test turns into the derived-vs-alphabetical claim.
+    assert spec.field_names[-3:] == ("outputs", "master_vol", "class")
 
 
 def test_order_keys_sorts_by_declaration_not_by_name():
@@ -300,4 +304,8 @@ def test_outputs_type_differs_between_schemas():
     script_outputs = derive_named("script", "OutputsType")
     hardware_outputs = derive_named("hardware_outputs", "HardwareOutputsType")
     assert script_outputs.field_names != hardware_outputs.field_names
-    assert hardware_outputs.field_names == ("output",)
+    # Feature 013 gave both of them a ``class`` discriminator and they still
+    # differ: script's holds repeated ``CueOutput`` elements, hardware's holds
+    # repeated ``output`` strings.
+    assert hardware_outputs.field_names == ("output", "class")
+    assert script_outputs.field_names == ("CueOutput",)

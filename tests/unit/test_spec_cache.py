@@ -97,7 +97,14 @@ def test_derivation_does_not_grow_with_object_count():
     after_large = derivation_count()
 
     assert after_large <= TOTAL_COMPLEX_TYPES
-    assert abs(after_large - after_small) <= 6, (after_small, after_large)
+    # Widened from 6 to 8 by feature 013, and the reason is that the two
+    # documents now differ by two more *types* rather than by more objects:
+    # ``complex_test`` carries dmx cues and dmx outputs, so it reaches
+    # ``DmxCueType``/``DmxCueOutputsType`` through the class dispatch, plus
+    # ``CueOutputType``'s derivation; ``script_minimal`` reaches none of them.
+    # The bound this test exists for is the one above — derivation is bounded
+    # by distinct types, not by object count — and that one did not move.
+    assert abs(after_large - after_small) <= 8, (after_small, after_large)
 
 
 def test_reprocessing_the_same_document_derives_nothing_new():

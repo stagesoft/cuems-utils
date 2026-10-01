@@ -9,7 +9,11 @@ REQ_ITEMS = {
     'fadein_time': 0.0,
     'fadeout_time': 0.0,
     'outputs': None,
-    'DmxScene': None
+    'DmxScene': None,
+    # ``DmxCueType`` extends ``CueClassType`` directly: it carries no
+    # ``<Media>``, so it could never extend ``MediaCueType`` (feature 013,
+    # axis D).
+    'class': 'dmx',
 }
 
 SCENE_REQ_ITEMS = {
@@ -26,6 +30,14 @@ DMXCHANNEL_REQ_ITEMS = {
     'channel': 0,
     'value': 0
 }
+
+#: The element name a decoded cue output arrives wrapped in. ``DmxCueType`` is
+#: in ``Mapper.OPAQUE_TYPES`` — a DMX cue is built in one step and never
+#: recursed into — so this class unwraps its own outputs, and the name it
+#: unwraps is the schema's. Feature 013 narrowed it from ``DmxCueOutput`` to
+#: ``CueOutput``: one element whose ``class`` attribute selects the type. An
+#: element name, not a device class; the class value travels inside the body.
+CUE_OUTPUT_ELEMENT = 'CueOutput'
 
 class DmxCue(Cue):
     """A cue for handling DMX lighting control.
@@ -108,7 +120,8 @@ class DmxCue(Cue):
         
         Args:
             outputs (list): The list of output configurations. Each item can be
-                a DmxCueOutput object or a dict that will be converted to DmxCueOutput.
+                a DmxCueOutput object, a bare dict, or a dict wrapped in the
+                schema's element name — see :data:`CUE_OUTPUT_ELEMENT`.
         """
         if outputs is None:
             super().__setitem__('outputs', None)
@@ -123,8 +136,8 @@ class DmxCue(Cue):
                 continue
             if not isinstance(output, DmxCueOutput):
                 if isinstance(output, dict):
-                    if 'DmxCueOutput' in output:
-                        inner = output['DmxCueOutput']
+                    if CUE_OUTPUT_ELEMENT in output:
+                        inner = output[CUE_OUTPUT_ELEMENT]
                         # XML converter may produce a list of dicts for the inner value
                         if isinstance(inner, list):
                             for item in inner:

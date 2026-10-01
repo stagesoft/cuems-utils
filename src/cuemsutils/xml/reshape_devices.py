@@ -3,14 +3,17 @@
 """``cuems-reshape-devices`` — one installation, old device shape to new (FR-022).
 
 Stdlib ``ElementTree`` only. The document it reads is invalid against the
-current schema, which is the ordinary case. This module ships the axis A
-transformation. Settings and scripts are not applicable until their schemas
-narrow; the tool names that instead of rewriting them.
+current schema, which is the ordinary case. All four axes are here:
+``project_mappings`` devices and root defaults (A), ``settings`` players (C),
+``script`` cues and cue outputs plus ``hardware_outputs``' two flat lists (D).
+``network_map`` and ``project_settings`` are not reshaped by this feature and
+are named "not applicable" rather than silently skipped.
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import os
 import shutil
 import sys
@@ -34,6 +37,21 @@ _OLD_DEFAULTS = (
 _OLD_DEFAULT_NAMES = frozenset(name for name, _, _ in _OLD_DEFAULTS)
 _OLD_DEVICE_ELEMENTS = frozenset({"audio", "video", "dmx"})
 _OLD_PLAYER_ELEMENTS = frozenset({"videoplayer", "audioplayer", "dmxplayer"})
+#: Axis D. ``ActionCue``, ``FadeCue`` and ``CueList`` are deliberately absent:
+#: they are cue *kinds*, keep their own elements, and are not rewritten
+#: (FR-050a). Each entry is ``old element name -> class value``; the new name is
+#: the schema's one element.
+_OLD_CUES = {"AudioCue": "audio", "VideoCue": "video", "DmxCue": "dmx"}
+_OLD_CUE_OUTPUTS = {
+    "AudioCueOutput": "audio",
+    "VideoCueOutput": "video",
+    "DmxCueOutput": "dmx",
+}
+_NEW_CUE = "Cue"
+_NEW_CUE_OUTPUT = "CueOutput"
+#: Axis D's second half: ``hardware_outputs``'s two flat lists.
+_OLD_OUTPUT_GROUPS = (("video_outputs", "video"), ("audio_outputs", "audio"))
+_OLD_OUTPUT_GROUP_NAMES = frozenset(name for name, _ in _OLD_OUTPUT_GROUPS)
 
 
 def _local(tag: str) -> str:
@@ -91,6 +109,16 @@ def classify(schema_name: str | None, root: ET.Element) -> str:
         return "not-applicable"
     if schema_name == "settings":
         if _node_has(root, _OLD_PLAYER_ELEMENTS):
+            return "old"
+        return "current"
+    if schema_name == "script":
+        for element in root.iter():
+            local = _local(element.tag)
+            if local in _OLD_CUES or local in _OLD_CUE_OUTPUTS:
+                return "old"
+        return "current"
+    if schema_name == "hardware_outputs":
+        if any(_local(child.tag) in _OLD_OUTPUT_GROUP_NAMES for child in list(root)):
             return "old"
         return "current"
     return "not-applicable"
@@ -156,8 +184,94 @@ def reshape_players(root: ET.Element) -> None:
         node.insert(first, players)
 
 
+def reshape_cues(root: ET.Element) -> None:
+    """Axis D's cue half. A **rename in place**, which is the whole of it.
+
+    No container, because both ``xs:choice`` groups were already
+    repeated-only (research R2), and renaming in place is also what preserves
+    order: a cue list interleaves cue types and that order is the running order
+    of the show. Compound documents need no special case for the same reason —
+    a cue output inside a cue is reached by the same walk, because every
+    element is visited rather than only a document-level section.
+
+    ``doc_version`` is not touched. No value is read, computed or dropped: the
+    class comes from the element name being deleted.
+    """
+    for parent in root.iter():
+        for child in list(parent):
+            local = _local(child.tag)
+            if local in _OLD_CUES:
+                child.tag = _NEW_CUE
+                child.set("class", _OLD_CUES[local])
+            elif local in _OLD_CUE_OUTPUTS:
+                child.tag = _NEW_CUE_OUTPUT
+                child.set("class", _OLD_CUE_OUTPUTS[local])
+
+
+def reshape_output_groups(root: ET.Element) -> None:
+    """Axis D's ``hardware_outputs`` half. ``doc_version`` is not touched."""
+    children = list(root)
+    indexes = [
+        i for i, child in enumerate(children)
+        if _local(child.tag) in _OLD_OUTPUT_GROUP_NAMES
+    ]
+    if not indexes:
+        return
+    by_name = {_local(children[i].tag): children[i] for i in indexes}
+    groups = ET.Element("output_groups")
+    for name, output_class in _OLD_OUTPUT_GROUPS:
+        old = by_name.get(name)
+        if old is None:
+            continue
+        outputs = ET.SubElement(groups, "outputs")
+        outputs.set("class", output_class)
+        for grand in list(old):
+            outputs.append(grand)
+    first = indexes[0]
+    for index in reversed(indexes):
+        root.remove(children[index])
+    root.insert(first, groups)
+
+
 def _backup_path(path: Path, clock: str) -> Path:
     return path.with_name(f"{path.name}.{clock}.bak")
+
+
+def _as_the_load_path_sees_it(schema_name: str, tree: ET.ElementTree) -> ET.ElementTree:
+    """``tree`` with any registered version conversion applied, on a **copy**.
+
+    Validating the reshaped tree as it stands is wrong for a document whose
+    ``doc_version`` precedes current, and the two tools deadlock if it is not
+    done here. A version-1 script carries ``<duration>00:00:00.000</duration>``
+    as text; ``script`` 1→2 wraps it. So:
+
+    * reshape first, validating the reshaped tree directly — the device shape is
+      now right, but ``duration`` is still version 1, so the document "would not
+      validate" and this tool declines to write it;
+    * convert first — ``cuems-convert-documents`` validates after converting
+      (its SC-017 check), the devices are still old-shape, and it raises.
+
+    Neither order completes, and an installation holding version-old scripts
+    (which is why feature 008 shipped the conversion registry at all) could not
+    migrate. Verifying against the document *as the load path will see it*
+    resolves it in one direction: reshape, then convert, in that order, which is
+    what the migration guide states.
+
+    This reads the conversion registry; it does **not** convert the file.
+    Nothing is written from the copy, ``doc_version`` is not moved (FR-020), and
+    the version *gate* — ``DocumentTooNewError`` — is still never this tool's to
+    apply, which is what T036 asks. A document newer than this library is handed
+    to the schema unconverted and fails there, naming itself.
+    """
+    from .versioning import CURRENT_VERSION, convert, read_version
+
+    version = read_version(tree)
+    current = CURRENT_VERSION.get(schema_name)
+    if current is None or version >= current:
+        return tree
+    probe = ET.ElementTree(copy.deepcopy(tree.getroot()))
+    convert(schema_name, probe, version, current)
+    return probe
 
 
 def reshape_file(path: Path, *, write: bool, dry_run: bool, clock: str) -> str:
@@ -192,10 +306,14 @@ def reshape_file(path: Path, *, write: bool, dry_run: bool, clock: str) -> str:
         reshape_mappings(root)
     elif schema_name == "settings":
         reshape_players(root)
+    elif schema_name == "script":
+        reshape_cues(root)
+    elif schema_name == "hardware_outputs":
+        reshape_output_groups(root)
     if schema_name is None:
         return "skipped (unrecognised root)"
     try:
-        get_schema(schema_name).validate(tree)
+        get_schema(schema_name).validate(_as_the_load_path_sees_it(schema_name, tree))
     except Exception as exc:  # noqa: BLE001 - named, and the original stays
         return f"skipped (would not validate: {exc})"
     write_tree(tree, path)

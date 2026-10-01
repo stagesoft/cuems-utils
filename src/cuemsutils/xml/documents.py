@@ -20,7 +20,7 @@ import stat
 import tempfile
 from os import PathLike
 from pathlib import Path
-from xml.etree.ElementTree import ElementTree
+from xml.etree.ElementTree import ElementTree, register_namespace
 
 from xmlschema import XMLSchema11
 
@@ -162,6 +162,13 @@ _CURRENT_NODE_CHILDREN = frozenset({"uuid", "mac", "devices"})
 #: Old settings element names. Not device-class words, so the class-list
 #: ratchet does not see them; they are spellings being deleted.
 _OLD_PLAYER_ELEMENTS = frozenset({"videoplayer", "audioplayer", "dmxplayer"})
+#: Old script element names, same status: spellings being deleted, not a
+#: vocabulary. ``ActionCue``, ``FadeCue`` and ``CueList`` are **not** here —
+#: they are cue kinds and keep their own elements (FR-050a).
+_OLD_CUE_ELEMENTS = frozenset({"AudioCue", "VideoCue", "DmxCue"})
+_OLD_CUE_OUTPUT_ELEMENTS = frozenset(
+    {"AudioCueOutput", "VideoCueOutput", "DmxCueOutput"}
+)
 
 
 def _local(tag: str) -> str:
@@ -172,9 +179,12 @@ def raise_if_old_device_shape(schema_name: str, source: str, tree: ElementTree) 
     """Name the migration when a document is still in the pre-013 shape.
 
     After the version probe and before schema decode. A bare ``xs:sequence``
-    complaint is the X13 failure this exists to prevent (FR-027). This pass
-    covers ``project_mappings`` only; settings and scripts name their own
-    old elements when those schemas narrow.
+    complaint is the X13 failure this exists to prevent (FR-027).
+
+    One function, one branch per reshaped schema. ``script`` reaches it through
+    ``CuemsScript.load_with_report``, which calls
+    :func:`read_document_versioned` like every other load path, so the show
+    document needs no second copy of the message in ``cues/CuemsScript.py``.
     """
     root = tree.getroot()
     if schema_name == "project_mappings":
@@ -203,6 +213,16 @@ def raise_if_old_device_shape(schema_name: str, source: str, tree: ElementTree) 
                 raise SchemaError(
                     f"settings document {source} is in the pre-013 device shape "
                     "(<videoplayer>/<audioplayer>/<dmxplayer> on <node>). "
+                    "Run `cuems-reshape-devices` to migrate it."
+                )
+    if schema_name == "script":
+        for element in root.iter():
+            local = _local(element.tag)
+            if local in _OLD_CUE_ELEMENTS or local in _OLD_CUE_OUTPUT_ELEMENTS:
+                raise SchemaError(
+                    f"script document {source} is in the pre-013 device shape "
+                    "(<AudioCue>/<VideoCue>/<DmxCue> and "
+                    "<AudioCueOutput>/<VideoCueOutput>/<DmxCueOutput>). "
                     "Run `cuems-reshape-devices` to migrate it."
                 )
 
@@ -289,7 +309,21 @@ def write_tree(tree: ElementTree, target: str | PathLike) -> None:
     the engines read it as ``User=cuems``, and ``cuems-common`` ships the file
     ``0644`` exactly so they can. Reported from ``cuems-nodeconf``'s feature 001
     after measuring ``0644`` in and ``0600`` out.
+
+    **The ``cms`` prefix is registered here**, not left to whoever ran first.
+    ``ElementTree.parse`` discards prefix declarations and keeps only the URI,
+    so serializing a parsed tree emits a generated ``ns0:`` unless the prefix is
+    registered — and ``register_namespace`` writes to a module-level table in
+    ``ElementTree``, so until feature 013 the prefix happened to survive only
+    because ``mapper.build_document`` had usually registered it earlier in the
+    same process. ``cuems-reshape-devices`` and ``cuems-convert-documents``
+    rewrite a *parsed* tree without ever building one, so for them it had not.
+    The symptom is a document that still validates and still loads with every
+    ``cms:`` turned into ``ns0:`` — found by ``test_roundtrip_stability.py``'s
+    canonical-document assertion, because the library's own writer would then no
+    longer reproduce the file byte for byte.
     """
+    register_namespace(next(iter(NAMESPACE)), next(iter(NAMESPACE.values())))
     target = Path(os.fspath(target))
     handle, temporary = tempfile.mkstemp(
         dir=str(target.parent), prefix=f".{target.name}.", suffix=".tmp"

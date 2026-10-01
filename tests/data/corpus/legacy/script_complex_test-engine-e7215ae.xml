@@ -1,15 +1,12 @@
-<?xml version="1.1" encoding="UTF-8"?>
-<cms:CuemsProject
-    xmlns:cms="https://stagelab.coop/cuems/"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="https://stagelab.coop/cuems/ ../cuems/script.xsd">
+<?xml version='1.0' encoding='utf-8'?>
+<cms:CuemsProject xmlns:cms="https://stagelab.coop/cuems/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://stagelab.coop/cuems/ ../cuems/script.xsd">
     <CuemsScript>
         <id>12345678-aaaa-4aaa-abcd-123456789000</id>
         <name>Test Main Script</name>
         <description>This is the description text of the project</description>
         <created>2020-01-01T00:00:00.000</created>
         <modified>2020-01-01T00:00:00.000</modified>
-        <ui_properties></ui_properties>
+        <ui_properties />
         <CueList>
             <autoload>False</autoload>
             <description>Main cuelist desc id ML</description>
@@ -27,7 +24,7 @@
             <prewait>
                 <CTimecode>00:00:00.000</CTimecode>
             </prewait>
-            <target></target>
+            <target />
             <timecode>False</timecode>
             <ui_properties>
                 <timeline_position>
@@ -53,7 +50,7 @@
                     <prewait>
                         <CTimecode>00:00:00.000</CTimecode>
                     </prewait>
-                    <target></target>
+                    <target />
                     <timecode>False</timecode>
                     <ui_properties>
                         <timeline_position>
@@ -62,7 +59,7 @@
                         </timeline_position>
                     </ui_properties>
                     <contents>
-                        <AudioCue>
+                        <Cue class="audio">
                             <autoload>False</autoload>
                             <description>Audio cue desc id 10</description>
                             <enabled>True</enabled>
@@ -79,7 +76,7 @@
                             <prewait>
                                 <CTimecode>00:00:00.000</CTimecode>
                             </prewait>
-                            <target></target>
+                            <target />
                             <timecode>False</timecode>
                             <ui_properties>
                                 <timeline_position>
@@ -105,7 +102,7 @@
                                 </regions>
                             </Media>
                             <outputs>
-                                <AudioCueOutput>
+                                <CueOutput class="audio">
                                     <output_name>Out1</output_name>
                                     <output_vol>100</output_vol>
                                     <channels>
@@ -118,11 +115,11 @@
                                             <channel_vol>100</channel_vol>
                                         </channel>
                                     </channels>
-                                </AudioCueOutput>
+                                </CueOutput>
                             </outputs>
                             <master_vol>100</master_vol>
-                        </AudioCue>
-                        <VideoCue>
+                        </Cue>
+                        <Cue class="video">
                             <autoload>False</autoload>
                             <description>Video cue desc id V2</description>
                             <enabled>True</enabled>
@@ -139,7 +136,7 @@
                             <prewait>
                                 <CTimecode>00:00:00.000</CTimecode>
                             </prewait>
-                            <target></target>
+                            <target />
                             <timecode>False</timecode>
                             <ui_properties>
                                 <timeline_position>
@@ -165,7 +162,7 @@
                                 </regions>
                             </Media>
                             <outputs>
-                                <VideoCueOutput>
+                                <CueOutput class="video">
                                     <output_name>VideoOut1</output_name>
                                     <output_geometry>
                                         <x_scale>1</x_scale>
@@ -189,9 +186,9 @@
                                             </bottom_right>
                                         </corners>
                                     </output_geometry>
-                                </VideoCueOutput>
+                                </CueOutput>
                             </outputs>
-                        </VideoCue>
+                        </Cue>
                     </contents>
                 </CueList>
                 <CueList>
@@ -211,7 +208,7 @@
                     <prewait>
                         <CTimecode>00:00:00.000</CTimecode>
                     </prewait>
-                    <target></target>
+                    <target />
                     <timecode>False</timecode>
                     <ui_properties>
                         <timeline_position>
@@ -220,7 +217,7 @@
                         </timeline_position>
                     </ui_properties>
                     <contents>
-                        <VideoCue>
+                        <Cue class="video">
                             <autoload>False</autoload>
                             <description>Video cue desc id V1</description>
                             <enabled>True</enabled>
@@ -237,7 +234,7 @@
                             <prewait>
                                 <CTimecode>00:00:00.000</CTimecode>
                             </prewait>
-                            <target></target>
+                            <target />
                             <timecode>False</timecode>
                             <ui_properties>
                                 <timeline_position>
@@ -263,7 +260,7 @@
                                 </regions>
                             </Media>
                             <outputs>
-                                <VideoCueOutput>
+                                <CueOutput class="video">
                                     <output_name>VideoOut2</output_name>
                                     <output_geometry>
                                         <x_scale>1</x_scale>
@@ -287,10 +284,10 @@
                                             </bottom_right>
                                         </corners>
                                     </output_geometry>
-                                </VideoCueOutput>
+                                </CueOutput>
                             </outputs>
-                        </VideoCue>
-                        <AudioCue>
+                        </Cue>
+                        <Cue class="audio">
                             <autoload>False</autoload>
                             <description>Audio cue desc id 10</description>
                             <enabled>True</enabled>
@@ -307,7 +304,7 @@
                             <prewait>
                                 <CTimecode>00:00:00.000</CTimecode>
                             </prewait>
-                            <target></target>
+                            <target />
                             <timecode>False</timecode>
                             <ui_properties>
                                 <timeline_position>
@@ -333,7 +330,7 @@
                                 </regions>
                             </Media>
                             <outputs>
-                                <AudioCueOutput>
+                                <CueOutput class="audio">
                                     <output_name>Out1</output_name>
                                     <output_vol>100</output_vol>
                                     <channels>
@@ -346,13 +343,13 @@
                                             <channel_vol>100</channel_vol>
                                         </channel>
                                     </channels>
-                                </AudioCueOutput>
+                                </CueOutput>
                             </outputs>
                             <master_vol>100</master_vol>
-                        </AudioCue>
+                        </Cue>
                     </contents>
                 </CueList>
-                <VideoCue>
+                <Cue class="video">
                     <autoload>False</autoload>
                     <description>Video cue desc id V3</description>
                     <enabled>True</enabled>
@@ -369,7 +366,7 @@
                     <prewait>
                         <CTimecode>00:00:00.000</CTimecode>
                     </prewait>
-                    <target></target>
+                    <target />
                     <timecode>False</timecode>
                     <ui_properties>
                         <timeline_position>
@@ -395,7 +392,7 @@
                         </regions>
                     </Media>
                     <outputs>
-                        <VideoCueOutput>
+                        <CueOutput class="video">
                             <output_name>VideoOut3</output_name>
                             <output_geometry>
                                 <x_scale>1</x_scale>
@@ -419,10 +416,10 @@
                                     </bottom_right>
                                 </corners>
                             </output_geometry>
-                        </VideoCueOutput>
+                        </CueOutput>
                     </outputs>
-                </VideoCue>
-                <VideoCue>
+                </Cue>
+                <Cue class="video">
                     <autoload>False</autoload>
                     <description>Video cue desc id V4</description>
                     <enabled>True</enabled>
@@ -439,7 +436,7 @@
                     <prewait>
                         <CTimecode>00:00:00.000</CTimecode>
                     </prewait>
-                    <target></target>
+                    <target />
                     <timecode>False</timecode>
                     <ui_properties>
                         <timeline_position>
@@ -465,7 +462,7 @@
                         </regions>
                     </Media>
                     <outputs>
-                        <VideoCueOutput>
+                        <CueOutput class="video">
                             <output_name>VideoOut4</output_name>
                             <output_geometry>
                                 <x_scale>1</x_scale>
@@ -489,9 +486,9 @@
                                     </bottom_right>
                                 </corners>
                             </output_geometry>
-                        </VideoCueOutput>
+                        </CueOutput>
                     </outputs>
-                </VideoCue>
+                </Cue>
             </contents>
         </CueList>
     </CuemsScript>
