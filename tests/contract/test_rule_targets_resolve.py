@@ -133,3 +133,33 @@ def test_the_renamed_mappings_type_is_the_one_carrying_the_rule():
 
     # network_map keeps the plain name: identity is the older, broader meaning.
     assert get_registry("network_map").model_for("NodeType") is not None
+
+
+# --- feature 012, T049 ------------------------------------------------------
+
+
+def test_the_node_identity_rule_targets_the_network_map_node_class():
+    """The rule feature 012 adds, named explicitly for the reason this whole
+    file exists: a target matched by string against an MRO does not raise when
+    it is wrong, it simply never fires — and a uniqueness rule that never fires
+    leaves a colliding map loading exactly as it does today.
+
+    ``node`` is lowercase on purpose (``config/network_map.py``): it is the
+    element's name, what ``NetworkMap.get_node`` returns, and what every
+    consumer already calls the thing. A rule keyed on ``NodeType`` — the
+    *schema* type name, which is the tempting spelling — would resolve against
+    nothing.
+    """
+    rule = RULES["node_uuid_unique"]
+    assert rule.applies_to == (("node", "uuid"),)
+    assert rule.document_scoped is True
+    assert rule.repairable is False
+
+    network_map = get_registry("network_map")
+    model = network_map.model_for("NodeType")
+    assert model is not None
+    assert model.__name__ == "node", (
+        "network_map binds NodeType to a class whose __name__ is not 'node'; "
+        "the rule's target no longer resolves and the rule is dead."
+    )
+    assert "uuid" in set(model.declared_fields())

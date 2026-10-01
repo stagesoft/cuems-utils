@@ -5,6 +5,8 @@ from ..errors import (
     ValidationError,
     network_map_node_type_message,
     network_map_role_enum_message,
+    node_identity_collision_message,
+    node_identity_shape_message,
     project_mappings_semantic_message,
 )
 from ..log import Logger, logged
@@ -72,6 +74,25 @@ def load_config_document(cls, xmlfile: str, schema_name: str):
             if semantic_message is not None:
                 Logger.error(semantic_message)
                 raise ValidationError(semantic_message) from exc
+        # Feature 012's semantic rule, checked before the structural ones for
+        # the same reason project_mappings' is: it raises a plain ValueError
+        # and so does xmlschema, so only the wording tells them apart.
+        if schema_name == 'network_map':
+            collision = node_identity_collision_message(xmlfile, exc)
+            if collision is not None:
+                Logger.error(collision)
+                raise ValidationError(collision) from exc
+
+        # A non-converged node identity is a **structural** (T1) failure — the
+        # narrowed NodeUuidType refuses it — so it stays a SchemaError. What
+        # changes is that the message names the out-of-band repair, which is
+        # the one thing a generic schema error cannot say (FR-024).
+        if schema_name in ('network_map', 'project_mappings', 'settings'):
+            shape = node_identity_shape_message(xmlfile, exc)
+            if shape is not None:
+                Logger.error(shape)
+                raise SchemaError(shape) from exc
+
         if schema_name == 'network_map':
             for diagnose in (network_map_node_type_message, network_map_role_enum_message):
                 specific_message = diagnose(xmlfile, exc)
@@ -253,11 +274,39 @@ class ConfigBase():
 
     @property
     def node_uuid(self):
+        """This node's own identity.
+
+        Returns:
+            cuemsutils.tools.Uuid.Uuid | str: the identity type on a
+            **provisioned** node; the published sentinel constant
+            (``cuemsutils.tools.SENTINEL``), a plain ``str``, on one that was
+            never provisioned (feature 012, FR-021b, FR-028).
+
+        The type varies **only** between those two states, and identically from
+        every accessor — the one documented exception in FR-028, and the reason a
+        consumer needs exactly one check rather than a conversion at every site
+        (M-d). Both forms compare equal to the equivalent string and hash the
+        same, so ``==``, f-strings, set membership and dict keys are unaffected;
+        what changed is that the value is no longer a ``str`` **subclass**, so
+        string methods are not available on it. Convert with ``str()`` where a
+        string is genuinely wanted — see :attr:`host_name` just below, which is
+        this library's own instance of exactly that.
+        """
         return self.node_conf['uuid']
 
     @property
     def host_name(self):
-        return f"{self.node_uuid.split('-')[-1]}.local"
+        """``<last uuid group>.local`` — the node's mDNS name.
+
+        ``str()`` around the identity is **load-bearing** as of feature 012, not
+        defensive: ``node_uuid`` answers with the identity type on a provisioned
+        node, and that type deliberately does not define ``split`` (data-model
+        §6.2 — string operations would invite treating an identity as text in
+        ways the compound ``<identity>_<output>`` parsing already handles
+        elsewhere). This accessor's own return type is unchanged: still a
+        ``str``, still the same value.
+        """
+        return f"{str(self.node_uuid).split('-')[-1]}.local"
 
     @property
     def node_url(self):

@@ -77,7 +77,15 @@ def test_every_accessor_returns_an_object_or_a_scalar(manager, name, kind):
                 f"{name} holds a raw multi-key dict: {sorted(item)}"
             )
     else:
-        assert isinstance(value, (str, int, float, bool, type(None))), (
+        # ``Uuid`` joins the scalar set for feature 012 (FR-021b): the node's own
+        # identity is a *scalar in the schema* — ``NodeUuidType`` is an
+        # ``xs:string`` union — carried by a small value type rather than by a
+        # ``str``, exactly as ``CTimecode`` already is elsewhere in the model.
+        # It is neither a mapping nor a container, so the question this branch
+        # asks ("is this a value rather than a structure?") answers yes.
+        from cuemsutils.tools.Uuid import Uuid
+
+        assert isinstance(value, (str, int, float, bool, Uuid, type(None))), (
             f"{name} returns a {type(value).__name__}"
         )
 

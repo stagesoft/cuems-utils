@@ -27,14 +27,31 @@ from typing import Callable
 #: on every schema's root complex type; absent means version 1 (FR-050).
 DOC_VERSION_ATTR = "doc_version"
 
-#: Each schema's current version (data-model.md §1). Only ``script`` moves in
-#: this feature — the other five stay at 1, and that independence is measured
-#: rather than assumed (FR-048b, SC-023b, T099a).
+#: Each schema's current version (data-model.md §1). Versions move **per
+#: schema**, and that independence is measured rather than assumed (FR-048b,
+#: SC-023b, T099a) — a feature that bumped all six would put every document in
+#: the field a version behind for no reason.
+#:
+#: Feature 008 moved ``script`` to 2 (and ``settings``/``hardware_outputs`` with
+#: rc16's drops). Feature 012 moves the three schemas that carry a **node
+#: identity**: ``network_map`` 1->2, ``project_mappings`` 1->2 and ``settings``
+#: 2->3. See the comment inside the table for why none of the three registers a
+#: conversion.
 CURRENT_VERSION: dict[str, int] = {
     "script": 2,
-    "settings": 2,
-    "network_map": 1,
-    "project_mappings": 1,
+    # Feature 012 (uuid4 convergence) steps three schemas, and registers **no**
+    # conversion for any of them (research R5, FR-022a). The identity step is
+    # represented by the *absence* of a registry entry, which is exactly what
+    # these three are: the narrowed ``NodeUuidType`` invalidates documents on
+    # disk, and the repair is cross-document and out-of-band by design.
+    #
+    # A per-document mint inside a conversion — the obvious alternative — would
+    # give ``settings.xml`` and ``network_map.xml`` different answers for the
+    # same node, which is §9.4's measured failure (``Node with uuid ... not
+    # found``). An identity cannot be repaired one document at a time.
+    "settings": 3,
+    "network_map": 2,
+    "project_mappings": 2,
     "project_settings": 1,
     "hardware_outputs": 2,
 }
@@ -168,9 +185,26 @@ def _script_1_to_2(root: ET.Element) -> list[str]:
         duration.text = None
         ET.SubElement(duration, "CTimecode").text = text
 
-    # 2. action_type: fade_in -> play, fade_out -> stop (FR-051a, ITEM D) —
-    #    behaviour-preserving: ``cuems-engine`` already dispatches both as
-    #    never-implemented stubs treated exactly as play/stop.
+    # 2. action_type: fade_in -> play, fade_out -> stop (FR-051a, ITEM D).
+    #
+    #    ``fade_in`` -> ``play`` IS behaviour-preserving: ``cuems-engine``'s
+    #    ``_handle_fade_in`` dispatched exactly ``_handle_play``'s body.
+    #
+    #    ``fade_out`` -> ``stop`` is **NOT**, and this comment said it was until
+    #    ``cuems-engine`` measured otherwise (its feature 008,
+    #    ``upstream-reports/UR-7-fade-out-conversion-not-behaviour-preserving.md``).
+    #    Its ``_handle_fade_out`` set the stop flags but never called
+    #    ``disarm()`` and never answered ``applied_no_change`` — its own TODO
+    #    named the zombie-process defect that caused. ``_handle_stop`` does both.
+    #    So a version-1 document's ``fade_out`` now disarms its target where it
+    #    previously leaked player processes.
+    #
+    #    The change is an improvement and the conversion is still right, but
+    #    "behaviour-preserving" was the wrong reason to give for it: a consumer
+    #    reading that would not think to check what its own handler did
+    #    differently. ``specs/008-rebuild-extension/migration-guide.md``'s
+    #    FR-053b stated the defect correctly all along; only this comment and
+    #    CLAUDE.md overclaimed. Corrected 2026-10-01.
     for action_type in root.iter("action_type"):
         if action_type.text == "fade_in":
             action_type.text = "play"

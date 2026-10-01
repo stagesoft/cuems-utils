@@ -1288,3 +1288,72 @@ Two selectors, two test files, no shared assertion standing in for both. Suite *
 
 Recorded in full in the section above (`399baf7`). The one-line `debian/control` bound was the
 last thing between the bridge's *source* pin and its *package* expressing the release gate.
+
+---
+
+## The `cuems-engine` gate verifications (T022/T023/T034), recorded 2026-10-01
+
+Flow 01 landed as `cuems-engine`'s own feature `008-cuems-utils-migration`, 64/64, on
+`feat/xml-refactor`. Tag `xml-refactor-merge-candidate` → `1662a99`, cut 2026-10-01, annotated,
+**local only — not yet pushed**.
+
+### T023 — each of the four sites carries a test that fails against the pre-migration value
+
+The four sites are `../cuems-engine/src/cuemsengine/core/BaseEngine.py:33,410,440,443` as this
+task named them (pre-migration line numbers, re-verified 2026-09-21 against a 636-line file).
+
+| # | Site | Fault class | Discriminating test | Failing-first evidence |
+|---|---|---|---|---|
+| 1 | `:33` `CONTROLLER_NETWORK_FLAG = "NodeType.master"` | keeps resolving, becomes wrong | `tests/test_core_baseengine_controller_ip.py` | `evidence/failing-first-site1-2-controller-lookup.txt` — **7 of 17 cases red**, every positive case with *"No controller node found in network map"* |
+| 2 | `:410` `node.get("node_type") == CONTROLLER_NETWORK_FLAG` | keeps resolving, becomes wrong | same file (positive cases) | same |
+| 3 | `:440` `self.cm.network_map.get_nodes_by_adoption(...)` | **raises** `AttributeError` | `tests/test_find_hosts_characterization.py` | `evidence/failing-first-site3-4-find-hosts.txt` — `AttributeError: 'CuemsNetworkMapType' object has no attribute 'get_nodes_by_adoption'` |
+| 4 | `:443` `node.get("online") == "True"` | keeps resolving, becomes wrong | same file | same file, recorded as prediction **F1** — see below |
+
+**Verified** (FR-004, SC-007): all four are named, all four have a test, and the failing-first run
+is recorded per site with its date, the engine commit and the `cuems-utils` SHA it ran against
+(`2a88a7c`) in the file header.
+
+**Site 4 is counted and recorded as read from the code, not as an observed red**, and the engine's
+own evidence header says so rather than implying four observed failures. Site 3 raises first inside
+the same comprehension, so no run can show site 4 failing while site 3 is present. The reading is
+specific enough to check: the comprehension reads `node.get('ip'/'uuid'/'online')` on
+`{'node': …}` wrapper entries that are never unwrapped, and compares `online` to the string
+`"True"` where the typed map delivers `bool` — so every host would be filtered out. **Accepted as
+verification** on the same terms this repository accepts any read-not-run finding: the mechanism is
+named, the file records which prediction held (**M8**) and which did not (**F1**), and the site was
+then removed rather than fixed.
+
+**How sites 3 and 4 were resolved: by deletion.** `find_hosts` and its `get_nodes_by_adoption`
+call are gone (the engine's clarification Q2), and
+`../cuems-engine/tests/test_public_surface.py` asserts `get_nodes_by_adoption`,
+`partition_by_adoption` and `find_hosts` are all absent from its source — so the deletion cannot be
+undone by re-spelling.
+
+### T034 — the two counts, stated as equal
+
+**Four callers found, four discriminating tests added.** Denominator, method and date are in the
+migration guide's §4c; the scan is `../cuems-engine/specs/008-cuems-utils-migration/evidence/identity-audit.md`
+(74 raw hits, 2026-09-29, re-run 2026-09-30 after the coercion delegation).
+
+### Suite measurements taken here, 2026-10-01
+
+Run in the engine's own `.venv` (which carries `pyossia` and has `cuemsutils` installed editable);
+the control arm shadows the library with `PYTHONPATH` against a worktree of `a451036`.
+
+| Engine commit | Against `cuems-utils` | Result |
+|---|---|---|
+| `6fda8f3` | feature 012 branch | 939 passed |
+| `6fda8f3` | `a451036` (pre-012) | 939 passed |
+| `1662a99` (tagged) | feature 012 branch | **923 passed** |
+| `1662a99` (tagged) | `a451036` (pre-012) | **23 collection errors** |
+
+Two things worth recording rather than just the final number:
+
+- **939 → 923 is a retirement, not a regression.** `c31734c` deleted the engine's own copy of the
+  coercion rule and the 16 tests that characterized it; `tests/test_ids.py` lost 58 lines. The
+  behaviour is now covered by this repository's `test_published_coercion.py`.
+- **The engine's candidate is hard-coupled to feature 012 from `c31734c` onward.** Before it, the
+  engine composed with either library; after it, `from cuemsutils.tools import coerce_identity`
+  fails to import against `a451036`. That is a deliberate, recorded coupling — the tag message says
+  so — but it means the engine's candidate and `cuems-utils`' are no longer independently
+  orderable, where every other consumer's still is.

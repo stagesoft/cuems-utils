@@ -635,6 +635,42 @@ lintian over the result.
   from `--uuid`/`--mac` — and write the documents **this run writes** (all three on a plain run;
   only the absent ones under `--install-missing`) as one atomic set: either every document the
   run set out to write is replaced, or none is.
+
+  > ### D13 amended by feature 012, 2026-09-30 (its FR-019d)
+  >
+  > **"Preserved if the existing `settings.xml` carries a real uuid" becomes "preserved if it
+  > carries a real uuid **and that identity was minted for this hardware**."**
+  >
+  > This amendment is recorded here, against the decision it changes, rather than only in feature
+  > 012's own record — a later reader looking up what `cuems-init-node` does with an existing
+  > identity finds *this* text first, and would otherwise find a rule the tool no longer follows.
+  >
+  > **Why.** D13's rule as written is precisely what makes a **cloned disk** keep the original's
+  > identity. The preserve branch prefers the *stored* MAC over the hardware's
+  > (`init_node.py`'s `elif real_before and previous.get("mac") …`), so a clone never consults its
+  > own NIC at all — and cloning a provisioned disk is how venues provision. Left alone, uuid4
+  > convergence would deliver a cluster that re-collides on the next clone, which is the first of
+  > the four collision routes feature 012 enumerates (M-l).
+  >
+  > **What the tool now does.** It derives this hardware's MAC on **every** run, compares it with
+  > the one `settings.xml` records, and **refuses** when they differ — naming both, and naming
+  > both ways forward.
+  >
+  > **It refuses rather than re-minting, and that is the substance of the amendment.** The same
+  > evidence describes a **replaced NIC on the same node**, where preserving the identity is
+  > correct and re-minting would cost an adoption — which §9.5 establishes is now permanent. The
+  > two cases are indistinguishable from inside the tool, so it asks the one party that can tell
+  > them apart. `--force-new-identity --yes` says "it is a clone"; `--mac <address>` says "it is a
+  > NIC swap", keeps the identity and corrects the stored MAC.
+  >
+  > **What does not change.** A re-run on the *same* hardware still preserves the identity
+  > byte-identically, which is US3's whole point and is what FR-021 below pins. And a failure to
+  > derive the MAC stays a **non-event** on the preserve path — it is already a refusal on the
+  > mint path, and making it one here too would turn an unreadable sysfs into a failed `postinst`
+  > (research R6's "Cost").
+  >
+  > Tests: `tests/integration/test_clone_refused.py`, and route 1 of
+  > `tests/integration/test_collision_routes.py`.
 - **FR-025a**: Identity-adjacent fields MUST be derived as follows, at install time and without
   avahi or a live network (clarified 2026-09-28): **`mac`** from `--mac`, else the `ethernet0`
   link (the stable udev name `cuems-common` enforces and `cuems-config-node` uses today), else the

@@ -36,13 +36,15 @@ from ..xml.seed_values import SeedValueError
 from .identity_check import (  # noqa: F401 — re-exported: the wording constants are this tool's public face
     FIX_NODECONF,
     FIX_PLAIN,
+    FIX_REMINT,
     FIX_RESET,
     FIX_UNMASK,
     NOT_PROVISIONED,
     SENTINEL,
 )
 
-__all__ = ["main", "NOT_PROVISIONED", "MODIFIED_KEPT", "FIX_PLAIN", "FIX_RESET", "FIX_NODECONF", "FIX_UNMASK"]
+__all__ = ["main", "NOT_PROVISIONED", "MODIFIED_KEPT", "FIX_PLAIN", "FIX_RESET", "FIX_NODECONF",
+           "FIX_REMINT", "FIX_UNMASK"]
 
 MODIFIED_KEPT = "modified, kept"
 DOCUMENTS = ("settings.xml", "network_map.xml", "default_mappings.xml")
@@ -87,6 +89,22 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--state-dir", default=DEFAULT_STATE_DIR)
     p.add_argument("--defaults", help="seed file to use instead of the shipped one")
     p.add_argument("--avahi-service", default=None, help="with --check: the live Avahi service file")
+    p.add_argument("--library", default=None,
+                   help="with --check or --remint: the project library; by default the "
+                        "library_path in settings.xml, whose absence degrades to a "
+                        "configuration-only survey that says so")
+    p.add_argument("--remint", action="store_true",
+                   help="cluster-wide re-mint onto uuid4 (feature 012). Stop-the-world: "
+                        "stop every CueMS service first. Needs --yes")
+    p.add_argument("--table", default=None,
+                   help="with --remint: the substitution table to apply. This is how a node "
+                        "that is NOT the controller proceeds — the controller builds the "
+                        "table once and the operator copies it here. A plain node invoked "
+                        "without it refuses, by design")
+    p.add_argument("--resume", action="store_true",
+                   help="with --remint: continue from the persisted table. A table already "
+                        "on disk is loaded and never rebuilt either way; this says so "
+                        "explicitly, because rebuilding is how a node gets a second identity")
     p.add_argument("--lock-file", default=DEFAULT_LOCK)
     p.add_argument("--sysfs", default=DEFAULT_SYSFS, help=argparse.SUPPRESS)
     p.add_argument("--systemctl", default="systemctl", help=argparse.SUPPRESS)
@@ -301,8 +319,53 @@ def _write_set(conf: Path, payloads: dict[str, bytes]) -> None:
 # -- the run ---------------------------------------------------------------------------
 
 
-def _resolve_identity(args, existing_settings, sysfs: Path) -> tuple[dict, str | None, dict]:
-    """``(identity, interface, previous)`` — previous is the identity on disk (may be sentinel)."""
+def _map_identities(conf: Path) -> dict[str, str]:
+    """``uuid -> mac`` from ``network_map.xml``, stdlib XML, leniently.
+
+    Used only to refuse a colliding ``--uuid`` (FR-019b). A map that will not
+    parse contributes nothing and refuses nothing: this check exists to catch
+    an operator's typo, not to become a second reason provisioning can fail.
+    """
+    import xml.etree.ElementTree as ET
+
+    path = conf / "network_map.xml"
+    if not path.is_file():
+        return {}
+    try:
+        root = ET.parse(str(path)).getroot()
+    except Exception:  # noqa: BLE001 — an unreadable map refuses nothing
+        return {}
+    found = {}
+    for element in root.iter():
+        if element.tag.rsplit("}", 1)[-1] != "node":
+            continue
+        uuid = (element.findtext("uuid") or "").strip()
+        if uuid:
+            found[uuid] = (element.findtext("mac") or "").strip()
+    return found
+
+
+def _resolve_identity(args, existing_settings, sysfs: Path, conf: Path | None = None) -> tuple[dict, str | None, dict]:
+    """``(identity, interface, previous)`` — previous is the identity on disk (may be sentinel).
+
+    Two refusals feature 012 adds, both closing a route by which two nodes come
+    to share one identity (M-l):
+
+    * **``--uuid`` that collides** with a row already in the network map
+      (FR-019b). The tool would otherwise hand an operator's typo straight into
+      the map, where nothing would notice until two nodes answered to one name.
+    * **A cloned disk** (FR-019d): a stored identity whose recorded MAC is not
+      this hardware's. This **amends feature 011's D13** — "mint iff there is
+      none" becomes "iff there is none, *or* the identity on disk was minted
+      for different hardware" — because D13's rule is precisely what makes a
+      cloned disk keep the original's identity, and cloning a provisioned disk
+      is how venues provision.
+
+      It **refuses** rather than re-minting, because a MAC can also differ
+      because a NIC was replaced on the *same* node, where preserving identity
+      is correct and re-minting would cost an adoption. Refusing asks the one
+      party that can tell the two apart (research R6).
+    """
     from .Uuid import Uuid
 
     previous = {}
@@ -311,12 +374,44 @@ def _resolve_identity(args, existing_settings, sysfs: Path) -> tuple[dict, str |
         previous = {"uuid": str(node.get("uuid") or ""), "mac": str(node.get("mac") or "")}
     real_before = bool(previous.get("uuid")) and previous["uuid"] != SENTINEL
 
+    # FR-019d — derived unconditionally, so the preserve path consults this
+    # hardware at all. A ``None`` here must stay a non-event on that path: it is
+    # already a Refusal in the mint path below, and making it one here too would
+    # turn an unreadable sysfs into a failed postinst (research R6, "Cost").
+    hardware = _derive_mac(sysfs)
+
     if args.uuid:
         try:
             uuid = str(Uuid(args.uuid))
         except ValueError as exc:
             raise Refusal(f"--uuid {args.uuid!r} is not a uuid4: {exc}") from exc
+        if conf is not None:
+            colliding = _map_identities(conf)
+            if uuid in colliding and uuid != previous.get("uuid"):
+                raise Refusal(
+                    f"--uuid {uuid} is already carried by the node at mac="
+                    f"{colliding[uuid] or '<unknown>'} in {conf / 'network_map.xml'}; "
+                    "two nodes sharing an identity cannot be told apart in the project "
+                    "library, where the compound <identity>_<output> prefix is the only "
+                    "record of which node an output belongs to"
+                )
     elif real_before and not args.force_new_identity:
+        stored_mac = previous.get("mac") or ""
+        # ``--mac`` is the operator answering the question this refusal asks.
+        # Naming the MAC explicitly *is* the act of deciding it is a NIC swap
+        # on this node rather than a clone, so the refusal must not fire over
+        # the top of one of the two remedies it offers.
+        if (not args.mac and hardware is not None and stored_mac
+                and stored_mac != SENTINEL_MAC and stored_mac != hardware[0]):
+            raise Refusal(
+                f"settings.xml carries identity {previous['uuid']} minted for mac="
+                f"{stored_mac}, but this hardware is mac={hardware[0]} ({hardware[1]}). "
+                "This is either a disk image restored onto other hardware — in which case "
+                "keeping the identity gives two nodes one name — or a replaced NIC on this "
+                "same node, in which case keeping it is right. Only you can tell which. "
+                "Re-mint with --force-new-identity --yes (the node must then be re-adopted), "
+                "or correct the stored mac with --mac to confirm the NIC swap."
+            )
         uuid = previous["uuid"]
     elif args.install_missing and existing_settings is not None:
         uuid = previous["uuid"]  # coherent with what settings.xml carries, sentinel included
@@ -333,11 +428,10 @@ def _resolve_identity(args, existing_settings, sysfs: Path) -> tuple[dict, str |
     elif args.install_missing and existing_settings is not None and previous.get("mac"):
         mac = previous["mac"]
     else:
-        derived = _derive_mac(sysfs)
-        if derived is None:
+        if hardware is None:
             raise Refusal("no MAC address could be determined (no ethernet0 and no physical interface under "
                           f"{sysfs}); pass --mac — a sentinel MAC on a live node is refused (FR-025a)")
-        mac, iface = derived
+        mac, iface = hardware
     if iface is None and not args.mac:
         iface = "ethernet0" if _read_mac(sysfs, "ethernet0") else None
     return {"uuid": uuid, "mac": mac}, iface, previous
@@ -357,7 +451,7 @@ def _run(args) -> int:
 
     present = tuple(name for name in DOCUMENTS if (conf / name).exists())
     existing = _load_existing(conf, ("settings.xml",) if args.install_missing else DOCUMENTS)
-    identity, iface, previous = _resolve_identity(args, existing.get("settings.xml"), sysfs)
+    identity, iface, previous = _resolve_identity(args, existing.get("settings.xml"), sysfs, conf)
     identity_changed = bool(previous.get("uuid")) and previous["uuid"] != identity["uuid"]
 
     if args.install_missing:
@@ -505,6 +599,21 @@ def _differences(existing: dict[str, Any], documents: dict[str, Any], targets: l
                 yield name, path
 
 
+def _ask(estimate: str) -> bool:
+    """The interactive confirmation for a destructive step (Principle III).
+
+    Returns ``False`` on anything but an explicit yes, **including** a closed
+    stdin: a re-mint that proceeded because nobody was there to say no is the
+    one outcome this prompt exists to prevent.
+    """
+    print(f"{estimate}\nThis rewrites every node identity across this node's "
+          "configuration and, on the controller, the whole project library.")
+    try:
+        return input("Proceed? [y/N] ").strip().lower() in ("y", "yes")
+    except (EOFError, OSError):
+        return False
+
+
 def _nodeconf_active(systemctl: str) -> bool:
     try:
         return subprocess.run([systemctl, "is-active", "--quiet", "cuems-nodeconf.service"],
@@ -526,9 +635,26 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         from . import identity_check
 
-        report = identity_check.check(Path(args.conf_dir), Path(args.avahi_service) if args.avahi_service else None)
+        report = identity_check.check(
+            Path(args.conf_dir),
+            Path(args.avahi_service) if args.avahi_service else None,
+            library=args.library,
+        )
         print(identity_check.render_json(report) if args.json else identity_check.render(report))
         return report.exit_code
+
+    if args.remint:
+        from . import remint
+
+        if not args.dry_run and _nodeconf_active(args.systemctl) and not args.yes:
+            print("ERROR: cuems-nodeconf.service is active and writes network_map.xml; "
+                  "stop it before re-minting, or confirm with --yes", file=sys.stderr)
+            return 1
+        try:
+            return remint.run(args, confirm=_ask)
+        except (remint.Abort, remint.Refused) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
 
     if not args.dry_run and _nodeconf_active(args.systemctl) and not args.yes:
         print("ERROR: cuems-nodeconf.service is active and writes network_map.xml; stop it, or confirm with --yes",

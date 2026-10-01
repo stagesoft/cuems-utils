@@ -64,11 +64,11 @@ SCHEMAS_DIR = REPO_ROOT / "src" / "cuemsutils" / "xml" / "schemas"
 #: mechanism working rather than an inconvenience.
 CURRENT_SCHEMA_HASHES = {
     "hardware_outputs.xsd": "385c97036794353c60723af7c298f106d4e0e020451dd86e3cbd26837d66ef01",
-    "network_map.xsd": "f8968d3e881a2268ec81adac71c7d6b63e10fdc18ac78f4b6ce4eac0baac8951",
-    "project_mappings.xsd": "cf65df1843443a0332451ac75057e1c4b8fadba9fe5302aa9fa70d509077cb21",
+    "network_map.xsd": "bdabd064febfa1d38e6b9f6e67e5347f3a7805151e7476f10731d067fa6d67b0",
+    "project_mappings.xsd": "f5509473be473b0bf9443e2fe087d94838d88c8deb5d5014f467ef188f2a5d0f",
     "project_settings.xsd": "5cd80b9d2a5239365a764526a40c17426e158a9ec057acda2ffc97b552ea254f",
     "script.xsd": "f4f42419332388af9b183c13c0eb606ccd0eea62d53ec05e9d0b187ae5274298",
-    "settings.xsd": "d6d578ae68b56940e360f33029042ffeb61b64b1c66f62a1ddd45c466592c784",
+    "settings.xsd": "8a793922589d79c99178735d9765a8073e08389fe69b623da41d1e11f290faab",
 }
 
 ALL_SCHEMA_NAMES = set(CURRENT_SCHEMA_HASHES)

@@ -1007,6 +1007,35 @@ code already enforces. Note `script.xsd` carries three **commented-out** `node_u
 (`:252`, `:290`, `:360`, in the three cue-output types); if they are ever restored they would put
 node identities under the strict pattern, which is a second reason the two must agree.
 
+> **Corrected 2026-09-30 by feature 012 (FR-037, M-p, M-f). This heading is wrong, and so is
+> the "two schemas" count below it.**
+>
+> **1. `network_map.xsd`'s `UuidType` does not narrow to match `script.xsd`'s — it is
+> *deleted*.** The node identity must admit the not-provisioned sentinel
+> `00000000-0000-0000-0000-000000000000`: feature 011 established it as the coherent state of a
+> freshly installed node, and the package's own build-time generation emits it in all three
+> documents (measured as M-f), so a pattern refusing it would make every newly installed node
+> unloadable and the `.deb` unbuildable. `script.xsd`'s `UuidType` types **cue and media `id`**,
+> not a node identity, and must *not* admit it — a nil cue id is a bug that would then validate.
+>
+> The two can therefore never have the same content, which measurement M-p established closes
+> both routes F2's overlap ratchet allows: the identical-duplicate route compares content, and
+> the divergent route *requires* the entry to stay. Either way the `UuidType` entry could never
+> leave `KNOWN_DIVERGENT_DECLARATIONS`, and §9.4's completion marker would be unreachable.
+>
+> What feature 012 does instead: `network_map`'s node identity is **retyped** to a new named
+> union `cms:NodeUuidType` (of `ConvergedUuidType` and `NotProvisionedUuidType`), and the
+> schema's own `UuidType` declaration is **deleted**. The name is then declared once, in
+> `script.xsd`, so it stops overlapping — which is the one state in which
+> `test_the_allowlist_has_no_stale_entries` *demands* the removal.
+>
+> **2. It is a three-schema migration, not two.** This section counts the two schemas whose
+> *identity declarations* it is about. Feature 012 also types `settings.xsd`'s `NodeConfType/uuid`
+> (it was `cms:NonEmptyString`) and `project_mappings.xsd`'s `NodeMappingType/uuid` (it was
+> `xs:string`). Every deployed configuration document carries a uuid1, so all three are
+> invalidated and all three take a version step: `network_map` 1→2, `project_mappings` 1→2,
+> `settings` 2→3.
+
 ### 9.3 **Narrowing invalidates every node identity in the field**
 
 Measured on both production machines (§2.6): the controllers carry
@@ -1039,7 +1068,7 @@ measures. A per-document conversion **cannot** perform this safely.
 
 | Does what | Who |
 |---|---|
-| detect a non-uuid4 identity, report it by document and path, change nothing | the conversion registry / `cuems-convert-documents --check` |
+| detect a non-uuid4 identity, report it by document and path, change nothing | ~~the conversion registry / `cuems-convert-documents --check`~~ — **corrected 2026-09-30 (FR-037)**: it is `cuems-init-node --check`, extended by feature 012 with shape classification and a library reach. Reporting a document's *version* and classifying an identity's *shape* are separate questions (FR-001a), and the check already reads with stdlib XML only — which is what lets it run on the documents the tightened schema refuses, i.e. every document an operator runs it on. Feature 012 registers **no** conversion for any of the three version steps, so there is no conversion for the detection to live in |
 | perform the re-mint across all of §5's locations, atomically | **`cuems-init-node`** (D12) — it already owns the cross-document write and the preserve-identity rule |
 | rewrite the Avahi TXT from the new `settings.xml` value | **`cuems-nodeconf`** — corrected 2026-09-29. D14 settled on **shape B** in feature 011: the daemon renders the record from `settings.xml` at every start and role change (its `003-startup-readiness`, landed `b305c1c`), and `cuems-common` ships only the sentinel templates |
 
@@ -1172,10 +1201,21 @@ carries only its own.
 `<library_path>/projects/`:
 
 - `mappings.xml`
-- the script, whose filename is **configuration, not a constant** — the editor's
-  `script_file_name` is `script.xml` in `cli.py:40` and `cue_script.xml` in
-  `CuemsProjectManager.py:38`. **Discover it; do not hardcode it.** A procedure that assumes
-  `script.xml` skips a library configured the other way, silently and completely.
+- the script, identified by its **root element** (`CuemsProject`), never by its filename.
+
+  > **Corrected 2026-09-30 by feature 012 (FR-037, research R3).** This step used to say
+  > "discover the configured `script_file_name`", which assumed a configuration value that does
+  > not exist. Measured: `script_file_name` appears in `settings.xsd`, in
+  > `cuemsutils.config.settings` and in **no document this library reads** — it is an
+  > editor-internal settings-dict key (`cuems-editor/src/cuemseditor/cli.py:41`,
+  > `CuemsProjectManager.py:38`), and `cuems-engine` hardcodes `"script.xml"`
+  > (`BaseEngine.py:492`). A tool that "discovered" it would be reading another program's private
+  > state, which it has no access to.
+  >
+  > The *intent* — a library configured the other way must not be silently skipped — is met
+  > strictly more completely by reading each candidate file's root element: that finds a script
+  > under **any** filename, including one neither repository uses. It also closes §10.7's
+  > "configured `script_file_name` on each machine" without needing hardware.
 
 **`trash/` is included by default.** `set_dir_hierarchy` creates `trash/projects` beside
 `projects`, and a project restored from trash after the re-mint would reintroduce stale
@@ -1205,11 +1245,23 @@ which is `cuems-common`'s to perform.
 
 ### 10.7 Unconfirmed, to check on hardware before a first run
 
-- the live library layout under `<library_path>/projects/`, and whether `trash/` mirrors it;
-- the configured `script_file_name` on each machine;
-- whether any project carries a `mappings.xml` at all, or relies on `default_mappings.xml`;
-- whether any *other* file in a project directory embeds an output name (the corpus shows only
-  the script, but the corpus is not the field).
+**Updated 2026-09-30 by feature 012 (FR-037, FR-038).** Both production machines have been
+unreachable since 2026-09-23, so three of these four were answered **from code instead**, which
+for two of them is the better source — one machine's layout is one machine's layout, whereas the
+library *creates* the hierarchy. The dated record is in
+`specs/012-uuid4-convergence/baseline.md`.
+
+| Item | Status |
+|---|---|
+| the live library layout, and whether `trash/` mirrors `projects/` | **Answered from code** (research R7): `ConfigBase.set_dir_hierarchy` creates `trash/projects` beside `projects` — `ConfigBase.py:154`. The library makes both, so the mirror is a property of this code and not of one installation |
+| the configured `script_file_name` on each machine | **Moot** (research R3): the value is in no document this library reads, and scripts are now identified by root element. See §10.5 |
+| whether any project carries its own `mappings.xml`, or relies on `default_mappings.xml` | **Genuinely unconfirmed.** Mitigated rather than answered: the reach treats `mappings.xml` as **optional per project**, so a library either way is handled |
+| whether any *other* file in a project directory embeds an output name | **Genuinely unconfirmed.** Mitigated: root-element identification answers it **per file** rather than assuming it either way — a document that is neither a script nor a mappings file is skipped and recorded, not rewritten. §8c of the migration guide gives the operator the detector for the case where one turns out to matter |
+
+The replication path — how a library rewritten on the controller reaches the nodes — was also
+answered from code rather than left open (research R11): `cuems-engine`'s
+`tools/CuemsDeploy.py:231` runs `rsync -rt --delete` with **no checksum**, so size and
+modification time are all it compares.
 
 ### 10.8 Why this is not `cuems-convert-documents`
 

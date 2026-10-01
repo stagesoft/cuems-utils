@@ -4,6 +4,13 @@ orchestration method. Its ingredients (``NodeIndex.merge``/
 individually in ``tests/contract/test_nodeindex_characterization.py``, but
 nothing exercises the orchestration itself: merge → keep the controller
 adopted → write only if the persisted fields actually changed.
+
+**Identities updated by feature 012.** These used to be
+``00000000-0000-0000-0000-00000000000N`` — neither converged uuid4s nor the
+not-provisioned sentinel, which the narrowed ``cms:NodeUuidType`` now refuses.
+They were arbitrary placeholders standing for "two distinct nodes", and they
+still are; only their shape had to become one a network map may carry. Nothing
+this file asserts is about the identities themselves.
 """
 
 from __future__ import annotations
@@ -28,7 +35,7 @@ def _map_with(*nodes):
 
 def test_refresh_writes_and_returns_true_when_a_new_node_is_discovered(tmp_path):
     existing_controller = _node(
-        uuid="00000000-0000-0000-0000-000000000001", mac="controller", name="ctrl",
+        uuid="11111111-1111-4111-8111-111111111111", mac="controller", name="ctrl",
         node_role=NodeRole.controller, ip="10.0.0.1", adopted=True, online=True,
     )
     netmap = _map_with(existing_controller)
@@ -36,10 +43,10 @@ def test_refresh_writes_and_returns_true_when_a_new_node_is_discovered(tmp_path)
 
     discovered = {
         "controller": _node(
-            uuid="00000000-0000-0000-0000-000000000001", mac="controller", name="ctrl",
+            uuid="11111111-1111-4111-8111-111111111111", mac="controller", name="ctrl",
             node_role=NodeRole.controller, ip="10.0.0.1",
         ),
-        "bb:new": _node(uuid="00000000-0000-0000-0000-000000000002", mac="bb:new", name="fresh", ip="10.0.0.2"),
+        "bb:new": _node(uuid="22222222-2222-4222-8222-222222222222", mac="bb:new", name="fresh", ip="10.0.0.2"),
     }
 
     changed = netmap.refresh(discovered, str(target))
@@ -48,14 +55,14 @@ def test_refresh_writes_and_returns_true_when_a_new_node_is_discovered(tmp_path)
     assert target.exists()
     written_uuids = {n["node"]["uuid"] for n in netmap["node_list"]}
     assert written_uuids == {
-        "00000000-0000-0000-0000-000000000001",
-        "00000000-0000-0000-0000-000000000002",
+        "11111111-1111-4111-8111-111111111111",
+        "22222222-2222-4222-8222-222222222222",
     }
 
 
 def test_refresh_returns_false_and_writes_nothing_when_nothing_changed(tmp_path):
     existing_controller = _node(
-        uuid="00000000-0000-0000-0000-000000000001", mac="controller", name="ctrl",
+        uuid="11111111-1111-4111-8111-111111111111", mac="controller", name="ctrl",
         node_role=NodeRole.controller, ip="10.0.0.1", adopted=True, online=True,
     )
     netmap = _map_with(existing_controller)
@@ -63,7 +70,7 @@ def test_refresh_returns_false_and_writes_nothing_when_nothing_changed(tmp_path)
 
     discovered = {
         "controller": _node(
-            uuid="00000000-0000-0000-0000-000000000001", mac="controller", name="ctrl",
+            uuid="11111111-1111-4111-8111-111111111111", mac="controller", name="ctrl",
             node_role=NodeRole.controller, ip="10.0.0.1",
         ),
     }
@@ -85,7 +92,7 @@ def test_refresh_keeps_the_controller_adopted_even_on_a_first_discovery(tmp_path
 
     discovered = {
         "controller": _node(
-            uuid="00000000-0000-0000-0000-000000000001", mac="controller", name="ctrl",
+            uuid="11111111-1111-4111-8111-111111111111", mac="controller", name="ctrl",
             node_role=NodeRole.controller, ip="10.0.0.1",
         ),
     }
@@ -103,7 +110,7 @@ def test_refresh_persists_a_document_the_write_path_can_reload(tmp_path):
     target = tmp_path / "network_map.xml"
     discovered = {
         "controller": _node(
-            uuid="00000000-0000-0000-0000-000000000001", mac="controller", name="ctrl",
+            uuid="11111111-1111-4111-8111-111111111111", mac="controller", name="ctrl",
             node_role=NodeRole.controller, ip="10.0.0.1", role_id="r1",
         ),
     }
@@ -111,6 +118,6 @@ def test_refresh_persists_a_document_the_write_path_can_reload(tmp_path):
     netmap.refresh(discovered, str(target))
 
     reloaded = NetworkMap(str(target)).xml_dict
-    assert reloaded["node_list"][0]["node"]["uuid"] == "00000000-0000-0000-0000-000000000001"
+    assert reloaded["node_list"][0]["node"]["uuid"] == "11111111-1111-4111-8111-111111111111"
     assert reloaded["node_list"][0]["node"]["node_role"] is NodeRole.controller
     assert reloaded["node_list"][0]["node"]["adopted"] is True
