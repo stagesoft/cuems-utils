@@ -259,6 +259,42 @@ applied, because several of them contradict a document that is still load-bearin
   (§3.4 of the audit, re-confirmed). Its two flat `xs:string` lists are the cheapest axis to
   reshape and the one with the least to gain, because feature 014 rewrites that schema's structure
   entirely.
+- **M10 — `cuems-common` has three XML readers in this feature's blast radius, not one.** M8a
+  names `cuems-extract-video-latency:39`. Two more read `default_mappings.xml`'s `<video>` tree
+  by XPath from `/usr/bin`-class scripts that cannot import `cuemsutils`, measured at
+  `cuems-common` `feat/xml-refactor` `6ab4655`:
+  - `cuems-generate-display-conf:66-84` reads `.//video/outputs/output` (axis A). A missing
+    element keeps resolving and becomes wrong: empty or wrong `display.conf`.
+  - `cuems-display-setup:527-571` reads `./video/outputs` (axis A). It **raises** — `sys.exit`
+    when that element is absent — so display setup fails outright.
+  The display pipeline is axis A's blast radius. FR-042 names all three; only the latency reader
+  is axis C. The candidate tag points at `91b2d254`, not at that HEAD, so it is re-cut for this
+  feature regardless.
+- **M11 — `cuems-editor` has keyed cue access besides the pass-through.** M5's
+  `CuemsWsServer.py:439` is a comment with no keyed access, and it stays outside flow 02's
+  fourteen call sites. Measured at `cuems-editor` `feat/xml-refactor` `36260e2`, the database
+  path keys hardware cues by element name and becomes wrong for those three keys:
+  `CuemsDBProject.py:385` (`CUE_TYPES`), `:408-436` (the walks that iterate it), `:78-82`
+  (`'AudioCue' in item`). `CuemsDBProject.py:886-896`, `:873-884` and `repair_durations.py:204,231`
+  raise on an un-migrated document, which is the safer direction already stated in Edge Cases.
+  The editor suite's nine failures that day were one cause, `create_script` missing since
+  feature 008, not three.
+- **M12 — `cuems-frontend`'s reach is eight files, not two.** M1 and M3 are the subset the brief
+  named. Measured at `3183845`, about 45 line-ranges across eight files. Axis A adds
+  `projects.service.ts:38-43,504-534,613-631`, `settings.component.ts:68-88` and
+  `settings.component.html:40-130`, `project-show/audio-mixer.component.ts:94-100`,
+  `project-show/video-mixer.component.ts:107-114`, and `project-edit/sequence.component.ts:379,449,682-683`
+  (the `default_*` keys). Axis D adds thirteen ranges in `project-edit/sequence.component.ts`
+  including the save wrapper `{ [cueTypeKey]: newCue }` at `:1088`, `project-show/sequence.component.ts:95-97,117-193`,
+  and `shared/audio-mixer/*` reading `output.AudioCueOutput` at `:53-76`. The TypeScript unions
+  at `:28`, `:292`, `:643`, the icon service, OSC paths, i18n keys and route names are internal
+  UI vocabulary, not wire keys, and the guide says so. No `.spec.ts` covers `projects.service.ts`,
+  either `sequence.component.ts`, or `settings.component.ts`, which is why FR-032 exists.
+- **M13 — `node_mappings["audio"]` is a third compatibility surface.** `NodeEngine.py:508` and
+  `:598` read `self.cm.node_mappings.get("audio"|"video", [])`. After the reshape a missing key
+  returns `[]` and the engine configures **no ports**, with no error. FR-012 is `node_hw_outputs`;
+  FR-042 is `node_conf`. Neither covers this accessor. Decision D1, requirement FR-012a: the key
+  is derived from `devices` for every class the document carries, and it is not a class list.
 
 ---
 
@@ -298,9 +334,11 @@ is **rejected** — the class-conditional typing must still discriminate.
    **rejected** by schema validation — class uniqueness within a node is asserted in the schema, so
    the rejection also holds for `cuems-editor`, which validates the document it writes directly
    (FR-013).
-6. **Given** a document carrying a device whose class is misspelled, **When** it is read, **Then**
-   the misspelling surfaces as a reported unknown class rather than as a silently-created fourth
-   class with no ports (FR-014).
+6. **Given** a document carrying a device whose class is misspelled (`vidoe`), **When** it is
+   read, **Then** the document validates and decodes (FR-002), an INFO line names the schema, the
+   document, the element path, the class value and what to do (FR-014, FR-UX-001), and a consumer
+   that looks up the intended class (`video`) sees an empty inventory. Ports written on the
+   misspelled device stay on that device. The typo is not rejected, and it is not silent.
 
 ---
 
@@ -391,31 +429,35 @@ to find — asserted by a test, not by inspection.
 
 ### User Story 4 — Every consumer is told what changed, in writing, before it breaks (Priority: P4)
 
-A maintainer of `cuems-engine`, `cuems-editor` or `cuems-frontend` reads the migration guide and
-finds their own repository, their own files, their own line numbers, and what the new shape is.
-Nobody infers the contract from a schema diff.
+A maintainer of `cuems-engine`, `cuems-editor`, `cuems-frontend` or `cuems-common` reads the
+migration guide and finds their own repository, their own files, their own line numbers, and
+what the new shape is. Nobody infers the contract from a schema diff.
 
 **Why this priority**: three of the five sites this feature changes are outside this repository,
 one of them raises rather than degrading (M2), and `cuems-frontend`'s migration is *waiting on this
 feature by decision*. A guide that arrives after the port is a guide that arrives too late.
 
 **Independent Test**: the guide is checked against this specification — every consumer site named
-in M1–M5 appears with its measured path and line, with the before shape, the after shape, and
-whether the old form keeps resolving or raises; and every version and line number it states is
-verified against the actual sibling tree rather than asserted.
+in M1–M5, M8a and M10–M13 appears with its measured path and line, with the before shape, the
+after shape, and whether the old form keeps resolving or raises; and every version and line
+number it states is verified against the actual sibling tree rather than asserted.
 
 **Acceptance Scenarios**:
 
 1. **Given** the migration guide, **When** a `cuems-engine` maintainer reads it, **Then** it names
-   `NodeEngine.py:456`, `:457` and `:566`, says that `:566` is an unguarded subscript, and states
-   whether the three legacy keys keep resolving.
+   `NodeEngine.py:456`, `:457` and `:566`, says that `:566` is an unguarded subscript, names
+   `:508` and `:598` (`node_mappings`, M13, FR-012a), and states whether each legacy key keeps
+   resolving.
 2. **Given** the migration guide, **When** a `cuems-frontend` maintainer reads it, **Then** it
-   names `projects.service.ts:34-60`'s structural mappings interface **and** every cue-type site in
-   both `sequence.component.ts` files (M1), each with its new shape — so flow 05's US8/T032
-   characterization tests are written once against a known target rather than twice.
+   names every site M12 measured across the eight files — `projects.service.ts` (M3 and the
+   further ranges), both `sequence.component.ts` files (M1), `settings.component`, both mixer
+   components, and `shared/audio-mixer` — each with its new shape, and it says which lookalike
+   sites are internal UI vocabulary. Flow 05's US8/T032 characterization tests are written once
+   against that section.
 3. **Given** the migration guide, **When** a `cuems-editor` maintainer reads it, **Then** it names
-   `CuemsWsServer.py:439`'s merge and the verbatim pass-through at `:71-72`, and says this site is
-   **not** among flow 02's fourteen deprecated-surface call sites.
+   `CuemsWsServer.py:439`'s merge and the verbatim pass-through at `:71-72`, says this site is
+   **not** among flow 02's fourteen deprecated-surface call sites, and separately names M11's
+   keyed cue sites, which become wrong for the three hardware keys.
 4. **Given** the migration guide, **When** any consumer maintainer reads it, **Then** each named
    site is classified as *raises*, *keeps resolving and becomes wrong*, or *keeps resolving
    correctly* — the three fault classes feature 010's census established, because they need
@@ -424,6 +466,9 @@ verified against the actual sibling tree rather than asserted.
    whether a converted document can be read by the previous `cuems-utils`, and if it cannot, the
    point after which rollback stops being available — the shape of feature 012's §9b, answered for
    this change.
+6. **Given** the migration guide, **When** a `cuems-common` maintainer reads it, **Then** it names
+   the three XPath readers in M8a and M10, each with its fault class and its new path, says the
+   two display readers are axis A, and says none of the three can be shielded from this library.
 
 ---
 
@@ -438,8 +483,8 @@ already been bitten. `KNOWN_DIVERGENT_DECLARATIONS` reached empty as feature 012
 marker; a feature that re-populated it would undo that in passing.
 
 **Independent Test**: run `tests/contract/test_schema_scope.py` and
-`tests/contract/test_schema_name_overlap.py` at every commit of the feature branch and confirm both
-pass at each one — not only at the tip.
+`tests/contract/test_schema_name_overlap.py` at every commit that edits a schema and confirm both
+pass at each one — not only at the tip. Record each run in `baseline.md`.
 
 **Acceptance Scenarios**:
 
@@ -526,6 +571,14 @@ pass at each one — not only at the tip.
 - **FR-012**: Reading a class's hardware outputs by name for a class the document does not carry
   MUST yield an empty answer, not raise. *(M2: `NodeEngine.py:566` is an unguarded subscript, and
   this requirement is what keeps it working.)*
+- **FR-012a**: `ConfigManager.node_mappings` MUST keep answering to a device-class key, derived
+  from the document's devices, for every class that document carries — including `audio` and
+  `video`, which `NodeEngine.py:508` and `:598` read with `.get(..., [])` (M13). A class the
+  document does not carry MUST yield that empty default, so the engine configures no ports only
+  when the document has none. A class the document does carry MUST NOT fall through to `[]`
+  because the key spelling changed. The projection MUST NOT be a declared class list (FR-010).
+  This is decision D1. It is the mappings counterpart of A4's `node_hw_outputs` spellings and of
+  FR-042's player keys, and it is a different accessor from FR-012.
 - **FR-013**: Two devices of the same class on one node MUST be **rejected**, and the rejection MUST
   be enforced **in the schema** — a class is unique within a node, expressed as an XSD 1.1
   `xs:assert` (the construct `script.xsd` already relies on). Today's `maxOccurs="1"` makes the
@@ -533,10 +586,23 @@ pass at each one — not only at the tip.
   rather than an ambiguity it introduces. Schema enforcement rather than a T2 rule because
   `cuems-editor` validates `project_mappings` against the XSD directly, not through this library's
   load path, so a rule bound to the load path would not hold where the documents are written. The
-  message quality obligation is FR-UX-001's.
-- **FR-014**: A class the library does not recognise MUST be reportable — a consumer, or an
-  operator-facing check, MUST be able to learn that a document declares a class nothing handles.
-  An open vocabulary without this makes a typo indistinguishable from an integration.
+  message quality obligation is FR-UX-001's. The same uniqueness assert applies to the reshaped
+  root defaults (one per class per direction) and to players (one per class): each replaces an
+  element that is `maxOccurs="1"` today, and neither is a second rule.
+  The chosen construct is the `xs:assert` above. If the pinned `xmlschema` cannot enforce it
+  (experiment E3), the replacement MUST still be a schema construct — `xs:unique` on `class`, or
+  another XSD constraint the experiment shows rejects the duplicate. A T2 rule does not satisfy
+  this requirement. Taking one anyway splits the writers: `cuems-editor` validates against the
+  XSD and would accept two devices of one class, and this library's load path would reject them,
+  so a document the editor saved would fail in the engine. That split is the defect this
+  requirement exists to prevent. An E3 result that leaves no schema mechanism is a stop: record
+  it in `baseline.md` and reopen this clarification. Do not ship a load-path-only check, and do
+  not describe that gap in the migration guide as if it were the decision.
+- **FR-014**: A class the library does not recognise MUST be reportable. The report is one INFO
+  log line, not a `LoadReport` field and not a new public function. It MUST satisfy FR-UX-001 —
+  the schema, the document, the path within it, the offending class, and what to do — so a typo
+  and a deliberate new class are told apart by reading the name, which is all an open vocabulary
+  can do. An unrecognised class still validates and decodes (FR-002).
 - **FR-015**: The T2 rule `one_custom_template_per_node` MUST survive the reshape, bound to the
   class rather than to the element name `video`, and MUST keep its exact wording and its
   `repairable=False` classification. Its live call site `validate_custom_templates` MUST reach the
@@ -581,30 +647,51 @@ pass at each one — not only at the tip.
 
 #### Consumer contract
 
-- **FR-030**: The migration guide MUST name every measured consumer site — M1's five sites in two
-  frontend files, M2's three engine sites, M3's frontend mappings interface, M5's editor merge —
-  with its path, its line at a named commit, its before shape and its after shape.
+- **FR-030**: The migration guide MUST name every measured consumer site in M1–M5, M8a and
+  M10–M13, with its path, its line at a named commit, its before shape and its after shape.
+  That set is M1's five cue-type sites in two frontend files, M2's three `node_hw_outputs`
+  sites, M3's mappings interface, M5's editor merge, M8a's six engine player reads and the
+  latency XPath, M10's two further `cuems-common` display readers, M11's keyed editor cue
+  sites, M12's remaining frontend files (eight files in all), and M13's `node_mappings` reads
+  at `NodeEngine.py:508` and `:598`. Count of sites named equals count of sites measured
+  (SC-007).
 - **FR-031**: Each named site MUST be classified as *raises*, *keeps resolving and becomes wrong*,
   or *keeps resolving correctly*, following feature 010's census classification.
-- **FR-032**: The guide MUST give `cuems-frontend` the cue-type contract in full — both
-  `sequence.component.ts` files (M1), all five sites in `project-edit` and the discriminator chain
-  in `project-show` — with the new shape for each, so flow 05 writes its US8/T032 characterization
-  tests **once**, against a known target. This is the obligation the brief states as *"state the
-  contract 013 hands it; do not leave the frontend to infer it"*, and the clarification session's
-  all-four answer is what makes `sequence.component.ts` genuinely 013's site.
+- **FR-032**: The guide MUST give `cuems-frontend` the contract in full, across the eight files
+  M12 measured, not only the two the brief named.
+  - Axis D: both `sequence.component.ts` files (M1), all five sites in `project-edit`, the
+    discriminator chain in `project-show`, and `shared/audio-mixer/*` reading
+    `output.AudioCueOutput`. The wire shape is `{"Cue": {…, "class": "audio"}}`.
+  - Axis A: `projects.service.ts` (M3 and the further ranges M12 measured),
+    `settings.component.ts` and its template, and the two mixer components' `default_*` reads.
+  - Stated as unaffected, because they look affected: the TypeScript unions at `:28`, `:292`
+    and `:643`, the icon service, OSC paths, i18n keys and route names.
+  Flow 05 writes its US8/T032 characterization tests **once**, against this section. Those files
+  have no characterization tests today (M12). This is the obligation the brief states as *"state
+  the contract 013 hands it; do not leave the frontend to infer it"*.
 - **FR-033**: The guide MUST state that `cuems-editor`'s `CuemsWsServer.py:439` site is **not**
   among flow 02's fourteen deprecated-surface call sites, so the editor's in-flight migration is
-  not re-scoped by discovery.
+  not re-scoped by discovery. It MUST also name M11's keyed sites — `CuemsDBProject.py`'s
+  `CUE_TYPES` list, the walks that iterate it, and the `'AudioCue' in item` checks — as a
+  separate set. They keep resolving and become wrong for the three hardware cue keys, and they
+  are not a reason to reopen those fourteen.
 - **FR-034**: No library version bump. `0.1.0rc16` stays pinned by
   `tests/packaging/test_no_version_bump.py`.
 
 #### The upstream findings this feature closes (UR-1, UR-5)
 
 - **FR-035 — UR-1**: "which nodes are adopted" MUST be answerable without importing
-  `cuemsutils.xml`. `partition_by_adoption` is published by re-export on `cuemsutils.tools.NodeList`
-  — the existing public path to the node model, which already re-exports `node` — with no change to
-  its behaviour, its signature or its home. The deprecated, mutating `get_nodes_by_adoption` is
-  untouched. Closed by **publishing**, as UR-4 and UR-6 were.
+  `cuemsutils.xml`. `partition_by_adoption` is published on `cuemsutils.tools.NodeList`. The
+  body stays `NetworkMap.partition_by_adoption` in `xml/settings.py`: the same function, not a
+  wrapper, with no change to its behaviour, its signature or its home. It is not a module-level
+  import. `from ..xml.settings import NetworkMap` loads `mapper` and `adapters`, and
+  `adapters._register_enums()` imports `NodeRole` from `NodeList` while that module is still
+  initializing — the `node` import at `NodeList.py:22` does not, because it comes from
+  `config.network_map` and never loads `xml.settings`. `import cuemsutils.tools.NodeList` MUST
+  NOT load `xml.settings`. After `NodeRole` and `NodeIndex` are defined, a module `__getattr__`
+  imports `NetworkMap` on first access and returns `NetworkMap.partition_by_adoption` itself.
+  The name is in `__all__`. The deprecated, mutating `get_nodes_by_adoption` is untouched.
+  Closed by **publishing**, as UR-4 and UR-6 were.
 - **FR-036 — UR-5**: both halves of the gap close here.
   1. `XmlReaderWriter.validate`'s deprecation advice MUST be **per schema**: it MUST NOT send a
      `settings`, `network_map`, `project_mappings` or `project_settings` document to
@@ -612,7 +699,11 @@ pass at each one — not only at the tip.
   2. A **public stand-alone validator for configuration documents** MUST exist, so that validating
      one no longer requires loading it through `ConfigManager` as a side effect. It MUST report
      through the same machinery a show document already reports through, so a caller learns *what*
-     is wrong rather than only *that* something is.
+     is wrong rather than only *that* something is. The public name is `validate_config_document`,
+     imported from the `cuemsutils.tools` façade (`from cuemsutils.tools import
+     validate_config_document`). The body lives in `cuemsutils.tools.config_validate`, which a
+     consumer does not have to name. The façade re-exports it lazily, so importing another module
+     in that package does not pull the schema stack.
   *Rationale for landing both here rather than in 014: 013 changes what a configuration document is,
   so the maintainer porting to the new shape is the reader who needs a public way to validate one.*
 
@@ -632,15 +723,21 @@ pass at each one — not only at the tip.
     the same values after the reshape — the same compatibility A4 grants `node_hw_outputs`' legacy
     keys. Classified *keeps resolving correctly* under FR-031; `cuems-engine` needs no code change in
     this release, and its video-player startup path cannot `KeyError`.
-  - `cuems-common`'s `cuems-extract-video-latency:39` reads
-    `.//videoplayer/output_latency_ms` by XPath from a `/usr/bin` script that cannot import
-    `cuemsutils`. No Python-level alias reaches it, so it MUST be classified as **keeps resolving and
-    becomes wrong** under FR-031 — measured: the missing element yields an empty
-    `OUTPUT_LATENCY_FLAG` and the configured video latency is silently discarded (M8a) — named in the
-    guide with its new XPath, and ported in its own repository under the coordinated
-    `xml-refactor-merge-candidate` tag. That port is a dependency of the tag, not of this branch, and
-    the guide MUST say that a node whose `cuems-common` is not re-packaged loses the setting without
-    an error.
+  - `cuems-common` has three XPath readers. None can import `cuemsutils` (M8a, M10), so no
+    Python-level alias reaches any of them. Each MUST be classified under FR-031, named in the
+    guide with its new path, and ported in its own repository under the coordinated tag. That
+    port is a dependency of the tag, not of this branch.
+    - `cuems-extract-video-latency:39` reads `.//videoplayer/output_latency_ms` (axis C).
+      **Keeps resolving and becomes wrong**: a missing element yields an empty
+      `OUTPUT_LATENCY_FLAG` and the configured video latency is discarded, exit 0. New path:
+      `.//players/player[@class='video']/output_latency_ms`.
+    - `cuems-generate-display-conf:66-84` reads `.//video/outputs/output` (axis A). **Keeps
+      resolving and becomes wrong**: empty or wrong `display.conf`. New path:
+      `.//devices/device[@class='video']/outputs/output`.
+    - `cuems-display-setup:527-571` reads `./video/outputs` (axis A). **Raises** via `sys.exit`
+      when that element is absent, so display setup fails outright.
+    The guide MUST say that a node whose `cuems-common` is not re-packaged loses video latency
+    with no error, and can lose or refuse its display configuration.
 - **FR-043**: Feature 011's generated `settings.xml` MUST still be generated, validated and
   installed by the package build, and the seed-value rules in `xml/seed_values.py` MUST still find
   every field they name. A reshape that broke the build that produces the documents it applies to
@@ -653,9 +750,10 @@ pass at each one — not only at the tip.
 - **FR-050a**: **Both** choices reshape to class-carrying elements, and the public per-class model
   classes MUST survive it. `AudioCue`, `VideoCue`, `DmxCue`, `AudioCueOutput`, `VideoCueOutput` and
   `DmxCueOutput` MUST keep their names and their semantics, selected by the device class rather than
-  by element name — `xml/registry.py` binds XSD types to classes today, and the binding moves to the
-  class attribute. A class the registry does not name MUST decode to the base cue or cue-output
-  model, not fail and not invent a class. `ActionCue`, `FadeCue` and `CueList` are **not** hardware
+  by element name. `xml/registry.py` keeps binding each XSD type to the same Python class it binds
+  today; the class attribute selects which of those types applies, through the derivation engine's
+  dispatch, and the registry is not given a second table. A class the registry does not name
+  MUST decode to the base cue or cue-output model, not fail and not invent a class. `ActionCue`, `FadeCue` and `CueList` are **not** hardware
   classes and MUST keep their own elements and their own members in the choice. *(This is the
   combination that makes FR-050 and FR-052 simultaneously satisfiable.)*
 - **FR-051**: `script` MUST NOT take a version step (FR-020). The migration MUST preserve every
@@ -669,13 +767,23 @@ pass at each one — not only at the tip.
   the frontend's contract under FR-032 — it is what M1's five `project-edit` sites and the
   `project-show` discriminator chain read.
 - **FR-053**: `hardware_outputs.xsd`'s two flat lists MUST be reshaped per-class, with no version
-  step (FR-020). Recorded as the cheapest and least valuable item in the feature: the schema has no
-  instance anywhere (M9) and feature 014 rewrites its structure outright.
+  step (FR-020). The container element is `output_groups` and the repeated child is `outputs`
+  carrying `class`. The two names are different: a wrapper and a list that share one name make
+  the migration's old/new test and every element path ambiguous. Recorded as the cheapest and
+  least valuable item in the feature: the schema has no instance anywhere (M9) and feature 014
+  rewrites its structure outright.
 - **FR-054**: The golden sets MUST be treated as feature 008 treated them — any change to
-  `tests/golden/` is a named, justified, recorded event, not a side effect.
-- **FR-055**: The two hand-authored corpus documents
-  (`tests/data/corpus/cuems-utils/{fade_showcase,unicode_showcase}.xml`) MUST be accounted for
-  explicitly, as feature 008 accounted for them.
+  `tests/golden/` is a named, justified, recorded event, not a side effect. A golden is
+  regenerated from the schema-derived writer. It is not edited to match a corpus document.
+  `tests/golden/outcomes.json` is not bulk-regenerated.
+- **FR-055**: The XSD schemas are the single source of truth for document shape. Every corpus
+  or golden file the reshape invalidates MUST be migrated so it validates against the schema it
+  belongs to, including the two hand-authored scripts
+  `tests/data/corpus/cuems-utils/{fade_showcase,unicode_showcase}.xml` and the corpus's
+  `hardware_outputs` documents. `tests/data/corpus/pre-013/` stays old-shape (it is the
+  migration fixture) and `tests/data/corpus/pre-008/` stays untouched. Corpus documents become
+  the canonical form of a document only after the xml-refactoring is settled — not during this
+  feature.
 
 ### Cross-cutting
 
@@ -701,12 +809,16 @@ pass at each one — not only at the tip.
   (the measured baseline above). The budget is **per test**, not wall-clock: this suite has grown
   from 1485 to 3247 tests across six features, and an absolute wall-time budget reads growth as
   regression.
-- **FR-PERF-003**: The migration tool's throughput MUST be stated as a value and measured over a
-  named fixture of stated size, and recorded as measured **including when exceeded**. Feature 012's
+- **FR-PERF-003**: The migration tool's throughput MUST be stated as a value and measured over
+  `tests/support/library_fixture.py`'s `remint_200`, and recorded as measured **including when
+  exceeded**. The budget is the throughput of a calibration on that same fixture — read every
+  file and atomically rewrite it with no device-class substitution — written into `baseline.md`
+  before the tool is compared with it. It is not 500 MB/s and not a round number. Feature 012's
   `baseline.md` is the pattern — including its two exceeded budgets, and its finding that the
   500 MB/s floor conflated bulk throughput with per-file syscall cost on many small files. A
   project library is many small files, so that finding applies directly and the budget must be set
-  from measurement rather than inherited as a number.
+  from that calibration rather than inherited as a number. The comparison does not choose its own
+  budget.
 
 ---
 
@@ -742,28 +854,34 @@ pass at each one — not only at the tip.
   schemas, **zero** model classes and **zero** constants — demonstrated by a test that adds one.
 - **SC-002**: Adding a hardware class that needs special fields requires **one** conditional-type
   declaration plus the type it names, in **one** schema — down from the four-schema, two-constant,
-  four-repository cost the table above prices.
+  four-repository cost the table above prices. Demonstrated by a contract test that introduces
+  one such class and fails if the diff is anything else.
 - **SC-003**: The library contains **no** declared list of device classes, asserted by a contract
   test rather than by inspection.
-- **SC-004**: **100%** of the old-shape documents in the corpus — across all four axes — are
-  migrated by the tool, and each decodes to an object equal field for field to its hand-authored
-  new-shape equivalent.
+- **SC-004**: Every corpus or golden document the reshape invalidates — across all four axes,
+  including `fade_showcase.xml`, `unicode_showcase.xml` and the corpus `hardware_outputs`
+  files — is migrated and validates against the reshaped schema. Field-for-field equality with
+  a hand-authored new-shape equivalent is the check that the reshape dropped no value (FR-024).
+  The schema is the authority for the shape; the corpus is not. `pre-013/` remains old-shape and
+  `pre-008/` is not migrated.
 - **SC-005**: Reading an **un-migrated** document produces a rejection naming the document, the old
   shape and the tool — asserted on the message, not on the exception type, since `xmlschema`'s own
   validation errors are `ValueError` subclasses too (the distinction feature 008 had to make).
 - **SC-006**: `CURRENT_VERSION`, the conversion registry and `DELIBERATE_IDENTITY_STEPS` are
   **byte-identical** to feature 012's — zero version steps, zero new conversions, three allowlist
   entries. The feature's no-bump decision is verified, not asserted.
-- **SC-007**: Every consumer site measured in M1–M5 appears in the migration guide with its path,
-  its line at a named commit, its fault class and its new shape — count of sites named equals count
-  of sites measured.
+- **SC-007**: Every consumer site measured in M1–M5, M8a and M10–M13 appears in the migration
+  guide with its path, its line at a named commit, its fault class and its new shape — count of
+  sites named equals count of sites measured. Those measurements are recorded in this spec; the
+  guide is checked against them.
 - **SC-008**: `cuems-engine`'s suite passes against this branch, with `NodeEngine.py:566`'s
   unguarded read exercised by a test on a node carrying no device of that class. *(Verified by
   running that repository's own suite, as feature 012's `sibling-repository-updates.md` did, rather
   than inferred from a call-site census — which is what 012 measured to be the weaker instrument.)*
 - **SC-009**: `KNOWN_DIVERGENT_DECLARATIONS` is empty at the tip of the branch, and
   `tests/contract/test_schema_scope.py` and `tests/contract/test_schema_name_overlap.py` pass at
-  **every** commit of it, not only the tip.
+  **every** commit that edits a schema, not only at the tip. Each of those runs is recorded in
+  `baseline.md`. Reading the diff is not the check.
 - **SC-010**: `tests/packaging/test_no_version_bump.py` passes — `0.1.0rc16` unchanged.
 - **SC-011**: A node carrying two devices of the same class is rejected by **schema validation
   alone**, asserted with this library's load path bypassed — the guarantee has to hold for a writer
@@ -774,21 +892,29 @@ pass at each one — not only at the tip.
 - **SC-013**: `cuems-engine`'s six `node_conf` player reads resolve to the same values against this
   branch as against the branch point, exercised by that repository's own suite (the instrument
   SC-008 uses), and `cuems-common`'s XPath reader is named in the guide with its new path (FR-042).
-- **SC-014**: "Which nodes are adopted" is answerable in a test that imports **only**
-  `cuemsutils.tools`, with no `cuemsutils.xml` import anywhere in it (FR-035).
+- **SC-014**: "Which nodes are adopted" is answerable as
+  `cuemsutils.tools.NodeList.partition_by_adoption` in a test that calls that function, whose
+  only `cuemsutils` import is under `cuemsutils.tools`, with no `cuemsutils.xml` import anywhere
+  in it (FR-035). The input is shaped like `ConfigManager.network_map`. An import that is never
+  called does not satisfy this.
 - **SC-015**: Each of `settings`, `network_map`, `project_mappings` and `project_settings` can be
-  validated through one public call without loading it through `ConfigManager`, and the deprecation
-  advice `XmlReaderWriter.validate` emits names the right target for each of the six schemas —
-  asserted per schema, on the message (FR-036).
-- **SC-016**: `tests/golden/api/public_api.json` changes by exactly the names FR-035 and FR-036 add,
-  recorded as a named, justified golden event in the same commit — the discipline FR-054 applies to
-  `tests/golden/` generally.
+  validated through `cuemsutils.tools.validate_config_document` without loading it through
+  `ConfigManager`, and the deprecation advice `XmlReaderWriter.validate` emits names the right
+  target for each of the six schemas — asserted per schema, on the message (FR-036). The test
+  imports the name from `cuemsutils.tools`.
+- **SC-016**: `tests/golden/api/public_api.json` changes by exactly three names:
+  `partition_by_adoption` (FR-035), `validate_config_document` (FR-036), and the console script
+  `cuems-reshape-devices` (the snapshot records scripts, so the entry point is a name). The
+  script lands in its own golden commit. `validate_config_document` lands in its own.
+  `partition_by_adoption` lands in the re-export commit, recorded with its signature
+  `(network_map) -> tuple[tuple, tuple]` — a function entry of `{"kind": "function", "bases": []}`
+  does not pin that. Each is a named, justified event (FR-054).
 - **SC-PERF-001**: Mappings-document load ≤ **110%** of this branch's pre-change measurement,
   recorded with the measurement that set the denominator.
 - **SC-PERF-002**: Suite per-test time ≤ **18.04 ms/test** (110% of 16.40 ms).
-- **SC-PERF-003**: Conversion throughput measured over the named fixture and recorded against its
-  stated budget, with any exceedance recorded as exceeded and its mechanism identified — never
-  restated as passing.
+- **SC-PERF-003**: Conversion throughput measured on `remint_200` and recorded against the
+  calibration budget already written in `baseline.md` (FR-PERF-003). Any exceedance is recorded
+  as exceeded and its mechanism identified — never restated as passing.
 - **SC-QUALITY-001**: No new lint or type warnings, and no new deprecation warnings beyond the 215
   the baseline run reports.
 - **SC-TEST-001**: Every behaviour change has a test that fails before the implementation and
@@ -811,9 +937,19 @@ Recorded as decisions, so a later reader can tell a default from a finding.
   and the split is recorded below: 013 changes the inventory's **shape** (keys derived per class);
   014 changes its **source** (the port inventory moves out of `project_mappings`, and
   `default_mappings.xml` retires). Two features touching one accessor in sequence, by decision.
-- **A4 — the three legacy key names keep resolving for the three classes that exist.** FR-012.
-  `audio_outputs`, `video_outputs`, `dmx_outputs` are what `cuems-engine` reads today; a derived
-  dict that produced different key spellings would break three measured sites for no gain.
+- **A4 — legacy Python keys keep resolving, on three accessors, and none of them is a class
+  list.** The same decision applied three times: the accessor keeps the spelling the engine
+  already uses.
+  - `node_hw_outputs`: `audio_outputs`, `video_outputs`, `dmx_outputs` (and the input spellings)
+    keep resolving. An absent class yields `[]` via `__missing__`, not `KeyError`, because
+    `NodeEngine.py:566` subscripts unguarded (FR-012, M2).
+  - `node_mappings`: `["audio"]`, `["video"]`, and any other class the document carries, derived
+    from `devices` (FR-012a, D1, M13). `.get` must not fall through to `[]` on a node that has
+    the device.
+  - `node_conf`: `["videoplayer"]`, `["audioplayer"]` and `["dmxplayer"]` derived from `players`;
+    `["audiomixer"]` stays the element (FR-042).
+  The XPath readers in `cuems-common` are not in this assumption. No library alias reaches them
+  (M10, FR-042).
 - **A5 — the migration is a pure reshape with nothing dropped.** FR-024. Every old-shape element
   has a new-shape home; if the plan finds one that does not, that is a finding to record, not a
   drop to make quietly.
@@ -906,7 +1042,7 @@ clarification session of 2026-10-01 **placed both in this feature**; neither is 
 
 | Item | The gap, measured | Placed |
 |---|---|---|
-| **UR-1** | `partition_by_adoption` exists only at `cuemsutils.xml.settings.NetworkMap:247`. No public call answers "which nodes are adopted". `cuems-engine` removed its own need for it by deleting `find_hosts`, so nothing is blocked today — but `cuems-editor`'s feature 001 is expected to hit it within days | **013, FR-035** — re-exported on `cuemsutils.tools.NodeList`, the existing public path to the node model. One name, not a new surface; `get_nodes_by_adoption` untouched |
+| **UR-1** | `partition_by_adoption` exists only at `cuemsutils.xml.settings.NetworkMap:247`. No public call answers "which nodes are adopted". `cuems-engine` removed its own need for it by deleting `find_hosts`, so nothing is blocked today — but `cuems-editor`'s feature 001 is expected to hit it within days | **013, FR-035** — published on `cuemsutils.tools.NodeList` by a lazy `__getattr__` after `NodeRole` exists. Not a module-level import of `xml.settings`. One name, not a new surface; `get_nodes_by_adoption` untouched |
 | **UR-5** | `XmlReaderWriter.validate`'s deprecation warning sends **every** schema to `CuemsScript.validate`, which cannot validate a `settings`, `network_map`, `project_mappings` or `project_settings` document. Those are validated only as a side effect of the `ConfigManager` loaders. §5b records two candidate fixes and judges the second the better one | **013, FR-036 — both halves**: per-schema advice, *and* the public stand-alone configuration validator §5b calls *"a surface this library does not have and arguably should"* |
 
 **Why this feature rather than 014's public-surface pass**: 013 is the feature that reshapes what a

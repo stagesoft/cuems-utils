@@ -81,7 +81,8 @@ may not mix single children with a repeated one (R2):
       <xs:alternative type="cms:DeviceType"/>
     </xs:element>
   </xs:sequence>
-  <!-- FR-013: one device per class per node (R5, pending E3) -->
+  <!-- FR-013: one device per class per node. The same rule covers root defaults
+       (one per class per direction) and players (one per class). R5, pending E3 -->
   <xs:assert test="count(device) = count(distinct-values(device/@class))"/>
 </xs:complexType>
 ```
@@ -140,7 +141,7 @@ class is, and nothing in the system has a third one.
 | | Before | After |
 |---|---|---|
 | node's devices | `node["audio"]` → list of `{outputs: [...]}` groups | `node["devices"]` → list of device objects, each with `class` |
-| legacy key | — | `node_mappings["audio"]` still answers, derived (D1 / R10) |
+| legacy key | — | `node_mappings["audio"]` still answers, derived (FR-012a / D1 / R10) |
 | root defaults | `mappings["default_audio_output"]` → str | `mappings["defaults"]` → list; legacy key still answers, derived |
 
 `DevicesType` and `DefaultsType` are **wrappers** in the engine's sense (`Mapper._is_wrapper`), so
@@ -234,11 +235,13 @@ reason R8's editor sites and R9's frontend sites move.
 ### 4.2 `hardware_outputs.xsd`
 
 **Before**: two flat lists, `video_outputs` and `audio_outputs`, both `HardwareOutputsType`.
-**After**: one container of class-carrying lists.
+**After**: one container of class-carrying lists. The container and the child do not share
+a name (FR-053).
 
 ```xml
-<xs:element name="outputs" type="cms:HardwareOutputsSetType"/>
-<!-- HardwareOutputsSetType: repeated <outputs class="…"> of HardwareOutputsType -->
+<xs:element name="output_groups" type="cms:OutputGroupsType"/>
+<!-- OutputGroupsType: repeated <outputs class="…"> of HardwareOutputsType.
+     output_groups is the wrapper; outputs is the per-class list. -->
 ```
 
 Recorded, as the spec does, as the cheapest and least valuable item in the feature: the schema has no
@@ -319,7 +322,7 @@ nothing else. Each is a pure reshape: no value is read, computed or dropped (FR-
 | C | `<videoplayer>`, `<audioplayer>`, `<dmxplayer>` | `<players>` + `<player class="…">` | none; `<audiomixer>` left in place |
 | D | `<AudioCue>`, `<VideoCue>`, `<DmxCue>` | `<Cue class="…">` | none; `ActionCue`/`FadeCue`/`CueList` untouched |
 | D | `<AudioCueOutput>`, `<VideoCueOutput>`, `<DmxCueOutput>` | `<CueOutput class="…">` | none |
-| D | `<video_outputs>`, `<audio_outputs>` | `<outputs>` + `<outputs class="…">` | none |
+| D | `<video_outputs>`, `<audio_outputs>` | `<output_groups>` + `<outputs class="…">` | none |
 
 **Element order**: the new child is inserted at the position the first old sibling occupied, so
 `xs:sequence` validity is preserved without re-ordering anything else. `CuemsScript`'s root is

@@ -219,8 +219,10 @@ session chose schema enforcement because `cuems-editor` validates the document i
 would not hold there.
 
 **The unknown**: whether the pinned `xmlschema` evaluates `count(devices/device) = count(distinct-values(devices/device/@class))`
-— an XPath 2.0 function — inside `xs:assert`. See **E3**. If it does not, the fallback is a T2 rule
-plus a documented gap for third-party writers, recorded rather than hidden.
+— an XPath 2.0 function — inside `xs:assert`. See **E3**. If it does not, the fallback is
+`xs:unique` on `class`, which is still schema-level, so a writer that only validates against the
+XSD stays covered. A T2 rule is not a fallback: it would reopen the split this decision closed.
+If no schema construct rejects the duplicate, stop and reopen FR-013.
 
 ---
 
@@ -284,8 +286,8 @@ tag points at `91b2d254`, **not** at HEAD — so the candidate tag will have to 
 feature regardless, which is the reciprocal-tag lesson `CLAUDE.md` already records.
 
 **Consequence for the spec**: FR-042's second bullet is one of three sites, and the display pipeline
-— the thing that drives monitors on a node — is in axis A's blast radius, not axis C's. Phase 0
-folds this into the spec as **M10**.
+— the thing that drives monitors on a node — is in axis A's blast radius, not axis C's. Recorded
+in the spec as **M10**.
 
 ---
 
@@ -308,8 +310,8 @@ have **one** cause, `ModuleNotFoundError: No module named 'cuemsutils.create_scr
 through `CuemsWsServer.py:27`. The spec's "7 pre-existing failures plus two modules that have not
 imported since feature 008 retired `create_script`" is therefore one fault, not three.
 
-Folded into the spec as **M11** in Phase 0. It does not change FR-033's claim — the merge is still
-not among flow 02's fourteen call sites — it adds sites FR-030 must name.
+Recorded in the spec as **M11**. It does not change FR-033's claim — the merge is still
+not among flow 02's fourteen call sites — it adds sites FR-030 and FR-033 must name.
 
 ---
 
@@ -331,12 +333,12 @@ confirmed at `3183845` (clean). The measured total is about **45 line-ranges acr
 
 **It also has no characterization tests**: five `.spec.ts` files exist, none covering
 `projects.service.ts`, either `sequence.component.ts`, or `settings.component.ts` — so flow 05's
-US8/T032 precondition is unmet in the tree today, which is exactly why FR-032 exists. Folded into the
+US8/T032 precondition is unmet in the tree today, which is exactly why FR-032 exists. Recorded in the
 spec as **M12**.
 
 ---
 
-## R10 — A third compatibility surface the spec does not cover: `node_mappings["audio"]`
+## R10 — A third compatibility surface: `node_mappings["audio"]`
 
 **Decision**: `ConfigManager.node_mappings` keeps answering to a device-class key, derived from the
 document, by the same reasoning the clarification session applied to axis C.
@@ -355,7 +357,8 @@ FR-042 (which is about `node_conf`) covers it.
 The spec's settled answer for axis C was "the Python accessors keep resolving"; this is the same
 question one document over, so the plan applies the same answer rather than inventing a new one. It
 is **not** a declared class list: the projection resolves any class the document carries, so FR-010
-still holds. Recorded as decision **D1** in [plan.md](plan.md) and folded into the spec as **M13**.
+still holds. Recorded as decision **D1** in [plan.md](plan.md) and in the spec as **M13** and
+**FR-012a**, and as the second arm of A4.
 
 ---
 
@@ -476,7 +479,8 @@ Harness facts: performance tests live in `tests/integration/` (no `tests/perform
 which this feature reuses as its named throughput fixture; the suite runs
 `PYENV_VERSION=3.11.9 uvx hatch run test.py3.11:run -- -q`. Budgets to set from **E4**: the load path
 for `project_mappings`, `settings`, `script` and the suite's per-test time (the spec already fixes
-that one at ≤ 18.04 ms/test), plus the tool's throughput over `remint_200`.
+that one at ≤ 18.04 ms/test), plus a no-substitution read-and-rewrite of `remint_200`. That
+calibration is the SC-PERF-003 budget; the tool is measured against it later, and does not set it.
 
 ---
 
@@ -489,7 +493,7 @@ no outcome blocks the feature.
 |---|---|---|---|
 | **E1** | Does a container + `xs:alternative` document decode through `CuemsConverter` with the discriminator present in the item dict, and the alternative's content intact? | build a throwaway schema and document in `tmp_path`, decode with `XMLSchema11(..., converter=CuemsConverter).to_dict(...)`, print the dict | if the discriminator is absent from the item dict, the dispatch reads it from `xsd_element.get_type(elem)` instead and the decode path gains a cooperation with `xmlschema` that R1 avoided |
 | **E2** | Does `xmlschema==3.4.3` expose each `xs:alternative`'s test in a form from which `@class='VALUE'` is extractable without interpreting XPath? | inspect `schema.elements[...].alternatives` / the element's `alternatives` attribute on a compiled schema | fall back to declaring the map in the schema's `xs:appinfo` — still one schema, still one declaration, satisfying SC-002 |
-| **E3** | Does `xs:assert` with `count(...) = count(distinct-values(.../@class))` compile and reject a duplicate class? | validate a two-`audio`-device document against a schema carrying the assert | fall back to a T2 rule (`repairable=False`), and record the gap for third-party writers in the migration guide rather than leaving it implied |
+| **E3** | Does `xs:assert` with `count(...) = count(distinct-values(.../@class))` compile and reject a duplicate class? | validate a two-`audio`-device document against a schema carrying the assert | fall back to `xs:unique` on `class`, which is still schema-level, so an XSD-only writer stays covered. A T2 rule is not a fallback: the editor would accept the duplicate and this library would reject it. If no schema construct rejects it, stop and reopen FR-013 |
 | **E4** | What are this branch's pre-change load times for all four axes, and the suite's per-test time? | `test_read_path_regression.py`'s method, 3×5 warm runs per document; full suite 3 runs | nothing to fall back on — this one sets FR-PERF-001's denominator, and the spec's own checklist makes it a precondition |
 
 **E1 and E2 together are the feature's go/no-go on FR-050a's "the public classes stay".** If both

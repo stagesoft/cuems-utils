@@ -27,6 +27,18 @@ by element name, so cue equality, hashing and `isinstance` dispatch do not chang
 
 Two upstream findings close here as well: `partition_by_adoption` becomes publicly reachable
 (FR-035), and a configuration document becomes publicly validatable without being loaded (FR-036).
+The public call is `from cuemsutils.tools import validate_config_document`. The body lives in
+`tools/config_validate.py`; the façade re-exports it lazily so importing another tools module
+does not pull the schema stack.
+
+## Decisions
+
+**D1 — `node_mappings` class keys keep resolving.** `ConfigManager.node_mappings["audio"]` and
+`["video"]`, and any other class the document carries, are derived from `devices`.
+`NodeEngine.py:508` and `:598` use `.get(..., [])`; a missing key configures no ports and raises
+nothing (M13). This is FR-012a and the second arm of A4. It is not a class list (FR-010). It is
+the mappings-document form of the answer already given for `node_conf` player keys (FR-042).
+Evidence: research R10.
 
 ## Technical Context
 
@@ -43,10 +55,12 @@ the `hatch test` env lacks `hypothesis`)
 `debian/` on the working branch
 **Project Type**: single Python library with CLI entry points
 **Performance Goals**: mappings-document load ≤ 110% of this branch's pre-change measurement
-(SC-PERF-001); suite ≤ 18.04 ms/test (SC-PERF-002); migration throughput measured against a stated
-budget and recorded as measured (SC-PERF-003). **Every denominator is measured before the first
-schema edit** — E4 in [quickstart.md](quickstart.md) — because a ratio to an unmeasured baseline is
-not a budget.
+(SC-PERF-001); suite ≤ 18.04 ms/test (SC-PERF-002); migration throughput on `remint_200` recorded
+against a calibration of that same fixture — read and atomically rewrite, no device-class
+substitution — written into `baseline.md` before the comparison (SC-PERF-003). **Every denominator
+is measured before the first schema edit** — E4 in [quickstart.md](quickstart.md) — because a ratio
+to an unmeasured baseline is not a budget. The calibration is that denominator for the tool; the
+tool's own number is not the budget.
 **Constraints**: no new runtime dependency; no library version bump (`0.1.0rc16`, pinned by
 `tests/packaging/test_no_version_bump.py`); nothing ships from this branch alone (D27 — the
 coordinated `xml-refactor-merge-candidate` tag comes after 011–014, `cuems-utils` last); feature 012's
@@ -169,7 +183,8 @@ src/cuemsutils/
 ├── tools/
 │   ├── ConfigManager.py             # axis B: HardwareOutputs, derived; legacy keys derived
 │   ├── NodeList.py                  # FR-035: re-export partition_by_adoption
-│   └── __init__.py                  # FR-036: the public configuration validator
+│   ├── config_validate.py           # FR-036: validator body; consumers do not name this module
+│   └── __init__.py                  # façade; lazy re-export of validate_config_document
 └── defaults/system-defaults.toml    # seed keys for the reshaped types
 
 tests/
@@ -182,16 +197,19 @@ debian/rules                         # :27-29 regenerates defaults through the b
 pyproject.toml                       # [project.scripts] cuems-reshape-devices
 ```
 
-**Structure decision**: unchanged. This is an existing single-package library; the feature adds one
-module, one corpus directory and one entry point, and edits four schemas in place.
+**Structure decision**: unchanged. This is an existing single-package library; the feature adds two
+modules (`reshape_devices.py`, `config_validate.py`), one corpus directory and one entry point, and
+edits four schemas in place. `validate_config_document` is reached through `cuemsutils.tools`, not
+by naming `config_validate`.
 
 ## Phases, and why the order is forced
 
 ```mermaid
 flowchart TD
     E["E1-E4: experiments and baselines"] --> F["Foundational: FieldSpec.alternatives,\nMapper dispatch, the convention test"]
-    F --> A["Axis A + FR-027 diagnosis + the tool\n(US1, US2)"]
-    A --> B["Axis B: derived inventory,\n_DEVICE_SECTIONS deleted (US3)"]
+    F --> A["Axis A + FR-027 diagnosis\n(US1; not mergeable alone)"]
+    A --> M["cuems-reshape-devices\n(US2) — merge unit is A+M"]
+    M --> B["Axis B: derived inventory,\n_DEVICE_SECTIONS deleted (US3)"]
     B --> C["Axis C: players + legacy keys"]
     C --> D["Axis D: cues, cue outputs,\nhardware_outputs"]
     D --> G["US4 migration guide + US5 ratchets,\nmeasured"]
@@ -203,9 +221,13 @@ flowchart TD
 - **The derivation and dispatch work precedes every schema edit**, because no reshaped schema can be
   read until it exists. There is no useful intermediate state in which a schema has narrowed and the
   engine cannot decode it.
-- **Axis A carries FR-027's diagnosis and the migration tool with it**, not after it. From the moment
-  the first schema narrows, every document on a deployed node is un-loadable, and the requirement is
-  about what a maintainer sees at that moment.
+- **Axis A's schema commit carries FR-027's diagnosis, not the tool.** From the moment the first
+  schema narrows, every document on a deployed node is un-loadable, and the requirement is about
+  what a maintainer sees at that moment. The tool is the next phase, because its axis A
+  transformation is only testable once the schema has narrowed. **The merge unit is the two
+  together.** Phase 3 alone diagnoses and does not migrate; do not merge it. A plan that deferred
+  the diagnosis to a final phase would miss the point; a merge of the schema without the tool
+  would too.
 - **Axis B follows axis A** because the inventory is derived *from* the reshaped mappings document.
 - **Axis D is last** and is independently cuttable: it is the only axis touching show scripts, it
   carries the whole wire-key change, and its `hardware_outputs` half is knowingly duplicated work
@@ -241,6 +263,7 @@ Re-evaluated after Phase 1. **No new violation.** Four observations the design p
 4. **Performance gained a prerequisite**: E4 runs before any edit. SC-PERF-001 is a ratio, and
    nothing on this branch has measured its denominator yet.
 
-One item deliberately left to `/speckit.tasks`: FR-014's reporting mechanism — *how* an unrecognised
-class is surfaced (a `LoadReport` record, a log line, or both). It is a task-level choice between two
-existing mechanisms, and nothing in this plan depends on which.
+FR-014's reporting mechanism is decided: one INFO log line that satisfies FR-UX-001 (schema,
+document, path, offending class, and what to do). Not a `LoadReport` field — that signature is
+pinned by `public_api.json` — and not a new public function. The wording is in
+[tasks.md](tasks.md) and in FR-014.

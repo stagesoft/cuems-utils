@@ -28,12 +28,17 @@ the second.
    the vocabulary is open, and an unrecognised class validates, decodes and is *reported*.
 4. **The element lives in a container type that holds nothing else.** A type may not mix single
    element children with a repeated one — the converter's content assembler discards the single ones
-   (research R2, `converter.py:144-148`). `DevicesType`, `PlayersType`, `DefaultsType` are this
-   feature's three; `OutputsType` and `RegionsType` are the pre-existing precedent.
+   (research R2, `converter.py:144-148`). `DevicesType`, `PlayersType`, `DefaultsType` and
+   `OutputGroupsType` are this feature's four; `OutputsType` and `RegionsType` are the pre-existing
+   precedent. The container and its repeated child do not share an element name (`output_groups` /
+   `outputs`, FR-053).
 5. **The container asserts class uniqueness**:
    `<xs:assert test="count(X) = count(distinct-values(X/@class))"/>` (FR-013). Schema-level rather
    than a load-path rule, because `cuems-editor` validates against the XSD directly and a T2 rule
-   would not hold where the documents are written.
+   would not hold where the documents are written. If that assert does not reject a duplicate under
+   the pinned `xmlschema` (E3), the replacement is `xs:unique` on `class` or another schema
+   constraint that does. A T2 rule is not a replacement. If no schema construct works, stop and
+   reopen FR-013; do not ship the gap as a guide note.
 
 ---
 

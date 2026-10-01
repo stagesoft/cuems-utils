@@ -6,8 +6,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
 # Contract — the public surface after 013
 
 **Feature**: `013-device-class-reshape` | **Requirements**: FR-011, FR-012, FR-035, FR-036, FR-042,
-FR-050a, FR-052 | **Golden**: `tests/golden/api/public_api.json` changes by exactly the names below
-(SC-016)
+FR-050a, FR-052 | **Golden**: `tests/golden/api/public_api.json` changes by exactly three names (SC-016):
+`partition_by_adoption`, `validate_config_document`, and the console script
+`cuems-reshape-devices`
 
 Three kinds of change: one shape that moves, two names that are published, and a long list of things
 that deliberately do not move.
@@ -34,7 +35,7 @@ three legacy spellings keep answering (A4), and `NodeEngine.py:566`'s unguarded 
 
 | Call | After |
 |---|---|
-| `node_mappings["audio"]` (`NodeEngine.py:508,598`) | answers, derived from `devices` (D1, R10) |
+| `node_mappings["audio"]` (`NodeEngine.py:508,598`) | answers, derived from `devices` (FR-012a, D1, R10) |
 | `node_conf["videoplayer"]`, `["audioplayer"]`, `["dmxplayer"]` (six engine sites) | answer, derived from `players` (FR-042) |
 | `node_conf["audiomixer"]` | untouched — it has no device class (FR-040a) |
 | `mappings["default_video_output"]` and its five siblings | answer, derived from `defaults` |
@@ -56,11 +57,19 @@ adopted, unadopted = partition_by_adoption(network_map)
 ```
 
 A re-export, not a relocation — the implementation stays at `xml/settings.py:247`, with its signature,
-its behaviour and its home unchanged, exactly as `node` is re-exported at `NodeList.py:22` and as
-feature 012 published `SENTINEL` and `coerce_identity`. `NodeList.__all__` grows by one name.
+its behaviour and its home unchanged. `NodeList.__all__` grows by one name. It is **not** imported
+the way `node` is. The `node` import at `NodeList.py:22` is `from ..config.network_map import node`
+and does not load `xml.settings`. A module-level `from ..xml.settings import NetworkMap` loads
+`mapper`, then `adapters`, and `adapters._register_enums()` imports `NodeRole` from `NodeList`
+while that module is still initializing. Placed next to the `node` import, before the `NodeRole`
+class statement, that raises `ImportError`. After `NodeRole` and `NodeIndex` are defined, a module
+`__getattr__` imports `NetworkMap` on first access and returns `NetworkMap.partition_by_adoption`
+itself, not a wrapper. `import cuemsutils.tools.NodeList` does not load `xml.settings`.
 
-**Asserted** (SC-014) by importing it from `cuemsutils.tools` in a test whose module contains no
-`cuemsutils.xml` import. The deprecated, mutating `get_nodes_by_adoption` is untouched.
+**Asserted** (SC-014) by importing it from `cuemsutils.tools.NodeList` and calling it, in a test
+whose only `cuemsutils` import is under `cuemsutils.tools`, with no `cuemsutils.xml` import. The
+map is shaped like `ConfigManager.network_map`. The deprecated, mutating `get_nodes_by_adoption`
+is untouched.
 
 ## 4. Validating a configuration document (FR-036)
 
@@ -74,7 +83,9 @@ asserted per schema on the message text for all six.
 ### 4.2 A public stand-alone validator
 
 ```python
-report = validate_config_document(path)       # cuemsutils.tools
+from cuemsutils.tools import validate_config_document
+
+report = validate_config_document(path)
 report.outcome        # the same Outcome vocabulary a show document reports
 report.repairs        # RepairRecord list
 report.conversions    # ConversionRecord list
@@ -82,9 +93,12 @@ report.conversions    # ConversionRecord list
 
 Reporting through `LoadReport`/`Outcome`/`RepairRecord`/`ConversionRecord` — feature 008's existing
 public report types in `cuemsutils.errors` — rather than a second vocabulary, so a caller learns *what*
-is wrong and not only *that* something is. No new exception type, no new module for the consumer to
-name: it joins the `cuemsutils.tools` façade, which is the package `__init__` docstring's stated reason
-for existing.
+is wrong and not only *that* something is. No new exception type. The body lives in
+`cuemsutils.tools.config_validate`; the consumer imports the façade, which is the package
+`__init__` docstring's stated reason for existing. The re-export is lazy (`__getattr__`): a
+top-level import would make `import cuemsutils.tools.CTimecode` pull the schema stack, and the
+empty-body rule exists to prevent that. The name is on the façade; the cost is paid when the
+name is used.
 
 It **validates without loading**: no `ConfigManager` instance, no `/etc/cuems` requirement, no write.
 That is the whole gap §5b of feature 010's guide identified, and the reason it lands with the feature

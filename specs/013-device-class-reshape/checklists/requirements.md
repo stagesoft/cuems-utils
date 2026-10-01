@@ -134,6 +134,11 @@ now §"The two upstream findings, placed".
    `node_conf["…player"]` reads keep resolving; `cuems-common`'s `cuems-extract-video-latency:39`
    reads the element by XPath from a script that cannot import `cuemsutils`, so it cannot be
    shielded and ports in its own repository. M8 had stated both as one class of site.
+   Analyze remediation 2026-10-01 widened this: M10 adds the two display readers, M11 the
+   editor's keyed cue sites, M12 the eight frontend files, and M13 / FR-012a / D1 the
+   `node_mappings` class keys. A4 now states all three Python accessors. Uniqueness stays
+   in-schema; a T2 fallback does not satisfy FR-013. `validate_config_document` is imported
+   from `cuemsutils.tools`, with its body in `config_validate` and a lazy façade re-export.
 
 ### Items requiring spec updates before `/speckit.plan`
 
@@ -143,6 +148,6 @@ now §"The two upstream findings, placed".
    passing.
 3. FR-PERF-001's denominator must be measured on this branch across all four axes' load paths
    before any code changes, since the all-four answer widens it beyond the mappings document.
-4. FR-014's *mechanism* — how a document's unrecognised class is reported — was deferred to planning
-   as a how, not a what: the requirement stands, and the plan must choose between the load report,
-   an operator-facing check and a public accessor, and record the choice.
+4. ~~FR-014's mechanism was deferred to planning.~~ Decided 2026-10-01: one INFO log line
+   that names the schema, the document, the path, the class and what to do (FR-UX-001). Not a
+   `LoadReport` field and not a new public function. Recorded in FR-014 and in `tasks.md`.

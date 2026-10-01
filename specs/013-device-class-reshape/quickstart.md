@@ -105,8 +105,10 @@ print(s.is_valid('<root><d class="a"/><d class="a"/></root>'))   # expect False
 PY
 ```
 
-**Fail**: FR-013 falls back to `xs:unique`, or to a T2 rule — which does **not** reach
-`cuems-editor`, so that fallback changes what the clarification decided and must be recorded.
+**Fail**: FR-013 falls back to `xs:unique` on `class`. That still reaches `cuems-editor`,
+because it is still the XSD. A T2 rule does not: the editor would accept two devices of one
+class and this library would reject them. If neither schema construct rejects the duplicate,
+stop and reopen the clarification. Do not record the gap in the migration guide as the decision.
 
 ### E4 — the denominators, before anything changes
 
@@ -118,6 +120,9 @@ PYENV_VERSION=3.11.9 uvx hatch run test.py3.11:run -- -q      # 3 runs: per-test
 
 Record every number in `baseline.md` **before** the first schema edit. SC-PERF-001 is stated as a
 ratio to a measurement that does not exist yet; measuring it afterwards is not measuring it.
+On `remint_200`, also time a calibration — read every file and atomically rewrite it with no
+device-class substitution — and write that MB/s range down as the SC-PERF-003 budget. The tool's
+later measurement is compared with that number.
 
 ---
 
@@ -148,16 +153,24 @@ ratio to a measurement that does not exist yet; measuring it afterwards is not m
 
 ## Golden and corpus discipline
 
+- The XSD schemas are the single source of truth. Corpus and golden files that the reshape
+  invalidates are migrated so they validate against those schemas. They are not edited to
+  define the shape, and they are not the canonical form of a document until the xml-refactoring
+  is settled (FR-055).
 - `tests/golden/` **will** change — the wire key moves from `AudioCue` to `Cue` + class. That is a
-  named, justified golden event (FR-054): regenerate deliberately, in its own commit, with the
-  reason, and update `MANIFEST.sha256` with it.
+  named, justified golden event (FR-054): regenerate from the schema-derived writer, in its own
+  commit, with the reason, and update `MANIFEST.sha256` with it.
 - **Do not regenerate `tests/golden/outcomes.json`.** It records pre-refactor verdicts a test asserts
   the *difference* against.
 - **Snapshot the old shape before touching it**: `tests/data/corpus/pre-013/` holds an old-shape
-  example of every reshaped document, and it is the migration tool's fixture *and* FR-027's. Once a
-  schema narrows, no old-shape document can be produced from this tree any more (R13).
-- `tests/golden/api/public_api.json` changes by exactly the two names FR-035 and FR-036 add
-  (SC-016) — nothing else.
+  example of every reshaped document, and it is the migration tool's fixture *and* FR-027's. It
+  stays old-shape. `pre-008/` is not migrated. Once a schema narrows, no new old-shape document
+  can be produced from this tree (R13).
+- Name `fade_showcase.xml` and `unicode_showcase.xml` when the script corpus is migrated. Do not
+  let them ride along unnamed.
+- `tests/golden/api/public_api.json` changes by exactly three names (SC-016):
+  `partition_by_adoption`, `validate_config_document`, and `cuems-reshape-devices`. The script
+  is its own golden commit.
 
 ## The suite baseline
 
