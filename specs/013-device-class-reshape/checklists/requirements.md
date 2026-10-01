@@ -8,7 +8,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-10-01
 **Feature**: [spec.md](../spec.md)
-**Validation**: iteration 2, all items passing
+**Validation**: iteration 3 (after the second clarification session, 2026-10-01), all items passing
 
 ## Content Quality
 
@@ -113,18 +113,36 @@ brief. Four of them correct a document that is still load-bearing elsewhere:
 The suite baseline was re-run rather than inherited and came back **identical**: 3247 passed, 115
 skipped, 2 xfailed in 53.25 s = 16.40 ms/test.
 
-### Still open, and now assigned
+### UR-1 and UR-5 — placed, 2026-10-01
 
-**UR-1 and UR-5** are carried in §"Open items handed to `/speckit.clarify`" with measured gaps and
-candidate dispositions, *assigned to the clarification session* rather than left unassigned — the
-third unassigned pass the brief explicitly forbids. **The plan must not start until both are
-placed** in 013 or in 014's public-surface pass.
+Both landed **in 013** in the second clarification session: UR-1 as FR-035 (re-export on
+`cuemsutils.tools.NodeList`), UR-5 as FR-036 (per-schema deprecation advice **and** the public
+stand-alone configuration validator). Neither is carried forward; the spec section that held them is
+now §"The two upstream findings, placed".
+
+### The second session's other three answers
+
+4. **Axis D's depth** (FR-050a): both choices reshape to class-carrying elements and the public
+   `AudioCue`/`VideoCue`/`DmxCue`/`*CueOutput` classes survive, selected by class instead of by
+   element name. This is what makes FR-050 and FR-052 simultaneously satisfiable, and it narrows
+   FR-052 honestly: equality, hashing and `isinstance` dispatch are unchanged, while the wire
+   projection changes in exactly one way — the class arrives as data.
+5. **The repeated-class outcome** (FR-013): rejected, asserted **in the schema**, because
+   `cuems-editor` validates the document it writes against the XSD rather than through this
+   library's load path.
+6. **Axis C's consumer compatibility** (FR-042, measured as M8a): `cuems-engine`'s six
+   `node_conf["…player"]` reads keep resolving; `cuems-common`'s `cuems-extract-video-latency:39`
+   reads the element by XPath from a script that cannot import `cuemsutils`, so it cannot be
+   shielded and ports in its own repository. M8 had stated both as one class of site.
 
 ### Items requiring spec updates before `/speckit.plan`
 
-1. UR-1 and UR-5 must each be placed.
+1. ~~UR-1 and UR-5 must each be placed.~~ Done, 2026-10-01.
 2. FR-029's question — whether the migration tool extends `cuems-convert-documents` or is a new
    entry point — is deliberately left to planning, but must be *recorded* there, not decided in
    passing.
 3. FR-PERF-001's denominator must be measured on this branch across all four axes' load paths
    before any code changes, since the all-four answer widens it beyond the mappings document.
+4. FR-014's *mechanism* — how a document's unrecognised class is reported — was deferred to planning
+   as a how, not a what: the requirement stands, and the plan must choose between the load report,
+   an operator-facing check and a public accessor, and record the choice.
