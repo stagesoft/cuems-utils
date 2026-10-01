@@ -54,6 +54,23 @@ than swept, because "the goldens moved" is not a reason:
 * ``dict/cuems-utils__outputs.reader.json`` — ``hardware_outputs``' two flat
   lists became ``output_groups`` / ``outputs class="…"`` (T048).
 
+**Axis D's publishing phase re-hashes ``api/public_api.json`` once more**
+(T061, SC-016), and this is the third time this feature touches that one file —
+counted here because "the API golden moved again" is only acceptable when each
+move is a named event:
+
+1. T035, the console script ``cuems-reshape-devices`` joining ``"scripts"``;
+2. T061, a new top-level ``"functions"`` key carrying the two names feature 013
+   publishes, each with the signature ``inspect.signature`` returns:
+   ``partition_by_adoption(network_map) -> tuple[tuple, tuple]`` (FR-035) and
+   ``validate_config_document(path: 'str | PathLike') -> 'LoadReport'`` (FR-036).
+
+The key is new rather than an extension of ``"symbols"`` because ``_members``
+records only the methods *of a class*: a function lands there as
+``{"kind": "function", "bases": []}`` with no signature, which would pin that
+the name exists and nothing about what it takes. Every pre-existing key in the
+snapshot is byte-identical.
+
 ``outcomes.json`` is **not** regenerated (T050, stated as a prohibition rather
 than left implicit). It records, per document, whether reading and writing
 succeed and with which error — the accept/reject parity ledger — and a capture

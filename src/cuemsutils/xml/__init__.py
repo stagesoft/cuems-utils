@@ -73,6 +73,36 @@ _READER_WRITER_METHODS = {
     "validate_object": f"{_SCRIPT}.validate",
 }
 
+#: The public configuration validator (feature 013, FR-036, T059).
+_CONFIG_VALIDATOR = "cuemsutils.tools.validate_config_document"
+
+#: Schemas whose documents ``CuemsScript.validate`` **cannot** validate.
+#:
+#: ``hardware_outputs`` is deliberately absent: it is a *show* schema used by
+#: the editor's output picker, not a configuration document ``ConfigManager``
+#: reads, and it has no configuration accessor to be sent at.
+_CONFIG_SCHEMA_NAMES = frozenset(
+    {"settings", "network_map", "project_mappings", "project_settings"}
+)
+
+
+def _validate_advice_for(schema_name: str) -> str:
+    """Where a ``validate_object`` caller should actually go, per schema.
+
+    The advice used to be one string for every schema, pointing every caller at
+    ``CuemsScript.validate`` — which builds a *show* document and so cannot
+    validate a ``settings.xml`` at all. A consumer following it was sent
+    somewhere that could not work, with no reason to doubt it, which is worse
+    than no advice (UR-5, FR-036).
+
+    It has to be decided here, at the call, rather than by a second alias:
+    ``XmlReaderWriter`` is **one** class for all six schemas, and the schema is
+    not known until an instance exists.
+    """
+    if schema_name in _CONFIG_SCHEMA_NAMES:
+        return _CONFIG_VALIDATOR
+    return f"{_SCRIPT}.validate"
+
 # The six supported entry points this feature retires (contract C3). Five were
 # in ``__all__``; ``CuemsParser`` never was, and is the sixth because feature
 # 004 made it a supported path deliberately — it is `cuems-editor`'s primary
@@ -83,6 +113,7 @@ XmlReaderWriter = deprecated_alias(
     _SCRIPT,
     notes={"read": _READ_NOTE},
     replacements=_READER_WRITER_METHODS,
+    per_instance={"validate_object": _validate_advice_for},
 )
 CuemsParser = deprecated_alias(_CuemsParser, f"{_SCRIPT}.from_json")
 Settings = deprecated_alias(_Settings, _CONFIG)

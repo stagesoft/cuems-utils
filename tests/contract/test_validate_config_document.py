@@ -52,45 +52,109 @@ def test_the_name_is_on_the_facade():
 
 
 @pytest.mark.parametrize("schema_name", sorted(VALID))
-def test_a_valid_document_reports_clean(schema_name):
+def test_a_valid_document_validates_and_needs_no_repair(schema_name):
     report = validate_config_document(VALID[schema_name])
     assert isinstance(report, LoadReport)
-    assert report.outcome is Outcome.CLEAN, report
     assert report.repairs == ()
-    assert report.conversions == ()
     assert report.document == str(VALID[schema_name])
+
+
+#: ``(schema, from_version, to_version)`` for the corpus documents that are
+#: genuinely **version-old**. Measured, not assumed: these three carry no
+#: ``doc_version`` (or an older one) while their schemas have moved, so a
+#: *valid* document correctly reports ``CONVERTED``. Feature 012's identity
+#: steps are what moved ``network_map`` and ``project_mappings`` to 2 and
+#: ``settings`` to 3; ``project_settings`` is still at 1 and so reports clean.
+VERSION_OLD = (
+    ("settings", 2, 3),
+    ("network_map", 1, 2),
+    ("project_mappings", 1, 2),
+)
+
+
+@pytest.mark.parametrize("schema_name,from_version,to_version", VERSION_OLD)
+def test_a_version_old_document_reports_converted_rather_than_clean(
+    schema_name, from_version, to_version
+):
+    """The report distinguishes "valid" from "up to date", which is the point.
+
+    A caller that only learns "valid" cannot tell that the file on disk is
+    behind the library — and ``file_differs_from_loaded`` is how it finds out
+    without this function writing anything.
+    """
+    report = validate_config_document(VALID[schema_name])
+    assert report.outcome is Outcome.CONVERTED, report
+    assert [(c.from_version, c.to_version) for c in report.conversions] == [
+        (from_version, to_version)
+    ]
+    assert report.file_differs_from_loaded is True
+
+
+def test_a_current_version_document_reports_clean(tmp_path):
+    """The ``CLEAN`` arm, on a document at its schema's current version."""
+    import xml.etree.ElementTree as ET
+
+    from cuemsutils.xml.versioning import CURRENT_VERSION
+
+    target = tmp_path / "settings.xml"
+    tree = ET.parse(VALID["settings"])
+    tree.getroot().set("doc_version", str(CURRENT_VERSION["settings"]))
+    tree.write(target, encoding="utf-8", xml_declaration=True)
+
+    report = validate_config_document(target)
+    assert report.outcome is Outcome.CLEAN, report
+    assert report.conversions == ()
+    assert report.repairs == ()
     assert report.file_differs_from_loaded is False
 
 
-@pytest.mark.parametrize("schema_name", sorted(VALID))
-def test_an_invalid_document_names_the_offending_field(schema_name, tmp_path):
-    """Deleting a required element must produce a message naming it.
+def test_project_settings_is_already_current_and_reports_clean():
+    report = validate_config_document(VALID["project_settings"])
+    assert report.outcome is Outcome.CLEAN, report
 
-    The first required child of the document's own body is removed, so the test
-    does not need to know which field each schema requires — only that whichever
-    one it removed is named back. "Invalid" without a field name is the answer
-    this function exists to improve on.
-    """
+
+#: The path to a genuinely **required** element, per schema: every step but the
+#: last names a container to descend into, the last names the element to delete.
+#:
+#: Named rather than discovered, and the path rather than a single name, because
+#: both shortcuts failed. "The body's first child" was optional for
+#: ``network_map`` — ``node_list`` is ``minOccurs="0"``, so removing it produced
+#: a perfectly valid document and the test passed by not invalidating anything.
+#: The required elements there are one level further down, inside a ``<node>``.
+#:
+#: ``project_settings`` is absent on purpose: its body is legitimately empty, it
+#: declares no required child, and there is nothing whose absence is an error.
+REQUIRED_ELEMENT = {
+    "settings": ("Settings", "conf_path"),
+    "network_map": ("node_list", "node", "uuid"),
+    "project_mappings": ("number_of_nodes",),
+}
+
+
+@pytest.mark.parametrize("schema_name", sorted(REQUIRED_ELEMENT))
+def test_an_invalid_document_names_the_offending_field(schema_name, tmp_path):
+    """"Invalid" without a field name is the answer this function improves on."""
     import xml.etree.ElementTree as ET
 
+    def child(parent, name):
+        return next(e for e in parent if e.tag.rsplit("}", 1)[-1] == name)
+
+    *containers, required = REQUIRED_ELEMENT[schema_name]
     source = VALID[schema_name]
     target = tmp_path / source.name
     shutil.copyfile(source, target)
     tree = ET.parse(target)
-    root = tree.getroot()
-    body = list(root)[0] if list(root) else root
-    victims = list(body)
-    if not victims:
-        pytest.skip(f"{schema_name}'s body has no child to remove")
-    removed = victims[0].tag.rsplit("}", 1)[-1]
-    body.remove(victims[0])
+    body = tree.getroot()
+    for step in containers:
+        body = child(body, step)
+    body.remove(child(body, required))
     tree.write(target, encoding="utf-8", xml_declaration=True)
 
     with pytest.raises(Exception) as caught:
         validate_config_document(target)
     message = str(caught.value)
-    assert removed in message, (
-        f"{schema_name}: removing <{removed}> produced {message!r}, which does "
+    assert required in message, (
+        f"{schema_name}: removing <{required}> produced {message!r}, which does "
         f"not name it"
     )
 
@@ -114,7 +178,7 @@ def test_it_does_not_construct_a_config_manager(monkeypatch):
 def test_it_does_not_require_etc_cuems(monkeypatch, tmp_path):
     monkeypatch.setenv("CUEMS_CONF_PATH", str(tmp_path / "nowhere"))
     report = validate_config_document(VALID["network_map"])
-    assert report.outcome is Outcome.CLEAN
+    assert report.repairs == ()
 
 
 def test_a_missing_file_raises_oserror_unwrapped(tmp_path):
@@ -141,12 +205,18 @@ def test_a_show_document_is_refused_and_says_where_to_go(tmp_path):
     assert "CuemsScript" in message
 
 
-def test_this_module_does_not_import_cuemsutils_xml():
-    """The surface claim, on this file's own source (clarification Q14)."""
-    source = Path(__file__).read_text(encoding="utf-8")
-    tree = ast.parse(source)
+def test_this_module_has_no_module_level_import_of_cuemsutils_xml():
+    """The surface claim, on this file's own AST (clarification Q14).
+
+    **Module level** only. One test needs ``CURRENT_VERSION`` in order to build
+    a document at its schema's current version, and names it inside the function
+    body where it costs nothing at import time — which is the same discipline
+    ``tools/__init__.py`` itself follows and the thing the subprocess check
+    below actually measures.
+    """
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
     offenders = []
-    for node in ast.walk(tree):
+    for node in tree.body:  # top level only
         if isinstance(node, ast.Import):
             offenders += [a.name for a in node.names if a.name.startswith("cuemsutils.xml")]
         elif isinstance(node, ast.ImportFrom) and (node.module or "").startswith(

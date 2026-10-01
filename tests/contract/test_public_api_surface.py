@@ -77,6 +77,28 @@ DEPRECATED_DOTTED = [
 #: The six methods FR-007 names.
 SCRIPT_METHODS = ("from_json", "load", "save", "to_json", "to_wire", "validate")
 
+#: Published **functions**, recorded with their signatures (feature 013, T061).
+#:
+#: They need their own section, and the reason is a limitation of ``_members``
+#: rather than a style choice: it only records the methods *of a class*, so a
+#: function lands as ``{"kind": "function", "bases": []}`` with no signature at
+#: all. Growing ``symbols`` by the name alone would pin that the name exists and
+#: nothing about what it takes — and ``partition_by_adoption(network_map)`` is a
+#: signature consumers call positionally.
+#:
+#: ``NodeList`` is deliberately **not** in ``PUBLIC_CLASSES``: it is a module,
+#: not a class, and ``_members`` would record it as
+#: ``{"kind": "module", "bases": []}``.
+PUBLIC_FUNCTIONS = {
+    # feature 013, FR-035: the non-mutating adoption split, published from the
+    # node model's public face. The body stays in ``xml/settings.py``.
+    "partition_by_adoption": ("cuemsutils.tools.NodeList", "partition_by_adoption"),
+    # feature 013, FR-036: validate a configuration document without an
+    # installation. Reached through the ``cuemsutils.tools`` façade, which is
+    # the published path — not through ``tools.config_validate``.
+    "validate_config_document": ("cuemsutils.tools", "validate_config_document"),
+}
+
 
 def _members(obj) -> dict:
     entry: dict = {"kind": type(obj).__name__, "bases": []}
@@ -96,6 +118,16 @@ def _members(obj) -> dict:
     return entry
 
 
+def _function_entry(fn) -> dict:
+    """A published function: its kind and its signature, nothing else."""
+    entry: dict = {"kind": type(fn).__name__}
+    try:
+        entry["signature"] = str(inspect.signature(fn))
+    except (TypeError, ValueError):
+        entry["signature"] = "<no signature>"
+    return entry
+
+
 def _snapshot() -> dict:
     import importlib
 
@@ -112,12 +144,17 @@ def _snapshot() -> dict:
             for name in sorted(PUBLIC_ERRORS)
         },
         "symbols": {},
+        # Feature 013 (FR-035, FR-036): published functions, with signatures.
+        "functions": {},
         # Feature 011 (FR-023, research R11): the entry points are a surface too.
         "scripts": installed_scripts(),
     }
     for label, (module_name, attribute) in sorted(PUBLIC_CLASSES.items()):
         module = importlib.import_module(module_name)
         snapshot["symbols"][label] = _members(getattr(module, attribute))
+    for label, (module_name, attribute) in sorted(PUBLIC_FUNCTIONS.items()):
+        module = importlib.import_module(module_name)
+        snapshot["functions"][label] = _function_entry(getattr(module, attribute))
     return snapshot
 
 
@@ -323,3 +360,45 @@ def test_the_deprecated_aliases_are_still_instances_of_the_real_classes():
 def test_the_published_scripts_are_the_declared_set():
     """Feature 011: ``[project.scripts]`` and the allowlist agree both ways."""
     assert set(installed_scripts()) == PUBLIC_SCRIPTS
+
+
+@pytest.mark.parametrize("label", sorted(PUBLIC_FUNCTIONS))
+def test_every_published_function_resolves_from_its_published_path(label):
+    """The path in ``PUBLIC_FUNCTIONS`` is the one a consumer is told to use.
+
+    Both names are published *lazily*, through a module ``__getattr__``, so
+    resolving them is the assertion: a typo in the lazy table is an
+    ``AttributeError`` nothing else would catch.
+    """
+    import importlib
+
+    module_name, attribute = PUBLIC_FUNCTIONS[label]
+    module = importlib.import_module(module_name)
+    assert callable(getattr(module, attribute))
+
+
+@pytest.mark.parametrize("label", sorted(PUBLIC_FUNCTIONS))
+def test_a_published_function_is_visible_to_dir(label):
+    """A lazily published name must still be enumerable.
+
+    ``dir()`` is how the snapshot and anything else that walks the surface finds
+    it; a module ``__getattr__`` without a matching ``__dir__`` publishes a name
+    that only someone who already knows it can discover.
+    """
+    import importlib
+
+    module_name, attribute = PUBLIC_FUNCTIONS[label]
+    assert attribute in dir(importlib.import_module(module_name))
+
+
+def test_the_golden_pins_each_published_function_signature():
+    """Not only the name. ``partition_by_adoption(network_map)`` is called
+    positionally by consumers, so the parameter is part of the contract."""
+    golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    functions = golden["functions"]
+    assert set(functions) == set(PUBLIC_FUNCTIONS)
+    assert functions["partition_by_adoption"]["signature"] == (
+        "(network_map) -> tuple[tuple, tuple]"
+    )
+    for label, entry in functions.items():
+        assert entry["signature"] != "<no signature>", label

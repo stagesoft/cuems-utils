@@ -20,6 +20,7 @@ imports, and the point here is what this file's own import graph pulls in.
 
 from __future__ import annotations
 
+import subprocess
 import sys
 
 from cuemsutils.tools.NodeList import partition_by_adoption
@@ -53,15 +54,28 @@ def test_importing_node_list_does_not_load_the_schema_stack():
     ``mapper``, then ``adapters``, and ``adapters._register_enums()`` imports
     ``NodeRole`` back out of ``NodeList`` while that module is still
     initializing — ``ImportError`` on a partially initialized module.
-    """
-    for name in [m for m in sys.modules if m.startswith("cuemsutils")]:
-        del sys.modules[name]
-    import cuemsutils.tools.NodeList  # noqa: F401
 
-    assert "cuemsutils.xml.settings" not in sys.modules
+    Run in a **subprocess**, which is not a detail. The first version of this
+    test cleared every ``cuemsutils`` module out of ``sys.modules`` and
+    re-imported, which measured the right thing and then poisoned the rest of
+    the session: 157 unrelated tests failed in the full run and passed in
+    isolation, because the re-import built a second set of classes while cached
+    registries, schema caches and the import-time enum registration still
+    referred to the first. A clean interpreter is the only honest way to ask
+    what one import pulls in.
+    """
+    code = (
+        "import sys; import cuemsutils.tools.NodeList as n; "
+        "assert 'cuemsutils.xml.settings' not in sys.modules, "
+        "sorted(m for m in sys.modules if m.startswith('cuemsutils.xml')); "
+        "assert callable(n.partition_by_adoption)"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
 
 
 def test_the_re_export_is_the_same_function_not_a_wrapper():
+    """A wrapper would be a second thing to keep in step with the signature."""
     from cuemsutils.xml.settings import NetworkMap
 
     assert partition_by_adoption is NetworkMap.partition_by_adoption
@@ -120,19 +134,26 @@ def test_the_input_map_is_unchanged():
     assert network_map == before
 
 
-def test_this_test_module_does_not_import_cuemsutils_xml():
-    """The surface claim, asserted on this file's own source."""
+def test_this_test_module_has_no_module_level_import_of_cuemsutils_xml():
+    """The surface claim, on this file's own AST rather than on its text.
+
+    Scanning lines would match the prose above, which names
+    ``cuemsutils.xml`` in order to explain why it is not imported — the kind of
+    false positive that gets a checking test deleted. Only **module-level**
+    imports are checked: the one function that asserts identity with the
+    implementation has to name it, and it does so inside the function body,
+    where it costs nothing at import time.
+    """
+    import ast
     from pathlib import Path
 
-    source = Path(__file__).read_text(encoding="utf-8")
-    # One deliberate exception: ``test_the_re_export_is_the_same_function_not_a_wrapper``
-    # has to name the implementation to assert identity with it. Every other
-    # line must reach the function through ``cuemsutils.tools``.
-    offenders = [
-        line
-        for line in source.splitlines()
-        if "import" in line
-        and "cuemsutils.xml" in line
-        and "NetworkMap" not in line
-    ]
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    offenders = []
+    for node in tree.body:  # top level only
+        if isinstance(node, ast.Import):
+            offenders += [a.name for a in node.names if a.name.startswith("cuemsutils.xml")]
+        elif isinstance(node, ast.ImportFrom) and (node.module or "").startswith(
+            "cuemsutils.xml"
+        ):
+            offenders.append(node.module)
     assert offenders == [], offenders

@@ -21,7 +21,7 @@ from typing import Callable, Hashable
 # consumer imports ``node`` from here, never from ``cuemsutils.config.network_map``.
 from ..config.network_map import node  # noqa: F401
 
-__all__ = ["NodeRole", "NodeIndex", "node"]
+__all__ = ["NodeRole", "NodeIndex", "node", "partition_by_adoption"]
 
 
 class NodeRole(Enum):
@@ -284,3 +284,53 @@ class NodeIndex(dict):
                 n.get("role_id"), n.get("alias"), n.get("hostname"),
             ))
         return tuple(sig)
+
+
+# --- the published adoption split (feature 013, T057, FR-035) -----------------
+#
+# ``NetworkMap.partition_by_adoption`` is the non-mutating replacement for
+# ``get_nodes_by_adoption``, and before this it lived only at
+# ``cuemsutils.xml.settings`` — which a consumer may not import (clarification
+# Q14). So the one correct way to split a network map was unreachable and the
+# mutating method was the only option. This publishes it; the body does not move.
+#
+# **Why a module ``__getattr__`` and not an import.** The ``node`` import at the
+# top of this file is ``from ..config.network_map import node`` and does not load
+# ``xml.settings``. A module-level ``from ..xml.settings import NetworkMap``
+# would load ``mapper``, which loads ``adapters``, and ``adapters`` calls
+# ``_register_enums()`` at import time — which does ``from ..tools.NodeList
+# import NodeRole`` while *this* module is still initializing. Placed beside the
+# ``node`` import, before the ``NodeRole`` class statement, that raises
+# ``ImportError`` on a partially initialized module.
+#
+# Resolving on first *access* instead means ``import cuemsutils.tools.NodeList``
+# costs nothing and the cycle never forms, because by the time anyone touches
+# the name both ``NodeRole`` and ``NodeIndex`` are defined.
+#
+# It returns the function **itself**, not a wrapper: a wrapper would be a second
+# thing to keep in step with the signature, and
+# ``test_partition_public.py`` asserts the identity.
+
+_LAZY = {"partition_by_adoption": ("..xml.settings", "NetworkMap")}
+
+
+def __getattr__(name: str):
+    """Resolve ``partition_by_adoption`` on first access (FR-035)."""
+    target = _LAZY.get(name)
+    if target is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, holder = target
+    from importlib import import_module
+
+    module = import_module(module_name, __package__)
+    return getattr(getattr(module, holder), name)
+
+
+def __dir__() -> list[str]:
+    """``dir()`` answers with the published names, lazy ones included.
+
+    Without this, a lazily published name is invisible to ``dir()`` and to
+    anything that enumerates the module — including the public-API snapshot,
+    which is how this name is pinned (T061).
+    """
+    return sorted({*globals(), *_LAZY})

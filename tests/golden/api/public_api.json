@@ -98,6 +98,16 @@
       }
     }
   },
+  "functions": {
+    "partition_by_adoption": {
+      "kind": "function",
+      "signature": "(network_map) -> tuple[tuple, tuple]"
+    },
+    "validate_config_document": {
+      "kind": "function",
+      "signature": "(path: 'str | PathLike') -> 'LoadReport'"
+    }
+  },
   "scripts": [
     "cuems-convert-documents",
     "cuems-init-node",

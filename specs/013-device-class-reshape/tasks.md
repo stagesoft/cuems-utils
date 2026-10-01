@@ -580,7 +580,7 @@ adoption partition, and each of the four configuration schemas validates through
 
 ### Tests first
 
-- [ ] T058 [P] Failing-first test `tests/contract/test_partition_public.py` — imports
+- [x] T058 [P] Failing-first test `tests/contract/test_partition_public.py` — imports
       `partition_by_adoption` from `cuemsutils.tools.NodeList` and **calls** it
       (SC-014). An unused import of the name passes without proving the public
       function works. The map is shaped like `ConfigManager.network_map`:
@@ -590,11 +590,11 @@ adoption partition, and each of the four configuration schemas validates through
       not in` each element. Do not import `cuemsutils.xml`. Do not import
       `tests/contract/test_adoption_selection.py`. Copy those assertions into
       this file. Do not call them
-- [ ] T069 [P] Failing-first test `tests/contract/test_validate_advice_per_schema.py`
+- [x] T069 [P] Failing-first test `tests/contract/test_validate_advice_per_schema.py`
       — the deprecation message names the right target for all six schemas, on the
       message text (FR-036, first half, SC-015). A configuration document is not sent
       at `CuemsScript.validate`
-- [ ] T070 [P] Failing-first test `tests/contract/test_validate_config_document.py`
+- [x] T070 [P] Failing-first test `tests/contract/test_validate_config_document.py`
       — imports `validate_config_document` from `cuemsutils.tools`, not from
       `cuemsutils.tools.config_validate` (FR-036, SC-015). For each of the four
       configuration schemas: a valid document, an invalid one that names the field,
@@ -605,7 +605,7 @@ adoption partition, and each of the four configuration schemas validates through
 
 ### Implementation
 
-- [ ] T057 [P] Publish `partition_by_adoption` from `src/cuemsutils/tools/NodeList.py`.
+- [x] T057 [P] Publish `partition_by_adoption` from `src/cuemsutils/tools/NodeList.py`.
       The body stays `NetworkMap.partition_by_adoption` in `xml/settings.py`:
       same function, same signature, same behaviour (FR-035). Do not import
       `xml.settings` at module scope, and do not place the binding next to the
@@ -624,7 +624,7 @@ adoption partition, and each of the four configuration schemas validates through
       must return that same function. Leave `get_nodes_by_adoption` where it
       is. T058 fails before this lands and passes after. The golden signature
       for this name lands in this same commit (T061)
-- [ ] T059 Per-schema deprecation advice (FR-036, first half). The test is T069; this
+- [x] T059 Per-schema deprecation advice (FR-036, first half). The test is T069; this
       task makes it pass. The single replacement string in
       `src/cuemsutils/xml/__init__.py` (`_READER_WRITER_METHODS`,
       `validate_object` → `CuemsScript.validate`) sends every schema at the script
@@ -633,7 +633,7 @@ adoption partition, and each of the four configuration schemas validates through
       sent at `validate_config_document`, and a script at `CuemsScript.validate`. The
       alias is one class for every schema, so the schema-specific text has to come from
       `schema_name` at the call, not from a second alias
-- [ ] T060 Public validator `validate_config_document(path)` in
+- [x] T060 Public validator `validate_config_document(path)` in
       `src/cuemsutils/tools/config_validate.py`, returning the existing `LoadReport`
       (FR-036, second half, [contracts/library-surface.md](contracts/library-surface.md)
       §4.2). The test is T070; this task makes it pass. It validates without
@@ -644,7 +644,7 @@ adoption partition, and each of the four configuration schemas validates through
       Update that module's docstring, which currently says the body stays otherwise
       empty. Consumers write `from cuemsutils.tools import validate_config_document`.
       They do not name `config_validate`
-- [ ] T061 Extend the public-api snapshot and update
+- [x] T061 Extend the public-api snapshot and update
       `tests/golden/api/public_api.json` (SC-016). `NodeList` is not in
       `PUBLIC_CLASSES`. `_members()` only records methods of classes: a function
       becomes `{"kind": "function", "bases": []}` with no signature, so growing
