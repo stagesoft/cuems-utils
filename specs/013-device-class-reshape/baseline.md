@@ -168,3 +168,75 @@ ERROR tests/unit/test_fieldspec_alternatives.py
 
 The same collection error covers T008 and T010. T009 (the convention test)
 passes on the pre-change schemas and was not part of that failure.
+
+---
+
+## Failing-first (phase 7, axis D)
+
+Recorded before any `script.xsd` edit, with `test_cue_class_dispatch.py` and
+`test_cue_wire_key.py` in the tree:
+
+```text
+16 failed, 3 passed in 1.92s
+```
+
+The three that passed are the import check, the `ActionCue`/`FadeCue`/`CueList`
+wire-key check and its sibling — all three are claims the pre-change schema
+already satisfied, which is the point of stating them separately.
+
+---
+
+## T054 — the ratchet, at each schema commit rather than only at the tip
+
+Three commits on this branch edit a schema. Each was checked out into a detached
+worktree and `tests/contract/test_schema_scope.py` and
+`tests/contract/test_schema_name_overlap.py` were run **there**, not read from
+the diff (SC-009).
+
+| Commit | Schema edited | `test_schema_scope.py` + `test_schema_name_overlap.py` |
+|---|---|---|
+| `522664a` | `project_mappings.xsd` (axis A) | 16 passed, 1 skipped |
+| `c0a41c0` | `settings.xsd` (axis C) | 16 passed, 1 skipped |
+| `23dd444` | `script.xsd`, `hardware_outputs.xsd` (axis D) | 16 passed, 1 skipped |
+
+So every hash pin and every overlap-allowlist entry moved **in the commit that
+moved its schema**. No corrective commit was needed and no history was rewritten.
+
+### A method note, because the first run of this audit reported a failure that was not one
+
+The first pass reported `test_every_schema_matches_its_recorded_hash` failing at
+`23dd444` for `script.xsd` and `hardware_outputs.xsd` — while the hashes
+recorded in that commit matched the files in that commit exactly, verified by
+hand with `git show | sha256sum`.
+
+The cause was **stale bytecode**, not drift. `test_schema_scope.py` differs
+between consecutive commits here only in two 64-character hex digests, so the
+file's **size is identical** across them, and three `git checkout`s inside one
+second give identical mtimes. CPython validates a cached `.pyc` on source mtime
+and size, so it reused the previous commit's compiled module and compared the
+new schemas against the old pins.
+
+Anyone repeating this audit must clear `__pycache__` between checkouts, or run
+with `PYTHONDONTWRITEBYTECODE=1`. Recorded because the failure is convincing:
+it names real files and a real assertion, and the tempting conclusion — "the
+hash pin lagged, add a corrective commit" — would have been wrong.
+
+---
+
+## T055 / T056 — the pins this feature did not move
+
+Measured against this feature's branch point, `ce05645`.
+
+| Claim | Result |
+|---|---|
+| `KNOWN_DIVERGENT_DECLARATIONS` is empty | **empty** — feature 012's completion marker still holds |
+| `KNOWN_IDENTICAL_DUPLICATES` names every new cross-schema type | one entry changed: `NonEmptyString` gains `hardware_outputs` and `script`, so all six schemas now declare it |
+| `test_version_marker.py` unmodified (`EXPECTED_VERSIONS`, `DELIBERATE_IDENTITY_STEPS`) | **unmodified** — zero-line diff against `ce05645` |
+| `xml/versioning.py` unmodified (`CURRENT_VERSION`, the conversion registry) | **unmodified** — zero-line diff |
+| `tests/packaging/test_no_version_bump.py` still pins `0.1.0rc16` / `1.3.0-23` / `0.1.0-8` | **unmodified** |
+
+`NonEmptyString` is the only type this feature declares in a schema that already
+declared it elsewhere. The three new named types in `script.xsd`
+(`CueClassType`, `CueOutputClassType`, `CueOutputType`) and
+`hardware_outputs.xsd`'s `OutputGroupsType` are each declared once;
+`test_schema_name_overlap.py` would fail if any of them collided, and it passes.

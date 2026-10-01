@@ -548,18 +548,18 @@ feature took no version step.
 **Independent Test**: `test_schema_scope.py` and `test_schema_name_overlap.py` pass at
 the tip, `KNOWN_DIVERGENT_DECLARATIONS` is empty, and `test_no_version_bump.py` passes.
 
-- [ ] T054 [US5] Check out each commit that edits a schema and run
+- [x] T054 [US5] Check out each commit that edits a schema and run
       `tests/contract/test_schema_scope.py` and `tests/contract/test_schema_name_overlap.py`
       there, not only at the tip (SC-009). Record each commit and its result in
       `baseline.md`. A failure means the hash or the overlap allowlist did not move in
       that commit. Reading the diff is not the check. Fix a hash that landed later by
       rewriting history only if that commit has not been published; otherwise add a
       corrective commit and say so
-- [ ] T055 [P] [US5] Confirm `KNOWN_DIVERGENT_DECLARATIONS` in
+- [x] T055 [P] [US5] Confirm `KNOWN_DIVERGENT_DECLARATIONS` in
       `tests/contract/test_schema_name_overlap.py` is still empty, and that any type this
       feature declares in more than one schema is in `KNOWN_IDENTICAL_DUPLICATES` with
       the schemas named (scenarios 2 and 3)
-- [ ] T056 [P] [US5] Confirm `tests/contract/test_version_marker.py`'s `EXPECTED_VERSIONS`
+- [x] T056 [P] [US5] Confirm `tests/contract/test_version_marker.py`'s `EXPECTED_VERSIONS`
       and `DELIBERATE_IDENTITY_STEPS` are unmodified against the branch point, and that
       `tests/packaging/test_no_version_bump.py` still pins `0.1.0rc16` (FR-020, FR-034,
       SC-006, SC-010)
