@@ -500,7 +500,7 @@ commit, the before shape, the after shape, and a classification of *raises*, *ke
 resolving and becomes wrong*, or *keeps resolving correctly*. Line numbers are checked
 against the sibling trees, not transcribed from this spec.
 
-- [ ] T051 [US4] Write `specs/013-device-class-reshape/migration-guide.md`. Required
+- [x] T051 [US4] Write `specs/013-device-class-reshape/migration-guide.md`. Required
       sections, each a measured site and not a paraphrase:
       - `cuems-engine` — `NodeEngine.py:456`, `:457`, `:566` (M2; `:566` unguarded),
         plus `:508` and `:598` (M13, `node_mappings`), plus the six `node_conf` player
@@ -525,11 +525,11 @@ against the sibling trees, not transcribed from this spec.
         research R9 measured, in both `sequence.component.ts` files, with the wire
         contract `{"Cue": {…, "class": "audio"}}` written out (FR-032). Flow 05 writes
         its characterization tests once, against this section
-- [ ] T052 [US4] Rollback section (FR-028, scenario 8). The version marker does not
+- [x] T052 [US4] Rollback section (FR-028, scenario 8). The version marker does not
       move, so an older `cuems-utils` gets a raw schema error on a new-shape document,
       not `DocumentTooNewError`. State the point after which the backup stops being a
       usable rollback — the shape of feature 012's guide §9b, answered for a reshape
-- [ ] T053 [P] [US4] A test `tests/contract/test_migration_guide_names_sites.py` that
+- [x] T053 [P] [US4] A test `tests/contract/test_migration_guide_names_sites.py` that
       fails if a site named in M1–M13 is absent from the guide, and that records the
       sibling commit each line number was checked against. Line numbers drift; the
       commit pin is what makes the check repeatable
