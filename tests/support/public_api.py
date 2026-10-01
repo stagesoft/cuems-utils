@@ -14,7 +14,11 @@ from pathlib import Path
 #: The console-script entry points this library publishes (feature 011, FR-023,
 #: research R11). Recorded in the public API golden under ``"scripts"``: a
 #: renamed or dropped script is a surface change the snapshot must see.
-PUBLIC_SCRIPTS = frozenset({"cuems-convert-documents", "cuems-init-node"})
+PUBLIC_SCRIPTS = frozenset({
+    "cuems-convert-documents",
+    "cuems-init-node",
+    "cuems-reshape-devices",
+})
 
 
 def installed_scripts() -> list[str]:

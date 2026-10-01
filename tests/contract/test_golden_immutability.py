@@ -34,7 +34,9 @@ the new entry. ``tests/contract/test_public_api_surface.py``'s
 deliberately** (T024, FR-055). ``project_mappings``' device and default
 elements changed shape, so the four corpus documents and both of each
 document's recorded dicts (``*.reader.json``, ``*.config.json``) moved with
-the schema. No other golden in this manifest was rewritten.
+the schema. ``api/public_api.json`` is re-hashed once more in the tool's
+commit (T035): its ``scripts`` array gains ``cuems-reshape-devices`` and no
+other key moves.
 
 
 ``MANIFEST.sha256`` pins the hash of every file under this directory at the

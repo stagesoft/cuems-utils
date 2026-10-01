@@ -100,7 +100,8 @@
   },
   "scripts": [
     "cuems-convert-documents",
-    "cuems-init-node"
+    "cuems-init-node",
+    "cuems-reshape-devices"
   ],
   "symbols": {
     "ConfigBase": {

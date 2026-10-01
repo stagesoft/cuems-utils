@@ -51,6 +51,10 @@ cuems-convert-documents = "cuemsutils.xml.convert_documents:main"
 # default_mappings.xml as one atomic set; --check verifies the four identity
 # locations. Invoked by debian/cuems-utils.postinst by absolute path.
 cuems-init-node = "cuemsutils.tools.init_node:main"
+# Feature 013 (FR-022): one-shot rewrite of the pre-013 device shape. Axis A
+# in this commit; settings and scripts stay not applicable until their schemas
+# narrow. Does not move doc_version and does not call cuems-convert-documents.
+cuems-reshape-devices = "cuemsutils.xml.reshape_devices:main"
 
 [project.optional-dependencies]
 systemd = [

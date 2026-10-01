@@ -290,23 +290,23 @@ changes no bytes.
 
 ### Tests for User Story 2
 
-- [ ] T028 [P] [US2] Contract test `tests/contract/test_reshape_idempotent.py` — a second
+- [x] T028 [P] [US2] Contract test `tests/contract/test_reshape_idempotent.py` — a second
       run reports nothing to do and no file's bytes change (FR-026). Compare bytes, not
       the report
-- [ ] T029 [P] [US2] Contract test `tests/contract/test_reshape_backup.py` — each rewrite
+- [x] T029 [P] [US2] Contract test `tests/contract/test_reshape_backup.py` — each rewrite
       is preceded by `<name>.<YYYYMMDDTHHMMSS>.bak` via `shutil.copy2`, and a backup
       failure leaves that document unrewritten while the run continues (FR-025)
-- [ ] T030 [P] [US2] Integration test `tests/integration/test_reshape_roundtrip.py` — an
+- [x] T030 [P] [US2] Integration test `tests/integration/test_reshape_roundtrip.py` — an
       old-shape mappings document and its hand-authored new-shape equivalent decode
       equal field for field (FR-024, scenario 2). No value is computed or dropped
-- [ ] T031 [P] [US2] Integration test `tests/integration/test_reshape_discovery.py` — with
+- [x] T031 [P] [US2] Integration test `tests/integration/test_reshape_discovery.py` — with
       no PATH arguments the tool discovers `CUEMS_CONF_PATH` and the library through
       `src/cuemsutils/tools/library_reach.py`; a script not named `script.xml` is found
       by root element (FR-023, scenario 7); an unrecognised root is skipped and named
-- [ ] T032 [P] [US2] Contract test `tests/contract/test_reshape_leaves_version.py` — a
+- [x] T032 [P] [US2] Contract test `tests/contract/test_reshape_leaves_version.py` — a
       rewritten document's `doc_version` equals the value it arrived with (FR-020,
       scenario 6)
-- [ ] T033 [P] [US2] Integration test `tests/integration/test_reshape_modes.py` — exit 0
+- [x] T033 [P] [US2] Integration test `tests/integration/test_reshape_modes.py` — exit 0
       when everything is new-shape, exit 1 when `--check` finds an old-shape document or
       a document was skipped, exit 2 on a usage error or an unresolvable installation.
       `--dry-run` writes nothing and names the backup path each document would get
@@ -314,7 +314,7 @@ changes no bytes.
 
 ### Implementation for User Story 2
 
-- [ ] T034 [US2] Implement `src/cuemsutils/xml/reshape_devices.py` per the contract.
+- [x] T034 [US2] Implement `src/cuemsutils/xml/reshape_devices.py` per the contract.
       Stdlib `ElementTree` only — the document it reads is invalid against the current
       schema, which is the normal case. Schema by root element, the way
       `convert_documents` does. Shape classification: old if a reshaped element name is
@@ -324,14 +324,14 @@ changes no bytes.
       validate is not written. Per-document `<path>: <verdict>` lines and a closing
       summary. This task ships the **axis A** transformations from
       [data-model.md](data-model.md) §6 only
-- [ ] T035 [US2] Register the entry point in `pyproject.toml` `[project.scripts]`:
+- [x] T035 [US2] Register the entry point in `pyproject.toml` `[project.scripts]`:
       `cuems-reshape-devices = "cuemsutils.xml.reshape_devices:main"`. Add the name to
       `PUBLIC_SCRIPTS` in `tests/support/public_api.py`. Update
       `tests/golden/api/public_api.json` in **this same commit** for the script entry
       only, with the reason in the commit message. SC-016 already names the script;
       do not leave the golden for a follow-up. FR-035 and FR-036 are a later, separate
       golden event
-- [ ] T036 [US2] Idempotence and the "not applicable" line for documents this feature
+- [x] T036 [US2] Idempotence and the "not applicable" line for documents this feature
       does not reshape (`network_map.xml`, `project_settings`). The tool never calls
       `cuems-convert-documents`' version gate and never touches feature 012's identity
       surface (`SENTINEL`, `coerce_identity`, `--remint`)
