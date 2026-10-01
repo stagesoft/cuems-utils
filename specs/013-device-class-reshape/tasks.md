@@ -662,25 +662,25 @@ symbols this feature added.
 
 ## Phase 11: Polish
 
-- [ ] T062 Measure SC-PERF-001, SC-PERF-002 and SC-PERF-003 against the numbers T004
+- [x] T062 Measure SC-PERF-001, SC-PERF-002 and SC-PERF-003 against the numbers T004
       wrote into `baseline.md`, as ranges. The tool's throughput is measured on
       `remint_200` and compared with the calibration budget T004 recorded. Do not
       choose a budget in this task. An exceedance is recorded as exceeded, with the
       mechanism named — never restated as passing. Timing tests go in
       `tests/integration/`; do not create `tests/performance/`
-- [ ] T063 [P] Run `make_defaults` and confirm the three generated documents validate
+- [x] T063 [P] Run `make_defaults` and confirm the three generated documents validate
       against the reshaped schemas (R14). This is the check `debian/rules` will run at
       package build
-- [ ] T064 [P] Confirm the suite introduces no new lint finding and no new deprecation
+- [x] T064 [P] Confirm the suite introduces no new lint finding and no new deprecation
       warning beyond the 215 the baseline run reports (SC-QUALITY-001)
-- [ ] T068 Run `cuems-engine`'s suite against this branch and against the branch point,
+- [x] T068 Run `cuems-engine`'s suite against this branch and against the branch point,
       and record both results in
       `specs/013-device-class-reshape/sibling-repository-updates.md` (SC-008, SC-013).
       The run must include a node carrying no video device, so `NodeEngine.py:566`'s
       unguarded subscript is exercised, and the six `node_conf` player reads must
       resolve to the same values in both arms. This is the instrument feature 012
       measured to be stronger than a call-site census. Do not infer the result
-- [ ] T065 Write the feature's entry in `CLAUDE.md` "Recent Changes" in the commit that
+- [x] T065 Write the feature's entry in `CLAUDE.md` "Recent Changes" in the commit that
       marks the feature landed, on the pattern of features 011 and 012: what reshaped,
       the container-element reason, the new entry point, the two published names, and
       that nothing ships until the coordinated tag (D27). Do not hand-edit

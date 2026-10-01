@@ -447,14 +447,16 @@ def _assert_every_choice_member_has_a_builder(builders: dict) -> tuple[str, ...]
             f"CueListContentsType offers {missing} with no example builder in "
             f"descriptor._script_cue_builders — add one"
         )
-    for field in choice.fields:
-        if field.name == "CueList" or not field.alternatives:
+    # ``member``, not ``field``: this module imports ``dataclasses.field`` at
+    # the top, and a loop variable of that name shadows it.
+    for member in choice.fields:
+        if member.name == "CueList" or not member.alternatives:
             continue
-        by_class = builders[field.name]
-        absent = [value for value, _key in field.alternatives if value not in by_class]
+        by_class = builders[member.name]
+        absent = [value for value, _key in member.alternatives if value not in by_class]
         if absent:
             raise RuntimeError(
-                f"{field.name} names an xs:alternative for {absent} with no "
+                f"{member.name} names an xs:alternative for {absent} with no "
                 f"example builder in descriptor._script_cue_builders — add one"
             )
     return leaf_names
@@ -468,8 +470,8 @@ def _build_choice_members(builders: dict, leaf_names: tuple[str, ...]) -> list:
     for name in leaf_names:
         builder = builders[name]
         if isinstance(builder, dict):
-            field = choice.field(name)
-            cues.extend(builder[value]() for value, _key in field.alternatives)
+            member = choice.field(name)
+            cues.extend(builder[value]() for value, _key in member.alternatives)
             continue
         cues.append(builder())
     return cues

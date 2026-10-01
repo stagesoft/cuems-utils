@@ -90,8 +90,18 @@ because the cues are new-shape by the time it validates.
 
 Verified at `cuems-engine` `feat/xml-refactor` **`1662a99`** (clean working tree).
 
-**Nothing in this repository needs to change for this feature.** It is listed first, and in
-full, because that is a result worth being able to check rather than take on trust.
+**No source file in this repository needs to change** — measured, not asserted: all three
+runs are in [sibling-repository-updates.md](sibling-repository-updates.md). The suite goes
+from 923 passed at the branch point to 96 failures on this branch and back to one with a
+single `cuems-reshape-devices` invocation over `dev/test_xml_files/`, and every one of those
+96 is an old-shape **fixture**, never a call site. The fifteen sites below are listed in
+full because "nothing to do here" is a result worth being able to check.
+
+Two things this repository does have to do, neither of them a code change: run the tool over
+`dev/test_xml_files/` (five documents move), and update `tests/test_port_handler.py`, which
+names the old player elements. A third, separate from this feature: repair
+`dev/test_xml_files/projects/complex_test/project_mappings.xml`, which has been invalid
+against `project_mappings.xsd` for several releases — see §7.
 
 | Site | Code | Classification |
 |---|---|---|
@@ -378,6 +388,29 @@ fail against the reshaped `settings.xsd` until it is updated. The fix in each ca
 same four-line edit the tool performs: wrap the three players in `<players>` and give each a
 `class`, leaving `<audiomixer>` where it is. `cuems-reshape-devices` will do it for you —
 point it at the fixture directory.
+
+### The engine's three runs, as the worked example
+
+[sibling-repository-updates.md](sibling-repository-updates.md) records them. The short
+version, because it is the shape every repository in the table above should expect:
+
+| Arm | Result |
+|-----|--------|
+| branch point, fixtures as committed | 923 passed |
+| this branch, fixtures as committed | 70 failed, 827 passed, 26 errors — **one cause** |
+| this branch, after one tool invocation | 1 failed, 922 passed |
+
+And the residual one is worth reading before you meet your own: it is **this guide's
+half-migrated-library edge case**, reached because the tool *refused* one document —
+`dev/test_xml_files/projects/complex_test/project_mappings.xml`, which has been invalid
+against `project_mappings.xsd` for several releases (an `<output>` with no `<id>`, and a
+missing `<new_nodes>`). The branch-point library rejects it too, verified. So the project's
+settings migrated and its mappings could not, and the project stopped loading.
+
+**The lesson to carry into your own repository**: the tool will not rewrite a document that
+would not validate, by design — so a fixture that has quietly been invalid for releases
+surfaces now, as a refusal, in the middle of a migration. Fix the document, then re-run the
+tool. Do not read the refusal as the reshape failing.
 
 ---
 

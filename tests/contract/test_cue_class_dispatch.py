@@ -23,8 +23,13 @@ from xmlschema import XMLSchema11
 from cuemsutils.cues.ActionCue import ActionCue
 from cuemsutils.cues.AudioCue import AudioCue
 from cuemsutils.cues.CueList import CueList
-from cuemsutils.cues.CueOutput import AudioCueOutput, CueOutput, DmxCueOutput, VideoCueOutput
 from cuemsutils.cues.CuemsScript import CuemsScript
+from cuemsutils.cues.CueOutput import (
+    AudioCueOutput,
+    CueOutput,
+    DmxCueOutput,
+    VideoCueOutput,
+)
 from cuemsutils.cues.DmxCue import DmxCue
 from cuemsutils.cues.FadeCue import FadeCue
 from cuemsutils.cues.MediaCue import MediaCue

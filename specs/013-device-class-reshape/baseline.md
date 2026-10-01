@@ -240,3 +240,183 @@ declared it elsewhere. The three new named types in `script.xsd`
 (`CueClassType`, `CueOutputClassType`, `CueOutputType`) and
 `hardware_outputs.xsd`'s `OutputGroupsType` are each declared once;
 `test_schema_name_overlap.py` would fail if any of them collided, and it passes.
+
+---
+
+## T062 — the three performance criteria, measured
+
+Method throughout: T004's, unchanged — best of 3 medians of 5 warm runs, one
+warm call first, fresh process, pyenv 3.11.9. The branch point is `ce05645`,
+measured in a detached worktree with the same interpreter.
+
+### SC-PERF-001 — mappings-document load: **EXCEEDED**
+
+Budget: 110% of T004's 15.153 ms = **16.668 ms**.
+
+| Document | T004 (pre-change) | This branch, two runs | Change |
+|----------|-------------------|-----------------------|--------|
+| `project_mappings` | **15.153 ms** | **20.442 / 20.601 ms** | **+35%** |
+| `settings` | 13.725 ms | 16.523 / 16.842 ms | +20% |
+| `script` | 12.939 ms | 14.430 / 14.595 ms | +12% |
+| `hardware_outputs` | 0.405 ms | 0.569 / 0.600 ms | +41% |
+
+**SC-PERF-001 is exceeded, by 23%** (20.44 ms against a 16.67 ms budget), and
+every reshaped schema's load got slower. Recorded as exceeded rather than
+restated as passing.
+
+### The mechanism, profiled rather than guessed
+
+**One cause, two places it is paid.**
+
+Each `xs:alternative` test and each `xs:assert` is an XPath expression, and
+`elementpath` evaluates one by constructing an `XPathContext` and then — the
+dominant part — a **fresh node tree over the document**
+(`elementpath.tree_builders.build_node_tree`), *per evaluation*.
+
+* **Per decode.** On the show path (`CuemsScript.load`, `read_document`) the
+  schema is cached, so the whole delta is evaluation. Profiling 20 loads of
+  `complex_test/script.xml`: `XsdAlternative.test` is called 20 times per load
+  and `build_node_tree` 21 times, together ~12% of the load — matching the
+  measured +12%. `complex_test` carries six `<Cue>` and six `<CueOutput>`
+  elements against four alternatives each.
+* **Per schema build.** A reshaped schema is also more expensive to *build*,
+  because those expressions are parsed at build time. Measured directly, median
+  of seven:
+
+  | Schema | Branch point | This branch | Change |
+  |--------|--------------|-------------|--------|
+  | `project_mappings` | 14.044 ms | 15.028 ms | +1.0 ms |
+  | `settings` | 12.618 ms | 14.025 ms | +1.4 ms |
+  | `hardware_outputs` | 3.166 ms | 4.374 ms | +1.2 ms |
+  | `script` | 36.938 ms | 35.516 ms | −1.4 ms (noise) |
+
+  This matters on the **configuration** path and only there, because
+  `XmlReaderWriter`'s `schema` setter (`xml/xml_reader_writer.py:36`)
+  constructs a **fresh `XMLSchema11` per instance** instead of using the cached
+  `get_schema` — so every `ProjectMappings(path)` pays a schema build. That
+  shim predates this feature; what this feature did was make the build it
+  repeats more expensive.
+
+  Even so, the build is the *smaller* half: `project_mappings` grew 5.3 ms in
+  total and only 1.0 ms of that is the build. The other ~4.3 ms is per-decode
+  evaluation of `DevicesType`'s and `DefaultsType`'s two new `xs:assert`s and
+  `device`'s `xs:alternative`.
+
+**The cost scales with document size × number of class-carrying elements**, not
+with the number of alternatives declared. That is the load-bearing consequence:
+a larger show pays proportionally more, and a fifth alternative on `Cue` costs
+nothing extra while a fifth `<Cue>` in the document does.
+
+### No mitigation applied in this pass, and the candidates
+
+Stated so the next person does not have to re-derive them:
+
+1. **Route `XmlReaderWriter`'s `schema` setter through the cached
+   `get_schema`.** One line, removes a whole schema build from every
+   configuration load. It changes a shared hot path on a deprecated shim, so it
+   deserves its own commit and its own measurement rather than a tail-end edit
+   in a polish task.
+2. **A cheaper discriminator than an XPath test.** `xs:alternative test="@class='video'"`
+   is the convention this feature is built on (contract `schema-conventions.md`),
+   so this is a design change, not a tweak.
+3. **Fewer `xs:assert`s.** FR-013 requires the uniqueness constraint to be in
+   the schema and not a T2 rule, deliberately — the clarification exists to stop
+   the editor accepting a duplicate the library rejects. So this one is closed.
+
+### SC-PERF-002 — suite per-test time: **met**
+
+Three runs, same basis as T004 (wall time ÷ total collected):
+
+| Run | Result | Wall | Per test |
+|-----|--------|------|----------|
+| 1 | 3400 passed, 112 skipped, 2 xfailed | 59.06 s | 16.81 ms |
+| 2 | same | 58.55 s | 16.66 ms |
+| 3 | same | 58.84 s | 16.75 ms |
+
+**16.66–16.81 ms/test against a ≤ 18.04 ms budget — met.** T004's denominator
+was 16.24–16.67 ms/test over 3,364 collected; the suite has since grown to
+3,514, so per test it is +0.8% to +2.6%.
+
+### SC-PERF-003 — the tool's throughput: **EXCEEDED, and the budget is the wrong instrument**
+
+Calibration budget from T004: **286.2–292.1 MB/s**.
+
+`remint_200`, 400 files / 3,962,000 bytes, every script in the **old** shape
+(produced by inverting axis D's rename on the fixture), three repeats:
+
+| Repeat | Elapsed | Throughput | Reshaped |
+|--------|---------|------------|----------|
+| 1 | 6008 ms | **0.6 MB/s** | 200 |
+| 2 | 5989 ms | 0.6 MB/s | 200 |
+| 3 | 5993 ms | 0.6 MB/s | 200 |
+
+**Exceeded by roughly 480×.** The mechanism is not subtle and not a defect: the
+tool **validates each reshaped document against the schema before writing it**,
+which is what makes "a document that would not validate is not written" true —
+the safety property the whole design rests on — and since this feature it also
+applies registered version conversions to a throwaway copy so that validation
+answers the right question (§1a of the migration guide). A full XSD 1.1
+validation of a ~10 KB script with `xs:assert` and `xs:alternative` costs ~30 ms,
+so 200 scripts cost ~6 s.
+
+T004's calibration deliberately measured read + atomic rewrite with **no
+substitution and no validation**. It therefore measures I/O, while this
+operation is dominated by schema validation: the two numbers are not
+commensurable. This is the same shape of finding feature 012 recorded for its
+FR-PERF-001 500 MB/s floor, one layer further out — there the budget conflated
+bulk throughput with per-file syscall cost; here it conflates it with per-document
+validation cost.
+
+**The figure that is actually actionable**: ~30 ms per script, so a 200-project
+library migrates in about 6 seconds, once, offline, with backups. That is
+acceptable in absolute terms, and it is the number the migration guide should be
+read against. Measuring it as MB/s is what produces the 480×.
+
+For completeness, the same 400 files **already in the new shape** (the no-op
+path: parse, classify, report "already current") run at 30.2–30.6 MB/s —
+124–126 ms — so the idempotent second run the guide tells operators to make is
+cheap, and the cost above is entirely the one-time reshape-and-validate.
+
+---
+
+## T063 — the generated documents validate against the reshaped schemas
+
+`python -m cuemsutils.xml.make_defaults --out <dir>`, which is what
+`debian/rules` runs at package build, succeeded and reported its determinism
+check. All three generated documents validate against the reshaped schemas and
+load clean through the public validator:
+
+| Document | Schema-valid | `validate_config_document` |
+|----------|--------------|----------------------------|
+| `settings.xml` | yes | `clean`, 0 repairs |
+| `network_map.xml` | yes | `clean`, 0 repairs |
+| `default_mappings.xml` | yes | `clean`, 0 repairs |
+
+`default_mappings.xml` carries the reshaped mappings shape — `<defaults />` in
+place of the six `default_*` elements, and a node with no `<devices>` container
+at all, which is valid because `devices` is `minOccurs="0"`.
+
+## T064 — no new lint finding, no new warning
+
+| | Branch point `ce05645` | This branch |
+|---|---|---|
+| `ruff check src/ tests/` | 602 errors | **602 errors** |
+| Suite warnings | 215 | **215** |
+
+Three new findings appeared during the feature and all three were fixed rather
+than accepted, because SC-QUALITY-001 is a ratchet and a one-off exception makes
+it one no longer:
+
+* `F402 import-shadowed-by-loop-var` in `xml/descriptor.py` — a loop variable
+  named `field` shadowed `dataclasses.field`, imported at the top of that module.
+  Renamed to `member`.
+* `F822 undefined-export` in `tools/NodeList.py` — `partition_by_adoption` is
+  resolved by a module `__getattr__`, which ruff cannot see. Suppressed with a
+  narrow `# noqa: F822` that says why; a module-level binding would reintroduce
+  the import cycle the `__getattr__` exists to avoid.
+* `I001 unsorted-imports` in `tests/contract/test_cue_class_dispatch.py` —
+  fixed by `ruff --fix`.
+
+Interestingly, `tools/__init__.py`'s identical lazy `__all__` entry draws no
+`F822`; the rule's heuristics differ between a package `__init__` and a module.
+Recorded so nobody later "fixes" the suppression by deleting it.

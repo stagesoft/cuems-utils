@@ -21,7 +21,11 @@ from typing import Callable, Hashable
 # consumer imports ``node`` from here, never from ``cuemsutils.config.network_map``.
 from ..config.network_map import node  # noqa: F401
 
-__all__ = ["NodeRole", "NodeIndex", "node", "partition_by_adoption"]
+# ``partition_by_adoption`` is resolved by the module ``__getattr__`` at the
+# foot of this file, which ruff cannot see — hence the narrow suppression rather
+# than a module-level binding, which would reintroduce the import cycle that
+# ``__getattr__`` exists to avoid.
+__all__ = ["NodeRole", "NodeIndex", "node", "partition_by_adoption"]  # noqa: F822
 
 
 class NodeRole(Enum):

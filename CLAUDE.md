@@ -127,6 +127,99 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
+- `013-device-class-reshape` (**landed on its local branch** 2026-10-01; merges into
+  `feat/xml-refactor`; nothing ships until the coordinated `xml-refactor-merge-candidate` tag
+  after 011–014): an element named after a device class becomes **one element carrying a
+  `class` attribute**, so a new class costs nothing unless it needs special fields.
+  - **Four axes, one shape.** `<audio>`/`<video>`/`<dmx>` under a mappings node become
+    `<device class="…">` inside `<devices>`; the six root `default_*` elements become
+    `<default class="…" direction="…">` inside `<defaults>`;
+    `<videoplayer>`/`<audioplayer>`/`<dmxplayer>` become `<player class="…">` inside
+    `<players>`; `<AudioCue>`/`<VideoCue>`/`<DmxCue>` and the three `*CueOutput` elements
+    become `<Cue class="…">` and `<CueOutput class="…">`; and `hardware_outputs`' two flat
+    lists become `<output_groups>` of `<outputs class="…">`.
+  - **The container elements exist because a type may not mix single children with a repeated
+    one** (research R2): `converter.py` silently drops the single ones, so a repeated `device`
+    beside `uuid` and `mac` would lose both. That is why `devices`, `defaults` and `players`
+    are there and why axis D needs **no** container — both cue choices were already
+    repeated-only. `audiomixer` stays exactly where it is: it has no device class, and
+    folding it in would invent one (FR-040a).
+  - **The type is selected by `xs:alternative test="@class='VALUE'"`**, derived into
+    `FieldSpec.alternatives` and dispatched in **one** function, `Mapper._alternative_for`.
+    Every conditional element ends with one unconditional alternative, which is what an
+    unknown class validates as — and an unknown class is *valid*, reported by a single INFO
+    line. Because xmlschema requires every alternative type to derive from the element's
+    declared type, each conditional element's declared type is a **class-only derivation
+    root** (`DeviceClassType`, `PlayerClassType`, `CueClassType`, `CueOutputClassType`);
+    `DmxCueType` could never extend `MediaCueType`, since it carries no `<Media>`.
+  - **The Python classes survive.** `AudioCue` is still an `AudioCue` when its class is
+    `audio`, with the same fields, equality and hash, so `cuems-engine`'s ~30 `isinstance`
+    and `singledispatch` sites are untouched. **The one wire change** is the key:
+    `{"AudioCue": {...}}` becomes `{"Cue": {…, "class": "audio"}}`, which is the whole of
+    FR-032's contract to `cuems-frontend`.
+  - **New public entry point `cuems-reshape-devices`** (`xml/reshape_devices.py`): discovers
+    `CUEMS_CONF_PATH` and the library, finds scripts by **root element rather than filename**,
+    backs up before each rewrite, never writes a document that would not validate, and
+    changes no bytes on a second run. It validates the reshaped tree **as the load path will
+    see it** — registered version conversions applied to a throwaway copy, nothing written —
+    because without that the two migration tools **deadlock** on a version-old script:
+    reshape-first sees a version-1 `<duration>`, convert-first sees old-shape cues, and
+    neither order completes. The order is therefore **reshape, then convert**.
+  - **Two names published** (UR-1, UR-5): `partition_by_adoption` from
+    `cuemsutils.tools.NodeList` (FR-035) and `validate_config_document` from
+    `cuemsutils.tools` (FR-036) — the first non-mutating adoption split and the first way to
+    validate a configuration document without constructing a `ConfigManager`. Both are lazy
+    module `__getattr__` re-exports: a module-level import of `xml.settings` from `NodeList`
+    raises `ImportError`, because `adapters._register_enums()` imports `NodeRole` back out of
+    `NodeList` while it is still initializing. `validate_object`'s deprecation advice is now
+    **per schema** — a configuration document is sent at `validate_config_document`, not at
+    `CuemsScript.validate`, which cannot validate one.
+  - **No version step** (FR-020): `CURRENT_VERSION`, the conversion registry and
+    `DELIBERATE_IDENTITY_STEPS` are untouched, so an older library meets a new-shape document
+    with a raw schema error rather than `DocumentTooNewError`. The device shape and
+    `doc_version` are **orthogonal**, which is why one `pre-008` fixture is carried in the new
+    device shape at version 1.
+  - **`write_tree` now registers the `cms` prefix**, and the bug it fixes was latent in
+    `cuems-convert-documents` too: `ElementTree.parse` discards prefix declarations, and
+    `register_namespace` writes a module-global, so the prefix survived only when
+    `mapper.build_document` happened to run first in the same process. Neither standalone tool
+    builds a document. The symptom is a file that still validates and still loads with every
+    `cms:` rewritten to `ns0:`.
+  - **Two budgets recorded as exceeded, not restated as passing** (`baseline.md` §T062).
+    SC-PERF-001 is missed by 23% — the mappings load went 15.153 → 20.4 ms, and every
+    reshaped schema's load got slower (`settings` +20%, `script` +12%, `hardware_outputs`
+    +41%). One mechanism, profiled: `elementpath` builds a **fresh node tree over the
+    document per `xs:alternative` or `xs:assert` evaluation**, so the cost scales with
+    document size × class-carrying elements, not with the number of alternatives declared. A
+    smaller, one-off part is schema-build time, which the config path pays per call because
+    `XmlReaderWriter`'s `schema` setter builds a fresh `XMLSchema11` per instance instead of
+    using the cached `get_schema` — a pre-existing shim this feature made more expensive, and
+    the identified one-line mitigation, deliberately not applied here. SC-PERF-003 is missed
+    by ~480× because the budget is the wrong instrument: it calibrated read + atomic rewrite
+    with no validation, while the tool's cost is per-document schema validation — the thing
+    that makes "a document that would not validate is not written" true. The actionable
+    figure is **~30 ms per script, so a 200-project library migrates in ~6 s, once**.
+    SC-PERF-002 is met (16.66–16.81 ms/test against ≤ 18.04).
+  - **`cuems-engine` measured in three arms, not inferred**
+    (`specs/013-device-class-reshape/sibling-repository-updates.md`): 923 passed at the branch
+    point, **70 failed / 827 passed / 26 errors** on this branch, and **1 failed / 922 passed**
+    after one `cuems-reshape-devices` invocation over `dev/test_xml_files/`. All 96 failures
+    were old-shape **fixtures**; no engine source file is implicated, so every compatibility
+    surface (`node_hw_outputs`, `node_mappings["audio"]`, `node_conf["videoplayer"]`) did its
+    job. Feature 012's lesson arrived a second time: the breakage was in data a call-site
+    census cannot see, and the same old-shape fixtures sit in `cuems-power-bridge` (nine) and
+    `cuems-nodeconf` (two).
+  - **The residual engine failure is the migration guide's half-migrated-library case**, and
+    it surfaced a fixture that has been invalid for several releases:
+    `dev/test_xml_files/projects/complex_test/project_mappings.xml` has an `<output>` with no
+    `<id>` and no `<new_nodes>` at all. The branch-point library rejects it too, verified. The
+    tool refusing to rewrite an invalid document is T034's specified behaviour, not a failure
+    of the reshape — but it means a long-invalid document now blocks a migration where before
+    it merely failed quietly.
+  - The frozen legacy `xml/XmlBuilder.py` still emits per-class element names and so now
+    writes documents the current schema rejects. It has no live caller and goes in `v0.1.1`;
+    recorded in the migration guide rather than fixed.
+
 - `012-uuid4-convergence` (**landed on its local branch** 2026-09-30; merges into
   `feat/xml-refactor`; nothing ships until the coordinated `xml-refactor-merge-candidate` tag
   after 011–014): one identity shape across the project, and the machinery that gets a deployed
