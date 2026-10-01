@@ -21,6 +21,25 @@ def _domain(path: Path) -> dict:
     return loaded
 
 
+_OLD_SETTINGS = Path(__file__).resolve().parents[1] / "data" / "corpus" / "pre-013" / "settings.xml"
+_NEW_SETTINGS = Path(__file__).resolve().parents[1] / "data" / "corpus" / "cuems-utils" / "settings.xml"
+
+
+def test_reshaped_settings_match_the_new_shape_document(tmp_path):
+    from cuemsutils.xml.settings import Settings
+
+    target = tmp_path / "settings.xml"
+    shutil.copyfile(_OLD_SETTINGS, target)
+    assert main([str(target)]) == 0
+
+    def domain(path: Path) -> dict:
+        loaded = as_plain(Settings(str(path)).processed)
+        loaded.pop("schemaLocation", None)
+        return loaded
+
+    assert domain(target) == domain(_NEW_SETTINGS)
+
+
 def test_reshaped_values_match_the_new_shape_document(tmp_path):
     target = tmp_path / "project_mappings.xml"
     shutil.copyfile(_OLD, target)

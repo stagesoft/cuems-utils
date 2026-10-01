@@ -547,12 +547,17 @@ def generate_settings_example(tables=None):
     node = _build_settings_section(
         "NodeConfType", NodeConfType, scalar_fields(TypeKey("settings", "NodeConfType")), tables
     )
-    node["videoplayer"] = _build_settings_section(
-        "VideoPlayerType", VideoPlayerType, player_fields("VideoPlayerType"), tables
-    )
-    node["audioplayer"] = _build_settings_section(
-        "AudioPlayerType", AudioPlayerType, player_fields("AudioPlayerType"), tables
-    )
+    def _player(type_name: str, model, device_class: str):
+        built = _build_settings_section(type_name, model, player_fields(type_name), tables)
+        built["class"] = device_class
+        return {"player": built}
+
+    # Three assignments, not a collection of class names (FR-010).
+    node["players"] = [
+        _player("VideoPlayerType", VideoPlayerType, "video"),
+        _player("AudioPlayerType", AudioPlayerType, "audio"),
+        _player("DmxPlayerType", DmxPlayerType, "dmx"),
+    ]
     # ``AudioMixerType``, not ``PlayerType`` (D16-A). This section derived from
     # the abstract base under both the lookup name and the TypeKey, and worked
     # only because that extension is currently empty: adding a required field to
@@ -562,9 +567,6 @@ def generate_settings_example(tables=None):
     # sections had a hole in FR-034's net; this closes it.
     node["audiomixer"] = _build_settings_section(
         "AudioMixerType", AudioMixerType, player_fields("AudioMixerType"), tables
-    )
-    node["dmxplayer"] = _build_settings_section(
-        "DmxPlayerType", DmxPlayerType, player_fields("DmxPlayerType"), tables
     )
 
     settings_key = TypeKey("settings", "CuemsSettings/Settings", is_path=True)

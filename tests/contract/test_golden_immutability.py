@@ -36,7 +36,8 @@ elements changed shape, so the four corpus documents and both of each
 document's recorded dicts (``*.reader.json``, ``*.config.json``) moved with
 the schema. ``api/public_api.json`` is re-hashed once more in the tool's
 commit (T035): its ``scripts`` array gains ``cuems-reshape-devices`` and no
-other key moves.
+other key moves. The four settings dict goldens move with axis C (T042):
+``videoplayer`` / ``audioplayer`` / ``dmxplayer`` became ``players``.
 
 
 ``MANIFEST.sha256`` pins the hash of every file under this directory at the

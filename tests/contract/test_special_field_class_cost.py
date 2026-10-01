@@ -29,7 +29,9 @@ def test_video_costs_one_alternative_and_one_type():
         if path.name == "project_mappings.xsd":
             continue
         text = path.read_text(encoding="utf-8")
-        if "VideoDeviceType" in text or "xs:alternative" in text:
+        # settings.xsd's alternatives select player types (axis C). A second
+        # VideoDeviceType would be a second selection of the video device.
+        if "VideoDeviceType" in text:
             elsewhere.append(path.name)
     assert elsewhere == []
 

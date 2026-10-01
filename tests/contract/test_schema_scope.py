@@ -68,7 +68,7 @@ CURRENT_SCHEMA_HASHES = {
     "project_mappings.xsd": "a94822901155e8ea8b07edd604cfbde56766f5e3a2f5b0747d8f49dde2e0e956",
     "project_settings.xsd": "5cd80b9d2a5239365a764526a40c17426e158a9ec057acda2ffc97b552ea254f",
     "script.xsd": "f4f42419332388af9b183c13c0eb606ccd0eea62d53ec05e9d0b187ae5274298",
-    "settings.xsd": "8a793922589d79c99178735d9765a8073e08389fe69b623da41d1e11f290faab",
+    "settings.xsd": "dcc095cd128d8d99c52adee57f2f60f4cbe11c787ddc674e3605568ce0eae777",
 }
 
 ALL_SCHEMA_NAMES = set(CURRENT_SCHEMA_HASHES)

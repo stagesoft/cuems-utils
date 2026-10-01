@@ -185,14 +185,15 @@ def test_coverage_reaches_every_bound_model():
     ``CTimecodeType`` binding, which reverts to ``GENERIC`` along with the
     schema type itself — so the number was **36**. Feature 013 binds four more
     project-mappings types (``DeviceClassType``, ``DevicesType``,
-    ``DefaultsType``, ``DefaultPortType``), so the number is now **40**.
+    ``DefaultsType``, ``DefaultPortType``) and two settings types
+    (``PlayerClassType``, ``PlayersType``), so the number is now **42**.
 
     Kept as an exact count rather than a lower bound, and rewritten rather than
     relaxed. A count that only ever grows would let a binding disappear in
     silence, which is the whole reason this assertion is stated positively
     alongside the ``UNCOVERED`` one.
     """
-    assert len(COVERED) == 40
+    assert len(COVERED) == 42
     assert not UNCOVERED
 
 

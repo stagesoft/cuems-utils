@@ -33,6 +33,7 @@ _OLD_DEFAULTS = (
 )
 _OLD_DEFAULT_NAMES = frozenset(name for name, _, _ in _OLD_DEFAULTS)
 _OLD_DEVICE_ELEMENTS = frozenset({"audio", "video", "dmx"})
+_OLD_PLAYER_ELEMENTS = frozenset({"videoplayer", "audioplayer", "dmxplayer"})
 
 
 def _local(tag: str) -> str:
@@ -69,15 +70,28 @@ def _has_new_mappings(root: ET.Element) -> bool:
     return False
 
 
+def _node_has(root: ET.Element, names: frozenset[str]) -> bool:
+    for node in root.iter():
+        if _local(node.tag) != "node":
+            continue
+        if any(_local(child.tag) in names for child in list(node)):
+            return True
+    return False
+
+
 def classify(schema_name: str | None, root: ET.Element) -> str:
     """``old``, ``current``, ``not-applicable``, or ``unrecognised``."""
     if schema_name is None:
         return "unrecognised"
-    if schema_name != "project_mappings":
+    if schema_name == "project_mappings":
+        if _has_old_mappings(root):
+            return "old"
+        if _has_new_mappings(root):
+            return "current"
         return "not-applicable"
-    if _has_old_mappings(root):
-        return "old"
-    if _has_new_mappings(root):
+    if schema_name == "settings":
+        if _node_has(root, _OLD_PLAYER_ELEMENTS):
+            return "old"
         return "current"
     return "not-applicable"
 
@@ -121,6 +135,27 @@ def reshape_mappings(root: ET.Element) -> None:
         node.insert(first, devices)
 
 
+def reshape_players(root: ET.Element) -> None:
+    """Axis C. ``audiomixer`` stays where it is. ``doc_version`` is not touched."""
+    for node in root.iter():
+        if _local(node.tag) != "node":
+            continue
+        kids = list(node)
+        found = [child for child in kids if _local(child.tag) in _OLD_PLAYER_ELEMENTS]
+        if not found:
+            continue
+        players = ET.Element("players")
+        first = kids.index(found[0])
+        for child in found:
+            player = ET.Element("player")
+            player.set("class", _local(child.tag).removesuffix("player"))
+            for grand in list(child):
+                player.append(grand)
+            players.append(player)
+            node.remove(child)
+        node.insert(first, players)
+
+
 def _backup_path(path: Path, clock: str) -> Path:
     return path.with_name(f"{path.name}.{clock}.bak")
 
@@ -153,7 +188,10 @@ def reshape_file(path: Path, *, write: bool, dry_run: bool, clock: str) -> str:
         shutil.copy2(path, backup)
     except OSError:
         return "skipped (backup failed; document left unrewritten)"
-    reshape_mappings(root)
+    if schema_name == "project_mappings":
+        reshape_mappings(root)
+    elif schema_name == "settings":
+        reshape_players(root)
     if schema_name is None:
         return "skipped (unrecognised root)"
     try:

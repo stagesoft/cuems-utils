@@ -336,6 +336,8 @@ def _config_models(schema_name: str) -> tuple[dict[str, type], dict[str, type]]:
             {
                 "NodeConfType": s.NodeConfType,
                 "PlayerType": s.PlayerType,
+                "PlayerClassType": s.PlayerClassType,
+                "PlayersType": s.PlayersType,
                 "VideoPlayerType": s.VideoPlayerType,
                 "AudioPlayerType": s.AudioPlayerType,
                 "AudioMixerType": s.AudioMixerType,

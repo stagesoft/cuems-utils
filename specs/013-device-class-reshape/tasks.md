@@ -385,13 +385,13 @@ element. The engine's six `node_conf["…player"]` reads keep answering.
 validates; `node_conf["videoplayer"]` returns the video player; a second player of
 class `video` is rejected; `audiomixer` is not inside `<players>`.
 
-- [ ] T041 [P] [US1] Failing-first tests in `tests/contract/test_player_sections.py` —
+- [x] T041 [P] [US1] Failing-first tests in `tests/contract/test_player_sections.py` —
       the reshaped document decodes; `audiomixer` is still a direct child of the node
       configuration (FR-040a); a duplicate player class is rejected (the same assert
       shape as T022); `node_conf["videoplayer"]`, `["audioplayer"]` and `["dmxplayer"]`
       answer with the same nested `path` / `args` / `osc_port` / `output_latency_ms`
       values as before (FR-042)
-- [ ] T042 [US1] Reshape `src/cuemsutils/xml/schemas/settings.xsd` per
+- [x] T042 [US1] Reshape `src/cuemsutils/xml/schemas/settings.xsd` per
       [data-model.md](data-model.md) §3. The three class-scoped players move into
       `PlayersType` of repeated `player`, with one `xs:alternative` per existing player
       type (`video`, `audio`, `dmx`) and an unconditional fallback. `audiomixer` stays
@@ -404,10 +404,10 @@ class `video` is rejected; `audiomixer` is not inside `<players>`.
       this same commit, migrate every current-corpus `settings` document (not
       `pre-008/`, not `pre-013/`) and any golden this schema invalidates, so each
       validates against the reshaped schema (FR-055)
-- [ ] T043 [US1] Derived legacy keys on the decoded node configuration:
+- [x] T043 [US1] Derived legacy keys on the decoded node configuration:
       `node_conf["videoplayer"]` and its two siblings project out of `players` by class.
       `node_conf["audiomixer"]` is the element itself, not a projection. No class tuple
-- [ ] T044 [US2] Add the axis C transformation to `src/cuemsutils/xml/reshape_devices.py`
+- [x] T044 [US2] Add the axis C transformation to `src/cuemsutils/xml/reshape_devices.py`
       (data-model §6): `<videoplayer>` / `<audioplayer>` / `<dmxplayer>` become
       `<players><player class="…">`; `<audiomixer>` is left in place. Extend
       `tests/integration/test_reshape_roundtrip.py` with an old-shape settings document

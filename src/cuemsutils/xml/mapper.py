@@ -499,6 +499,12 @@ class Mapper:
         than emitted as ``null`` — reusing the same ``_omit`` the XML writer
         uses, so the two paths cannot disagree on which fields vanish.
         """
+        # The field's child is the unconditional alternative. A narrower
+        # runtime type (a video player, a video device) keeps its own order.
+        if hasattr(obj, "keys") and not isinstance(obj, (list, tuple)):
+            model_spec = self._spec_for_model(type(obj))
+            if model_spec is not None and model_spec.key != spec.key:
+                spec = model_spec
         keys = self._selected_keys(obj)
         ordered = spec.order_keys(keys)
         omits_empty = getattr(obj, "OMIT_EMPTY_OPTIONAL", True)

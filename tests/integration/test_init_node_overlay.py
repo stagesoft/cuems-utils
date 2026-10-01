@@ -74,8 +74,8 @@ def test_typed_scalars_survive_end_to_end(env):
     conf, overlay, base = env
     (overlay / "10.toml").write_text('[settings.VideoPlayerType]\noutput_latency_ms = 35\n[settings.AudioPlayerType]\noutput_latency_ms = "auto"\n')
     assert _run(base)[0] == 0
-    assert _settings_text(conf, "node/videoplayer/output_latency_ms") == "35"
-    assert _settings_text(conf, "node/audioplayer/output_latency_ms") == "auto"
+    assert _settings_text(conf, "node/players/player[@class='video']/output_latency_ms") == "35"
+    assert _settings_text(conf, "node/players/player[@class='audio']/output_latency_ms") == "auto"
 
 
 @pytest.mark.parametrize("content,needle", [

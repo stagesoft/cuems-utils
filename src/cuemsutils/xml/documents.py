@@ -159,6 +159,9 @@ _CURRENT_ROOT_CHILDREN = frozenset({
     "number_of_nodes", "defaults", "nodes", "new_nodes",
 })
 _CURRENT_NODE_CHILDREN = frozenset({"uuid", "mac", "devices"})
+#: Old settings element names. Not device-class words, so the class-list
+#: ratchet does not see them; they are spellings being deleted.
+_OLD_PLAYER_ELEMENTS = frozenset({"videoplayer", "audioplayer", "dmxplayer"})
 
 
 def _local(tag: str) -> str:
@@ -173,25 +176,35 @@ def raise_if_old_device_shape(schema_name: str, source: str, tree: ElementTree) 
     covers ``project_mappings`` only; settings and scripts name their own
     old elements when those schemas narrow.
     """
-    if schema_name != "project_mappings":
-        return
     root = tree.getroot()
-    root_names = {_local(child.tag) for child in list(root)}
-    old = bool(root_names - _CURRENT_ROOT_CHILDREN)
-    if not old:
+    if schema_name == "project_mappings":
+        root_names = {_local(child.tag) for child in list(root)}
+        old = bool(root_names - _CURRENT_ROOT_CHILDREN)
+        if not old:
+            for node in root.iter():
+                if _local(node.tag) != "node":
+                    continue
+                names = {_local(child.tag) for child in list(node)}
+                if names - _CURRENT_NODE_CHILDREN:
+                    old = True
+                    break
+        if not old:
+            return
+        raise SchemaError(
+            f"project_mappings document {source} is in the pre-013 device shape "
+            "(<audio>/<video>/<dmx> on <node>). Run `cuems-reshape-devices` to migrate it."
+        )
+    if schema_name == "settings":
         for node in root.iter():
             if _local(node.tag) != "node":
                 continue
             names = {_local(child.tag) for child in list(node)}
-            if names - _CURRENT_NODE_CHILDREN:
-                old = True
-                break
-    if not old:
-        return
-    raise SchemaError(
-        f"project_mappings document {source} is in the pre-013 device shape "
-        "(<audio>/<video>/<dmx> on <node>). Run `cuems-reshape-devices` to migrate it."
-    )
+            if names & _OLD_PLAYER_ELEMENTS:
+                raise SchemaError(
+                    f"settings document {source} is in the pre-013 device shape "
+                    "(<videoplayer>/<audioplayer>/<dmxplayer> on <node>). "
+                    "Run `cuems-reshape-devices` to migrate it."
+                )
 
 
 def build_tree(obj, schema_name: str) -> ElementTree:

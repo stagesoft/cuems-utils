@@ -32,7 +32,38 @@ class PlayerType(ConfigDict):
     }
 
 
-class VideoPlayerType(PlayerType):
+class PlayerClassType(PlayerType):
+    """A player that carries ``class``. ``AudioMixerType`` does not extend this."""
+
+    DECLARED_DEFAULTS = {"class": Unset}
+
+
+class PlayersType(ConfigDict):
+    DECLARED_DEFAULTS = {"player": Unset}
+
+
+def player_of_class(node, device_class: str):
+    """The player whose ``class`` is ``device_class``, or ``None``. No class list."""
+    players = dict.get(node, "players")
+    if not isinstance(players, list):
+        return None
+    for item in players:
+        if not isinstance(item, dict):
+            continue
+        player = dict.get(item, "player")
+        if isinstance(player, dict) and dict.get(player, "class") == device_class:
+            return player
+    return None
+
+
+_LEGACY_PLAYERS = {
+    "videoplayer": "video",
+    "audioplayer": "audio",
+    "dmxplayer": "dmx",
+}
+
+
+class VideoPlayerType(PlayerClassType):
     DECLARED_DEFAULTS = {
         "outputs": Unset,
         "osc_port": Unset,
@@ -40,7 +71,7 @@ class VideoPlayerType(PlayerType):
     }
 
 
-class AudioPlayerType(PlayerType):
+class AudioPlayerType(PlayerClassType):
     DECLARED_DEFAULTS = {
         "output_latency_ms": Unset,
     }
@@ -50,7 +81,7 @@ class AudioMixerType(PlayerType):
     """Extends ``PlayerType`` and adds nothing — the XSD extension is empty."""
 
 
-class DmxPlayerType(PlayerType):
+class DmxPlayerType(PlayerClassType):
     DECLARED_DEFAULTS = {
         "output_latency_ms": Unset,
     }
@@ -81,11 +112,26 @@ class NodeConfType(ConfigDict):
         "osc_in_port_base": Unset,
         "nng_hub_port": Unset,
         "gradient_osc_port": Unset,
-        "videoplayer": Unset,
-        "audioplayer": Unset,
+        "players": Unset,
         "audiomixer": Unset,
-        "dmxplayer": Unset,
     }
+
+    def __getitem__(self, key):
+        device_class = _LEGACY_PLAYERS.get(key) if isinstance(key, str) else None
+        if device_class is not None and key not in self.keys():
+            player = player_of_class(self, device_class)
+            if player is None:
+                raise KeyError(key)
+            return player
+        return super().__getitem__(key)
+
+    def get(self, key, default=None):
+        # ``dict.get`` does not call ``__getitem__``. The engine reads a
+        # player with a subscript; ``.get`` has to agree (FR-042).
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
 
 class SettingsType(ConfigDict):

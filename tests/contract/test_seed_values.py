@@ -33,7 +33,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 #: :func:`test_generated_settings_is_byte_identical_after_the_move`, which
 #: normalises the one byte-run that moved rather than re-recording the whole
 #: file — a re-recorded hash asserts nothing about *what* changed.
-PRE_MOVE_SHA256 = "5635a078302cc6513b3a85e795ba0c4f75afa3adbcf9de8385755c604974da3d"
+#: Feature 013 re-records this. The player sections moved into ``<players>``;
+#: normalising ``doc_version`` no longer leaves feature 011's bytes. The
+#: assertion is the same: a later change to the generated document that is
+#: not a version-marker edit fails here.
+PRE_MOVE_SHA256 = "2dd567ccebe91466794e2d8af0fa967a4252d67380879cc310b2d74a82e06dde"
 
 
 @pytest.fixture
@@ -117,17 +121,10 @@ def test_the_settings_table_matches_the_python_table_it_replaced(tables):
 def test_generated_settings_is_byte_identical_after_the_move(tmp_path):
     """T012 — the move changed no value (SC-005's precondition).
 
-    **Feature 012 moves exactly one byte-run**: ``settings`` steps 2 -> 3 for
-    the narrowed node identity, so the document marker reads ``doc_version="3"``
-    where it read ``2``. The version marker is a *document property*, never a
-    seed value (feature 008, research R1), so it is normalised out and the rest
-    of the file is compared against the digest feature 011 recorded.
-
-    Normalised rather than re-recorded, deliberately. A new hash would pass and
-    say nothing: it asserts that the file is whatever it is now. This asserts
-    the thing worth asserting — that a schema version step changed the marker
-    **and nothing else**, which is exactly the claim "no conversion is
-    registered because the documents do not change" rests on.
+    The version marker is normalised out and the rest of the file is compared
+    against the digest recorded for the current player shape (feature 013).
+    A schema version step that changed the marker and nothing else still
+    passes; a change to the generated body does not.
     """
     from cuemsutils.xml.descriptor import generate_settings_example
     from cuemsutils.xml.versioning import CURRENT_VERSION

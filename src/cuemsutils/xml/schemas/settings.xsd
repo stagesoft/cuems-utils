@@ -76,10 +76,10 @@
             <xs:element name="osc_in_port_base" type="cms:NonPrivilegedPort" />
             <xs:element name="nng_hub_port" type="cms:NonPrivilegedPort" />
             <xs:element name="gradient_osc_port" type="cms:NonPrivilegedPort" />
-            <xs:element name="videoplayer" type="cms:VideoPlayerType" minOccurs="0" maxOccurs="1" />
-            <xs:element name="audioplayer" type="cms:AudioPlayerType" minOccurs="0" maxOccurs="1" />
+            <!-- Container: the repeated player is inside it, so a single
+                 audiomixer sibling is not dropped by the converter (R2). -->
+            <xs:element name="players" type="cms:PlayersType" minOccurs="0" maxOccurs="1" />
             <xs:element name="audiomixer" type="cms:AudioMixerType" minOccurs="0" maxOccurs="1" />
-            <xs:element name="dmxplayer" type="cms:DmxPlayerType" minOccurs="0" maxOccurs="1" />
         </xs:sequence>
     </xs:complexType>
 
@@ -90,9 +90,32 @@
         </xs:sequence>
     </xs:complexType>
 
-    <xs:complexType name="VideoPlayerType">
+    <!-- class is not on PlayerType: AudioMixerType extends that and has no
+         device class (FR-040a). An alternative type must derive from the
+         element's declared type, so player is PlayerClassType. -->
+    <xs:complexType name="PlayerClassType">
         <xs:complexContent>
             <xs:extension base="cms:PlayerType">
+                <xs:attribute name="class" type="cms:NonEmptyString" use="required" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="PlayersType">
+        <xs:sequence>
+            <xs:element name="player" minOccurs="0" maxOccurs="unbounded" type="cms:PlayerClassType">
+                <xs:alternative test="@class='video'" type="cms:VideoPlayerType" />
+                <xs:alternative test="@class='audio'" type="cms:AudioPlayerType" />
+                <xs:alternative test="@class='dmx'" type="cms:DmxPlayerType" />
+                <xs:alternative type="cms:PlayerClassType" />
+            </xs:element>
+        </xs:sequence>
+        <xs:assert test="count(player) = count(distinct-values(player/@class))" />
+    </xs:complexType>
+
+    <xs:complexType name="VideoPlayerType">
+        <xs:complexContent>
+            <xs:extension base="cms:PlayerClassType">
                 <xs:sequence>
                     <xs:element name="outputs" type="xs:positiveInteger" />
                     <xs:element name="osc_port" type="cms:NonPrivilegedPort" minOccurs="0" />
@@ -104,7 +127,7 @@
 
     <xs:complexType name="AudioPlayerType">
         <xs:complexContent>
-            <xs:extension base="cms:PlayerType">
+            <xs:extension base="cms:PlayerClassType">
                 <xs:sequence>
                     <xs:element name="output_latency_ms" type="cms:AutoOrIntLatencyMsType" minOccurs="0" />
                 </xs:sequence>
@@ -121,7 +144,7 @@
 
     <xs:complexType name="DmxPlayerType">
         <xs:complexContent>
-            <xs:extension base="cms:PlayerType">
+            <xs:extension base="cms:PlayerClassType">
                 <xs:sequence>
                     <xs:element name="output_latency_ms" type="cms:IntLatencyMsType" minOccurs="0" />
                 </xs:sequence>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <cms:CuemsSettings xmlns:cms="https://stagelab.coop/cuems/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://stagelab.coop/cuems/ ../cuems/settings.xsd">
     <Settings>
         <conf_path>/etc/cuems</conf_path>
@@ -26,33 +26,23 @@
             <osc_in_port_base>7000</osc_in_port_base>
             <nng_hub_port>9093</nng_hub_port>
             <gradient_osc_port>7100</gradient_osc_port>
-            <videoplayer>
-                <path>/usr/bin/xjadeo</path>
+            <players><player class="video"><path>/usr/bin/xjadeo</path>
                 <args>--ontop --fullscreen --no-splash --quiet --no-initial-sync --midi-driver alsa-seq --ignore-file-offset</args>
                 <outputs>2</outputs>
                 <output_latency_ms>33</output_latency_ms>
-            </videoplayer>
-            <audioplayer>
-                <path>/usr/local/bin/cuems-audioplayer</path>
+            </player><player class="audio"><path>/usr/local/bin/cuems-audioplayer</path>
                 <args>-w -1</args>
                 <audio_cards>1</audio_cards>
                 <output_latency_ms>auto</output_latency_ms>
-            </audioplayer>
-            <audiomixer>
-                <path>/usr/local/bin/jack-volume</path>
-                <args></args>
-            </audiomixer>
-            <dmxplayer>
-                <path>/usr/bin/cuems-dmxplayer</path>
+            </player><player class="dmx"><path>/usr/bin/cuems-dmxplayer</path>
                 <args>--mtcfollow</args>
                 <universes>1</universes>
-                <!-- NEGATIVE TEST FIXTURE — "auto" on dmxplayer must be
-                     rejected by the schema (IntLatencyMsType, no auto
-                     measurement path). This file is intentionally
-                     invalid and is only referenced by a test expecting
-                     validation to fail. -->
+                
                 <output_latency_ms>auto</output_latency_ms>
-            </dmxplayer>
-        </node>
+            </player></players><audiomixer>
+                <path>/usr/local/bin/jack-volume</path>
+                <args />
+            </audiomixer>
+            </node>
     </Settings>
 </cms:CuemsSettings>

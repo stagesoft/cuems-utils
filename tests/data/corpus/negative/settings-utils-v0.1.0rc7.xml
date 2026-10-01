@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<cms:CuemsSettings doc_version="2" xmlns:cms="https://stagelab.coop/cuems/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://stagelab.coop/cuems/ ../cuems/settings.xsd">
+<?xml version='1.0' encoding='utf-8'?>
+<cms:CuemsSettings xmlns:cms="https://stagelab.coop/cuems/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" doc_version="2" xsi:schemaLocation="https://stagelab.coop/cuems/ ../cuems/settings.xsd">
     <Settings>
         <conf_path>/etc/cuems</conf_path>
         <library_path>/opt/cuems_library</library_path>
@@ -25,32 +25,20 @@
             <mtc_port>Midi Through Port-0</mtc_port>
             <osc_in_port_base>7000</osc_in_port_base>
             <nng_hub_port>9093</nng_hub_port>
-            <videoplayer>
-                <path>/usr/bin/xjadeo</path>
+            <players><player class="video"><path>/usr/bin/xjadeo</path>
                 <args>--ontop --fullscreen --no-splash --quiet --no-initial-sync --midi-driver alsa-seq --ignore-file-offset</args>
                 <outputs>2</outputs>
                 <output_latency_ms>33</output_latency_ms>
-            </videoplayer>
-            <audioplayer>
-                <path>/usr/local/bin/cuems-audioplayer</path>
+            </player><player class="audio"><path>/usr/local/bin/cuems-audioplayer</path>
                 <args>-w -1</args>
                 <output_latency_ms>auto</output_latency_ms>
-            </audioplayer>
-            <audiomixer>
-                <path>/usr/local/bin/jack-volume</path>
-                <args></args>
-            </audiomixer>
-            <dmxplayer>
-                <path>/usr/bin/cuems-dmxplayer</path>
+            </player><player class="dmx"><path>/usr/bin/cuems-dmxplayer</path>
                 <args>--mtcfollow</args>
-                <!-- output_latency_ms absent: dmx does NOT accept "auto"
-                     (no self-measurement path; schema rejects it).
-                     Absent = 35 ms hard-coded default in the binary.
-                     Typical per-adapter starting points when operators
-                     set an integer:
-                       ENTTEC/DMXKing ~30 ms, OpenDMX ~35 ms,
-                       ArtNet ~44 ms (dedicated LAN) / 60-80 ms (shared). -->
-            </dmxplayer>
-        </node>
+                
+            </player></players><audiomixer>
+                <path>/usr/local/bin/jack-volume</path>
+                <args />
+            </audiomixer>
+            </node>
     </Settings>
 </cms:CuemsSettings>
