@@ -51,7 +51,7 @@ Census run 2026-10-01, excluding `specs/` and `.md`:
 
 | Repo | Hits | Classification |
 |---|---|---|
-| **`cuems-editor`** | **4** | **live imports in shipped source** — `src/cuemseditor/CuemsDBProject.py:9,10` and `src/cuemseditor/repair_durations.py:39,40` |
+| **`cuems-editor`** | **6** | **live imports in shipped source** — `CuemsWsServer.py:26,27`, `CuemsDBProject.py:9,10`, `repair_durations.py:39,40` (plus one in `tests/`). **Corrected 2026-10-01**: this row first said 4 and listed only the latter two files. The count was right in the census total and wrong in the detail, because the listing command used a narrower pattern than the counting one — the two `CuemsWsServer.py` lines were dropped from the detail only. One of them, `create_script`, is a module that **no longer exists**, so the editor's websocket server does not import at all |
 | `cuems-engine` | 1 | `dev/CuemsEngine_old.py:13` — **not packaged**. `pyproject.toml` declares `packages include = "cuemsengine"`; `dev/` ships nowhere |
 | `cuems-nodeconf` | 1 | **prose in a docstring** (`tests/test_no_injection.py`), naming the pattern it asserts is gone. Not an import |
 | `cuems-power-bridge` | 0 | clean |
@@ -62,6 +62,15 @@ Census run 2026-10-01, excluding `specs/` and `.md`:
 grep -rnE "cuemsutils\.xml\.(Settings|XmlReaderWriter|Parsers|CMLCuemsConverter)|cuemsutils\.timeoutloop" \
   ../cuems-* | grep -vE "\.pyc|node_modules|/specs/|\.md:"
 ```
+
+**And the editor is not merely unmigrated — it is broken.** Verified
+2026-10-01: `python -c "import cuemseditor.CuemsWsServer"` raises
+`ModuleNotFoundError: No module named 'cuemsutils.create_script'` at
+`CuemsWsServer.py:27`. Feature 008 retired that module; this repository still
+imports it against an open `cuemsutils>=0.1.0rc10` floor. So flow 02's first
+deliverable is not a migration, it is making the process start — one line,
+re-sourcing `new_uuid` from `cuemsutils.helpers`, which four other files in that
+repository already do.
 
 **What the editor therefore holds hostage**: the deletion of five modules
 (`xml/Settings.py`, `xml/XmlReaderWriter.py`, `xml/Parsers.py`,
