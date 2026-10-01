@@ -77,6 +77,29 @@ def test_an_identity_passed_in_comes_back_unchanged():
     assert ids.coerce_identity(identity) is identity
 
 
+@pytest.mark.parametrize("value", [42, 42.5, True, b"x"])
+def test_a_non_string_input_is_returned_unchanged_and_the_two_still_agree(value):
+    """The gap `cuems-engine` found (its UR-6), pinned.
+
+    The published rule's table is written in terms of *strings*, so what it does
+    with a non-string was undocumented and untested — and the engine's
+    hand-written mirror differed there: it did ``str(value)`` first, so
+    ``as_id(42)`` returned ``"42"`` while ``coerce_identity(42)`` returns ``42``.
+    No call site passes one, which is why nobody noticed.
+
+    The library's two implementations **do** agree, because ``_UuidAdapter.decode``
+    returns its original argument rather than the stringified one. That agreement
+    is the thing worth pinning: it is what lets a consumer delete its mirror
+    without reading both.
+
+    Returning the value unchanged is also the better answer. Stringifying would
+    silently turn an ``int`` into something that looks like an identity, and the
+    caller would never learn it had passed the wrong thing.
+    """
+    assert ids.coerce_identity(value) is value
+    assert adapter_for("NodeUuidType").decode(value) is value
+
+
 def test_the_rule_lives_outside_the_xml_package():
     """FR-030, Q14: consumers may not import ``cuemsutils.xml``, so a rule
     published there would be published to nobody."""

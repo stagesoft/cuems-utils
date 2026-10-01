@@ -176,16 +176,32 @@ ignore. Owner: whoever amends FR-035.
 
 `cuems-engine/src/cuemsengine/tools/ids.py:21` defines `as_id`, which is the
 hand-written mirror of this library's coercion rule that M-c recorded. It is now
-published as `cuemsutils.tools.coerce_identity`, and the two **agree on every
-input** — converged → `Uuid`, sentinel → `str`, anything else non-empty → `str`,
-empty → `None`.
+published as `cuemsutils.tools.coerce_identity`, and the two agree on **every
+string, `Uuid` and empty input** — converged → `Uuid`, sentinel → `str`,
+anything else non-empty → `str`, empty → `None`.
 
 ```python
 from cuemsutils.tools import coerce_identity as as_id
 ```
 
-Optional, and the point of publishing the rule: the copy can be deleted rather
-than left to drift. `id_str` has no library equivalent and stays.
+**Done, 2026-09-30** — `cuems-engine` `c31734c` deletes the mirror and
+re-exports the published rule. This section is kept as the record of why the
+rule was published at all: the engine asked for it (its
+`upstream-reports/UR-6-no-public-id-coercion.md`), feature 012's FR-030
+delivered it, and the consumer then deleted its copy. That loop closing is the
+point.
+
+> **Correction, from the engine's own UR-6.** This section first claimed the two
+> "agree on **every** input". They do not: they differ on a non-string,
+> non-`Uuid` input, because the mirror did `str(value)` first — `as_id(42)`
+> returned `"42"` where `coerce_identity(42)` returns `42`. No engine call site
+> passes one, so nothing was wrong in either repository, but the claim was
+> broader than the measurement behind it. Narrowed above, and the library's own
+> two implementations are now pinned to agree on non-strings too
+> (`test_published_coercion.py`), since that agreement is what lets a consumer
+> delete a mirror without reading both.
+
+`id_str` has no library equivalent and stays.
 
 ---
 

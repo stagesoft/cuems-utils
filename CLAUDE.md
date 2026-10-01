@@ -320,8 +320,12 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   - **The conversion registry** (`xml/versioning.py`, `(schema_name, from_version) -> Conversion`)
     carries `script` 1→2's three transformations in **one** version step — the duration reshape
     (bare text → `<CTimecode>` wrapper), `action_type` `fade_in`/`fade_out` → `play`/`stop`
-    (behaviour-preserving: `cuems-engine` already dispatches both as stubs treated exactly that
-    way), and the `fade_profiles` block dropped with every drop named in the report. An
+    (`fade_in` is behaviour-preserving — the engine's handler dispatched `_handle_play`'s body
+    verbatim; **`fade_out` is not**, corrected 2026-10-01 from `cuems-engine`'s measured UR-7: its
+    `_handle_fade_out` never called `disarm()`, so a converted document now disarms its target
+    where it previously leaked player processes. An improvement, but not a preservation, and the
+    wrong reason would stop a consumer checking its own handler), and the `fade_profiles` block
+    dropped with every drop named in the report. An
     unregistered step is a valid **identity** step (purely additive schema growth needs no
     transformation, only a version bump). The same registry backs the new
     `cuems-convert-documents` standalone entry point (`xml/convert_documents.py`,

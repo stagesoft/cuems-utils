@@ -185,9 +185,26 @@ def _script_1_to_2(root: ET.Element) -> list[str]:
         duration.text = None
         ET.SubElement(duration, "CTimecode").text = text
 
-    # 2. action_type: fade_in -> play, fade_out -> stop (FR-051a, ITEM D) —
-    #    behaviour-preserving: ``cuems-engine`` already dispatches both as
-    #    never-implemented stubs treated exactly as play/stop.
+    # 2. action_type: fade_in -> play, fade_out -> stop (FR-051a, ITEM D).
+    #
+    #    ``fade_in`` -> ``play`` IS behaviour-preserving: ``cuems-engine``'s
+    #    ``_handle_fade_in`` dispatched exactly ``_handle_play``'s body.
+    #
+    #    ``fade_out`` -> ``stop`` is **NOT**, and this comment said it was until
+    #    ``cuems-engine`` measured otherwise (its feature 008,
+    #    ``upstream-reports/UR-7-fade-out-conversion-not-behaviour-preserving.md``).
+    #    Its ``_handle_fade_out`` set the stop flags but never called
+    #    ``disarm()`` and never answered ``applied_no_change`` — its own TODO
+    #    named the zombie-process defect that caused. ``_handle_stop`` does both.
+    #    So a version-1 document's ``fade_out`` now disarms its target where it
+    #    previously leaked player processes.
+    #
+    #    The change is an improvement and the conversion is still right, but
+    #    "behaviour-preserving" was the wrong reason to give for it: a consumer
+    #    reading that would not think to check what its own handler did
+    #    differently. ``specs/008-rebuild-extension/migration-guide.md``'s
+    #    FR-053b stated the defect correctly all along; only this comment and
+    #    CLAUDE.md overclaimed. Corrected 2026-10-01.
     for action_type in root.iter("action_type"):
         if action_type.text == "fade_in":
             action_type.text = "play"

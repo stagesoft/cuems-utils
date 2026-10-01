@@ -104,7 +104,7 @@ no single view of the whole; this is that view.)*
 | Repository | Obligation | State |
 |---|---|---|
 | `cuems-utils` | descriptor path · deprecated-surface removal · this guide | **wave 0 landed** 2026-09-04 |
-| `cuems-engine` | | not started |
+| `cuems-engine` | typed node map (role · online · adopted) · identity coercion at every ingress · the script version change · release-gate bounds | **landed** 2026-09-30 as its own feature `008-cuems-utils-migration` (64/64), **unmerged**; tag `1662a99` (2026-10-01, local). See [§4c](#4c-cuems-engine--the-typed-node-map-wave-1-landed-2026-09-30) |
 | `cuems-editor` | | not started |
 | `cuems-common` | Avahi templates and their filenames · the live-file migration tool · conversion ordering · release-gate demonstration | **landed** 2026-09-17 (`1a00159`), **unmerged** — holds a merge gate with `cuems-nodeconf` |
 | `cuems-nodeconf` | network-map object swap · relocated timing helper · Avahi vocabulary (its half) · packaging bounds | **all three stories landed** 2026-09-17 (`8ce7552`), **unmerged** — holds a merge gate with `cuems-common` |
@@ -132,6 +132,99 @@ The editor's own implementation is **deleted, not ported**: two implementations 
 how they drift.
 
 *(FR-049c and the `action_target` half are recorded here as they land.)*
+
+## 4c. `cuems-engine` — the typed node map *(wave 1, landed 2026-09-30)*
+
+*(T022, T034, FR-031–FR-034. Landed in `cuems-engine` on `feat/xml-refactor` as its feature
+`specs/008-cuems-utils-migration`, 64/64, verified at **`1662a99`**. Four of its findings came back
+upstream as requirements this library then met — see the end of this section.)*
+
+### Role: a string comparison becomes an enum selection (FR-031)
+
+Feature 007 retyped `network_map.xsd`'s `<node_type>` (free text, `NodeType.master`) to
+`<node_role>` (`cms:NodeRoleType`, `controller`/`node`/`firstrun`), and `network_map` is the one
+configuration schema whose decode runs the adapter table — so the value arrives as a `NodeRole`
+enum member, not a string.
+
+```python
+# before — cuemsengine/core/BaseEngine.py
+CONTROLLER_NETWORK_FLAG = "NodeType.master"
+...
+    if node.get("node_type") == CONTROLLER_NETWORK_FLAG:
+
+# after
+    controllers = index.controllers          # NodeIndex.controllers, == by_role(NodeRole.controller)
+    if not controllers:
+        ...
+    if len(controllers) > 1:                 # new: a multi-controller map is now named, not silently first-wins
+        ...
+    ip = controllers[0].get("ip")
+```
+
+**This is the archetype of "keeps resolving but becomes wrong"** (FR-004). `node.get("node_type")`
+returns `None` against a typed map, `None == "NodeType.master"` is `False`, and the engine reports
+*"No controller node found in network map"* on a map that names one. Nothing raises.
+
+The constant `CONTROLLER_NETWORK_FLAG` is **deleted**, not re-spelled — the vocabulary now has one
+home, `cuemsutils.tools.NodeList.NodeRole`, whose members are asserted against the XSD's own
+enumeration facets rather than hand-copied.
+
+### `online` and `adopted`: strings become booleans (FR-032)
+
+The same opt-in decodes `cms:BoolType` to Python `bool` for `network_map` **and only for
+`network_map`** — `settings`, `project_mappings` and `project_settings` still deliver the
+`"True"`/`"False"` strings their recorded goldens carry. A consumer that reads both must not
+assume one shape.
+
+```python
+# before
+    if node.get("online") == "True"          # False against a typed map: every host filtered out
+```
+
+### The adoption partition: the caller was **deleted**, not ported (FR-033, FR-034)
+
+`BaseEngine.find_hosts` called `self.cm.network_map.get_nodes_by_adoption(...)` — a method that no
+longer exists on the object `ConfigManager.network_map` now returns, so the site failed loudly
+(`AttributeError`) rather than quietly. The engine's clarification Q2 **deleted the method and its
+only caller** instead of migrating them: adopted-node selection is now
+`ControllerEngine._adopted_node_uuids`, built from the map it already holds.
+
+`cuems-engine`'s `tests/test_public_surface.py` guards the deletion by name —
+`get_nodes_by_adoption`, `partition_by_adoption` and `find_hosts` are all asserted absent from its
+own source, so none can come back by re-spelling.
+
+> **One obligation this closes by removal rather than by delivery.** FR-033 anticipated the engine
+> moving to a *public, non-mutating* adoption partition. There is none:
+> `NetworkMap.partition_by_adoption` lives on `cuemsutils.xml.settings`, and `cuemsutils.xml` is
+> internal (Q14). The engine reported that as
+> `upstream-reports/UR-1-no-public-adoption-partition.md` and then removed its own need for it.
+> **The gap in this library's public surface is real and still open** — any future consumer asking
+> "which nodes are adopted" has no public call to make. Carried as an open item, not as a closed
+> obligation; see [§5b](#5b-open-upstream-findings-from-consumers).
+
+### The count (T034, SC-007)
+
+**Four callers found, four discriminating tests added — equal.**
+
+| # | Site (`BaseEngine.py`, pre-migration lines) | Fault class | Failing-first evidence |
+|---|---|---|---|
+| 1 | `:33` `CONTROLLER_NETWORK_FLAG` + `:410` the comparison | keeps resolving, becomes wrong | `evidence/failing-first-site1-2-controller-lookup.txt` — 7 cases red with *"No controller node found"* |
+| 2 | `:410` controller lookup (same test file, positive cases) | keeps resolving, becomes wrong | same |
+| 3 | `:440` `find_hosts`' `get_nodes_by_adoption` call | **raises** (`AttributeError`) | `evidence/failing-first-site3-4-find-hosts.txt` |
+| 4 | `:443` `online == "True"` inside the same comprehension | keeps resolving, becomes wrong — *not reached* in the run above, read from the code and recorded as such | same file, prediction **F1** |
+
+**Denominator, stated because SC-007 requires it**: every call site named in 007's and 008's
+migration guides, plus `cuems-engine`'s own ecosystem-wide scan — 74 raw hits over
+`sorted`/`min`/`max`, `[:36]`/`[:8]`/`[-12:]`, `.split("-")`, `.join`, `isinstance(…, str)`,
+`json.dumps` and raw ids passed as OSC/NNG arguments, recorded site by site in
+`evidence/identity-audit.md`, run 2026-09-29 and re-run after the coercion delegation on
+2026-09-30. Four of the 74 were the four above; the rest are either not ids or pass through the
+`as_id`/`id_str` pair.
+
+**Site 4 is counted and recorded as read rather than observed**, and that is the honest entry:
+site 3 raises first in the same comprehension, so no test run can show site 4 failing while site 3
+is still there. The engine's evidence file says so in its own header rather than implying four
+observed reds.
 
 ## 4a. `cuems-nodeconf` — the network-map swap *(wave 3, landed 2026-09-17)*
 
@@ -733,6 +826,27 @@ adapter, which older bridges do not have — so it carries the versioned edge, w
 a comment beside it. The pair upgrades together or `dpkg` refuses, instead of the mismatch
 surfacing as an `AttributeError` part-way through a poweroff transaction. This is FR-091's pattern
 applied to an edge FR-091 did not enumerate.
+
+## 5b. Open upstream findings from consumers
+
+*(Recorded 2026-10-01. A consumer flow that measures a gap in this library reports it rather than
+patching it — each repository's constitution forbids editing the library whose characterization
+yardstick it vendors. `cuems-nodeconf`'s three and `cuems-common`'s one are in §4a/§4a-ii, closed.
+These are `cuems-engine`'s, from `specs/008-cuems-utils-migration/upstream-reports/`.)*
+
+| Report | Asks for | State |
+|---|---|---|
+| **UR-1** no public adoption partition | `partition_by_adoption` reachable without importing `cuemsutils.xml` | **OPEN.** Still only on `cuemsutils.xml.settings.NetworkMap:247`. The engine removed its own need for it by deleting `find_hosts` (§4c), so nothing is blocked — but the next consumer asking "which nodes are adopted" has no public call. Candidate for 013/014's public-surface pass |
+| **UR-2** `versioning.py`'s comment contradicted its own table | the comment states the table, or points at it | **CLOSED** 2026-09-30, incidentally, by feature 012's version bumps — the docstring now says versions move *per schema* and lists which feature moved which |
+| **UR-4** `Uuid` equals and hashes like `str` but cannot be ordered | a total ordering consistent with the string form | **CLOSED** by feature 012's FR-029. It also removes the stated reason for FR-035's `cuems-engine 0.1.0rc7` coupling — see `specs/012-uuid4-convergence/sibling-repository-updates.md` §4.1 |
+| **UR-5** `XmlReaderWriter.validate`'s deprecation advice fits only scripts | per-schema advice, or a public validator for configuration documents | **OPEN.** The warning sends every schema to `CuemsScript.validate`, which cannot validate a `settings`, `network_map`, `project_mappings` or `project_settings` document; only the `ConfigManager` loaders validate those, as a side effect of loading. Two candidate fixes, and the second is the better one — a public stand-alone config validator is a surface this library does not have and arguably should |
+| **UR-6** no public id-coercion helper | the uuid4→`Uuid` rule published under `cuemsutils.tools` | **CLOSED** by feature 012's FR-030. The engine deleted its mirror at `c31734c` and re-exports `coerce_identity` as `as_id` — the loop this guide exists to close, closing |
+| **UR-7** `fade_out` → `stop` is not behaviour-preserving | the claim corrected wherever it is made | **CLOSED** 2026-10-01. `xml/versioning.py` and `CLAUDE.md` both said "behaviour-preserving"; the engine measured that its `_handle_fade_out` never called `disarm()`, so a converted document now disarms its target where it previously leaked player processes. An improvement, but not a preservation — and the wrong reason would stop a consumer checking its own handler. 008's own migration guide (FR-053b) had it right all along; only those two overclaimed |
+
+**Three closed, three open, and the three open are all one shape**: a capability that exists inside
+`cuemsutils.xml` and has no public path out of it. That is the same finding FR-025 made about
+`CuemsNetworkMapType` and FR-030 made about the coercion rule — and both of those were closed by
+*publishing* rather than by adding a synonym. UR-1 and UR-5 are the remaining two instances.
 
 ## 6. Rollout, rollback and the release gate
 
