@@ -5,9 +5,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # Feature 014 — one coordinated gate: `xs:boolean`, media pixel dimensions, and the curve names
 
-**For:** the team working on `feat/xml-refactor` across `cuems-utils`, `cuems-editor`,
-`cuems-engine` and `cuems-frontend`, and the author of
+**For:** the team working on `feat/xml-refactor` across `cuems-utils`, `cuems-editor` and
+`cuems-engine`, and the author of
 [`media-pixel-dimensions-for-xml-refactor.md`](media-pixel-dimensions-for-xml-refactor.md).
+**`cuems-frontend`'s share is not here** — it is unloaded into that repository's own bundle
+(§6.2), and a frontend reader should start there.
 
 **Date:** 2026-10-02. **Status:** **accepted — this is feature `014`**, running the reduced SDD
 path (`specs/planning/etc-cuems-first-install-execution.md` §5–§6). Content refinement is in
@@ -28,6 +30,7 @@ below is written to them:
 | **6** | **This is feature `014`.** `hardware_outputs becomes real` moves to **015**; the coordinated tag comes after **011–015** |
 | **7** | **`cuems-frontend` owns the `localStorage` eviction** — it is the repository that uses the browser machinery (§7) |
 | **8** | **Feature 010's requirement changes are being implemented now**, and this gate's requirement changes **fold into that pass** rather than being carried separately (§8) |
+| **9** | **`cuems-frontend`'s share is unloaded into that repository** — landed 2026-10-02 as `specs/planning/xml-refactor/06-amendment-feature-014.md` (`ad305f9`). This document keeps its measurements and stops being the owner (§6.2) |
 
 **Answers to that document's §8 questions:** **(1)** declare the three fields natively on the
 refactor branch and cherry-pick only `9c17418`; do not merge the rc15 line. **(2)** Yes — and it is
@@ -351,7 +354,7 @@ on this branch, which is one of the plan's three utils deliverables dropping out
 | **`cuems-editor`** | **No source change for X1** — it returns `to_wire()` and its FR-012 forbids touching the dict. The media work is its own (probe at upload, DB columns + `ALTER TABLE` migration, fill at save, repair-tool passes), and its branch has not touched those files. **One payload-version bump covers both** wire changes under its FR-047a; version 1 has not shipped, so it is free now |
 | **`cuems-engine`** | **Nothing for X1** — zero `to_wire` in shipped source; it holds objects, already `bool`. The media read is `cue.media.get("pixel_width")`, which keeps working whatever the wire does. Its `cue.media` must stay dict-like with `.get()` — noted, and nothing in this gate changes that. **It must absorb the rc_1 fixes, and that merge gets a thorough review — see §6.1** |
 | **`cuems-nodeconf`, `cuems-power-bridge`, `cuems-common`** | **No source change** — objects, not payloads. Fixtures only: 46 + 4 + 8 boolean elements, one conversion run each |
-| **`cuems-frontend`** | the only repository doing real wire work, and it is small: drop the `=== 'True'` half at `sequence.component.ts:498`, make `:997` write a native boolean, and `settings.component.ts:176` (`online === true`) **starts working** — today it is permanently false, which disables `canAdopt()` and leaves the Adopt button dead for every node. Fix `:181`'s stale `node_type !== 'NodeType.master'` while in the file (007 renamed it to `node_role`). `autoload`/`timecode` need **nothing**: already written native, never read from the wire. **No change for media dimensions.** It also **owns the `localStorage` eviction** (decision 7, §7) |
+| **`cuems-frontend`** | the only repository doing real wire work, and **it is no longer tracked here** — unloaded 2026-10-02 into that repository's own planning bundle (decision 9, §6.2). The measurements stay below because they were taken here; the ownership does not |
 
 ---
 
@@ -386,6 +389,51 @@ will not show:
    against an older library to isolate a failure — the control arm that worked for 013 is
    unavailable here, and that is worth knowing *before* a red run has to be explained.
 
+### 6.2 `cuems-frontend`'s share is unloaded, not deleted (decision 9)
+
+Every frontend item this gate measured now lives in that repository, where its spec will be written:
+**`../cuems-frontend/specs/planning/xml-refactor/06-amendment-feature-014.md`**, committed
+2026-10-02 as `ad305f9` on its `feat/xml-refactor`.
+
+**Why there rather than here.** This document is `cuems-utils` feature 014's plan. A frontend task
+list inside it would be a second copy of work whose spec is written in another repository, against
+another repository's base branch and line numbers — the drift this folder's deletion policy exists
+to prevent, and the same mistake 010 made three times with its repository list. The gate's job is to
+state the *wire change*; the consuming repository's job is to state what that costs it.
+
+**What was unloaded**, five items — and the amendment is the authority on all of them now:
+
+| # | Item | Coupling |
+|---|---|---|
+| 1 | characterization tests for the save path and the adoption guards | before everything (its D35, finding C8) |
+| 2 | `sequence.component.ts:997` → write the native boolean | **hard and simultaneous with 014** |
+| 3 | `settings.component.ts:176` → nothing if shipping with 014; a dual read only if shipping before | scheduling |
+| 4 | `settings.component.ts:182` → `node_role !== 'controller'` | none — a 007 defect, shippable now |
+| 5 | the `localStorage` eviction keyed on `payload_version` | same release as payload version 1 |
+
+**Two things that amendment establishes which this document had not**, both measured there:
+
+- **Item 2 is not cleanup, it is a hard coupling in both directions.** `'True'` becomes a *refused*
+  spelling (§1.2), and because `from_json` has no document to validate against, the adapter is the
+  whole of its structural check — so a refusal is a `SchemaError` and the **save fails**. 014 cannot
+  ship without that one line, and that line cannot ship without 014. It is the only such line in
+  that repository.
+- **The frontend already writes the same field native, three lines away.** The CueList fallback at
+  `sequence.component.ts:882-897` sends `enabled: true` while `:997` sends `'True'` — two spellings
+  of one field in one file today. Only the string one breaks. That is the strongest available
+  argument that the native form is safe there, and it is the repository's own code making it.
+
+**Corrected on the way out**, so the numbers in §6 and §7 above are not quoted against the wrong
+lines: `canAdopt()` is at **`:187`**, not `:185`, and the stale `node_type` is at **`:182`**, not
+`:181`. Both re-measured against `cuems-frontend` `8a61780`.
+
+**The supersession this created**, recorded because it reverses a standing instruction rather than
+merely adding to it: that bundle's `04-wire-contract.md` §4 is titled *"The string boolean form
+survives, and simplifying it is out of scope"* and says **"Keep it"**, and its
+`03-migration-inventory.md` §4a item 2 tells the frontend to *add* a dual read for `online`. Both
+sections keep their text and carry a pointer to the amendment, because each is still correct about
+the mechanism and only wrong about the direction.
+
 ---
 
 ## 7. The hazard that is not in any repository
@@ -405,10 +453,18 @@ and the editor can only *advertise* a version, never clear another origin's stor
 half already exists (it sends `payload_version` as the first frame); the frontend's half is to
 compare and evict. The editor's T061 flagged this and left it unassigned; it is assigned now.
 
-**Where it is recorded: feature 010** (decision 8). The eviction is a `cuems-frontend` obligation,
-and 010 is the feature that owns the frontend flow and its US8 requirements — so it lands as a 010
-requirement change in the pass now under way, not as a line item carried here. The same applies to
-the two adoption bugs in §6: frontend-owned, recorded in 010, and shippable ahead of this gate.
+**Where it is recorded, in two places and deliberately.** As a **010 requirement change**
+(decision 8) because 010 owns the frontend flow and its US8 requirements, and as **§4 of that
+repository's own amendment** (decision 9) because that is where its spec will be written and where
+the mechanism belongs. The same applies to the two adoption bugs in §6: frontend-owned, recorded in
+both, and shippable ahead of this gate.
+
+The amendment adds three properties this section did not state, each a way to get the eviction
+wrong: **evict on any difference, not only on "older"** (a rolled-back editor leaves a *newer*
+cache against an older server); **a missing stored version counts as a difference** (which is every
+browser in the field today); and **`initial_template` is deleted rather than migrated**, since it is
+retired at payload version 1 and a cache entry for a frame the server no longer sends can never be
+refreshed.
 
 ---
 
@@ -427,6 +483,7 @@ left as a list. Recorded here so the reasoning is findable without re-reading th
 | 6 | What feature number? | **014.** `hardware_outputs becomes real` moves to **015**; the coordinated tag covers **011–015** | the status line; sequence and briefs in `etc-cuems-first-install-execution.md` §5–§6 |
 | 7 | Who owns the `localStorage` eviction? | **`cuems-frontend`** — it is the repository that uses the browser machinery, and the editor cannot clear another origin's storage | §7 |
 | 8 | How are the requirement changes carried? | **Folded into feature 010's requirement pass**, now under way — not carried as separate line items here | below |
+| 9 | Where does `cuems-frontend`'s work live? | **In `cuems-frontend`**, as `specs/planning/xml-refactor/06-amendment-feature-014.md` (`ad305f9`, 2026-10-02). This document keeps the measurements and stops being the owner | §6.2 |
 
 ### 8.1 Decision 8 — what folds into 010, and why there rather than here
 
