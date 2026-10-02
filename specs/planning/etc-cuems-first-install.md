@@ -671,7 +671,7 @@ that rule requires.
 
 **The third count outlived this item.** `videoplayer.outputs` is the same kind of fact and was
 re-measured as read by nothing on 2026-09-24, but F3's scope was this item's two fields. It is
-enumerated as debt in `tests/contract/test_duplication_flags.py` and retires with feature 014 —
+enumerated as debt in `tests/contract/test_duplication_flags.py` and retires with feature 015 —
 not before, because `hardware_outputs` has to be able to answer `len(video_outputs)` first. See
 `etc-cuems-first-install-execution.md` §4.2.
 
@@ -810,7 +810,7 @@ Three violations are live, all measured:
    discovered document, and already declared in `project_mappings`. §8.3's F2 catches this
    mechanically.
 
-**Violations 2 and 3 were fixed by F3/F4** (§8.5 item 3); violation 1 is feature 014's. All
+**Violations 2 and 3 were fixed by F3/F4** (§8.5 item 3); violation 1 is feature 015's. All
 three are now *checked* as well as described — `tests/contract/test_duplication_flags.py` — so a
 fourth cannot arrive unannounced. That check also found a **third** stored derived fact the list
 above misses: `project_mappings`' `number_of_nodes`, which is `len(nodes/node)` restated at the

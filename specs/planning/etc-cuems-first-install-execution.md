@@ -8,8 +8,15 @@ SPDX-License-Identifier: GPL-3.0-or-later
 **Companion to** [`etc-cuems-first-install.md`](etc-cuems-first-install.md). That document holds
 the *design*: seventeen decisions, the identity invariant, the splitting basis and the
 duplication-avoidance flags. **This one holds the state of the build** — what is actually in the
-tree, measured rather than asserted — and the sequence that turns the remainder into four
-speckit features, `011` through `014`.
+tree, measured rather than asserted — and the sequence that turns the remainder into five
+speckit features, `011` through `015`.
+
+**Renumbered 2026-10-02.** `hardware_outputs becomes real` was feature **014** in every earlier
+reading of this document and is now **015**. The 014 slot went to the `xs:boolean` + media-elements
+gate (§6), which has to land before `hardware_outputs` moves anything, because it changes the
+boolean type in two schemas and the conversion that carries it. Features **012 and 013 are landed**
+and their documents still say "feature 014" for what is now 015 — they are frozen record and are
+**not** retroactively rewritten (`CLAUDE.md`'s policy); read them with this note.
 
 **Written for** whoever picks the work up next: a contributor on a fresh checkout, or an agent
 session with no memory of how any of this got here. It is meant to be read *before* touching the
@@ -155,8 +162,8 @@ not start working.
 One consequence of F4 to carry forward: `ConfigManager.get_video_output_id` /
 `get_audio_output_id` read `self.node_conf['default_video_output']` — a key that
 `settings.xsd` does not declare and that `hardware_outputs.xsd` no longer declares either. Both
-methods have **zero callers**. The fossil is now unambiguous; feature 014 either gives it a real
-backing document or deletes it.
+methods have **zero callers**. The fossil is now unambiguous; feature **015** either gives it a
+real backing document or deletes it.
 
 ---
 
@@ -185,7 +192,7 @@ Enumerated in `test_duplication_flags.KNOWN_STORED_DERIVED_FACTS` with a resolut
   nothing.** The engine reads only `videoplayer/osc_port` (`NodeEngine.py:555`);
   `../cuems-common/usr/lib/cuems/bin/cuems-extract-video-latency` reads only
   `videoplayer/output_latency_ms`. It survives rc16 solely because F3's scope was OPEN-6's two
-  fields. **Retires with 014, not before** — `hardware_outputs` must be able to answer
+  fields. **Retires with 015, not before** — `hardware_outputs` must be able to answer
   `len(video_outputs)` first, or the count disappears with nothing to replace it.
 - **`project_mappings/number_of_nodes`** — `len(nodes/node)` restated at the root. Unlike the
   counts above, this one **is** read: `ConfigManager.py:505` assigns `self.number_of_nodes`, and
@@ -281,7 +288,7 @@ and `plan.md`; applied to the parent here and below, never silently (FR-046):
 | M9 | 25 tests needed a host `/etc/cuems`: `tests/support/config_inventory.py:55` pops `CUEMS_CONF_PATH` at import; four modules built `ConfigManager()` with no `config_dir`. A session guard in `tests/conftest.py` now names any such test | §1 (the suite is hermetic) |
 
 Also measured at plan time: the fossil `get_{video,audio}_output_id('default')` raise `KeyError`
-on every node (§3.4's fossil, pinned as measured for feature 014); `test_descriptor_laziness`
+on every node (§3.4's fossil, pinned as measured for feature 015); `test_descriptor_laziness`
 fails its 1.10× cap on roughly two runs in three on a 2-vCPU VM (§4.6, more support for a noise
 floor); and dh-virtualenv's injected postinst autoscript begins with `set -e`, which 011's
 `postinst` undoes first — the one trap this register did not have (`research.md` R21).
@@ -292,24 +299,38 @@ floor); and dh-virtualenv's injected postinst autoscript begins with `set -e`, w
 step 0  housekeeping                     no SDD    DONE  2026-09-24
 step 1  F3/F4/F5 ratchets                no SDD    DONE  37489b5
 step 2  D15/D16/D17 values + generator   no SDD    DONE  e421e31
-step 3  feature 011  /etc/cuems first install         SDD   LANDED 2026-09-28 (82/82; nodeconf 003 gate CLOSED 2026-09-28)
-step 4  feature 012  uuid4 convergence                SDD
-step 5  feature 013  device-class reshape (F6)        SDD
-step 6  feature 014  hardware_outputs + inventory     SDD
+step 3  feature 011  /etc/cuems first install         SDD        LANDED 2026-09-28 (82/82; nodeconf 003 gate CLOSED 2026-09-28)
+step 4  feature 012  uuid4 convergence                SDD        LANDED 2026-09-30 (101/101)
+step 5  feature 013  device-class reshape (F6)        SDD        LANDED 2026-10-01
+step 6  feature 014  xs:boolean + media elements      reduced    (was 015's slot; see the brief)
+step 7  feature 015  hardware_outputs + inventory     SDD        (was 014 until 2026-10-02)
 ```
 
-**Two orderings are forced. One is advice.**
+**Two orderings are forced. Two are advice.**
 
 - **011 before 012** — §9.4: narrowing `UuidType` without `cuems-init-node` invalidates every
   node identity in the field with no tool able to repair them. That ships a brick.
 - **011 before everything** — it is the only step that makes a fresh node boot, and it is the
   base package the whole stack installs first.
-- **013 before 014** *(advice)* — reshaping device classes after moving the port inventory means
+- **013 before 015** *(advice)* — reshaping device classes after moving the port inventory means
   moving the inventory twice.
+- **014 before 015** *(advice, not force)* — nothing in `hardware_outputs` is boolean, so there is
+  no hard dependency either way. But both edit `settings.xsd` (014 deletes the dead `BoolType`
+  declaration; 015 retires `settings/outputs`) and so both must move `test_schema_scope`'s hashes,
+  which is a guaranteed conflict if they run in parallel rather than in sequence (§7.5).
 
-Steps 3–6 each cross a repository boundary, change a file format, or add a public entry point.
-That is the line the numbered features have held in this repo, and it is why these four get a
+Steps 3–7 each cross a repository boundary, change a file format, or add a public entry point.
+That is the line the numbered features have held in this repo, and it is why these five get a
 spec and steps 0–2 did not.
+
+**Step 6 is the one exception, and it is a recorded one.** Feature 014 runs a **reduced** path —
+`plan.md` (carrying the constitution check and complexity tracking), `tasks.md`, `baseline.md` and
+a rule-4 release note, with no `spec.md` user-story pass and no `research.md`, because its design
+space is closed and its research is already measured and committed. The reasoning, and what is
+deliberately kept rather than dropped, is in the brief below. A reduced path is not a lighter
+standard: Principles II and IV bind unchanged, and the two exceptions this feature needs — another
+D3 relaxation, and a `doc_version` that no longer determines its own content — have to be recorded
+in complexity tracking, which is *why* a plan still exists.
 
 ---
 
@@ -340,7 +361,7 @@ the `cuems-common` handover; `postrm`; §4.1's packaging hygiene.
    disagree on whether `default_audio_output` holds an output **id** or an output **name**. That
    disagreement is unresolved and one of the two spellings is wrong.
 2. **The `default_mappings.xml` tension.** §8.5 item 5 retires this document, and 011 is about to
-   build a generator for it. Recommended: build it anyway — a node must boot long before 014
+   build a generator for it. Recommended: build it anyway — a node must boot long before 015
    lands, and the table is seven scalars plus a node entry — but the spec should say so
    deliberately rather than discovering it in review.
 3. **OPEN-3** — package ordering between `postinst` and first service start, confirmed rather
@@ -460,7 +481,7 @@ landed `b305c1c`). The owner is right, the name is stale.
 
 | | |
 |---|---|
-| **Depends on** | nothing hard; **before 014** by advice |
+| **Depends on** | nothing hard; **before 015** by advice |
 | **Kind** | a rule-4 file-format migration — version step **and** conversion, per `specs/agreements/schema-evolution-convention.md` |
 
 **Already proven** (2026-09-23, under the pinned `xmlschema==3.4.3`): a document carrying
@@ -471,7 +492,45 @@ non-video device is still rejected. The mechanism works; the migration is the wo
 schemas and 4 repositories, including four cue-type unions in
 `../cuems-frontend/src/app/.../sequence.component.ts`.
 
-### Feature 014 — `hardware_outputs` becomes real
+### Feature 014 — `xs:boolean` + media pixel elements (the coordinated gate)
+
+**Delivers**: booleans stop being a bespoke `xs:string` enum; the three media pixel elements and
+the two fade-curve values land in the same version step.
+
+**This brief deliberately holds no design.** It lives in
+[`coordinated-gate-booleans-media-dimensions.md`](coordinated-gate-booleans-media-dimensions.md),
+which is already the research and the plan — measured, committed, and written to four settled
+maintainer decisions. Restating it here would create the second drifting copy this folder's
+deletion policy exists to prevent. What belongs *here* is only the sequencing:
+
+| | |
+|---|---|
+| **Scope** | X1 (`cms:BoolType` → `xs:boolean`, five elements in two schemas, three bespoke `simpleType` declarations deleted); the three optional `MediaType` elements; `main`'s `9c17418` curve names. All three in the **existing, unreleased `script` 1 → 2 and `network_map` 1 → 2 steps** — no new version |
+| **Depends on** | nothing hard. 013 is landed; the device shape and the boolean type are orthogonal |
+| **Blocks** | 015 by advice only (both edit `settings.xsd`; see §5) |
+| **Kind** | a rule-4 file-format migration — `specs/agreements/schema-evolution-convention.md`, whose third deliverable (**a release note naming what must be converted and when the old form stops being accepted**) does not exist yet and cannot be inferred |
+| **Path** | **reduced SDD** (§5): `plan.md`, `tasks.md`, `baseline.md`, release note. No `spec.md` story pass, no `research.md` |
+| **Repos** | this one (owner); `cuems-frontend` (four line changes, two of which fix live bugs); `cuems-editor` (no source change — one payload-version bump); engine/nodeconf/bridge/common fixtures only |
+
+**The two things that make this harder than it looks**, both measured and both in the proposal:
+
+- **`doc_version="2"` becomes briefly ambiguous.** 51 unmarked documents convert for free; **nine
+  already at version 2 carry the old boolean form and the registry cannot reach them**, because
+  they are already current. Six of the nine are goldens that must be re-cut anyway. This is feature
+  012's shape exactly, and its lesson applies verbatim — the repair is cross-document and
+  out-of-band by design.
+- **`_Bool` must not be deleted.** `Mapper._lexical` is the only producer of element text on a
+  stdlib-`ElementTree` write path, `Element.text` must be a `str`, and `str(True)` is `'True'`,
+  which `xs:boolean` rejects. Since `save` validates before writing, deleting the class would make
+  the library refuse to save any document containing a cue. The edit is a swap, not a deletion
+  (proposal §1.3).
+
+**Worth stating because it is the opposite of the usual risk**: this change makes the schema
+descriptor stop reporting booleans as a two-value string enum, which is what a descriptor-driven
+form renders as a dropdown instead of a checkbox. Feature 010's T031a is committed to verifying
+those forms; without 014 it would verify the wrong widget as correct.
+
+### Feature 015 — `hardware_outputs` becomes real
 
 **Delivers**: the missing layer — node **hardware capability**, split from project **mappings**.
 
@@ -483,7 +542,7 @@ schemas and 4 repositories, including four cue-type unions in
 
 | | |
 |---|---|
-| **Depends on** | 013 (advice), and on 011 for anything that has to ship |
+| **Depends on** | 013 (advice), 014 (advice — the `settings.xsd` hash, §5), and 011 for anything that has to ship |
 | **Repos** | this one, `cuems-nodeconf` (transcribes `display.conf`), `cuems-editor`/`cuems-frontend` (read the inventory from a new place), and **`cuems-hardware-discovery`, which has no checkout** |
 
 **The seam that must be stated in the spec**, because it looks like two writers: discovery owns
@@ -585,4 +644,4 @@ reported all six schemas as show-layer violations for that reason alone. See
   the method to repeat, not the result to copy.
 - **Do not ship anything from this branch alone.** D27: nothing in this ecosystem releases by
   itself. The coordinated merge is what the `xml-refactor-merge-candidate` tag marks, and the
-  tag comes after 011–014, not before.
+  tag comes after 011–015, not before.
