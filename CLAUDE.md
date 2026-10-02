@@ -127,6 +127,18 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
+- **Feature numbering, 2026-10-02 — read this before `specs/012-*/` or `specs/013-*/`.** The
+  `xs:boolean` + media-pixel-elements gate (`specs/planning/coordinated-gate-booleans-media-dimensions.md`)
+  takes the **014** slot, so `hardware_outputs becomes real` — specified but never implemented —
+  is now **015**. The coordinated `xml-refactor-merge-candidate` tag therefore comes after
+  **011–015**, with the gate landing alongside the others rather than after them.
+  **Features 012 and 013 are landed and say "feature 014" for what is now 015.** They are frozen
+  record and are *not* retroactively rewritten (see this file's policy on landed specs), so every
+  such reference in `specs/012-uuid4-convergence/` and `specs/013-device-class-reshape/` — the
+  `hardware_outputs` structure pass, `UuidType`'s FR-020b hand-off, the `xs:anyType`/no-instance
+  notes — means **015**. The step sequence and the per-feature briefs are current in
+  `specs/planning/etc-cuems-first-install-execution.md` §5–§6.
+
 - **`cuems-editor` migrated, and 010 moved with it** (2026-10-02, reviewed from this repository).
   `cuems-editor`'s feature `001-cuems-utils-migration` landed on its `feat/xml-refactor` at
   `bf57d95` — **62 of 63 tasks**, suite **154 passed / 2 skipped / 1 xfailed**, where its branch
@@ -172,7 +184,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 - `013-device-class-reshape` (**landed on its local branch** 2026-10-01; merges into
   `feat/xml-refactor`; nothing ships until the coordinated `xml-refactor-merge-candidate` tag
-  after 011–014): an element named after a device class becomes **one element carrying a
+  after 011–015): an element named after a device class becomes **one element carrying a
   `class` attribute**, so a new class costs nothing unless it needs special fields.
   - **Four axes, one shape.** `<audio>`/`<video>`/`<dmx>` under a mappings node become
     `<device class="…">` inside `<devices>`; the six root `default_*` elements become
@@ -267,7 +279,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 - `012-uuid4-convergence` (**landed on its local branch** 2026-09-30; merges into
   `feat/xml-refactor`; nothing ships until the coordinated `xml-refactor-merge-candidate` tag
-  after 011–014): one identity shape across the project, and the machinery that gets a deployed
+  after 011–015): one identity shape across the project, and the machinery that gets a deployed
   cluster there without losing a node.
   - **`UuidType` leaves `KNOWN_DIVERGENT_DECLARATIONS`** — the allowlist in
     `tests/contract/test_schema_name_overlap.py` is now **empty**, which is this feature's
@@ -339,7 +351,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 - `011-etc-cuems-first-install` (**landed on the local feature branch** 2026-09-28; merges into
   `feat/xml-refactor`; nothing ships until the coordinated `xml-refactor-merge-candidate` tag after
-  011–014): a plain `apt install cuems-utils` leaves a node that loads and is unique.
+  011–015): a plain `apt install cuems-utils` leaves a node that loads and is unique.
   - **Packaging**: the six XSDs ship to `/usr/share/cuems/schemas` and are copied to `/etc/cuems` on
     every configure — never a conffile (D4/D5); `cuems-common 1.3.0-23` hands over
     `network_map.{xml,xsd}` with a snapshot-and-`rm_conffile` recipe so a live map survives and a
@@ -399,7 +411,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   - **Measured corrections** (M1–M9 in the spec): `cuems-common`'s `node-identity-contract.md`
     already existed; `cuems-config-node` was a second minter; the editor hardcodes
     `/etc/cuems/script.xsd`; the fossil `get_{video,audio}_output_id('default')` raise `KeyError` on
-    every node (feature 014's); 25 tests needed a host `/etc/cuems` because
+    every node (feature 015's); 25 tests needed a host `/etc/cuems` because
     `tests/support/config_inventory.py` pops `CUEMS_CONF_PATH` at import — now a session guard in
     `tests/conftest.py` names any such test.
   - Lifecycle tests run in an unprivileged `mmdebstrap --mode=unshare` bookworm chroot

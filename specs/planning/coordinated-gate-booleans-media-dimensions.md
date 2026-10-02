@@ -3,15 +3,17 @@ SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-# Proposal — one coordinated gate: `xs:boolean`, media pixel dimensions, and the curve names
+# Feature 014 — one coordinated gate: `xs:boolean`, media pixel dimensions, and the curve names
 
 **For:** the team working on `feat/xml-refactor` across `cuems-utils`, `cuems-editor`,
 `cuems-engine` and `cuems-frontend`, and the author of
 [`media-pixel-dimensions-for-xml-refactor.md`](media-pixel-dimensions-for-xml-refactor.md).
 
-**Date:** 2026-10-02. **Status:** proposal. Every figure below was measured today against
-`cuems-utils` `fdfb688`, `cuems-editor` `bf57d95`, `cuems-engine` `1662a99`, `cuems-frontend`
-`8a61780`.
+**Date:** 2026-10-02. **Status:** **accepted — this is feature `014`**, running the reduced SDD
+path (`specs/planning/etc-cuems-first-install-execution.md` §5–§6). Content refinement is in
+progress; this document becomes the feature's `plan.md`. Every figure below was measured on
+2026-10-02 against `cuems-utils` `fdfb688`, `cuems-editor` `bf57d95`, `cuems-engine` `1662a99`,
+`cuems-frontend` `8a61780`.
 
 **Settled by the maintainer, 2026-10-02** — these are decisions, not proposals, and the document
 below is written to them:
@@ -22,6 +24,10 @@ below is written to them:
 | **2** | **The branch stays on rc16.** Every `feat/xml-refactor` change is planned to land **after** the rc15 work, so rc15 ships first and this branch migrates what it leaves behind |
 | **3** | **All schema changes land in the *existing, unreleased* 1 → 2 bump.** Nothing has shipped, so there is **no 2 → 3 step** — version 2's *meaning* absorbs X1 before anyone has seen it (§2, and the one consequence measured in §2.1) |
 | **4** | **`cuems-engine` absorbs the last fixes.** Expected to merge cleanly for lack of overlap, as that plan's §6 says — but a **thorough review is required**, not a clean-merge assumption (§6.1) |
+| **5** | **`script` and `network_map` move together**, in one release — not staged (§2) |
+| **6** | **This is feature `014`.** `hardware_outputs becomes real` moves to **015**; the coordinated tag comes after **011–015** |
+| **7** | **`cuems-frontend` owns the `localStorage` eviction** — it is the repository that uses the browser machinery (§7) |
+| **8** | **Feature 010's requirement changes are being implemented now**, and this gate's requirement changes **fold into that pass** rather than being carried separately (§8) |
 
 **Answers to that document's §8 questions:** **(1)** declare the three fields natively on the
 refactor branch and cherry-pick only `9c17418`; do not merge the rc15 line. **(2)** Yes — and it is
@@ -187,14 +193,19 @@ start:
 
 → **`_script_1_to_2` gains the boolean rewrite**, beside the duration reshape, the `action_type`
 rename and the `fade_profiles` drop it already carries. `CURRENT_VERSION["script"]` stays **2**.
-→ **`network_map`'s 1 → 2 step gains the same rewrite.** Its version stays **2**.
+→ **`network_map`'s 1 → 2 step gains the same rewrite.** Its version stays **2**, and by
+**decision 5 the two schemas move together, in one release.** Staging them was the alternative —
+`cuems-nodeconf` rewrites the map every 30 s, so the map would convert itself ahead of the project
+libraries — but that buys a deployment convenience at the cost of two migration states to reason
+about instead of one, and the conversion is the same four lines in both. One release, both
+schemas.
 → `settings`, `project_mappings`, `project_settings`, `hardware_outputs`: **untouched** — no
 boolean is referenced in any of them, and `settings.xsd`'s declaration is dead and gets deleted
 with X1.
 → The three Media elements and the two curve values are **additive**, so they need no conversion at
 all. They simply become part of what version 2 admits.
 
-**This answers §8 question 2, and more cleanly than a new step would.** That document asks whether
+**This answers the media plan's §8 question 2, and more cleanly than a new step would.** It asks whether
 the Media elements justify a step and notes a bump *"would give an older refactored library a clear
 `DocumentTooNewError` instead of 'unexpected element'"*. They get that, because X1 is in the same
 unreleased version 2 — without the ecosystem ever having to reason about a third script version.
@@ -238,7 +249,8 @@ what makes decision 3 the right call rather than merely the cheap one.
 The media-dimensions plan targets **a different line**: rc15 cut from `main`, the editor on `rc1`,
 the engine on PR #22 against `rc_1`, plus XSD-only back-patches for rc14 and `pre_release_1`. The
 refactor is rc16 on `feat/xml-refactor`, and nothing ships from it until the coordinated
-`xml-refactor-merge-candidate` tag after features 011–014 (D27).
+`xml-refactor-merge-candidate` tag after features 011–015 (D27) — this gate being 014, and so
+inside that set rather than after it.
 
 **So the work would otherwise land twice, and the second landing is the expensive one** — rc15's
 `MediaXmlBuilder` fix (dict order, empty element for `None`) does not apply to this branch at all,
@@ -339,7 +351,7 @@ on this branch, which is one of the plan's three utils deliverables dropping out
 | **`cuems-editor`** | **No source change for X1** — it returns `to_wire()` and its FR-012 forbids touching the dict. The media work is its own (probe at upload, DB columns + `ALTER TABLE` migration, fill at save, repair-tool passes), and its branch has not touched those files. **One payload-version bump covers both** wire changes under its FR-047a; version 1 has not shipped, so it is free now |
 | **`cuems-engine`** | **Nothing for X1** — zero `to_wire` in shipped source; it holds objects, already `bool`. The media read is `cue.media.get("pixel_width")`, which keeps working whatever the wire does. Its `cue.media` must stay dict-like with `.get()` — noted, and nothing in this gate changes that. **It must absorb the rc_1 fixes, and that merge gets a thorough review — see §6.1** |
 | **`cuems-nodeconf`, `cuems-power-bridge`, `cuems-common`** | **No source change** — objects, not payloads. Fixtures only: 46 + 4 + 8 boolean elements, one conversion run each |
-| **`cuems-frontend`** | the only repository doing real wire work, and it is small: drop the `=== 'True'` half at `sequence.component.ts:498`, make `:997` write a native boolean, and `settings.component.ts:176` (`online === true`) **starts working** — today it is permanently false, which disables `canAdopt()` and leaves the Adopt button dead for every node. Fix `:181`'s stale `node_type !== 'NodeType.master'` while in the file (007 renamed it to `node_role`). `autoload`/`timecode` need **nothing**: already written native, never read from the wire. **No change for media dimensions** |
+| **`cuems-frontend`** | the only repository doing real wire work, and it is small: drop the `=== 'True'` half at `sequence.component.ts:498`, make `:997` write a native boolean, and `settings.component.ts:176` (`online === true`) **starts working** — today it is permanently false, which disables `canAdopt()` and leaves the Adopt button dead for every node. Fix `:181`'s stale `node_type !== 'NodeType.master'` while in the file (007 renamed it to `node_role`). `autoload`/`timecode` need **nothing**: already written native, never read from the wire. **No change for media dimensions.** It also **owns the `localStorage` eviction** (decision 7, §7) |
 
 ---
 
@@ -385,30 +397,51 @@ reach**.
 
 The editor's `payload_version` first frame is the fix: evict when the stored version differs from
 the received one. This is the strongest reason to land the gate **inside payload version 1** rather
-than after it — and it is an obligation currently owned by nobody (the editor's T061 flagged the
-eviction story and left it unassigned).
+than after it.
+
+**Owner, settled (decision 7): `cuems-frontend`.** It is the repository that uses the browser
+machinery — all four cache sites are its own files, `localStorage` is reachable from nowhere else,
+and the editor can only *advertise* a version, never clear another origin's storage. The editor's
+half already exists (it sends `payload_version` as the first frame); the frontend's half is to
+compare and evict. The editor's T061 flagged this and left it unassigned; it is assigned now.
+
+**Where it is recorded: feature 010** (decision 8). The eviction is a `cuems-frontend` obligation,
+and 010 is the feature that owns the frontend flow and its US8 requirements — so it lands as a 010
+requirement change in the pass now under way, not as a line item carried here. The same applies to
+the two adoption bugs in §6: frontend-owned, recorded in 010, and shippable ahead of this gate.
 
 ---
 
-## 8. Decisions — two settled, four open
+## 8. Decisions — all settled
 
-**Settled 2026-10-02** (and folded into the text above rather than left here):
+Every question this document opened has an answer, each folded into the text above rather than
+left as a list. Recorded here so the reasoning is findable without re-reading the whole document.
 
-- ~~Does the rc15 line ship first?~~ **Yes** — decision 2. The back-patches in that plan's §5 stand
-  as written, and this branch migrates what rc15 leaves in the field (§3).
-- ~~A new version step, or the one in flight?~~ **The one in flight** — decision 3. No 2 → 3; nine
-  files need an out-of-band rewrite, six of which were already on the re-cut list (§2.1).
+| | Question | Settled | Where it landed |
+|---|---|---|---|
+| 1 | Is a version bump acceptable? | **Yes** — it is what makes the combination cheap | the premise of §2 |
+| 2 | Does the rc15 line ship first? | **Yes.** The back-patches in that plan's §5 stand as written; the branch stays on rc16 and migrates what rc15 leaves in the field | §3, and the fixture it earns us |
+| 3 | A new version step, or the one in flight? | **The one in flight.** No 2 → 3 — nine files need an out-of-band rewrite, six already on the re-cut list | §2, §2.1 |
+| 4 | Is `cuems-engine`'s merge assumed clean? | **No.** Expected clean, reviewed anyway, with the review given a shape | §6.1 |
+| 5 | Do `script` and `network_map` move together? | **Together, one release.** Staging them would buy a deployment convenience at the cost of two migration states instead of one, for the same four lines of conversion | §2 |
+| 6 | What feature number? | **014.** `hardware_outputs becomes real` moves to **015**; the coordinated tag covers **011–015** | the status line; sequence and briefs in `etc-cuems-first-install-execution.md` §5–§6 |
+| 7 | Who owns the `localStorage` eviction? | **`cuems-frontend`** — it is the repository that uses the browser machinery, and the editor cannot clear another origin's storage | §7 |
+| 8 | How are the requirement changes carried? | **Folded into feature 010's requirement pass**, now under way — not carried as separate line items here | below |
 
-Still open:
+### 8.1 Decision 8 — what folds into 010, and why there rather than here
 
-1. **Does X1 move `script` and `network_map` together?** Both are at version 2 and both fold into
-   their own 1 → 2 step, so "together" is the default and costs nothing extra. Splitting them would
-   only make sense to let the map convert itself (nodeconf rewrites it every 30 s) ahead of the
-   project libraries — a deployment convenience, not a schema requirement.
-2. **Is this feature 015, or part of 014?** It shares 014's shape (schema change + conversion +
-   consumer migration) but none of its content. A separate number keeps 014's `hardware_outputs`
-   scope honest.
-3. **Who owns the `localStorage` eviction?** (§7.) It is the only item in this gate with no
-   repository assigned.
-4. **The frontend's two adoption bugs** (§6) are live on `main`-line behaviour and do not need this
-   gate. They could ship now, and arguably should.
+Feature 010's requirement changes are being implemented now, so this gate's requirement changes go
+into that pass instead of accumulating against a feature that has not started. Four items, all of
+which 010 already owns the surface for:
+
+| Item | 010's requirement today | What the fold changes |
+|---|---|---|
+| **The payload delta count** | FR-010, FR-011 and SC-004 say **two** deltas | **four** — (c) 013's cue key, (d) the projected model default. Already measured and recorded in 010's guide §4d and `baseline.md`; the FR text is what the fold corrects |
+| **`localStorage` eviction** | unowned; the editor's T061 flagged it | assigned to **`cuems-frontend`** (decision 7), recorded against 010's frontend flow |
+| **The frontend's two adoption bugs** | not recorded | `settings.component.ts:176` (`online === true`, so `canAdopt()` is permanently false and the Adopt button is dead) and `:181`'s stale `node_type !== 'NodeType.master'`. Both are live on `main`-line behaviour, both frontend-owned, and **both shippable ahead of this gate** |
+| **T031a's widget premise** | *"verify the descriptor-driven forms against every restricted enumeration"* | after X1 a boolean is no longer a restricted enumeration, so the task verifies a checkbox rather than confirming a two-value dropdown as correct (§1.1) |
+
+**The ordering that makes this safe:** the delta count and the widget premise are corrections to
+010's *text* and need no code; the two adoption bugs and the eviction are `cuems-frontend` work that
+010's flow 05 has not started. So nothing in this list blocks the gate, and nothing in the gate
+blocks 010 — which is why folding is cheaper than carrying.
