@@ -105,12 +105,12 @@ no single view of the whole; this is that view.)*
 |---|---|---|
 | `cuems-utils` | descriptor path · deprecated-surface removal · this guide | **wave 0 landed** 2026-09-04 |
 | `cuems-engine` | typed node map (role · online · adopted) · identity coercion at every ingress · the script version change · release-gate bounds | **landed** 2026-09-30 as its own feature `008-cuems-utils-migration` (64/64), **unmerged**; tag `1662a99` (2026-10-01, local). See [§4c](#4c-cuems-engine--the-typed-node-map-wave-1-landed-2026-09-30) |
-| `cuems-editor` | | not started |
+| `cuems-editor` | the five show-parsing sites onto `CuemsScript` · the wire projection at one boundary · the fixup split · the descriptor and configuration-domain messages · the payload-version handshake · release-gate bounds | **landed** 2026-10-02 as its own feature `001-cuems-utils-migration` (**62/63**), **unmerged**; no tag (its message is written and held unready, T046/T061). The one open task is blocked on this library — `cuems-editor` UR-5. See [§4d](#4d-cuems-editor--the-wire-boundary-wave-2-landed-2026-10-02) |
 | `cuems-common` | Avahi templates and their filenames · the live-file migration tool · conversion ordering · release-gate demonstration | **landed** 2026-09-17 (`1a00159`), **unmerged** — holds a merge gate with `cuems-nodeconf` |
 | `cuems-nodeconf` | network-map object swap · relocated timing helper · Avahi vocabulary (its half) · packaging bounds | **all three stories landed** 2026-09-17 (`8ce7552`), **unmerged** — holds a merge gate with `cuems-common` |
 | `cuems-frontend` | | not started |
 | **`cuems-wsclient`** | | not started |
-| *(`cuems-power-bridge`)* | **not in D32's six** — found carrying the retired vocabulary in shipped code; see [§5](#️-the-denominator-is-wrong-a-seventh-consumer-carries-the-retired-vocabulary) | **landed** 2026-09-24 as its own features `001-node-role-parser` (54/60) and `002-cluster-poweroff-cli` (69/69); tag `13a9af4`. *(Said "unscheduled" until 2026-09-29 — scheduled as US11 on 2026-09-17 and landed on 2026-09-24, so this cell lagged the repository twice.)* |
+| *(`cuems-power-bridge`)* | **not in D32's six** — found carrying the retired vocabulary in shipped code; see [§5](#️-the-denominator-is-wrong-a-seventh-consumer-carries-the-retired-vocabulary) | **landed** 2026-09-24 as its own features `001-node-role-parser` (54/60) and `002-cluster-poweroff-cli` (69/69); tag **`399baf7`** (re-cut 2026-09-29 from `13a9af4` for T076's upper bound). *(Said "unscheduled" until 2026-09-29 — scheduled as US11 on 2026-09-17 and landed on 2026-09-24, so this cell lagged the repository twice.)* |
 
 **`cuems-wsclient` is listed deliberately** (FR-UX-002). It was absent from 007's guide, 008's
 guide and the cross-repo plan's repository list, and that absence is why a silently broken shutdown
@@ -225,6 +225,113 @@ migration guides, plus `cuems-engine`'s own ecosystem-wide scan — 74 raw hits 
 site 3 raises first in the same comprehension, so no test run can show site 4 failing while site 3
 is still there. The engine's evidence file says so in its own header rather than implying four
 observed reds.
+
+## 4d. `cuems-editor` — the wire boundary *(wave 2, landed 2026-10-02)*
+
+*(T020, T021, T026, T027, T027a, T027b, FR-040–FR-048. Landed in `cuems-editor` on
+`feat/xml-refactor` as its feature `specs/001-cuems-utils-migration`, **62 of 63 tasks**, verified
+at **`bf57d95`**: suite **154 passed / 2 skipped / 1 xfailed** against this library at `6213b16`.
+The one open task is T059's second half and it is **blocked on this library** — see
+[§5b](#5b-open-upstream-findings-from-consumers).)*
+
+### The import that made the process start (FR-040, T020)
+
+Feature 008 retired `cuemsutils.create_script`. The editor still imported it, so its websocket
+server did not import at all — not a migration fault but a dead process, unnoticed because nothing
+in the ecosystem ran it against a current library:
+
+```python
+# before — src/cuemseditor/CuemsWsServer.py:27
+from cuemsutils.create_script import create_script, new_uuid
+...
+self.initital_template = create_script()        # :87
+
+# after — CuemsWsServer.py:31, and db.py / CuemsDBMedia.py / CuemsDBProject.py already did this
+from cuemsutils.helpers import new_uuid
+```
+
+The two halves of that one import move apart, which is why FR-040 names them separately:
+
+| Was | Is | Why not a synonym |
+|---|---|---|
+| `new_uuid` from the deleted module | `cuemsutils.helpers.new_uuid` | four other editor files already imported it from there; the deleted module was re-exporting it |
+| `create_script()` | `ConfigManager.generate_example(SchemaName.SCRIPT)`, served as `initial_template` (T014/T016), then **retired** at payload version 1 (T060) in favour of `schema_descriptor("script")`'s per-type `instance` | D25: the descriptor-generated example replaces the hand-maintained template, so the replacement is not a template module but a *generator plus a descriptor*. A client now builds a new script from the descriptor instead of being handed one |
+
+The replacement's delta list against the `v0.1.0rc14` `create_script()` baseline is the editor's
+`tests/ws-command-responses.txt`; the retired comparison test is recorded in that repository's
+`evidence/test-retirements.md`.
+
+### Five show-parsing sites, and what each became (FR-041, FR-042, T026)
+
+| # | Site (pre-migration) | Became |
+|---|---|---|
+| 1–2 | `CuemsDBProject.py:883`, `:895` — `XmlReaderWriter` write / read of a project script | `CuemsScript.save` / `CuemsScript.load_with_report` |
+| 3 | `CuemsDBProject.py` — `CuemsParser` on the inbound client document | `CuemsScript.from_json` |
+| 4 | `CuemsDBProject.py` — the dangling-reference walk over `CUE_TYPES` | **deleted**, not ported (§4, `target_resolves`) |
+| 5 | `repair_durations.py:204`, `:231` — `XmlReaderWriter(...).read()` then `.write_from_object(obj)` | `CuemsScript.load_with_report` for the read; **the write is gone** (below) |
+
+The wire projection appears **once**, at the UI edge: `CuemsDBProject.load` returns
+`script.to_wire()` and `send_project` puts it in the frame without walking it (FR-013b).
+
+### The payload: **four** sanctioned deltas, not two (FR-010, FR-011, T027)
+
+This guide and 010's FR-010/FR-011/SC-004 said *two*. Two was right when they were written and is
+wrong now; features 008 and 013 each added one, and the fourth was ruled rather than introduced.
+The list consumers must hold is the editor's
+`specs/001-cuems-utils-migration/contracts/project-payload.md`:
+
+| Id | Delta | Introduced by |
+|---|---|---|
+| (a) | `schemaLocation` is absent | 006 (`to_wire`'s direct projection) |
+| (b) | each `Media.duration` is `{"CTimecode": "HH:MM:SS.mmm"}`, not a bare string | 008 ITEM A |
+| (c) | a hardware cue's key is `Cue` with `class` inside; its output's is `CueOutput` likewise. `ActionCue`, `FadeCue` and `CueList` keep their own keys | **013 axis D** |
+| (d) | a video cue whose document carries no `<opacity>` arrives with `"opacity": 100`, before `class` | ruled 2026-10-02 — reported as that repository's UR-3 and **withdrawn**: `opacity` is a `script.xsd` field of `VideoCue`, so a document that omits it carries the default and projecting it is the library doing its work |
+
+Everything else holds and is still verified, not assumed: every other key, key order aside from the
+absent and renamed keys, the **string** boolean form (`"True"`/`"False"`), and `doc_version` absent
+from the wire. Re-measured in this repository 2026-10-02 against two goldens — see
+[baseline.md](baseline.md) §"The editor's landing, measured here".
+
+**Delta (d) is the one worth reading twice.** It is not a cue-key change, it is the general rule
+that `to_wire()` projects a **model default** for an optional element the document did not carry.
+Any consumer diffing a payload against the file it came from will meet it on some other field one
+day; it is a property of the projection, not of `opacity`.
+
+### `repair_durations.py` is no longer a document rewriter (FR-044, FR-045, T028)
+
+FR-044 asked for the tool's rewriting pass to be **folded into** `cuems-convert-documents`. The
+editor instead **retired it** (its own Q5), and that is the better answer: the tool now rewrites
+`media.duration` in `project-manager.db` — the source of truth — and *lists* the projects whose
+scripts disagree as `NEEDS_SAVE`. A script file changes only when an operator opens the project and
+saves it. Every `script.xml` checksum is asserted unchanged after `--apply`.
+
+Two consequences:
+
+1. **FR-045's premise moved.** The tool no longer "reads the corrupt documents it exists to
+   repair" in order to repair them — the corruption is in the DB, and the documents are read only
+   to report. A document the strict path refuses is `SKIPPED_INVALID` with the library's own reason
+   and the run continues. A pre-013 script is that case, naming `cuems-reshape-devices`.
+2. **"Exactly one document rewriter in the ecosystem" is no longer the right count.** This library
+   ships **two** standalone rewriters by deliberate decision — `cuems-convert-documents` (version
+   steps) and `cuems-reshape-devices` (013's device shape, which has *no* version step), with a
+   required order: reshape, then convert. Add `cuems-init-node` (011) and `--remint` (012) and the
+   library writes documents from four entry points. What FR-045 actually protects is that **no
+   consumer** is one of them, and that is what holds: the editor's save path is the only writer of
+   a script outside this library.
+
+### The two edge cases 013 created, as the editor resolved them
+
+- **A half-migrated library** is an operator error fixed by running `cuems-reshape-devices` over
+  the whole library, not by normalising shapes in the editor. The editor serves what the library
+  returned; a local rewrite putting `AudioCue` back would be exactly the wire-dict manipulation
+  FR-013b forbids.
+- **The keyed-site fix 013's own guide prescribed was not taken, and should not be.**
+  [§4 of 013's guide](../013-device-class-reshape/migration-guide.md) offers
+  `if 'Cue' in item: cue_data = item['Cue']`. That walks the wire dict to reach an object-level
+  result. The editor's walker matches on cue identity instead —
+  `isinstance(cue, (AudioCue, VideoCue, DmxCue, MediaCue))` — and the bare `MediaCue` is in the
+  tuple on purpose: an unknown class is the point of 013, and a duration correction that knows
+  three names becomes wrong the day a fourth appears. 013's guide is corrected in place.
 
 ## 4a. `cuems-nodeconf` — the network-map swap *(wave 3, landed 2026-09-17)*
 
@@ -836,17 +943,34 @@ These are `cuems-engine`'s, from `specs/008-cuems-utils-migration/upstream-repor
 
 | Report | Asks for | State |
 |---|---|---|
-| **UR-1** no public adoption partition | `partition_by_adoption` reachable without importing `cuemsutils.xml` | **OPEN.** Still only on `cuemsutils.xml.settings.NetworkMap:247`. The engine removed its own need for it by deleting `find_hosts` (§4c), so nothing is blocked — but the next consumer asking "which nodes are adopted" has no public call. Candidate for 013/014's public-surface pass |
+| **UR-1** no public adoption partition | `partition_by_adoption` reachable without importing `cuemsutils.xml` | **CLOSED** 2026-10-01 by feature **013, FR-035**: the same function object is published as `cuemsutils.tools.NodeList.partition_by_adoption`, by a lazy module `__getattr__` (a module-level import of `xml.settings` from `NodeList` raises `ImportError`). `get_nodes_by_adoption` is untouched. `cuems-editor` is the first caller — `CuemsWsServer.py:28`, `:512` — and filed the same report from its own side |
 | **UR-2** `versioning.py`'s comment contradicted its own table | the comment states the table, or points at it | **CLOSED** 2026-09-30, incidentally, by feature 012's version bumps — the docstring now says versions move *per schema* and lists which feature moved which |
 | **UR-4** `Uuid` equals and hashes like `str` but cannot be ordered | a total ordering consistent with the string form | **CLOSED** by feature 012's FR-029. It also removes the stated reason for FR-035's `cuems-engine 0.1.0rc7` coupling — see `specs/012-uuid4-convergence/sibling-repository-updates.md` §4.1 |
-| **UR-5** `XmlReaderWriter.validate`'s deprecation advice fits only scripts | per-schema advice, or a public validator for configuration documents | **OPEN.** The warning sends every schema to `CuemsScript.validate`, which cannot validate a `settings`, `network_map`, `project_mappings` or `project_settings` document; only the `ConfigManager` loaders validate those, as a side effect of loading. Two candidate fixes, and the second is the better one — a public stand-alone config validator is a surface this library does not have and arguably should |
+| **UR-5** `XmlReaderWriter.validate`'s deprecation advice fits only scripts | per-schema advice, or a public validator for configuration documents | **CLOSED** 2026-10-01 by feature **013, FR-036** — *both* halves: the deprecation advice is now per schema (a configuration document is sent at `validate_config_document`, not at `CuemsScript.validate`), and `cuemsutils.tools.validate_config_document` is the public stand-alone validator this section called *"a surface this library does not have and arguably should"*. It validates a **file**, not a payload — which is why it does **not** answer `cuems-editor`'s own UR-5 below |
 | **UR-6** no public id-coercion helper | the uuid4→`Uuid` rule published under `cuemsutils.tools` | **CLOSED** by feature 012's FR-030. The engine deleted its mirror at `c31734c` and re-exports `coerce_identity` as `as_id` — the loop this guide exists to close, closing |
 | **UR-7** `fade_out` → `stop` is not behaviour-preserving | the claim corrected wherever it is made | **CLOSED** 2026-10-01. `xml/versioning.py` and `CLAUDE.md` both said "behaviour-preserving"; the engine measured that its `_handle_fade_out` never called `disarm()`, so a converted document now disarms its target where it previously leaked player processes. An improvement, but not a preservation — and the wrong reason would stop a consumer checking its own handler. 008's own migration guide (FR-053b) had it right all along; only those two overclaimed |
 
-**Three closed, three open, and the three open are all one shape**: a capability that exists inside
-`cuemsutils.xml` and has no public path out of it. That is the same finding FR-025 made about
-`CuemsNetworkMapType` and FR-030 made about the coercion rule — and both of those were closed by
-*publishing* rather than by adding a synonym. UR-1 and UR-5 are the remaining two instances.
+**All six of `cuems-engine`'s are now closed**, and the last two closed the way the first four did:
+by *publishing* a capability that already existed inside `cuemsutils.xml`, not by adding a synonym.
+That is the same move FR-025 made for `CuemsNetworkMapType` and FR-030 made for the coercion rule.
+
+### `cuems-editor`'s two, from flow 02 *(added 2026-10-02)*
+
+⚠️ **The numbers collide across repositories, and the reports are not the same reports.** Each
+consumer numbers its findings in its own `upstream-reports/` directory, so `cuems-editor`'s UR-5 is
+a *different* finding from `cuems-engine`'s UR-5 directly above — which 013 closed. Cite them as
+`<repo> UR-<n>`, never as a bare UR number.
+
+| Report | Asks for | State |
+|---|---|---|
+| **`cuems-editor` UR-5** no public way to build a configuration document from JSON | one public ingestion per configuration domain, symmetric with `CuemsScript.from_json` — e.g. `ConfigManager.from_json(SchemaName, payload)` or `set_document(SchemaName, payload)`, decoding through the same mapper and adapters as `load_*` | **OPEN, and it blocks a consumer task.** 008 gave every configuration domain a `save_*`, but each writes the object the `ConfigManager` already holds, and nothing public turns a client's JSON document into that object. `ConfigDict.from_decoded` is on an internal class, takes the *decoded* shape rather than the wire shape, and stores values verbatim — so a wire `"node_role": "node"` would stay a string where `save_network_map` expects a `NodeRole`. `validate_config_document` validates a path, not a payload. The editor's `config_save` therefore answers the four configuration domains with an error naming this report, and its test is `xfail(strict=True)`: it turns **XPASS** the day the call exists. This is `cuems-editor` 001 **T059** — the one task of 63 that did not land |
+| **`cuems-editor` UR-4** a duplicate node identity carries no structured identity | the colliding identities (and their MACs) *on the exception* — a `Violation` with `location=(identity, "uuid")`, or an attribute on a dedicated subclass | **OPEN, worked around.** `ConfigManager.load_network_map()` on a map with one identity on two rows raises `ValidationError` whose `violation` is `None` and whose `__cause__` is a plain `ValueError`; the identities exist only inside `check_node_identities_unique`'s sentence. `cuemsutils.errors.node_identity_collision_message` recognises the case and also returns a string. The editor's `network_map_error` frame needs `{"kind": "duplicate_identity", "identity": …}` as *data*, so it lifts the first identity out of this library's own prose with one anchored pattern (`node_reads.py`, `collided_identity`) and sends `"identity": ""` if the sentence ever changes. **A consumer parsing this library's prose is a contract nobody declared** — and this library can change that sentence in a patch release without knowing it broke anything |
+
+**Both are the same shape as the six already closed** — a fact the library holds and does not hand
+out. Neither is a defect in behaviour; both are gaps in the public surface, and both belong in the
+next feature's public-surface pass rather than in a feature of their own. Collected with the rest of
+the inbound work in
+[`specs/planning/upcoming-feature-requirements-2026-10-02.md`](../planning/upcoming-feature-requirements-2026-10-02.md).
 
 ## 6. Rollout, rollback and the release gate
 

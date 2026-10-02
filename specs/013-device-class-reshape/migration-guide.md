@@ -191,6 +191,12 @@ Verified at `cuems-editor` `feat/xml-refactor` **`106015c`** (clean working tree
 Research R8 measured `36260e2`; the branch has moved since, and the line numbers below are
 this commit's.
 
+> **Status, 2026-10-02.** All six sites below are now **gone or rewritten**, at `cuems-editor`
+> `bf57d95`. That repository re-measured each one against this table and recorded the disposition in
+> `specs/001-cuems-utils-migration/upstream-reports/UR-2-post-013-editor-sites.md`, which is how this
+> section gets checked rather than trusted. The table stays as the `106015c` measurement; what
+> changed is the prescription below it.
+
 | Site | Code | Classification |
 |---|---|---|
 | `src/cuemseditor/CuemsWsServer.py:439` | `# Keep outputs (audio, video, dmx) from existing node` | **comment only** — the node merge above it is a genuine pass-through over a dict it never keys into |
@@ -200,7 +206,49 @@ this commit's.
 | `src/cuemseditor/CuemsDBProject.py:883`, `src/cuemseditor/CuemsDBProject.py:895` | `XmlReaderWriter` write / read of a project script | **raises** on an un-migrated document |
 | `src/cuemseditor/repair_durations.py:204`, `src/cuemseditor/repair_durations.py:231` | `XmlReaderWriter(...).read()` then `.write_from_object(obj)` | **raises** on an un-migrated document |
 
-### The fix for the keyed sites
+### The fix for the keyed sites — ⚠️ **superseded 2026-10-02, do not implement this**
+
+This is what this guide originally prescribed. The editor **did not take it**, and was right not to:
+
+```python
+# before
+if 'AudioCue' in item:
+    cue_data = item['AudioCue']
+
+# after — NOT IMPLEMENTED, and should not be
+if 'Cue' in item:
+    cue_data = item['Cue']          # cue_data['class'] is 'audio' | 'video' | 'dmx' | …
+```
+
+**Why it is wrong here.** That snippet walks the **wire dict** to reach an object-level result,
+which feature 010's FR-013b forbids and which the editor's own constitution forbids: the projection
+is a boundary artifact produced once at the UI edge, not an interface the consumer implements
+against. Collapsing `CUE_TYPES` to `['Cue', 'ActionCue', 'FadeCue', 'CueList']` would additionally
+have kept a second dangling-reference implementation beside the library's own
+(`target_resolves` / `action_target_resolves`, 010 FR-043a).
+
+**What landed instead** (`cuems-editor` `bf57d95`, `CuemsDBProject.py:55-108`): the walk matches on
+cue identity, on the loaded object.
+
+```python
+# MEDIA_CUES = (AudioCue, VideoCue, DmxCue, MediaCue)
+for cue in contents:
+    if isinstance(cue, CueList):
+        recurse(cue.contents)
+    elif isinstance(cue, MEDIA_CUES):
+        cue['Media'].duration = CTimecode(...)
+```
+
+The Python classes survive axis D (FR-050a), so `isinstance` still works — and the bare `MediaCue`
+is in the tuple because an unknown `class` decodes to it. A walker that knows only the three named
+classes becomes wrong the day a fourth class exists, which is the thing this feature was built to
+make cheap. The dangling-reference walks were **deleted**, not collapsed.
+
+Both decisions, with the red test that proved the second, are in
+`cuems-editor`'s `specs/001-cuems-utils-migration/evidence/test-retirements.md` and in
+`../010-consumer-migration/migration-guide.md` §4d.
+
+### What the collapse *would* have bought, kept for the record
 
 `CUE_TYPES` and the `'AudioCue' in item` tests both become one key plus a class read:
 
@@ -214,9 +262,10 @@ if 'Cue' in item:
     cue_data = item['Cue']          # cue_data['class'] is 'audio' | 'video' | 'dmx' | …
 ```
 
-`CUE_TYPES` collapses to `['Cue', 'ActionCue', 'FadeCue', 'CueList']`. Note what this buys:
-a **new** hardware class is then covered without touching this list, which is the point of
-the whole feature.
+A **new** hardware class is covered without touching a list of names — which is the point of the
+whole feature, and is exactly what the `isinstance` form above achieves instead, one layer up.
+The lesson is that *keying by class instead of by element name* is the win; doing it on the wire
+dict rather than on the object is not part of it.
 
 ### FR-033, stated because it is easy to get wrong
 
@@ -233,16 +282,24 @@ deliberate (FR-020: no version step), and these are its consequences rather than
    both `Cue` and `AudioCue` keys. Run `cuems-reshape-devices` over the whole library in one
    pass; that is why it discovers the library rather than taking one path.
 2. **A load-and-save tool now fails on an un-migrated document instead of silently
-   upgrading it.** `repair_durations.py` is the case: it used to read, fix and write, and an
-   un-migrated document will now raise at the read. Failing is the safer direction — the
+   upgrading it.** `repair_durations.py` was the case: it used to read, fix and write, and an
+   un-migrated document raises at the read. Failing is the safer direction — the
    alternative is a tool that rewrites a document it did not fully understand.
+   **Resolved further than this, 2026-10-02**: that tool no longer writes a script under any flag.
+   It repairs `project-manager.db`, *lists* the projects whose scripts disagree as `NEEDS_SAVE`, and
+   asserts every `script.xml` checksum unchanged. A document this library refuses is reported
+   `SKIPPED_INVALID` with our own reason and the run continues; a pre-013 script is that case, and
+   its message names `cuems-reshape-devices`. So the editor's save path is the only writer of a
+   script outside this library.
 
-### A pre-existing failure you will meet first
+### A pre-existing failure you will meet first — **fixed 2026-10-02**
 
-The editor's suite has **one** fault with nine symptoms:
+The editor's suite had **one** fault with nine symptoms:
 `ModuleNotFoundError: No module named 'cuemsutils.create_script'`, reached through
-`CuemsWsServer.py:27`, which feature 008 retired. It is not this feature's, and it is not
-three separate problems. Expect it, and do not read it as a device-class regression.
+`CuemsWsServer.py:27`, which feature 008 retired. It was not this feature's, and it was not
+three separate problems. **Closed at `cuems-editor` `5b8791c`** by re-sourcing `new_uuid` from
+`cuemsutils.helpers`; that repository's suite is now 154 passed / 2 skipped / 1 xfailed against this
+branch. Kept here because anyone measuring an older editor checkout will still meet it.
 
 ---
 

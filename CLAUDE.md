@@ -127,6 +127,49 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
+- **`cuems-editor` migrated, and 010 moved with it** (2026-10-02, reviewed from this repository).
+  `cuems-editor`'s feature `001-cuems-utils-migration` landed on its `feat/xml-refactor` at
+  `bf57d95` — **62 of 63 tasks**, suite **154 passed / 2 skipped / 1 xfailed**, where its branch
+  point's websocket server did not import at all (`cuemsutils.create_script`, retired by 008).
+  **Five of six consumer flows have now landed; only `cuems-frontend` has not started.** Nine of
+  010's gate tasks closed here — T020, T021, T026, T027, T027a, T027b, T037b, T038, T049 (010 at
+  **68/118**), recorded in that feature's `migration-guide.md` §4d, `baseline.md` and
+  `import-census.md`.
+  - **The deprecated-surface census over shipped source is zero across all six consumers.** The
+    five module deletions, the seven aliases and **T060's `v0.1.1` version move** are no longer
+    held by any consumer's *source* — they are held only by the **merges** (T050 requires a census
+    postdating the last consumer merge, and nothing is merged).
+  - **Closing the last package edge created a new precondition for the version move.** Five
+    siblings now carry `cuems-utils (<< 0.1.1~)`, which `dpkg` refuses `0.1.1` against — correctly,
+    since `0.1.1` is the release that deletes the surface. **T060 and a re-bound of five sibling
+    packages are one atomic step, not two**, and no task in 010 carried that.
+  - **Four payload deltas, not two.** 010's FR-010/FR-011/SC-004 say two; (c) is 013's cue key and
+    (d) is `to_wire()` projecting a model default for an optional element the document omitted —
+    ruled correct (reported as `cuems-editor` UR-3, **withdrawn**) and a **general** property of the
+    projection, not a fact about `opacity`.
+  - **013's own migration guide prescribed a fix that would have been a regression**, and the
+    consumer declined it: `if 'Cue' in item: cue_data = item['Cue']` walks the wire dict to reach an
+    object-level result (010 FR-013b). The landed form matches on cue identity, with a bare
+    `MediaCue` in the `isinstance` tuple because an unknown `class` decodes to it. 013's guide is
+    corrected in place, and the red test that proves it is the consumer's: porting the old walk
+    against a 013-shape document nulls a *valid* `action_target`, after which this library refuses
+    the save.
+  - **FR-044 was superseded by a better answer than the one it asked for.** `repair_durations.py`
+    does not fold its rewriting pass into `cuems-convert-documents`; it writes **no script under
+    any flag**, repairing `project-manager.db` and *listing* projects as `NEEDS_SAVE`. So "exactly
+    one document rewriter in the ecosystem" is the wrong count — this library ships two by design
+    (`cuems-convert-documents`, `cuems-reshape-devices`, in that order) plus `cuems-init-node` and
+    `--remint`. What the requirement protects is that **no consumer** is one of them. 010's **T028
+    is deliberately left open**: its premise moved.
+  - **Two open asks on this library**, both gaps in the public surface rather than defects, and both
+    for the next feature's public-surface pass:
+    `cuems-editor` **UR-5** — no public way to build a configuration document from JSON, which
+    holds that repository's T059 open (its test is `xfail(strict=True)` and turns XPASS the day the
+    call lands); and `cuems-editor` **UR-4** — a duplicate node identity carries no structured
+    identity, so a consumer is parsing `check_node_identities_unique`'s **prose** with an anchored
+    regex. Collected with the release obligation in
+    `specs/planning/upcoming-feature-requirements-2026-10-02.md`.
+
 - `013-device-class-reshape` (**landed on its local branch** 2026-10-01; merges into
   `feat/xml-refactor`; nothing ships until the coordinated `xml-refactor-merge-candidate` tag
   after 011–014): an element named after a device class becomes **one element carrying a
@@ -165,7 +208,9 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     because without that the two migration tools **deadlock** on a version-old script:
     reshape-first sees a version-1 `<duration>`, convert-first sees old-shape cues, and
     neither order completes. The order is therefore **reshape, then convert**.
-  - **Two names published** (UR-1, UR-5): `partition_by_adoption` from
+  - **Two names published** (`cuems-engine` UR-1, `cuems-engine` UR-5 — **report numbers are per
+    repository and collide**: `cuems-editor`'s UR-5 is a different, still-open finding, so always
+    cite `<repo> UR-<n>`): `partition_by_adoption` from
     `cuemsutils.tools.NodeList` (FR-035) and `validate_config_document` from
     `cuemsutils.tools` (FR-036) — the first non-mutating adoption split and the first way to
     validate a configuration document without constructing a `ConfigManager`. Both are lazy

@@ -15,6 +15,33 @@ change it.
 
 ---
 
+> ## Status 2026-10-02 — the recommendation was taken, and both halves landed
+>
+> **§4a and §4b are done; §4c is the only part still outstanding.** This document is kept for
+> §4c and §5, and every table above is now a dated historical reading rather than the state. What
+> changed in one day:
+>
+> | § | Said | Is, 2026-10-02 |
+> |---|---|---|
+> | §1, §2 | `cuems-editor` **not started**; 6 live deprecated imports; *"not merely unmigrated — it is broken"* | **landed** on its branch at `bf57d95`, 62 of 63 tasks, **154 passed / 2 skipped / 1 xfailed**. The deprecated-surface census over shipped source is **zero across all six consumers** (`../010-consumer-migration/import-census.md`) |
+> | §1, §4b | 013/014 *"do not exist"* | **013 landed** 2026-10-01 on its branch. 014 still does not exist |
+> | §2 | 010 at **59/118** | **68/118**. T020, T021, T026, T027, T027a, T027b, T037b, T038 and T049 closed 2026-10-02 |
+> | §6 | *"UR-1 and UR-5 are open … natural candidates for 013/014's public-surface pass"* | **both closed by 013** (FR-035, FR-036) — it took exactly that pass. But `cuems-editor` raised **two new ones**, and its UR-5 is a *different* report from the engine's: see `upcoming-feature-requirements-2026-10-02.md` |
+> | §2 | the editor holds the five module deletions and the `v0.1.1` move hostage | it no longer holds them by its **source**. They are now blocked only by the **merges** — T050 requires a census dated after the last consumer merge, and nothing is merged. And the version move acquired a new precondition the day the last package edge closed: five siblings are bounded `<< 0.1.1~` |
+>
+> **§5's three "what would change this answer" conditions resolved as follows**, which is the part
+> worth keeping: the scope split held (014 reaches `cli.py:59` and nothing in `CuemsDBProject.py`, as
+> measured), and **the editor's fixup split did not prove larger than specified** — it was the
+> thinking part, as predicted, and the surprise ran the other way: deleting the dangling walk was
+> *easier* than porting it, because porting it against a 013-shape document nulls a valid
+> `action_target` and this library then refuses the save.
+>
+> **Do not delete this document until §4c (the frontend) is specified.** Its residue is §4c's two
+> reasons and §4c's split-out of the adoption/liveness UI tier, which is new feature work rather
+> than a migration and has no other home yet.
+
+---
+
 ## 1. Where everything actually is
 
 | Repo | Flow | State | Candidate tag | Suite vs `cuems-utils` 012 |

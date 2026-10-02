@@ -34,8 +34,8 @@ repositories have since moved.
 | `cuems-common` | — | `:12` `>= 0.1.0rc16`, `:13` `<< 0.1.1~` | ✅ |
 | `cuems-nodeconf` | `:28` `>=0.1.0rc16,<0.1.1` | `:18` `>= 0.1.0rc16`, `:19` `<< 0.1.1~` | ✅ **the model to copy** |
 | `cuems-power-bridge` | `:38` `>=0.1.0rc16,<0.1.1`, non-optional | `:18` `>= 0.1.0rc16`, `:19` `<< 0.1.1~` — **bounded 2026-09-29** (`399baf7`) | ✅ |
-| `cuems-engine` | `:41` `>=0.1.0rc10` | `:18` `>= 0.1.0rc4` | ✗ **and the two disagree with each other** |
-| `cuems-editor` | `:27` `>=0.1.0rc10` | no `debian/` directory | ✗ |
+| `cuems-engine` | `:41` `>=0.1.0rc10` | `:18` `>= 0.1.0rc4` | ✗ **and the two disagree with each other** — **closed 2026-09-30**, see the row below |
+| `cuems-editor` | `:27` `>=0.1.0rc10` | no `debian/` directory | ✗ — **closed 2026-10-02**, see the row below |
 | `cuems-frontend` | not packaged | not packaged | n/a — handshake only |
 
 **What this changes for the argument, not just the numbers.** When this contract was written,
@@ -148,3 +148,39 @@ the release every warning since 006 has promised — or the divergence recorded 
 **Two cautions**: the retiring of the 22 contract tests is deliberate and must be stated, not
 silent (FR-029b); and the two similarly-named parser symbols are different — one is a retired
 alias, the other a façade contractually required to stay silent (FR-029d).
+
+
+### Re-measured 2026-10-02 — **all five edges closed** (T037b, T038)
+
+The two holdouts have both moved, and FR-091's enumeration is complete.
+
+| Repository | `pyproject.toml` | `debian/control` | Expresses the gate? |
+|---|---|---|---|
+| `cuems-common` | — | `:12` `>= 0.1.0rc16`, `:13` `<< 0.1.1~` | ✅ |
+| `cuems-nodeconf` | `:28` `>=0.1.0rc16,<0.1.1` | `:18`/`:19` | ✅ |
+| `cuems-power-bridge` | `:38` `>=0.1.0rc16,<0.1.1` | `:18`/`:19` (`399baf7`) | ✅ |
+| `cuems-engine` | `:50` `>=0.1.0rc16,<0.1.1` | `:26` `>= 0.1.0rc16`, `:27` `<< 0.1.1~` | ✅ **the two floors now agree** — the one reconciliation T038 asked for |
+| `cuems-editor` | `:27` `>=0.1.0rc16,<0.1.1` | `:18`/`:19`, in a `debian/` acquired at `9067b1a` from `debian/bookworm` @ `72f952a` | ✅ **T037b's precondition and T038's edge, in one landing** |
+| `cuems-frontend` | not packaged | not packaged | n/a — payload handshake (FR-108); the editor now sends `payload_version` 1 as its first frame |
+
+**The convention is no longer argued for; it is what every packaged repository does.** Cite
+`cuems-nodeconf`'s `debian/control:18-19` as the pattern.
+
+## ⚠️ What closing the gate obliges, which this contract did not say
+
+Five `debian/control` files now carry `cuems-utils (<< 0.1.1~)`. **T060 moves this library to
+`v0.1.1`.** `dpkg --compare-versions` refuses `0.1.1` against every one of them — correctly, since
+`0.1.1` is the release that removes the surface a pre-migration consumer would still import. The
+consequence:
+
+**The version move and the re-bound of five sibling packages are one atomic step.** Not a
+version bump followed by five follow-ups. A library at `0.1.1` beside five packages bounded
+`<< 0.1.1~` is an ecosystem that will not install at all, and the failure is at `dpkg` time on a
+node, which is exactly where this feature has twice already found that a cross-repository
+requirement carried by one side's task list gets built on one side.
+
+The re-bound each sibling needs is the same two lines, raised in lockstep with whatever release
+actually ships (`>= 0.1.1`, `<< 0.2.0~` if the next break is minor), **plus the matching
+`pyproject.toml` bound**, which is not what `dpkg` enforces but is what `pip`/`poetry` resolves. This
+is carried in `specs/planning/upcoming-feature-requirements-2026-10-02.md` and belongs to whichever
+feature cuts the release; **T060 must not be executed on its own.**

@@ -122,10 +122,37 @@ a call site; all are fixtures or documentation, and all of them are **axis C**
 | `cuems-nodeconf` | `tests/fixtures/etc_cuems/settings.xml`, `…/settings_sentinel.xml` | test fixtures |
 | `cuems-engine` | `dev/test_xml_files/settings.xml`, `tests/test_port_handler.py` | fixture + test source |
 | `cuems-common` | `docs/latency-tuning.md` | documentation |
-| `cuems-editor` | none | — |
+| `cuems-editor` | none **at the time of this measurement** — see below | — |
 
 The fix in every fixture case is the one the tool performs: wrap the three
 players in `<players>`, give each a `class`, leave `<audiomixer>` alone.
 `cuems-power-bridge` and `cuems-nodeconf` were **not** run here — their suites are
 outside this task's scope (T068 names `cuems-engine`) — so this table is a
 prediction for them and a measurement only for the engine.
+
+### `cuems-editor`, re-measured 2026-10-02 at `bf57d95`
+
+Its migration landed, and the row above needs one correction and one addition.
+
+**It now carries an old-shape script fixture on purpose.** `tests/fixtures/script_minimal.xml` is
+pre-013 (`<AudioCue>`, `<VideoCue>`) and is kept, with its checksum and provenance recorded in that
+repository's `tests/fixtures/README.md`, for two jobs a migrated fixture cannot do: it is the source
+of the pre-migration `project` payload capture (the only thing that can prove a delta list is
+complete), and it is the fixture that must be reported `SKIPPED_INVALID` by the duration-repair
+tool. Beside it sits `script_minimal_013.xml`, produced by running **`cuems-reshape-devices`** over
+a copy — the first use of this feature's tool by a sibling repository, and the only change is each
+`<AudioCue>`/`<VideoCue>` becoming `<Cue class="audio">`/`<Cue class="video">`.
+
+So a grep for old-shape elements in that tree is **expected** to hit, and a later sweep must not
+"fix" it. The distinction the table above did not need until now: an old-shape document in a sibling
+is a defect when something loads it expecting success, and a **test input** when something loads it
+expecting refusal.
+
+**Its `settings` fixture is new-shape**, `<players><player class="…">`, copied from this
+repository's `tests/data/` — so axis C needed no work there.
+
+**Suite, measured against this branch**: **154 passed / 2 skipped / 1 xfailed** (5.21 s). The xfail
+is strict and is a gap in *this* library's public surface, not a device-class matter —
+`cuems-editor` UR-5, no public way to build a configuration document from JSON. One arm only: that
+repository's pre-013 arm is not meaningful, because its own migration and this feature landed in the
+same window and its branch point did not import at all.

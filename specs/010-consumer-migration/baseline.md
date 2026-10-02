@@ -1357,3 +1357,117 @@ Two things worth recording rather than just the final number:
   fails to import against `a451036`. That is a deliberate, recorded coupling — the tag message says
   so — but it means the engine's candidate and `cuems-utils`' are no longer independently
   orderable, where every other consumer's still is.
+
+---
+
+## The editor's landing, measured here — 2026-10-02
+
+*(T021, T027, T027a, T027b, T037b, T038. `cuems-editor` `feat/xml-refactor` @ **`bf57d95`**, clean
+tree, against this repository at `6213b16`. Every figure below was run today, in the repository it
+describes, not transcribed from the consumer's own evidence — which exists in parallel at
+`../cuems-editor/specs/001-cuems-utils-migration/evidence/`.)*
+
+### T021 — it imports, and it listens (SC-002)
+
+| Check | Command | Result |
+|---|---|---|
+| import | `hatch run python -c "import cuemseditor.CuemsWsServer"` | **succeeds.** It did not at the branch point: `ModuleNotFoundError: No module named 'cuemsutils.create_script'` at `CuemsWsServer.py:27` (`evidence/import-failure.txt`) |
+| construct | `CuemsWsServer(settings, get_mappings())` | **succeeds.** It raised `NameError: name 'create_script' is not defined` at `:87` (`evidence/listening-blocked.txt`) |
+| listen | `ss -ltn \| grep :9092` after `listening/serve.py` | `LISTEN 127.0.0.1:9092` and `[::1]:9092`; a client connects, gets `session_id` and the initial frames (`evidence/listening.txt`) |
+| suite | `hatch test` | **154 passed, 2 skipped, 1 xfailed** in 5.21 s. 85 passed / 2 failed at the branch point |
+
+**The 1 xfailed is load-bearing, not slack.** It is
+`test_config_save_of_settings_persists_through_save_settings`, `xfail(strict=True)`, and it turns
+**XPASS** the day this library offers a public JSON → configuration-object call. It is the only
+thing between that repository and 63/63. See the migration guide §5b.
+
+### T027 — the payload, re-verified against this repository's goldens (FR-013, FR-013a)
+
+The comparison FR-013a specifies — **the goldens, not a payload captured at migration time** — run
+here through `CuemsScript.load_with_report(...).to_wire()`:
+
+| Golden | sha256 (first 12) | Load | `schemaLocation` | `doc_version` | cue keys | booleans | `Media.duration` |
+|---|---|---|---|---|---|---|---|
+| `cuems-editor__script_minimal.xml` | `8fda45467fe2` | `CLEAN`, no conversion, no repair | absent ✅ | absent ✅ | `Cue` only, `class` ∈ {`audio`,`video`} ✅ | `"True"`/`"False"` strings; no JSON `true`/`false` ✅ | `{"CTimecode": …}` ✅ |
+| `cuems-engine__projects__complex_test__script.xml` | `c9a06c9df7cc` | `CLEAN`, no conversion, no repair | absent ✅ | absent ✅ | `Cue` + `CueOutput`, `class` = `video` ✅ | same ✅ | same ✅ |
+
+**The statement under test changed, and that is the finding.** FR-010/FR-011/SC-004 say **two**
+deltas. There are **four** — (c) is 013's cue key and (d) is a model default projected for an absent
+optional element. Both are enumerated, dated and owned in
+`../cuems-editor/specs/001-cuems-utils-migration/contracts/project-payload.md`, and the guide's §4d
+carries the table. **Recorded as a changed requirement, not as a passing test**: an unlisted fifth
+difference is still a failure, which is what FR-013 actually protects.
+
+A reconciliation worth stating, because the two repositories look like they disagree: FR-013a names
+the goldens as the baseline; the editor's own pass condition is its pre-migration capture. They are
+different instruments for different claims. A golden is XML and proves *the library emits the agreed
+shape* — that is the table above. A capture is a wire dict and is the only thing that can prove *a
+delta list is complete*, because a delta is a difference from what shipped before. Neither
+substitutes for the other, and neither is a checksum of the other. That repository independently
+loaded all five goldens through the public path and found **no contradiction with the XSD**
+(`evidence/golden-xsd-contradictions.md`) — all five are at `doc_version` 2 and four carry
+`<Cue class=…>`.
+
+### T027a — the fixup split, case by case (FR-043–FR-043d, SC-010a, SC-010b)
+
+| Half | Specified | Measured in `../cuems-editor` |
+|---|---|---|
+| dangling references | **deleted, not ported** | `grep -rn 'CUE_TYPES\|_collect_cue_ids\|_nullify_dangling_refs' src/` → **no match**. `tests/test_dangling_targets.py` retired as a skipped module, its five tests named one by one in `evidence/test-retirements.md` |
+| duration from the database | **stays, object-level** | `fix_media_durations_in_contents` / `_walk_media_durations` in `CuemsDBProject.py:61-108`: walks `CueList.contents`, `isinstance(cue, MEDIA_CUES)`, `media.duration = CTimecode(...)`. No dict indexing by cue key |
+| still detects what it detected | required, measured not asserted | the retirement record names the behaviour's new home per rule: `target_resolves` (repairable, cleared to `None`, listed on `LoadReport.repairs`) and `action_target_resolves` (unrepairable, raises on load **and** at `CuemsScript.save`) |
+
+**`MEDIA_CUES` is `(AudioCue, VideoCue, DmxCue, MediaCue)`, and the fourth is the point.** An
+unknown `class` decodes to a bare `MediaCue`; a walker that knows only the three named classes
+skips it, and would become wrong the day a fourth class exists — which is the whole purpose of 013.
+013's own migration guide prescribed `if 'Cue' in item: cue_data = item['Cue']` instead; that walks
+the wire dict to reach an object-level result, FR-013b forbids it, and **the editor did not
+implement it**. 013's guide is corrected in place rather than left to be re-derived wrong.
+
+**One case the consumer measured that no requirement here predicted**: the old walk, run against a
+013-shape document, did not recognise the `Cue` key, so it read every hardware cue id as absent and
+nulled a *valid* `action_target` — after which this library refused the save. Porting the walk would
+have been worse than deleting it, and the evidence for that is a red test
+(`evidence/project-payload-failing-first.txt`), not an argument.
+
+### T027b — the projection appears once, per repository (FR-013b, SC-005b)
+
+| Repository | `to_wire` in shipped source | Verdict |
+|---|---|---|
+| `cuems-engine` | **none** | holds objects throughout; no UI boundary |
+| `cuems-nodeconf` | **none** | same |
+| `cuems-power-bridge` | **none** | same |
+| `cuems-editor` | `CuemsDBProject.py:268`, `:296` (project load) and `CuemsWsServer.py:95`, the node merge | **holds.** `load` returns `script.to_wire()` and `send_project` does not walk it; the node merge operates on `to_wire()` form **because the frame is the boundary** (T037), not to reach an object-level result |
+| `cuems-frontend` | n/a | it *is* the UI; it consumes the projection |
+
+**The one dict walk left in the editor is not a violation, and is worth naming so a later reader
+does not count it as one**: `_walk_fade_durations` (`CuemsDBProject.py:134-160`) inspects the
+**inbound** client payload to reject a `FadeCue` whose duration is zero or unparseable, before any
+object exists to walk. It reads `'FadeCue' in item`, which 013 leaves spelled exactly that way —
+`FadeCue` keeps its own key. It validates an arriving payload; it does not manipulate an outgoing
+one.
+
+### T037b and T038 — the four package edges, supplied (FR-090a, FR-091, FR-092)
+
+`cuems-editor` **has acquired `debian/`** (`9067b1a`, brought from `debian/bookworm` @ `72f952a`;
+`changelog`, `control`, `rules`, `postinst`, `prerm`, `postrm`, `source/`), which was T037b's
+precondition for T038. Re-measured today across all four:
+
+| Repository | `pyproject.toml` | `debian/control` | Expresses the gate? |
+|---|---|---|---|
+| `cuems-engine` | `:50` `>=0.1.0rc16,<0.1.1` | `:26` `>= 0.1.0rc16`, `:27` `<< 0.1.1~` | ✅ — **and the two no longer disagree** (was `>=0.1.0rc10` against `>= 0.1.0rc4`) |
+| `cuems-editor` | `:27` `>=0.1.0rc16,<0.1.1` | `:18` `>= 0.1.0rc16`, `:19` `<< 0.1.1~` | ✅ — was `>=0.1.0rc10` with no `debian/` at all |
+| `cuems-nodeconf` | `:28` `>=0.1.0rc16,<0.1.1` | `:18`/`:19` | ✅ (unchanged, the model) |
+| `cuems-power-bridge` | `:38` `>=0.1.0rc16,<0.1.1` | `:18`/`:19` | ✅ (unchanged since `399baf7`) |
+
+All four plus `cuems-common` now express it identically; `cuems-frontend` cannot be packaged and
+uses the payload handshake instead (FR-108). **FR-091's enumeration is closed.**
+
+⚠️ **And closing it creates one new obligation that no task in this file carries.** Every edge is
+`<< 0.1.1~`. **T060 moves this library's `__version__` to `v0.1.1`** — the release
+`_deprecation.REMOVAL_RELEASE` has promised since feature 006. On the day it does, all five
+`debian/control` upper bounds refuse the library that is supposed to ship beside them, and `dpkg`
+refuses the whole upgrade. That is the gate working exactly as designed — `0.1.1` *is* the release
+that breaks a consumer still on the deprecated surface — but it means **the version move and a
+coordinated re-bound of five sibling packages are one atomic step, not two**. Recorded in
+`specs/planning/upcoming-feature-requirements-2026-10-02.md`; it belongs to whichever feature cuts
+the release, and T060 must not be executed without it.
