@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-# Feature 014 — one coordinated gate: `xs:boolean`, media pixel dimensions, and the curve names
+# Feature 014 — one coordinated gate: `xs:boolean`, the media pixel elements, the curve names, and the public configuration ingestion
 
 **For:** the team working on `feat/xml-refactor` across `cuems-utils`, `cuems-editor` and
 `cuems-engine`, and the author of
@@ -31,6 +31,7 @@ below is written to them:
 | **7** | **`cuems-frontend` owns the `localStorage` eviction** — it is the repository that uses the browser machinery (§7) |
 | **8** | **Feature 010's requirement changes are being implemented now**, and this gate's requirement changes **fold into that pass** rather than being carried separately (§8) |
 | **9** | **`cuems-frontend`'s share is unloaded into that repository** — landed 2026-10-02 as `specs/planning/xml-refactor/06-amendment-feature-014.md` (`ad305f9`). This document keeps its measurements and stops being the owner (§6.2) |
+| **10** | **`cuems-editor` UR-5's correction belongs to this repository, and lands *in this feature*** — the public configuration-document ingestion that unblocks that repository's T059. Reviewed against 014's work and folded in, because the one configuration domain that needs it is the one 014 retypes (§9) |
 
 **Answers to that document's §8 questions:** **(1)** declare the three fields natively on the
 refactor branch and cherry-pick only `9c17418`; do not merge the rc15 line. **(2)** Yes — and it is
@@ -350,8 +351,8 @@ on this branch, which is one of the plan's three utils deliverables dropping out
 
 | Repository | Work |
 |---|---|
-| **`cuems-utils`** | `script.xsd` + `network_map.xsd`: retype five elements, delete three `BoolType` declarations, add three `MediaType` elements, cherry-pick the two curve values. `_Bool`: delete `to_wire`, add the lowercase `to_lexical` map, widen `decode`'s literal table to the four lexical forms. `Media`: three `Unset` entries + three setter pairs. Registry: the boolean rewrite joins the **existing `script` 1 → 2 and `network_map` 1 → 2 steps** — one shared conversion, **no new version** (decision 3, §2). Re-cut the **six** goldens (`tests/golden/xml/` ×5 + `tests/golden/generated/` ×1) and hand-rewrite the **two** already-version-2 corpus documents, which the registry cannot reach (§2.1). Update the contract tests in §1.1 |
-| **`cuems-editor`** | **No source change for X1** — it returns `to_wire()` and its FR-012 forbids touching the dict. The media work is its own (probe at upload, DB columns + `ALTER TABLE` migration, fill at save, repair-tool passes), and its branch has not touched those files. **One payload-version bump covers both** wire changes under its FR-047a; version 1 has not shipped, so it is free now |
+| **`cuems-utils`** | `script.xsd` + `network_map.xsd`: retype five elements, delete three `BoolType` declarations, add three `MediaType` elements, cherry-pick the two curve values. `_Bool`: delete `to_wire`, add the lowercase `to_lexical` map, widen `decode`'s literal table to the four lexical forms. `Media`: three `Unset` entries + three setter pairs. Registry: the boolean rewrite joins the **existing `script` 1 → 2 and `network_map` 1 → 2 steps** — one shared conversion, **no new version** (decision 3, §2). Re-cut the **six** goldens (`tests/golden/xml/` ×5 + `tests/golden/generated/` ×1) and hand-rewrite the **two** already-version-2 corpus documents, which the registry cannot reach (§2.1). Update the contract tests in §1.1. **Plus the public configuration ingestion** (decision 10, §9) — one new public call, no schema change, which unblocks `cuems-editor`'s T059 |
+| **`cuems-editor`** | **No source change for X1** — it returns `to_wire()` and its FR-012 forbids touching the dict. The media work is its own (probe at upload, DB columns + `ALTER TABLE` migration, fill at save, repair-tool passes), and its branch has not touched those files. **One payload-version bump covers both** wire changes under its FR-047a; version 1 has not shipped, so it is free now. **Its T059 unblocks** — §9's ingestion is the call its `config_save` is waiting for, and its test is `xfail(strict=True)`, so it needs no edit to pick it up, only a re-run |
 | **`cuems-engine`** | **Nothing for X1** — zero `to_wire` in shipped source; it holds objects, already `bool`. The media read is `cue.media.get("pixel_width")`, which keeps working whatever the wire does. Its `cue.media` must stay dict-like with `.get()` — noted, and nothing in this gate changes that. **It must absorb the rc_1 fixes, and that merge gets a thorough review — see §6.1** |
 | **`cuems-nodeconf`, `cuems-power-bridge`, `cuems-common`** | **No source change** — objects, not payloads. Fixtures only: 46 + 4 + 8 boolean elements, one conversion run each |
 | **`cuems-frontend`** | the only repository doing real wire work, and **it is no longer tracked here** — unloaded 2026-10-02 into that repository's own planning bundle (decision 9, §6.2). The measurements stay below because they were taken here; the ownership does not |
@@ -484,6 +485,7 @@ left as a list. Recorded here so the reasoning is findable without re-reading th
 | 7 | Who owns the `localStorage` eviction? | **`cuems-frontend`** — it is the repository that uses the browser machinery, and the editor cannot clear another origin's storage | §7 |
 | 8 | How are the requirement changes carried? | **Folded into feature 010's requirement pass**, now under way — not carried as separate line items here | below |
 | 9 | Where does `cuems-frontend`'s work live? | **In `cuems-frontend`**, as `specs/planning/xml-refactor/06-amendment-feature-014.md` (`ad305f9`, 2026-10-02). This document keeps the measurements and stops being the owner | §6.2 |
+| 10 | Where does `cuems-editor` UR-5's correction land? | **Here, in 014.** The one configuration domain that needs typed ingestion is `network_map`, which is also the only one carrying a boolean and the only one 014 retypes — so the two are one piece of work, and building the ingestion first would specify a new public API against a type 014 then changes | §9 |
 
 ### 8.1 Decision 8 — what folds into 010, and why there rather than here
 
@@ -502,3 +504,117 @@ which 010 already owns the surface for:
 010's *text* and need no code; the two adoption bugs and the eviction are `cuems-frontend` work that
 010's flow 05 has not started. So nothing in this list blocks the gate, and nothing in the gate
 blocks 010 — which is why folding is cheaper than carrying.
+
+---
+
+## 9. The public configuration ingestion — `cuems-editor` UR-5, folded in (decision 10)
+
+**The report**: `../cuems-editor/specs/001-cuems-utils-migration/upstream-reports/UR-5-no-public-config-json-ingestion.md`.
+**What it blocks**: that repository's **T059**, the one task of 63 that did not land. Its
+`config_save` answers the four configuration domains with an error naming the report, and its test
+is `xfail(strict=True)` — so it turns **XPASS** the day this call exists, with no edit on its side.
+
+**Why it is in this feature rather than after it.** Reviewed against 014's work, and the answer is
+not "it is convenient": it is that the two changes touch **the same one domain, for the same
+reason**.
+
+### 9.1 The correlation that decides it, measured
+
+| Configuration schema | Carries a `cms:BoolType`? | Runs the adapter table? |
+|---|---|---|
+| **`network_map`** | **yes** — `adopted`, `online` | **yes** (007 R1 — the only one) |
+| `settings` | no | no (one per-**field** opt-in, `NodeConfType/uuid`, from 012) |
+| `project_mappings` | no | no |
+| `project_settings` | no | no |
+| `hardware_outputs` | no | no |
+
+**The only configuration domain whose ingestion needs real type coercion is the only one that
+carries a boolean, and it is the only one 014 retypes.** `ConfigDict.from_decoded`'s own docstring
+states the split that follows:
+
+> *"`node`'s `mapping` already carries a `NodeRole` for `node_role` and a `bool` for
+> `adopted`/`online` by the time it reaches this method; `Settings`'/`ProjectMappings`'/
+> `ProjectSettings`' mappings still carry the raw strings `read_config_document` produced,
+> unchanged, because their schemas did not opt in."*
+
+So an ingestion for the other three is a shape check and a verbatim store. An ingestion for
+`network_map` is the only one that has to *decide what a value means* — and 014 changes two of the
+three answers it has to give.
+
+### 9.2 The closed loop 014 makes consistent, and would otherwise make inconsistent
+
+`config_save` does not receive an arbitrary document. It receives one **a client built from
+`get_schema_descriptor`'s `instance`** (editor FR-045). So the descriptor and the ingestion are the
+two halves of one round trip, and they must agree on the type of every field. Measured today:
+
+```
+get_schema_descriptor(SchemaName.NETWORK_MAP)  ->  NodeType
+    adopted    xsd_type='BoolType'  enum_values=('True', 'False')
+    online     xsd_type='BoolType'  enum_values=('True', 'False')
+    node_role  xsd_type='NodeRoleType'  enum_values=('controller', 'node', 'firstrun')
+```
+
+`adopted` is **structurally indistinguishable from `node_role`** — a restricted string enumeration
+— so a descriptor-driven form renders a two-option *dropdown of the strings* `"True"` / `"False"`,
+and an ingestion built today would have to accept those strings to close the loop.
+
+**Build the ingestion before 014 and both halves are specified against a mistyped field**: a form
+that offers strings, and a brand-new public API that accepts them. 014 then changes the type, and
+*both* halves migrate — a second migration of an API whose first release has not shipped. Build
+them together and the loop is born with a checkbox on one side and a `bool` on the other.
+
+This is the same finding as §1.1's ⭐ row, arriving from the other direction. There it was an
+argument for X1; here it is the argument for doing UR-5 **with** X1.
+
+### 9.3 The work
+
+**One new public call. No schema change, no version step, no conversion** — so it adds nothing to
+§2's story and cannot complicate it.
+
+| | |
+|---|---|
+| **Shape** | `ConfigManager.from_json(SchemaName, payload)` returning the root object the matching `save_*` writes, per UR-5's own request. Symmetric with `CuemsScript.from_json`, including its three accepted forms (a JSON `str`, UTF-8 `bytes`, or an already-decoded `Mapping`) |
+| **Path** | decode through **the same mapper call `load_*` uses**, so the per-schema asymmetry in §9.1 is preserved rather than normalised. Normalising it would silently retire the guarantee feature 007 measured and pinned for the other four schemas |
+| **Returns an object, not a dict** | UR-5's second near-miss: the `network_map` property setter accepts a `dict`, and `save_network_map` then calls `.save` on it. The ingestion must produce `CuemsNetworkMapType`, or the save path fails on the thing it was handed |
+| **`doc_version` is not expected** | it is excluded from every wire projection, so no client payload carries it. The ingestion must not require it, and the writer emits the current version as it does on every other write |
+| **Refusals stay refusals** | `script` is `CuemsScript.from_json`'s, not this call's; `hardware_outputs` has no model bindings until **015**. The editor already refuses both with those reasons, and this call does not widen them |
+
+**What it is not.** Not `ConfigDict.from_decoded` made public — that takes the *decoded* shape
+rather than the wire shape and stores values verbatim, so for `network_map` a wire
+`"node_role": "node"` would stay a `str` where `save_network_map` expects a `NodeRole`. Publishing
+it would publish the wrong half. And not `validate_config_document`, which validates a **path**;
+013 added it for checking a file and it is the right surface for that and the wrong one for
+ingesting a payload. (Both near-misses are recorded in
+`upcoming-feature-requirements-2026-10-02.md` §1 so they are not re-proposed.)
+
+### 9.4 Tests, and the one that only exists because both changes land together
+
+- **Per domain, a round trip**: `get_schema_descriptor(X).instance` → `from_json(X, …)` →
+  `save_X()` → `load_X()` equals what went in. That is the loop §9.2 describes, asserted rather
+  than argued.
+- **`network_map`'s types, specifically**: after ingestion, `adopted` is a `bool`, `node_role` is a
+  `NodeRole`, `uuid` is a `Uuid` — and the other three schemas' scalars are still **`str`**. The
+  second half is the one that catches an ingestion that "helpfully" coerces everywhere, which is
+  the 007 regression this feature must not cause.
+- **The boolean form is 014's, not the old one**: `from_json(NETWORK_MAP, {... "adopted": true ...})`
+  is accepted and `"adopted": "True"` is **refused**, by the same `_Bool.decode` table §1.3
+  specifies. This is the assertion that makes the two changes one feature; written against either
+  change alone it would be wrong.
+
+### 9.5 One adjacent descriptor oddity, found while measuring and **not** in scope
+
+```
+NodeType  uuid  xsd_type='NodeUuidType'  enum_values=('00000000-0000-0000-0000-000000000000',)
+```
+
+The node identity's union type (012's `NodeUuidType` = `ConvergedUuidType` ∪
+`NotProvisionedUuidType`) surfaces in the descriptor as **an enumeration of one value** — the NOT
+PROVISIONED sentinel — so a descriptor-driven form would offer a dropdown containing only the
+sentinel where a uuid field belongs. Same family as §1.1's boolean finding: a type the descriptor
+flattens into the wrong widget.
+
+**It is not 014's.** The boolean case is in scope because 014 retypes the field anyway; this one
+would need the descriptor to learn about unions, which is a change to `xml/descriptor.py` with no
+other driver in this feature. Recorded here so it is found by whoever does the descriptor-driven
+forms, and carried to `upcoming-feature-requirements-2026-10-02.md` rather than to this feature's
+tasks.

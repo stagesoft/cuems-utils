@@ -18,6 +18,15 @@ it once every row below is either in a feature's `spec.md` or recorded as declin
 
 ## 1. Blocking a landed consumer task — `cuems-editor` UR-5
 
+> **✅ ASSIGNED 2026-10-02: this lands in feature `014`.** Reviewed against 014's work and folded
+> into its plan as §9 — `specs/planning/coordinated-gate-booleans-media-dimensions.md`, decision 10.
+> The reason it belongs there rather than in a later feature is a measured correlation: **the only
+> configuration domain that needs typed ingestion is `network_map`, which is also the only one
+> carrying a `cms:BoolType` and the only one 014 retypes.** Building the ingestion first would
+> specify a brand-new public API, and the descriptor-driven form that feeds it, against a field
+> whose type 014 then changes — two halves of one round trip, both migrating before either shipped.
+> The detail below stays as the statement of the requirement; §9 is now the authority on the work.
+
 **One public ingestion per configuration domain, symmetric with `CuemsScript.from_json`.**
 
 This is the only item here that holds another repository's task open. `cuems-editor`'s T059 is 1 of
@@ -113,6 +122,7 @@ Cite them as **`<repo> UR-<n>`**, never as a bare UR number, in specs, tasks, co
 | `FR-044`'s "fold the repair tool's rewriting pass into `cuems-convert-documents`" | **Superseded by a better answer** the consumer found: the tool writes no script at all. It repairs the DB and lists `NEEDS_SAVE`. Do not re-propose the fold — see 010 `migration-guide.md` §4d and the note on 010 T028 |
 | `if 'Cue' in item: cue_data = item['Cue']`, prescribed by 013's own migration guide §4 | **Withdrawn, corrected in place 2026-10-02.** It walks the wire dict to reach an object-level result (010 FR-013b). The landed form matches on cue identity: `isinstance(cue, (AudioCue, VideoCue, DmxCue, MediaCue))`, with the bare `MediaCue` present because an unknown `class` decodes to it |
 | `xml/XmlBuilder.py` (frozen legacy) still emits per-class element names | Already scheduled for `v0.1.1` by 013; it has no live caller. Nothing new here |
+| **The descriptor flattens a union type into an enumeration of one.** Measured 2026-10-02: `network_map`'s `NodeType/uuid` comes back as `xsd_type='NodeUuidType'`, `enum_values=('00000000-0000-0000-0000-000000000000',)` — 012's union surfacing as a dropdown containing only the NOT PROVISIONED sentinel, where a uuid field belongs | **Open, and deliberately not 014's.** It is the same family as the boolean finding 014 fixes (a type the descriptor flattens into the wrong widget), but the boolean case is in scope only because 014 retypes that field anyway; this one needs `xml/descriptor.py` to learn about unions, with no other driver in 014. Found by whoever builds the descriptor-driven forms — see the gate's §9.5 |
 
 ## 6. 014's own inbound items, as the consumers measure them
 
