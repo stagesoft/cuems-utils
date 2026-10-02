@@ -186,6 +186,18 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
       <xs:element name="id" type="cms:TargetType" />
       <xs:element name="duration" type="cms:TimecodeType" />
       <xs:element name="regions" type="cms:RegionsType" />
+      <!-- Stored size of the media file (869fat84r), measured by the editor
+           at upload so the engine does not probe the file when it arms a cue.
+           pixel_width / pixel_height: the ORIGINAL size of the file's first
+           video stream, as ffprobe reports it; not the layer's size on screen
+           (that would get its own names) and unrelated to CanvasRegionType's
+           unit-float width / height. file_size: the file's size in bytes when
+           they were measured; the engine compares it with its own copy to
+           notice a file replaced under the same name. Optional: absent means
+           unknown, and the engine then probes as before. VideoCues only. -->
+      <xs:element name="pixel_width" type="xs:positiveInteger" minOccurs="0" />
+      <xs:element name="pixel_height" type="xs:positiveInteger" minOccurs="0" />
+      <xs:element name="file_size" type="xs:positiveInteger" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
 

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
 from enum import Enum
 from xml.etree.ElementTree import Element, ElementTree, SubElement, register_namespace
 
@@ -170,10 +173,34 @@ class GenericComplexSubObjectXmlBuilder(CuemsScriptXmlBuilder):
 class CTimecodeXmlBuilder(GenericSimpleSubObjectXmlBuilder):
     pass
 
+#: ``MediaType``'s element order in script.xsd. The writer follows it, not the
+#: dict's order: the editor appends the stored dimensions after whatever the
+#: frontend sent, and the parsers assign keys in arrival order (869fat84r).
+MEDIA_ELEMENT_ORDER = (
+    'file_name', 'id', 'duration', 'regions',
+    'pixel_width', 'pixel_height', 'file_size',
+)
+
+#: Optional MediaType elements: a ``None`` value writes no element at all
+#: (an empty ``<pixel_width/>`` would fail ``xs:positiveInteger``).
+MEDIA_OPTIONAL_ELEMENTS = frozenset({'pixel_width', 'pixel_height', 'file_size'})
+
+
+def _media_items_in_schema_order(media):
+    """``media``'s items, known keys in schema order, then any others in
+    arrival order (so the validator, not this writer, rejects them)."""
+    known = [(k, media[k]) for k in MEDIA_ELEMENT_ORDER if k in media]
+    other = [(k, v) for k, v in media.items() if k not in MEDIA_ELEMENT_ORDER]
+    return [
+        (k, v) for k, v in known + other
+        if not (v is None and k in MEDIA_OPTIONAL_ELEMENTS)
+    ]
+
+
 class MediaXmlBuilder(GenericComplexSubObjectXmlBuilder):
     def build(self):
         if isinstance(self._object, dict):
-            for key, value in self._object.items():
+            for key, value in _media_items_in_schema_order(self._object):
                 if isinstance(value, VALUE_TYPES):
                     cue_subelement = SubElement(self.xml_tree, key)
                     cue_subelement.text = str(value)
