@@ -334,10 +334,23 @@ keyed by XSD type name, so one edit moves all five. Doing only `enabled` would n
 opt-in like feature 012's `adapter_fields` — *more* machinery for *less* result. Accept all five or
 none.
 
-**L3 buys nothing L1 does not.** The UI gets real JSON booleans at L1. L3 only changes what the
-file says, at the cost of a version step on two schemas, a registered conversion each, re-cut
-goldens, and fixture migration in five repositories — on top of 013's reshape debt, with the
-reshape-then-convert ordering to respect. Keep it deferred under D3.
+**L3 buys nothing L1 does not** *— superseded 2026-10-02, see below.* The UI gets real JSON
+booleans at L1. L3 only changes what the file says, at the cost of a version step on two schemas, a
+registered conversion each, re-cut goldens, and fixture migration in five repositories — on top of
+013's reshape debt, with the reshape-then-convert ordering to respect.
+
+> **⚠️ Revised the same day.** This sentence was written on the assumption that a version step was
+> expensive. The maintainer ruled that a bump on the required files is **not** an issue for the
+> coordinated work, which removes L3's whole cost argument — and one thing L3 buys that L1 does not
+> then becomes decisive: **the descriptor cannot tell a boolean from a two-value string enum.**
+> Measured: `enabled` reports `enum_values: ('True', 'False')`, structurally identical to
+> `post_go`'s three values, so every descriptor-driven form renders a two-option dropdown where a
+> checkbox belongs — and the editor's `schema_descriptor` action serves that to clients today.
+> L1 cannot fix it; only retyping can. **L3 is now the recommendation**, combined with two other
+> `script.xsd` changes in one version step:
+> [`coordinated-gate-booleans-media-dimensions.md`](coordinated-gate-booleans-media-dimensions.md).
+> §3's strict `decode` is **not** made redundant by it — `from_json` has no document, so the
+> adapter is still T1 there; its literal table widens to `xs:boolean`'s four lexical forms.
 
 ### 7.3 The decisive fact: the dual read's cause was removed two features ago
 
