@@ -295,3 +295,116 @@ one transition where the bug matters most is the one it is not fixed for.
 It is also a **payload-version bump** by the editor's own FR-047a (an existing message changes a
 value's form), and payload version 1 has not shipped — so if it is going to happen, before that
 ships is cheaper than after.
+
+---
+
+## 7. Widening it: "move all values to true booleans" — reviewed 2026-10-02
+
+Asked because the coordinated refactor makes it cheap. It is cheaper than the deferral implies,
+**and it is bounded far more tightly than "all values" suggests** — but only at one of three levels.
+
+### 7.1 There is exactly one type to widen
+
+Every adapter's `to_wire` output, measured:
+
+| XSD type | Python | `to_wire` | Natural JSON form? |
+|---|---|---|---|
+| `PercentType`, `LoopType`, `ChannelNumberType`, `ChannelValueType` | `int` | `50` | ✅ native |
+| `UnitFloat`, `PositiveUnitFloat` | `float` | `0.5` | ✅ native |
+| `CTimecodeType` | `CTimecode` | `{"CTimecode": "…"}` | ✅ wrapper, by design (D17/D18b) |
+| `UuidType`, `TargetType`, `NodeUuidType` | `Uuid` | `"8726353c-…"` | ✅ JSON has no uuid |
+| `PostGoType`, `ActionType`, `FadeCurveType`, `NodeRoleType` | `str`/enum | `"pause"` | ✅ JSON has no enum |
+| **`BoolType`** | **`bool`** | **`"True"`** | ❌ **the only one** |
+
+So "all values" is **one type, five elements, two schemas**: `autoload`, `enabled`, `timecode` on
+`script.xsd`'s `CommonPropertiesType` (so on *every* cue — 15 occurrences in the smallest golden,
+27 in the largest) and `adopted`, `online` on `network_map.xsd`. `settings.xsd` declares `BoolType`
+and references it nowhere (§5).
+
+### 7.2 Three levels, and **there is no cheap partial**
+
+| | What changes | Version step? | Documents on disk |
+|---|---|---|---|
+| **L1 — wire only** | `_Bool.to_wire` returns the `bool`. `to_lexical` still writes `True`/`False`, because the **XSD is untouched** | **no** | **unchanged, byte for byte** |
+| **L2 — all five, together** | nothing extra: the adapter is bound per **XSD type**, so L1 *is* L2 | no | unchanged |
+| **L3 — X1 proper** | `cms:BoolType` → `xs:boolean`; XML text becomes `true`/`false` | **yes**, `script` 2→3 and `network_map` 2→3, each with a registered conversion | **every one invalidated** |
+
+**L2 is the finding.** You cannot widen `enabled` alone and leave the other four: the adapter is
+keyed by XSD type name, so one edit moves all five. Doing only `enabled` would need a per-**field**
+opt-in like feature 012's `adapter_fields` — *more* machinery for *less* result. Accept all five or
+none.
+
+**L3 buys nothing L1 does not.** The UI gets real JSON booleans at L1. L3 only changes what the
+file says, at the cost of a version step on two schemas, a registered conversion each, re-cut
+goldens, and fixture migration in five repositories — on top of 013's reshape debt, with the
+reshape-then-convert ordering to respect. Keep it deferred under D3.
+
+### 7.3 The decisive fact: the dual read's cause was removed two features ago
+
+`04-wire-contract.md` calls `cueData.enabled === true || cueData.enabled === 'True'` *"the
+compatibility mechanism"*. The audit records what it is actually compatible **with** — finding
+**F21, severity HIGH, measured**:
+
+> *"The editor sends the UI two mutually inconsistent JSON encodings of the same document type:
+> `initial_template` via `__json__` (Python types) and `project_load` via the converter (schema
+> types). The frontend absorbs it with `cueData.enabled === true || cueData.enabled === 'True'`."*
+
+Both halves of F21 are now closed:
+
+- **Feature 006** retired the eight `__json__` methods into one derived projection. Verified today:
+  `generate_example(SchemaName.SCRIPT)` emits `"enabled": "True"` — the *string*, same as
+  `to_wire`. The two encodings are one encoding.
+- **The editor's T060** retired `initial_template` altogether at payload version 1; a client builds
+  from `schema_descriptor`'s `instance`.
+
+So the `=== true` half of that dual read is **dead code today**, and the string form's stated
+justification was a symptom of a defect that no longer exists. Meanwhile the one site that never
+got the dual treatment — `settings.component.ts:176`, `online === true` — is a dead Adopt button
+(§6). A compatibility mechanism honoured at one of two sites is not buying compatibility.
+
+### 7.4 Cost of L1/L2, per repository
+
+| Repository | Work |
+|---|---|
+| `cuems-utils` | `_Bool.to_wire` returns `obj`. Then the tests that pin the string form **as the contract**: `tests/contract/test_wire_booleans.py` (its whole premise, docstring included), `test_ui_payload_contract.py`, and check `test_payload_parity`, `test_config_parity`, `test_node_field_coercion`, `test_adoption_selection`, `test_partition_public`. **The XML goldens are unaffected** — at L1 no document text changes |
+| `cuems-engine`, `cuems-nodeconf`, `cuems-power-bridge` | **nothing.** Zero `to_wire` in shipped source; they hold objects, already `bool`. Every boolean write found in those trees is a real Python `bool`, which passes through unchanged |
+| `cuems-editor` | **no source change** — it returns `to_wire()` and FR-012 forbids it touching the dict. Record the delta in `tests/ws-command-responses.txt`, `contracts/project-payload.md`, `data-model.md:76`; it is a **payload-version bump** under its own FR-047a |
+| `cuems-frontend` | drop the `=== 'True'` half at `sequence.component.ts:498`; `:997` writes native; `settings.component.ts:176` starts working; and fix `:181`'s stale `node_type` while in the file. **`autoload`/`timecode` need nothing** — measured: written native already (`:884`, `:895`, `project-edit.component.ts:158`, `:169`) and **never read from the wire** |
+
+### 7.5 The one real hazard is the browser, not the server
+
+`projects.service.ts:209` and `:217` cache `initial_template` and `initial_mappings` in
+`localStorage`; `project-show/video-mixer:94` and `audio-mixer:115` read the cached mappings. A
+deploy that changes the boolean form leaves **old-form payloads in browsers that nothing on the
+server can reach** — the eviction story the editor's T061 already flagged and left unowned.
+
+**The editor's new first frame is the fix**: evict the cache when the stored `payload_version`
+differs from the received one. That makes this a reason to do L1/L2 **with** payload version 1
+rather than after it — version 1 has not shipped, so the bump is free now and a second bump later.
+
+**Do not touch the OSC channel.** `osc.service.ts:191` and `:361` carry cue-enabled as `1`/`0` over
+OSC (`Number(msg.args[0]) === 1`). Different transport, correct as it is, and not part of this.
+
+### 7.6 Recommendation
+
+**Do L1/L2 inside payload version 1. Leave L3 (X1) deferred.** The ordering constraint from §3
+stands: strict `decode` lands first, because the switch is exactly when a half-updated client sends
+`String(true)` → `"true"`.
+
+### 7.7 ⚠️ A finding for 010 — X1 is about to be deleted
+
+010's **T069c** plans to delete `specs/planning/xml-rebuild/` once its residue is relocated, and
+names the residue as *"`xml-rebuild-01-audit.md` §6's **X13–X17** schema debt"*.
+
+**§6 holds X1–X17, and the list is short by more than X1.** Still-open, unrelocated items in that
+section: **X1** (this one), **X2** (`TimecodeType` — recorded dead, and measured today as *still
+referenced once*, so the audit entry is itself now wrong), **X3** (`EmptyStringType`, declared and
+referenced nowhere — confirmed dead today), **X4** (`TargetType` vs `UuidType`, two spellings of
+"uuid or nothing"), **X5** (deferred, marked superseded), **X7**/**X8** (XSD 1.1 facts), and
+**X10** (`UiPropertiesType` is `xs:anyType` — a standing *constraint* on D2, not debt, and the one
+most costly to lose). X9 is closed by 007; X11/X12 closed structurally by D13; X13 is already in
+`specs/agreements/schema-evolution-convention.md`.
+
+So T069c's relocation must carry **§6 whole**, not the five items it names — otherwise deleting the
+folder destroys the only record of X1 at the moment a feature is being written to act on it. Add
+this to T069c rather than to this file, since this file is itself scheduled for deletion.
