@@ -346,11 +346,16 @@ registered conversion each, re-cut goldens, and fixture migration in five reposi
 > Measured: `enabled` reports `enum_values: ('True', 'False')`, structurally identical to
 > `post_go`'s three values, so every descriptor-driven form renders a two-option dropdown where a
 > checkbox belongs — and the editor's `schema_descriptor` action serves that to clients today.
-> L1 cannot fix it; only retyping can. **L3 is now the recommendation**, combined with two other
-> `script.xsd` changes in one version step:
+> L1 cannot fix it; only retyping can. **L3 is now the decision**, combined with two other
+> `script.xsd` changes in the **1 → 2 step already in flight** — no new version step, because
+> nothing has shipped:
 > [`coordinated-gate-booleans-media-dimensions.md`](coordinated-gate-booleans-media-dimensions.md).
 > §3's strict `decode` is **not** made redundant by it — `from_json` has no document, so the
-> adapter is still T1 there; its literal table widens to `xs:boolean`'s four lexical forms.
+> adapter is still T1 there; its literal table widens to `xs:boolean`'s four lexical forms, and
+> `"True"` becomes a *rejected* spelling. Nor does `_Bool` go away: with `xs:boolean`,
+> `to_lexical` must emit lowercase, and since `Mapper._lexical` is the only producer of element
+> text on a stdlib-`ElementTree` write path, deleting the class would make `CuemsScript.save`
+> refuse every document. Measured in that proposal's §1.3.
 
 ### 7.3 The decisive fact: the dual read's cause was removed two features ago
 

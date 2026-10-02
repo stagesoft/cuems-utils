@@ -13,12 +13,19 @@ SPDX-License-Identifier: GPL-3.0-or-later
 `cuems-utils` `fdfb688`, `cuems-editor` `bf57d95`, `cuems-engine` `1662a99`, `cuems-frontend`
 `8a61780`.
 
-**Premise accepted:** a schema version bump on the required files is not an issue for the
-coordinated work. Everything here assumes that, and it is what makes the combination cheap.
+**Settled by the maintainer, 2026-10-02** — these are decisions, not proposals, and the document
+below is written to them:
 
-**It answers the two questions in that document's §8 directly.** Short versions: **(1)** declare the
-three fields natively on the refactor branch and cherry-pick only `9c17418`; do not merge the rc15
-line. **(2)** Yes, a `script` version step — and X1 is what turns it from optional into mandatory.
+| | |
+|---|---|
+| **1** | **A schema version bump on the required files is not an issue** for the coordinated work. This is what makes the combination cheap |
+| **2** | **The branch stays on rc16.** Every `feat/xml-refactor` change is planned to land **after** the rc15 work, so rc15 ships first and this branch migrates what it leaves behind |
+| **3** | **All schema changes land in the *existing, unreleased* 1 → 2 bump.** Nothing has shipped, so there is **no 2 → 3 step** — version 2's *meaning* absorbs X1 before anyone has seen it (§2, and the one consequence measured in §2.1) |
+| **4** | **`cuems-engine` absorbs the last fixes.** Expected to merge cleanly for lack of overlap, as that plan's §6 says — but a **thorough review is required**, not a clean-merge assumption (§6.1) |
+
+**Answers to that document's §8 questions:** **(1)** declare the three fields natively on the
+refactor branch and cherry-pick only `9c17418`; do not merge the rc15 line. **(2)** Yes — and it is
+the 1 → 2 step already in flight, not a new one.
 
 ---
 
@@ -39,11 +46,12 @@ honestly before it is used to justify effort.
 
 ### 1.2 What does **not** shrink — the correction
 
-- **`_Bool` does not disappear.** Today `to_lexical` needs *no* special case, because
-  `str(True) == "True"` is exactly what the XSD wants. `xs:boolean`'s canonical form is
-  **lowercase**, so `to_lexical` **gains** a mapping. The asymmetry moves rather than vanishing:
-  today `decode` is the odd method out, after X1 `to_lexical` is. Net size of the class: about the
-  same.
+- **`_Bool` does not disappear, and `to_lexical` is the reason.** It is not a stylistic
+  preference — deleting the class makes the library unable to write a document at all. Measured in
+  full in **§1.3**, because this is the one place where "the machinery shrinks" would do real
+  damage if acted on literally.
+- **The asymmetry moves rather than vanishing.** Today `decode` is the odd method out and
+  `to_lexical` is free; after X1 it is the other way round. Net size of the class: about the same.
 - **`decode` must stay strict, so `be3e86e` is not made redundant.** `from_json` has no document to
   validate, so the adapter is still T1 on that path and `"banana"` still has to be refused. What
   changes is the accepted set, and it **widens**: `xs:boolean`'s lexical space is
@@ -53,7 +61,89 @@ honestly before it is used to justify effort.
   to `true`/`false`, but a hand-edited or third-party document can carry `1`, so
   `to_lexical ∘ decode` stops being the identity on text. That is a test to add, not one to remove.
 
-### 1.3 The conversion is the real cost, and it is mechanical
+### 1.3 `to_lexical` is strictly required, and this is why
+
+The tempting form of "the machinery shrinks" is to delete `_Bool` outright once `BoolType` is a
+built-in — `xmlschema` knows `xs:boolean`, so why keep an adapter? Because **`xmlschema` is not in
+the write path.** Three measured facts make the class mandatory.
+
+**Where `to_lexical` is actually called.** Exactly one place in the library:
+
+```
+src/cuemsutils/xml/mapper.py:946
+    def _lexical(self, value, xsd_type):
+        text = adapter_for(xsd_type).to_lexical(value)
+        return "" if text is None else text
+```
+
+and `_lexical` is the **only** producer of element text and attribute values on the write path —
+five call sites, all in `Mapper`: `:654` (a scalar bound to an element), `:765` (a list item),
+`:861` (element text), `:868` (`element.set`, i.e. every attribute, including 013's `class`), and
+`:900` (a child element). `Mapper.build_document` then returns `ElementTree(root)` (`:1186`) and
+`documents.write_tree` serialises it with `tree.write(..., encoding="utf-8",
+xml_declaration=True)` — **stdlib `ElementTree`** (`documents.py:289`, `:334`).
+
+So the whole chain from Python object to bytes on disk is:
+
+```
+object → Mapper._lexical → adapter.to_lexical → Element.text (a str) → ElementTree.write
+```
+
+Nothing else in that chain can convert a value. `lxml` is a dependency but **not in the write
+path**, and `xmlschema` is used to *validate* the result, never to encode it. If `to_lexical` does
+not produce the right text, nothing downstream will fix it.
+
+**Fact 1 — `Element.text` must be a `str`; a `bool` is a hard error.**
+
+```python
+e = Element('enabled'); e.text = True
+ElementTree(e).write(io.BytesIO())
+# TypeError: cannot serialize True (type bool)
+```
+
+So the bool→text conversion is not optional at any level. Something must do it, and `to_lexical` is
+the only candidate.
+
+**Fact 2 — the inherited default produces the wrong text.** `_Passthrough.to_lexical` is
+`str(obj)`, and `str(True)` is `'True'`. That is correct *today*, which is exactly why `_Bool`
+currently overrides `decode` and not `to_lexical`.
+
+**Fact 3 — `'True'` is invalid against `xs:boolean`.** Verified against `XMLSchema11`:
+
+| text | valid as `xs:boolean`? |
+|---|---|
+| `true`, `false`, `1`, `0` | ✅ |
+| **`True`, `False`, `TRUE`** | ❌ |
+
+**Put together**: delete `_Bool` and every boolean would be written as `True`, which the schema
+rejects. And because `CuemsScript.save` *"runs T1 and T2 and raises at the first failure. On
+failure no file is written"* (`CuemsScript.py:509-512`), the result is not a corrupt file — it is
+**a library that refuses to save any document containing a cue**. Every save, every node, instantly.
+A silent corruption would be worse in principle; this would be worse in practice, because it is
+total.
+
+So X1's edit to `_Bool` is a **swap, not a deletion**:
+
+| Method | Today | After X1 |
+|---|---|---|
+| `decode` | overridden — the strict literal table from `be3e86e` | **still overridden**, table widened to `true`/`false`/`1`/`0` plus `bool` (and `'True'` now *rejected*) |
+| `to_lexical` | **inherited** — `str(obj)` happens to be right | **overridden** — `{True: "true", False: "false"}`, and `None` → `None` so an absent optional stays absent |
+| `to_wire` | overridden — returns `to_lexical`, the string | **deleted** — inherits `_Passthrough.to_wire`, returns the `bool` |
+
+One override gained, one lost, one rewritten. That is the honest accounting, and it is why §1.2
+says the class does not shrink even though the surrounding machinery does.
+
+**Two tests this specifically needs**, because neither exists today:
+
+1. `to_lexical(True) == "true"` *and* the round trip `decode(to_lexical(True)) is True` — the
+   second is what catches a half-applied change, where the writer is updated and the reader is not.
+2. A full save/load cycle asserting the **bytes on disk** contain `<enabled>true</enabled>`. A unit
+   test on the adapter cannot catch a `Mapper` path that bypasses `_lexical`; `:868`'s attribute
+   call is the one most easily missed, since 013 made attributes load-bearing.
+
+---
+
+### 1.4 The conversion is the real cost, and it is mechanical
 
 Boolean elements in XML on disk, measured across the six checkouts:
 
@@ -88,17 +178,54 @@ needs a conversion; a version step is indivisible.
 | **Media pixel dimensions** — `pixel_width`, `pixel_height`, `file_size` | **additive**, three optional elements on `MediaType` | no |
 | **`ease_in` / `ease_out`** (`9c17418`, on `main`, **not** on this branch — verified) | **additive**, two enumeration values on `FadeCurveType` | no |
 
-→ **`script` 2 → 3, one step, one registered conversion** (the boolean rewrite), with the two
-additive changes riding it at zero extra cost.
-→ **`network_map` 2 → 3**, one step, the same boolean conversion.
-→ `settings`, `project_mappings`, `project_settings`, `hardware_outputs`: **untouched** (no boolean
-is referenced in any of them — `settings.xsd`'s declaration is dead and gets deleted with X1).
+**Decision 3 settles where they land: inside the 1 → 2 step already in flight.** Not a new 2 → 3.
 
-**This answers §8 question 2 decisively.** That document asks whether the Media elements justify a
-step and notes a bump *"would give an older refactored library a clear `DocumentTooNewError`
-instead of 'unexpected element'"*. With X1 in the same release the bump is no longer a judgement
-call — X1 requires it — so the Media elements get the clean `DocumentTooNewError` as a side effect
-of a decision made for another reason.
+`script` is at version **2** on this branch and `network_map` at **2**, both set by features 008 and
+012 and **never released**. A version marker nobody outside this branch has seen is still
+malleable, so the cheapest correct move is to let version 2 *mean* the new boolean form from the
+start:
+
+→ **`_script_1_to_2` gains the boolean rewrite**, beside the duration reshape, the `action_type`
+rename and the `fade_profiles` drop it already carries. `CURRENT_VERSION["script"]` stays **2**.
+→ **`network_map`'s 1 → 2 step gains the same rewrite.** Its version stays **2**.
+→ `settings`, `project_mappings`, `project_settings`, `hardware_outputs`: **untouched** — no
+boolean is referenced in any of them, and `settings.xsd`'s declaration is dead and gets deleted
+with X1.
+→ The three Media elements and the two curve values are **additive**, so they need no conversion at
+all. They simply become part of what version 2 admits.
+
+**This answers §8 question 2, and more cleanly than a new step would.** That document asks whether
+the Media elements justify a step and notes a bump *"would give an older refactored library a clear
+`DocumentTooNewError` instead of 'unexpected element'"*. They get that, because X1 is in the same
+unreleased version 2 — without the ecosystem ever having to reason about a third script version.
+
+### 2.1 The one consequence of reusing version 2, measured
+
+A document **already marked `doc_version="2"` by this branch** carries the *old* boolean form, and
+`cuems-convert-documents` will not touch it: it is already current, so there is no step to run.
+Version 2 is briefly ambiguous — before and after this change — and the registry cannot resolve it.
+
+This is feature 012's situation exactly, and its lesson applies verbatim: *"the machinery represents
+an identity step as the absence of a registry entry, and the repair is cross-document and
+out-of-band by design."*
+
+Measured today across the six checkouts, split by marker:
+
+| | Files with old-form booleans | Handled by |
+|---|---|---|
+| **unmarked (version 1)** | **51** — utils 28, bridge 10, engine 6, editor 4, common 2, nodeconf 1 | the registry's 1 → 2 step, once it carries the rewrite. **Nothing extra to do** |
+| **already `doc_version` ≥ 2** | **9 real files** | a one-off rewrite, out of band |
+
+The nine, named rather than counted: `tests/golden/xml/` (5) and `tests/golden/generated/` (1),
+which **must be re-cut anyway** because the boolean text changes — so they are not extra work;
+`tests/data/corpus/cuems-utils/{fade_showcase,unicode_showcase}.xml` (2), the same two
+hand-authored documents feature 008 had to touch; and `cuems-engine`
+`dev/test_xml_files/projects/complex_test_v2/script.xml` (1).
+
+A raw count says 26 files; 17 of those are in `tests/tmp`, which `.gitignore:3` excludes and
+`git ls-files` shows as zero tracked — throwaway test output, regenerated on every run. **So the
+real out-of-band set is nine files, six of which are already on the must-re-cut list.** That is
+what makes decision 3 the right call rather than merely the cheap one.
 
 `ease_in`/`ease_out` matters more than it looks: a project saved by a `main`-line editor with an
 `ease_in` fade **fails T1 on this branch today**, verified by comparing `FadeCurveType` across
@@ -117,14 +244,22 @@ refactor is rc16 on `feat/xml-refactor`, and nothing ships from it until the coo
 `MediaXmlBuilder` fix (dict order, empty element for `None`) does not apply to this branch at all,
 because the spec-driven writer already orders by schema position and omits absent fields.
 
-**Recommended split**, answering §8 question 1:
+**Decision 2 resolves it: rc15 ships first, and the branch stays on rc16.** So the two lines do not
+race — they are sequential, and this branch's job is to migrate what rc15 leaves in the field.
 
 | | |
 |---|---|
+| **Do** | let **rc15 ship on its own schedule**, with the back-patches in that plan's §5 exactly as written. The GO-latency fix does not wait on this gate, and nothing here blocks it |
 | **Do** | implement the three Media elements **natively on the refactor branch** — three XSD elements, three `DECLARED_DEFAULTS` entries, three setter pairs. Roughly 30 lines, and `§6`'s utils points 1 and 6 are already satisfied by the branch's own machinery |
 | **Do** | **cherry-pick `9c17418` alone** for the curve names |
 | **Do not** | merge the rc15 line into `feat/xml-refactor`. rc15 is cut from `main`, which does not contain the refactor; the merge drags main's whole divergence and then collides head-on with X1's retype of the same file |
-| **Keep separate** | the rc15 release and its back-patches, if the field needs the GO latency fix before the refactor ships. They are a *different product decision* and should not wait on this gate |
+
+**What rc15 shipping first adds to this branch's obligations** — and it is a gain, not a cost: by
+the time the refactor lands, real project libraries will contain documents that are
+**unmarked (version 1), in the pre-013 device shape, with the three Media elements present**. That
+is precisely the combination §4 orders, and it will exist in the field rather than only in a
+fixture. It should therefore be a *test fixture*, not a hypothetical: a document written by rc15,
+carried into this branch's corpus, reshaped and converted.
 
 ---
 
@@ -135,7 +270,7 @@ A document arriving from the rc15 line at this branch carries **no `doc_version`
 
 ```
 cuems-reshape-devices        # device shape — no version step, 013
-cuems-convert-documents      # 1 → 2 → 3    — the registry
+cuems-convert-documents      # 1 → 2        — the registry, now carrying the boolean rewrite
 ```
 
 That is the order 013 already established, and the reason is unchanged: reshape-first sees a
@@ -143,11 +278,13 @@ version-1 `<duration>`, convert-first sees old-shape cues, and neither order com
 
 **Verified, so it need not be assumed:** `_script_1_to_2` (`xml/versioning.py:173`) touches only
 `duration`, `action_type` and `fade_profiles`. It leaves every other `Media` child untouched, so
-the three new elements survive 1→2 and then face the version-3 schema — which is the document's own
-§6 point 3, confirmed.
+the three new elements survive the conversion — which is the document's own §6 point 3, confirmed.
 
-The new 2→3 step must therefore be written to be **order-independent with respect to the Media
-elements**: it rewrites boolean text and must not care whether `pixel_width` is present.
+Under decision 3 the boolean rewrite joins that same function, which makes the requirement sharper:
+**the rewrite must be order-independent with respect to the Media elements.** It rewrites the text
+of five named elements and must not care whether `pixel_width` is present, absent, or arriving in
+the same pass. Since it matches on element name and the Media elements are `xs:positiveInteger`,
+there is no overlap — but it is a test, not an assumption.
 
 ---
 
@@ -200,9 +337,42 @@ on this branch, which is one of the plan's three utils deliverables dropping out
 |---|---|
 | **`cuems-utils`** | `script.xsd` + `network_map.xsd`: retype five elements, delete three `BoolType` declarations, add three `MediaType` elements, cherry-pick the two curve values. `_Bool`: delete `to_wire`, add the lowercase `to_lexical` map, widen `decode`'s literal table to the four lexical forms. `Media`: three `Unset` entries + three setter pairs. Registry: `script` 2→3 and `network_map` 2→3 with one shared boolean conversion. Re-cut the five goldens. Update the contract tests in §1.1 |
 | **`cuems-editor`** | **No source change for X1** — it returns `to_wire()` and its FR-012 forbids touching the dict. The media work is its own (probe at upload, DB columns + `ALTER TABLE` migration, fill at save, repair-tool passes), and its branch has not touched those files. **One payload-version bump covers both** wire changes under its FR-047a; version 1 has not shipped, so it is free now |
-| **`cuems-engine`** | **Nothing for X1** — zero `to_wire` in shipped source; it holds objects, already `bool`. The media read is `cue.media.get("pixel_width")`, which keeps working whatever the wire does. Its `cue.media` must stay dict-like with `.get()` — noted, and nothing in this gate changes that |
+| **`cuems-engine`** | **Nothing for X1** — zero `to_wire` in shipped source; it holds objects, already `bool`. The media read is `cue.media.get("pixel_width")`, which keeps working whatever the wire does. Its `cue.media` must stay dict-like with `.get()` — noted, and nothing in this gate changes that. **It must absorb the rc_1 fixes, and that merge gets a thorough review — see §6.1** |
 | **`cuems-nodeconf`, `cuems-power-bridge`, `cuems-common`** | **No source change** — objects, not payloads. Fixtures only: 46 + 4 + 8 boolean elements, one conversion run each |
 | **`cuems-frontend`** | the only repository doing real wire work, and it is small: drop the `=== 'True'` half at `sequence.component.ts:498`, make `:997` write a native boolean, and `settings.component.ts:176` (`online === true`) **starts working** — today it is permanently false, which disables `canAdopt()` and leaves the Adopt button dead for every node. Fix `:181`'s stale `node_type !== 'NodeType.master'` while in the file (007 renamed it to `node_role`). `autoload`/`timecode` need **nothing**: already written native, never read from the wire. **No change for media dimensions** |
+
+---
+
+### 6.1 `cuems-engine`'s merge is expected to be clean and reviewed anyway (decision 4)
+
+The engine's candidate (`1662a99`) is **based on `main`, 14 commits behind `rc_1`**, and PR #22 —
+which carries both the pre-arm fix and the media-dimensions read — is not in it. It absorbs them
+when it merges `rc_1`.
+
+That plan's §6 expects a clean merge *"due to the lack of overlaps"*, and the call-site evidence
+supports it: `arm_cue.py:147` and `run_cue.py:462` are the same lines on both sides. **Expecting a
+clean merge is not the same as assuming one**, and this repository has twice now been caught by the
+second:
+
+- Feature **012**'s lesson: the breakage was in **data** a call-site census cannot see. Four
+  `cuems-nodeconf` failures, one cause, test fixtures whose identities were not uuid4 — predicted
+  by nothing in the census.
+- Feature **013**'s repeat of it: **96 engine failures, all old-shape fixtures**, zero source files
+  implicated. Every compatibility surface did its job; the fixtures did not.
+
+So the review has a specific shape rather than a general instruction. Three things a diff review
+will not show:
+
+1. **Run the engine's suite in three arms**, as 013 did — at the branch point, after the merge, and
+   after one migration pass over `dev/test_xml_files/`. A single red run proves nothing about which
+   of the three changes caused it.
+2. **Check the engine's own fixtures, not its source.** It holds **6 unmarked and 1 already-version-2**
+   boolean-carrying documents (§2.1) plus the old-shape device fixtures 013 measured. That is where
+   both previous surprises lived.
+3. **Confirm the hard coupling is still satisfied.** The engine's candidate is coupled to feature
+   012 from `c31734c` onward (`coerce_identity` does not exist before it), so it cannot be tested
+   against an older library to isolate a failure — the control arm that worked for 013 is
+   unavailable here, and that is worth knowing *before* a red run has to be explained.
 
 ---
 
@@ -220,16 +390,25 @@ eviction story and left it unassigned).
 
 ---
 
-## 8. Open decisions this proposal does not make
+## 8. Decisions — two settled, four open
 
-1. **Does the rc15 line ship first?** A product call about GO latency in the field, independent of
-   this gate. If yes, the back-patches in that plan's §5 stand as written and this branch still does
-   its own work.
-2. **Does X1 move `script` and `network_map` in the same release, or separately?** Same release is
-   simpler to reason about; separately would let the map convert itself (30 s) while the project
-   libraries convert on an operator's schedule.
-3. **Is this feature 015, or part of 014?** It shares 014's shape (schema change + conversion +
+**Settled 2026-10-02** (and folded into the text above rather than left here):
+
+- ~~Does the rc15 line ship first?~~ **Yes** — decision 2. The back-patches in that plan's §5 stand
+  as written, and this branch migrates what rc15 leaves in the field (§3).
+- ~~A new version step, or the one in flight?~~ **The one in flight** — decision 3. No 2 → 3; nine
+  files need an out-of-band rewrite, six of which were already on the re-cut list (§2.1).
+
+Still open:
+
+1. **Does X1 move `script` and `network_map` together?** Both are at version 2 and both fold into
+   their own 1 → 2 step, so "together" is the default and costs nothing extra. Splitting them would
+   only make sense to let the map convert itself (nodeconf rewrites it every 30 s) ahead of the
+   project libraries — a deployment convenience, not a schema requirement.
+2. **Is this feature 015, or part of 014?** It shares 014's shape (schema change + conversion +
    consumer migration) but none of its content. A separate number keeps 014's `hardware_outputs`
    scope honest.
+3. **Who owns the `localStorage` eviction?** (§7.) It is the only item in this gate with no
+   repository assigned.
 4. **The frontend's two adoption bugs** (§6) are live on `main`-line behaviour and do not need this
    gate. They could ship now, and arguably should.
