@@ -78,14 +78,52 @@ class _Bool(_Passthrough):
     Python ``bool`` in the object model, the capitalised *strings* on the wire
     and in the XML. ``str(True) == "True"`` is what the current builder emits,
     so ``to_lexical`` needs no special case; the asymmetry is all in ``decode``.
+
+    **``decode`` refuses anything else, and that is the point.** It used to be
+    ``raw == "True"`` with a ``bool(raw)`` fallback, so every string that was
+    not exactly ``"True"`` became ``False`` — ``"true"``, ``"TRUE"``, ``"1"``,
+    ``"yes"``, ``"banana"``. From XML that is unreachable (T1 admits only the
+    two literals), but :meth:`CuemsScript.from_json` has no document to
+    validate, so *this adapter is T1* on the ingestion path the editor calls on
+    every client save. A payload carrying ``"true"`` disabled a cue, wrote
+    ``<enabled>False</enabled>`` to a schema-valid document, and was reported
+    by nothing: T1 cannot refuse a legal value, T2 has no rule for it, and the
+    ``LoadReport`` said ``CLEAN``.
+
+    This was the one adapter that could turn a bad value into a *good,
+    different* one. ``_Int``, ``_Float`` and ``_CTimecodeAdapter`` raise; the
+    enum and uuid adapters pass a detectably wrong value through for ``save``'s
+    T1 to refuse on the facet. Raising here makes this one consistent with its
+    neighbours, and it is the same defect class this module's docstring says
+    ``str_to_value`` was retired to make *unrepresentable rather than
+    denylisted* — closed on the ``NameStringType`` side since feature 004 and,
+    until now, open on this one.
+
+    Lowercase ``"true"`` is **not** accepted on purpose: it would make the
+    ingestion vocabulary wider than the schema's, so a value legal on the wire
+    could never appear in a file. A refusal is a one-line fix in a client and
+    is visible; a silent ``False`` is neither.
+
+    No document on disk changes meaning: T1 already guarantees that only
+    ``True`` / ``False`` appear as ``BoolType`` text in a valid document.
+
+    See ``specs/planning/booltype-silent-false-coercion-defect.md``.
     """
+
+    #: The only two lexical forms ``cms:BoolType`` declares, in all three
+    #: schemas that define it (``script``, ``network_map``, ``settings``).
+    _LITERALS = {"True": True, "False": False}
 
     def decode(self, raw):
         if raw is None or isinstance(raw, bool):
             return raw
-        if isinstance(raw, str):
-            return raw == "True"
-        return bool(raw)
+        try:
+            return self._LITERALS[raw]
+        except (KeyError, TypeError):
+            raise ValueError(
+                "cms:BoolType accepts 'True', 'False' or a bool; "
+                f"got {raw!r}"
+            ) from None
 
     def to_wire(self, obj):
         return self.to_lexical(obj)

@@ -45,6 +45,69 @@ def test_bool_none_stays_none():
     assert adapter.to_lexical(None) is None
 
 
+#: Everything a ``cms:BoolType`` field must **refuse** on ingestion.
+#:
+#: The first ten are exactly the strings
+#: :func:`test_free_text_is_never_coerced_to_a_boolean` pins against
+#: ``NameStringType``, restated here against the *boolean* side of the same
+#: seam — that test closed the defect class on one side only, and ``"yes"``,
+#: ``"on"`` and ``"y"`` used to decode to ``False`` here.
+REFUSED_BOOLS = [
+    "n", "y", "t", "f", "N", "Y", "on", "off", "no", "yes",
+    "true", "false", "TRUE", "FALSE", "True ", " True",
+    "1", "0", "", "banana", "None",
+]
+
+
+@pytest.mark.parametrize("raw", REFUSED_BOOLS)
+def test_bool_refuses_anything_the_schema_does_not_declare(raw):
+    """A value that is not ``"True"``/``"False"`` is an error, not ``False``.
+
+    ``decode`` used to be ``raw == "True"``, so **every** other string became
+    ``False``: a payload carrying ``"true"`` disabled a cue, the document was
+    schema-valid (``False`` is a legal ``BoolType``), T1 could not refuse it,
+    T2 has no rule for it and the ``LoadReport`` said ``CLEAN``. A disabled cue
+    does not fire, and nothing anywhere reported it.
+
+    This is the one adapter that could turn a bad value into a *good,
+    different* one. ``_Int``/``_Float``/``_CTimecodeAdapter`` raise; the enum
+    and uuid adapters pass a detectably wrong value through for ``save``'s T1
+    to refuse on the facet. Only this one manufactured a plausible value.
+
+    See ``specs/planning/booltype-silent-false-coercion-defect.md``.
+    """
+    with pytest.raises(ValueError, match="cms:BoolType"):
+        adapter_for("BoolType").decode(raw)
+
+
+@pytest.mark.parametrize("raw", [1, 0, 2, -1, 1.0, [], {}, object()])
+def test_bool_refuses_non_bool_non_string_values(raw):
+    """``bool(raw)`` is gone, deliberately.
+
+    It was what made ``1`` decode to ``True`` while ``"1"`` decoded to
+    ``False`` — an inconsistency with no caller: unreachable from XML (T1
+    admits only the two literals) and from a well-formed payload (a JSON
+    boolean arrives as a ``bool``).
+    """
+    with pytest.raises(ValueError, match="cms:BoolType"):
+        adapter_for("BoolType").decode(raw)
+
+
+def test_bool_still_accepts_what_the_schema_and_json_actually_carry():
+    """The accepted set, stated positively so the refusal above is bounded.
+
+    Nothing that a valid document or a well-formed payload can carry is
+    refused: the two XSD literals, both Python booleans, and ``None`` for an
+    absent optional element.
+    """
+    adapter = adapter_for("BoolType")
+    assert adapter.decode("True") is True
+    assert adapter.decode("False") is False
+    assert adapter.decode(True) is True
+    assert adapter.decode(False) is False
+    assert adapter.decode(None) is None
+
+
 # --- the defect class str_to_value created --------------------------------
 
 
