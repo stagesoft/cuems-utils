@@ -327,7 +327,7 @@ and references it nowhere (§5).
 |---|---|---|---|
 | **L1 — wire only** | `_Bool.to_wire` returns the `bool`. `to_lexical` still writes `True`/`False`, because the **XSD is untouched** | **no** | **unchanged, byte for byte** |
 | **L2 — all five, together** | nothing extra: the adapter is bound per **XSD type**, so L1 *is* L2 | no | unchanged |
-| **L3 — X1 proper** | `cms:BoolType` → `xs:boolean`; XML text becomes `true`/`false` | **yes**, `script` 2→3 and `network_map` 2→3, each with a registered conversion | **every one invalidated** |
+| **L3 — X1 proper** | `cms:BoolType` → `xs:boolean`; XML text becomes `true`/`false` | **a conversion, but no *new* version** — corrected 2026-10-02: the rewrite joins the **existing, unreleased `script` 1 → 2 and `network_map` 1 → 2 steps**, so there is no 2 → 3 | **every version-1 document converts on read; the nine already at version 2 need an out-of-band rewrite** |
 
 **L2 is the finding.** You cannot widen `enabled` alone and leave the other four: the adapter is
 keyed by XSD type name, so one edit moves all five. Doing only `enabled` would need a per-**field**
@@ -337,7 +337,9 @@ none.
 **L3 buys nothing L1 does not** *— superseded 2026-10-02, see below.* The UI gets real JSON
 booleans at L1. L3 only changes what the file says, at the cost of a version step on two schemas, a
 registered conversion each, re-cut goldens, and fixture migration in five repositories — on top of
-013's reshape debt, with the reshape-then-convert ordering to respect.
+013's reshape debt, with the reshape-then-convert ordering to respect. *(Two of those costs also
+turned out smaller than stated: the version step is one already in flight, and the fixture
+migration is 51 files converting for free plus nine needing a rewrite — see the proposal's §2.1.)*
 
 > **⚠️ Revised the same day.** This sentence was written on the assumption that a version step was
 > expensive. The maintainer ruled that a bump on the required files is **not** an issue for the
