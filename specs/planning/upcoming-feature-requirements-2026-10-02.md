@@ -19,7 +19,7 @@ it once every row below is either in a feature's `spec.md` or recorded as declin
 ## 1. Blocking a landed consumer task — `cuems-editor` UR-5
 
 > **✅ ASSIGNED 2026-10-02: this lands in feature `014`.** Reviewed against 014's work and folded
-> into its plan as §9 — `specs/planning/coordinated-gate-booleans-media-dimensions.md`, decision 10.
+> into its plan as §9 — `specs/014-xs-boolean-and-media-elements/plan.md`, decision 10.
 > The reason it belongs there rather than in a later feature is a measured correlation: **the only
 > configuration domain that needs typed ingestion is `network_map`, which is also the only one
 > carrying a `cms:BoolType` and the only one 014 retypes.** Building the ingestion first would

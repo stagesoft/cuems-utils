@@ -3,12 +3,12 @@
 from xml.etree.ElementTree import ElementTree
 
 from deprecated import deprecated
-from xmlschema import XMLSchema11
 
 from ..log import Logger, logged
 from .converter import CuemsConverter
 from .documents import get_pkg_schema as _get_pkg_schema
 from .mapper import Mapper, build_document
+from .schema import get_schema
 
 # Resolved in ``documents`` now, so that module can stay the one place the
 # schema path is computed while ``XmlReaderWriter`` becomes a shim over it
@@ -35,11 +35,29 @@ class CuemsXml():
 
     @schema.setter
     def schema(self, name):
+        """Resolve the ``.xsd`` path and take the **cached** compiled schema.
+
+        ``get_schema`` is keyed on ``(name, converter)`` and is what makes
+        "schema load once per process" an implementation fact rather than an
+        aspiration. This setter used to call ``XMLSchema11(...)`` directly, so
+        every instance recompiled the XSD — and because the configuration path
+        constructs one of these per call, that cost was paid per load rather
+        than per process. Feature 013 identified it while profiling
+        SC-PERF-001 and deliberately left it; feature 014 applies it, because
+        014 edits the schemas and so has to measure them anyway.
+
+        The converter is part of the cache key on purpose: ``XMLSchema11``
+        stores it, and the two reader configurations need different ones, so a
+        single-key cache would hand one configuration the other's converter.
+
+        ``self._schema`` stays the absolute path — ``read()`` passes it as
+        ``xsd_path`` and the engine keys its derivation on the bare name.
+        """
         self._schema = get_pkg_schema(name)
-        self.schema_object = XMLSchema11(
-            self.schema,
-            converter = self.converter
-        )
+        # Keyed on *this call's* name, not on ``self.schema_name``: nothing
+        # reassigns this property today, but reading the attribute would hand a
+        # reassignment the previous schema's compiled object, silently.
+        self.schema_object = get_schema(name.removesuffix('.xsd'), self.converter)
 
     @property
     def xmlfile(self):

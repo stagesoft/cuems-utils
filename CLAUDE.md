@@ -127,8 +127,35 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
+- **`014-xs-boolean-and-media-elements` scaffolded** (2026-10-03, branch of the same name off
+  `feat/xml-refactor` at `84705b9`). Reduced SDD path — `plan.md` (twelve settled decisions,
+  relocated from `specs/planning/`), `baseline.md`, `tasks.md` and the rule-4 release note; **no
+  `spec.md` story pass and no `research.md`**, recorded as a tracked exception in that plan's §11.1
+  rather than quietly skipped. Four changes in one unreleased `script`/`network_map` 1 → 2 step:
+  `cms:BoolType` → **`xs:boolean`**, a **four**-element media block, `main`'s `ease_in`/`ease_out`,
+  and `ConfigManager.from_json` (which closes `cuems-editor`'s T059 by re-run alone).
+  - **The `get_schema` mitigation feature 013 identified and deliberately left is applied**, and it
+    is the largest single result here: the `schema` setter built a fresh `XMLSchema11` per
+    instance, so the configuration path paid XSD *compilation* per load while `xml/schema.py`'s
+    cached `get_schema` sat unused by that one call site. Measured, same session:
+    `project_mappings` **18.292 → 3.690 ms (−80%)**, `settings` **14.702 → 1.646 ms (−89%)**, and
+    the **suite 57.66 → 24.3 s (−58%)** over three runs. `script` is unmoved — `CuemsScript.load`
+    does not go through that setter. 013's SC-PERF-001 miss is not merely recovered: the config
+    load is now about a quarter of the *pre-013* 15.153 ms figure. ⚠ It does **not** touch the
+    mechanism 013 named as dominant (`elementpath` rebuilding a node tree per `xs:alternative`
+    evaluation); on this evidence the "smaller, one-off part" was the larger one for that path,
+    because it was being paid per call.
+  - **`file_size` must hold a file past 100 GB** — 100 GiB is 107,374,182,400 bytes, which
+    overflows a 32-bit int. `xs:positiveInteger` is unbounded and decodes to an
+    arbitrary-precision `int` (2⁶³ verified), so the requirement is met by the type alone. `0` is
+    **invalid by design** for all three integers: absent means unknown, and a zero-byte file is not
+    playable media. `file_hash` is `cms:Md5HashType`, 32 **lowercase** hex, matching `UuidType`'s
+    existing pattern — uppercase refused for the same reason `_Bool` refuses `"true"`.
+  - Two commits landed on `feat/xml-refactor` before the branch was cut and are **preconditions,
+    not this feature's diff**: `be3e86e` (strict `_Bool.decode`) and `84705b9` (`CTimecode`'s
+    notice). Marked settled as S1/S2 in `tasks.md`.
 - **Feature numbering, 2026-10-02 — read this before `specs/012-*/` or `specs/013-*/`.** The
-  `xs:boolean` + media-pixel-elements gate (`specs/planning/coordinated-gate-booleans-media-dimensions.md`)
+  `xs:boolean` + media-pixel-elements gate (`specs/014-xs-boolean-and-media-elements/plan.md`)
   takes the **014** slot, so `hardware_outputs becomes real` — specified but never implemented —
   is now **015**. The coordinated `xml-refactor-merge-candidate` tag therefore comes after
   **011–015**, with the gate landing alongside the others rather than after them.

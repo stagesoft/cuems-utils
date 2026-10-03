@@ -351,7 +351,7 @@ migration is 51 files converting for free plus nine needing a rewrite — see th
 > L1 cannot fix it; only retyping can. **L3 is now the decision**, combined with two other
 > `script.xsd` changes in the **1 → 2 step already in flight** — no new version step, because
 > nothing has shipped:
-> [`coordinated-gate-booleans-media-dimensions.md`](coordinated-gate-booleans-media-dimensions.md).
+> [`specs/014-xs-boolean-and-media-elements/plan.md`](../014-xs-boolean-and-media-elements/plan.md).
 > §3's strict `decode` is **not** made redundant by it — `from_json` has no document, so the
 > adapter is still T1 there; its literal table widens to `xs:boolean`'s four lexical forms, and
 > `"True"` becomes a *rejected* spelling. Nor does `_Bool` go away: with `xs:boolean`,

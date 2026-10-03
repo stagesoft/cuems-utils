@@ -7,15 +7,21 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 **For:** the team working on `feat/xml-refactor` across `cuems-utils`, `cuems-editor` and
 `cuems-engine`, and the author of
-[`media-pixel-dimensions-for-xml-refactor.md`](media-pixel-dimensions-for-xml-refactor.md).
+[`media-pixel-dimensions-for-xml-refactor.md`](../planning/media-pixel-dimensions-for-xml-refactor.md).
 **`cuems-frontend`'s share is not here** — it is unloaded into that repository's own bundle
 (§6.2), and a frontend reader should start there.
 
-**Date:** 2026-10-02. **Status:** **accepted — this is feature `014`**, running the reduced SDD
-path (`specs/planning/etc-cuems-first-install-execution.md` §5–§6). Content refinement is in
-progress; this document becomes the feature's `plan.md`. Every figure below was measured on
-2026-10-02 against `cuems-utils` `fdfb688`, `cuems-editor` `bf57d95`, `cuems-engine` `1662a99`,
-`cuems-frontend` `8a61780`.
+**Date:** 2026-10-02, **refinement closed 2026-10-03.** **Status:** this **is** feature `014`'s
+plan, on the reduced SDD path (`../planning/etc-cuems-first-install-execution.md` §5–§6). Branch
+`014-xs-boolean-and-media-elements`, cut from `feat/xml-refactor` at `84705b9`. Measurements below
+are from 2026-10-02 against `cuems-utils` `fdfb688`, `cuems-editor` `bf57d95`, `cuems-engine`
+`1662a99`, `cuems-frontend` `8a61780`; [`baseline.md`](baseline.md) re-measures the performance
+figures on the branch point and states this feature's budgets.
+
+**Relocated 2026-10-03** from `specs/planning/coordinated-gate-booleans-media-dimensions.md`, which
+is deleted rather than left as a second copy — §6.2 makes that argument about the frontend and it
+applies to this document too. `specs/planning/booltype-silent-false-coercion-defect.md` stays until
+this feature lands, on the `dmx-universe-channel-conversion-defect.md` precedent.
 
 **Settled by the maintainer, 2026-10-02** — these are decisions, not proposals, and the document
 below is written to them:
@@ -32,6 +38,8 @@ below is written to them:
 | **8** | **Feature 010's requirement changes are being implemented now**, and this gate's requirement changes **fold into that pass** rather than being carried separately (§8) |
 | **9** | **`cuems-frontend`'s share is unloaded into that repository** — landed 2026-10-02 as `specs/planning/xml-refactor/06-amendment-feature-014.md` (`ad305f9`). This document keeps its measurements and stops being the owner (§6.2) |
 | **10** | **`cuems-editor` UR-5's correction belongs to this repository, and lands *in this feature*** — the public configuration-document ingestion that unblocks that repository's T059. Reviewed against 014's work and folded in, because the one configuration domain that needs it is the one 014 retypes (§9) |
+| **11** | **The media block is FOUR elements, not three** — `pixel_width`, `pixel_height`, `file_size` (not `size`) and `file_hash`, all `minOccurs="0"` (§10) |
+| **12** | **The `get_schema` mitigation 013 identified and left is applied here** — one line, measured at −80% on the configuration load and −58% on the suite ([`baseline.md`](baseline.md) §5) |
 
 **Answers to that document's §8 questions:** **(1)** declare the three fields natively on the
 refactor branch and cherry-pick only `9c17418`; do not merge the rc15 line. **(2)** Yes — and it is
@@ -185,7 +193,7 @@ needs a conversion; a version step is indivisible.
 | Change | Nature | Needs a conversion? |
 |---|---|---|
 | **X1** booleans → `xs:boolean` | **breaking** — retypes five elements in two schemas | **yes**: `True`→`true`, `False`→`false` |
-| **Media pixel dimensions** — `pixel_width`, `pixel_height`, `file_size` | **additive**, three optional elements on `MediaType` | no |
+| **The media block** — `pixel_width`, `pixel_height`, `file_size`, `file_hash` | **additive**, **four** optional elements on `MediaType` (decision 11, §10) | no |
 | **`ease_in` / `ease_out`** (`9c17418`, on `main`, **not** on this branch — verified) | **additive**, two enumeration values on `FadeCurveType` | no |
 
 **Decision 3 settles where they land: inside the 1 → 2 step already in flight.** Not a new 2 → 3.
@@ -618,3 +626,127 @@ would need the descriptor to learn about unions, which is a change to `xml/descr
 other driver in this feature. Recorded here so it is found by whoever does the descriptor-driven
 forms, and carried to `upcoming-feature-requirements-2026-10-02.md` rather than to this feature's
 tasks.
+
+---
+
+## 10. The media block — four elements (decision 11)
+
+The input document ([`../planning/media-pixel-dimensions-for-xml-refactor.md`](../planning/media-pixel-dimensions-for-xml-refactor.md)
+§1) specifies three. **This feature ships four.** All four are `minOccurs="0"`, appended after
+`regions` in `MediaType`, and every existing project stays valid.
+
+| Element | Type | Why |
+|---|---|---|
+| `pixel_width` | `xs:positiveInteger` | the media's original width, as `ffprobe` reports it. **Not** the layer's size on screen — `width`/`height` already exist in `CanvasRegionType` as unit floats |
+| `pixel_height` | `xs:positiveInteger` | the same, for height |
+| `file_size` | `xs:positiveInteger` | **named `file_size`, not `size`** (decision 11). Bytes |
+| **`file_hash`** | `cms:Md5HashType` *(new)* | **the fourth, added here.** The md5 sum of the file when the dimensions were measured |
+
+### 10.1 `file_size` must hold a file larger than 100 GB — verified
+
+A 100 GiB file is 107,374,182,400 bytes, which **overflows a 32-bit int** (2³¹ = 2,147,483,648).
+So the type matters. Measured against `XMLSchema11`:
+
+| value | | valid as `xs:positiveInteger`? | decodes to |
+|---|---|---|---|
+| `107374182400` | 100 GiB | ✅ | `int` |
+| `2147483648` | 2³¹ | ✅ | `int` |
+| `9223372036854775808` | 2⁶³ | ✅ | `int` |
+| `0` | zero-byte file | ❌ | — |
+| `-1` | | ❌ | — |
+
+`xs:positiveInteger` has **no upper bound** in XSD and `xmlschema` decodes it to a Python `int`,
+which is arbitrary-precision. No facet, no `xs:long`, nothing to add — the requirement is met by the
+type choice alone. The adapter side is `_Int.decode` → `int(raw)`, equally unbounded.
+
+**`0` being invalid is deliberate, not an oversight.** A zero-byte file is not playable media, and
+the three integers share one rule: **absent means unknown; 0 is not a value**. The input document
+says the same for the pixel pair — *"An absent element means 'unknown'. Never write an empty one"* —
+and its editor-side fill strips `None`, `0` and non-numeric values before save so a client value can
+never reach the XSD. If a zero-length file ever needs representing, that is `xs:nonNegativeInteger`
+and a decision to take then, not a hedge to build in now.
+
+### 10.2 `file_hash` needs a type, and the house style settles its shape
+
+An md5 sum is 32 hex characters. The pattern follows `UuidType`'s exactly — which is **lowercase
+only** (`[a-f0-9]`) with both length facets pinned:
+
+```xml
+<xs:simpleType name="Md5HashType">
+  <xs:restriction base="xs:string">
+    <xs:pattern value="[a-f0-9]{32}" />
+    <xs:maxLength value="32" />
+    <xs:minLength value="32" />
+  </xs:restriction>
+</xs:simpleType>
+```
+
+**Lowercase-only is a decision, and it is the consistent one.** `md5sum`, `hashlib.md5().hexdigest()`
+and `ffmpeg` all emit lowercase, and `UuidType` already refuses uppercase for the same reason. It is
+also the same argument this feature makes about `_Bool`: a wider ingestion vocabulary than the
+schema's means a value legal on the wire that can never appear in a file. Accepting
+`[a-fA-F0-9]{32}` would be the forgiving choice and the inconsistent one.
+
+### 10.3 What the fourth element changes about the engine's check
+
+The input document's §3 has the engine compare the stored `file_size` against `os.stat` to detect
+*"a file that was replaced under the same name"*, falling back to a probe when they differ. A hash
+is a **strictly stronger** version of that test: a replacement that happens to be the same length
+passes the size check and fails the hash.
+
+**That is the engine's decision to make, not this feature's.** `cuemsutils` ships the element; what
+the engine compares, and whether hashing a multi-gigabyte file at arm time is acceptable where
+`os.stat` was free, is `cuems-engine`'s call. Stated here so the element does not arrive looking
+like an instruction. The one thing this feature owes it: the element is optional, so an engine that
+ignores it is correct.
+
+### 10.4 Model and writer
+
+Per §5's two confirmations and one correction, unchanged by the fourth element:
+
+- **Four `DECLARED_DEFAULTS` entries, all `Unset`** — `Unset` *is* the emits-nothing-when-absent
+  mechanism (`helpers.py:32`), with `canvas_region` as the precedent. The input document's reading
+  of it is inverted, and the correction makes the work smaller.
+- **Four `set_<name>` accessors.** Without both halves the key is dropped **in silence**:
+  `CuemsDict.setter` resolves `getattr(self, f"set_{k}")` and `continue`s on `AttributeError`.
+  Measured — that is §5's point 2, and it is the one that would have lost data.
+- **No writer change.** The spec-driven writer already orders by schema position and omits absent
+  fields, so the input document's `MediaXmlBuilder` fix does not apply to this branch.
+- The setters accept a positive `int` or a string of digits and store an `int`; `None` removes the
+  key; anything else raises. `file_hash`'s setter normalises nothing — a non-matching string is a
+  `ValueError`, because the schema will refuse it at save and failing at assignment names the field.
+
+---
+
+## 11. Constitution check
+
+Against `.specify/memory/constitution.md` v1.0.0. Required by the Delivery Workflow section for
+every plan, and by Governance for every pull request.
+
+| Principle | How this feature satisfies it |
+|---|---|
+| **I. Code quality by default** | The changes are small and local: one adapter class (a method swap), one setter line, four model fields with accessors, two schema files. Every public surface gets a docstring stating *why* — `_Bool`'s explains why the class cannot be deleted, the `schema` setter's explains why the cache is keyed as it is |
+| **II. Tests as a release gate** | Tests-first throughout. `be3e86e` already demonstrated the shape on this feature's first slice: 29 red tests, then four lines. Specific red-first tests are named per task in [`tasks.md`](tasks.md); the two that cannot be written after the fact are `to_lexical`'s round trip and the bytes-on-disk assertion (§1.3) |
+| **III. Consistent user experience** | This feature *creates* consistency rather than risking it: `BoolType` stops being the one type whose wire form is not its natural JSON form, `CTimecode.milliseconds` joins the one deprecation message format (already landed, `84705b9`), and the descriptor stops reporting a boolean as a two-value string enum |
+| **IV. Performance budgets are requirements** | Stated **before** implementation in [`baseline.md`](baseline.md) §5: three budgets against post-mitigation figures. Any exceedance is recorded as exceeded, not restated as passing |
+
+### 11.1 Complexity tracking — three exceptions
+
+Governance requires exceptions documented here rather than argued in review.
+
+| # | Exception | Why it is granted |
+|---|---|---|
+| **1** | **The reduced SDD path**: `plan.md`, `tasks.md`, `baseline.md` and a rule-4 release note, with **no `spec.md` story pass and no `research.md`** | The design space is closed — twelve settled decisions — and the research is already measured and committed in this document. A `spec.md` with user stories would be transcription, not thinking; there are no user stories here, there are four changes and a per-repository table. Recorded as an exception in `../planning/etc-cuems-first-install-execution.md` §5, which also states that a reduced path is **not** a lighter standard: Principles II and IV bind unchanged, which is *why* this plan exists at all |
+| **2** | **D3 relaxed again** — "wire-compatible with every XML on disk; no `.xsd` edits". This is the seventh recorded relaxation (007 once, 008 five times, 013 orthogonally) | X1 is a rule-4 file-format migration by `specs/agreements/schema-evolution-convention.md`'s own definition, and it is granted **only because the conversion exists to carry it**, which is the same condition 008's three invalidating relaxations were granted under. The media block and the curve values are rule-1 additive and need no relaxation |
+| **3** | **`doc_version="2"` becomes briefly ambiguous** — a marker that no longer determines its own content (§2.1) | Measured and bounded: 51 documents convert for free, **nine** need an out-of-band rewrite, and six of those nine are goldens already on the must-re-cut list. This is feature 012's situation verbatim, whose lesson applies — the machinery represents such a step by the *absence* of a registry entry and the repair is cross-document and out-of-band by design. The alternative, a 2 → 3 step, was rejected by decision 3 because nothing has shipped |
+
+### 11.2 What this feature does **not** do, so the scope is reviewable
+
+- **No `v0.1.1`, no deprecated-surface removal.** That is
+  `../planning/deprecated-surface-removal-v0-1-1.md`, and `0.1.0rc16` does not move.
+- **No `hardware_outputs` work.** That is **015**, which this feature precedes by advice only — both
+  edit `settings.xsd` and so both move `test_schema_scope`'s hashes.
+- **No frontend code.** Unloaded to that repository (§6.2). Its 001 is **now starting its SDD path**
+  (2026-10-03), so the one hard-coupled line arrives shortly after this work rather than
+  indefinitely later — which is what makes §6.2 item 2's mutual coupling schedulable.
+- **No descriptor union support.** §9.5's `NodeUuidType`-as-one-value-enum stays open.
