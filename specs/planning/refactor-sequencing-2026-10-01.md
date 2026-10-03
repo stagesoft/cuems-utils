@@ -72,7 +72,9 @@ of feature 010.**
 
 T049 requires an import census of the deprecated surface across all six
 consumers, and **requires the value zero**. T050 re-runs it immediately before
-T051. T051–T061 are structurally blocked on that zero (FR-090).
+T051. T051–T061 are structurally blocked on that zero (FR-090). *(Those twelve tasks were
+**migrated out of 010** on 2026-10-03 — `specs/planning/deprecated-surface-removal-v0-1-1.md` R1–R12 — because this arc lands at
+`0.1.0rc16` and cuts no stable release. The census and the zero stay 010's.)*
 
 Census run 2026-10-01, excluding `specs/` and `.md`:
 
@@ -103,7 +105,7 @@ repository already do.
 (`xml/Settings.py`, `xml/XmlReaderWriter.py`, `xml/Parsers.py`,
 `xml/CMLCuemsConverter.py`, `timeoutloop.py`), the seven aliases in
 `xml/__init__.py`, two deprecated-symbol sites, the retirement of 22 contract
-tests, **and T060 — the `v0.1.1` version move that
+tests, **and T060 — since 2026-10-03 R11 of `specs/planning/deprecated-surface-removal-v0-1-1.md` — the `v0.1.1` version move that
 `_deprecation.REMOVAL_RELEASE` has promised for two features**. Feature 010
 cannot close while that promise is unkept.
 

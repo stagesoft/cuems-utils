@@ -1343,7 +1343,8 @@ the two apart is what lets a schema change ship inside an rc line without lying 
   emitted since feature 006 promises the deprecated surface is *gone* in v0.1.1. Releasing it
   with `Settings.py`, `XmlReaderWriter.py`, `Parsers.py`, `CMLCuemsConverter.py`,
   `timeoutloop.py` and the seven aliases still present makes all of them false — which is
-  exactly what feature 010's T060 is written to prevent. That removal is gated on T049/T050's
+  exactly what feature 010's T060 — since 2026-10-03 **R11** of `specs/planning/deprecated-surface-removal-v0-1-1.md` — is written to
+prevent. That removal is gated on T049/T050's
   **measured zero** import census, which is not met.
 - **Three consumers would refuse it outright**, by package relation rather than by convention:
   `cuems-common/debian/control:13` (`<< 0.1.1~`), `cuems-nodeconf` (`<0.1.1` and `<< 0.1.1~`),

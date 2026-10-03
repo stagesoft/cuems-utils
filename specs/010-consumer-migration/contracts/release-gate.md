@@ -49,7 +49,8 @@ one this contract's opening claim rests on: a `>=` floor in `debian/control` is 
 enforces; a bound in `pyproject.toml` is not. **Closed 2026-09-29** (`../cuems-power-bridge`
 `399baf7`) by adding `cuems-utils (<< 0.1.1~)` at `:19`. Verified with `dpkg --compare-versions`:
 `0.1.0rc16` and `0.1.0rc17` satisfy both bounds; `0.1.1~rc1`, `0.1.1` and `0.2.0` are refused — and
-`0.1.1` is the release **T060** removes the deprecated surface in, so the bound now refuses exactly
+`0.1.1` is the release the deprecated surface is removed in (**R11** of `specs/planning/deprecated-surface-removal-v0-1-1.md`, migrated
+from T060 on 2026-10-03), so the bound now refuses exactly
 the library version that would break this consumer at runtime.
 
 ## T077 — the `cuems-common` ↔ `cuems-power-bridge` edge, decided
@@ -168,8 +169,11 @@ The two holdouts have both moved, and FR-091's enumeration is complete.
 
 ## ⚠️ What closing the gate obliges, which this contract did not say
 
-Five `debian/control` files now carry `cuems-utils (<< 0.1.1~)`. **T060 moves this library to
-`v0.1.1`.** `dpkg --compare-versions` refuses `0.1.1` against every one of them — correctly, since
+Five `debian/control` files now carry `cuems-utils (<< 0.1.1~)`. **R11 of `specs/planning/deprecated-surface-removal-v0-1-1.md` moves this
+library to `v0.1.1`** — migrated from T060 on 2026-10-03, because this feature lands at
+`0.1.0rc16`. ⚠ **And the bound admits `0.1.0rc17`**, verified with `dpkg --compare-versions`: so
+deleting the surface at any `rc` would satisfy every consumer bound while no longer carrying what
+the bound protects. That is why the deletions moved with the version. `dpkg --compare-versions` refuses `0.1.1` against every one of them — correctly, since
 `0.1.1` is the release that removes the surface a pre-migration consumer would still import. The
 consequence:
 
@@ -183,4 +187,4 @@ The re-bound each sibling needs is the same two lines, raised in lockstep with w
 actually ships (`>= 0.1.1`, `<< 0.2.0~` if the next break is minor), **plus the matching
 `pyproject.toml` bound**, which is not what `dpkg` enforces but is what `pip`/`poetry` resolves. This
 is carried in `specs/planning/upcoming-feature-requirements-2026-10-02.md` and belongs to whichever
-feature cuts the release; **T060 must not be executed on its own.**
+feature cuts the release; **R11 must not be executed on its own.**

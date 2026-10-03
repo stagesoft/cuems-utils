@@ -5,7 +5,8 @@ live imports across all six consumer repositories returns **zero**. "The consume
 is a different claim, and the difference is a broken daemon.
 
 **This file is the gate's artifact.** Every deletion task in wave 5 declares it as an input and
-states the required value. It is re-run **immediately before** the deletions, not once at the close
+states the required value. It is re-run **immediately before** the deletions — now `specs/planning/deprecated-surface-removal-v0-1-1.md`'s
+R1 — not once at the close
 of wave 4 — a repository can regress between merge and removal (FR-029e).
 
 ## Method
@@ -47,7 +48,7 @@ neither is assumed.
 |---|---|---|---|
 | 2026-09-04 | **9** | — | baseline, no consumer flow has run |
 | 2026-09-17 | **8** | `cuems-nodeconf` @ `aab9b48` (not merged to `main`) | `cuems-nodeconf`'s single entry — `cuemsutils.timeoutloop.Timeoutloop` at `CuemsNodeConf.py:26` — is **gone**, replaced by `cuemsutils.tools.TimeoutLoop.TimeoutLoop`. That repository now carries **zero**. The remaining 8 are `cuems-editor` (5) and `cuems-engine` (3), neither flow started. **Not a gate clearance** — the required value is 0, and T050 additionally requires a census dated after the last consumer *merge*; this one postdates a branch commit, not a merge |
-| 2026-10-02 | **0** over shipped source | `cuems-editor` @ `bf57d95` (not merged to `main`) | **The required value, reached.** `cuems-editor`'s five entries are gone — the last repository carrying any. `CuemsDBProject.py` and `repair_durations.py` read through `CuemsScript.load_with_report` / `from_json` / `save`; `CuemsWsServer.py` imports `new_uuid` from `cuemsutils.helpers` and `partition_by_adoption` from `cuemsutils.tools.NodeList`. **Still not a gate clearance**, for one reason only: T050 requires a census dated after the last consumer *merge*, and nothing is merged — every consumer flow sits on a local `feat/xml-refactor`. The deletions stay blocked on the merges, no longer on a consumer's source |
+| 2026-10-02 | **0** over shipped source | `cuems-editor` @ `bf57d95` (not merged to `main`) | **The required value, reached.** `cuems-editor`'s five entries are gone — the last repository carrying any. `CuemsDBProject.py` and `repair_durations.py` read through `CuemsScript.load_with_report` / `from_json` / `save`; `CuemsWsServer.py` imports `new_uuid` from `cuemsutils.helpers` and `partition_by_adoption` from `cuemsutils.tools.NodeList`. **Still not a gate clearance**, for one reason only: the gate requires a census dated after the last consumer *merge*, and nothing is merged — every consumer flow sits on a local `feat/xml-refactor`. **Re-scoped 2026-10-03**: the deletions are no longer this feature's (migrated to `specs/planning/deprecated-surface-removal-v0-1-1.md` as R2–R9, gated on their own re-run of this census, R1), so they wait on `v0.1.1` being planned rather than on a consumer's source. This run stands as the **precondition record** — the consumers are off the deprecated paths — which is what FR-029 asks of feature 010 |
 
 ### The 2026-10-02 run — command, denominator and exempt set
 

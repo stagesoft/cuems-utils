@@ -148,13 +148,18 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   **68/118**), recorded in that feature's `migration-guide.md` §4d, `baseline.md` and
   `import-census.md`.
   - **The deprecated-surface census over shipped source is zero across all six consumers.** The
-    five module deletions, the seven aliases and **T060's `v0.1.1` version move** are no longer
-    held by any consumer's *source* — they are held only by the **merges** (T050 requires a census
-    postdating the last consumer merge, and nothing is merged).
+    five module deletions, the seven aliases and the **`v0.1.1` version move** are no longer
+    held by any consumer's *source*. **Re-scoped 2026-10-03**: they are no longer feature 010's at
+    all — T050–T061 migrated to `specs/planning/deprecated-surface-removal-v0-1-1.md` as R1–R12,
+    because this arc lands at `0.1.0rc16` and the coordinated tag cuts no stable release. Measured
+    with `dpkg`, the siblings' `<< 0.1.1~` bound admits `0.1.0rc17`, so **deleting the surface
+    without the version move defeats the gate** — the two are one step, at `v0.1.1`, which is
+    unplanned. 010 keeps the census, the vocabulary count, the corrections and the guide.
   - **Closing the last package edge created a new precondition for the version move.** Five
     siblings now carry `cuems-utils (<< 0.1.1~)`, which `dpkg` refuses `0.1.1` against — correctly,
-    since `0.1.1` is the release that deletes the surface. **T060 and a re-bound of five sibling
-    packages are one atomic step, not two**, and no task in 010 carried that.
+    since `0.1.1` is the release that deletes the surface. **The version move and a re-bound of five
+    sibling packages are one atomic step, not two**, and no task in 010 carried that; it is now
+    R11 and §3 of the migrated document.
   - **Four payload deltas, not two.** 010's FR-010/FR-011/SC-004 say two; (c) is 013's cue key and
     (d) is `to_wire()` projecting a model default for an optional element the document omitted —
     ruled correct (reported as `cuems-editor` UR-3, **withdrawn**) and a **general** property of the

@@ -76,14 +76,21 @@ side declares. This library can reword it in a patch release and break a consume
 with no failing test anywhere. That is the same class of fault as the `<< 0.1.1~` bound in §3: a
 cross-repository contract carried by one side only.
 
-## 3. The release gate now forbids the release — T060 is not a standalone task
+## 3. The release gate now forbids the release — the version move is not a standalone task
+
+> **➡ MIGRATED 2026-10-03 to `specs/planning/deprecated-surface-removal-v0-1-1.md` §3.** That document is now the home for this
+> requirement, because the task it constrains moved there with it: 010's T060 is **R11** there.
+> Two things were added on the way: the `dpkg --compare-versions` table showing the bound admits
+> `0.1.0rc17` — so deleting the surface at any `rc` defeats the gate — and therefore that the
+> deletions and the version move are one indivisible step. The statement below is unchanged and
+> kept as the record of where it was first worked out.
 
 **Measured 2026-10-02.** With `cuems-editor` and `cuems-engine` closing the last two edges
 (010 T037b/T038), **five** sibling `debian/control` files carry `cuems-utils (<< 0.1.1~)`:
 `cuems-common`, `cuems-engine`, `cuems-editor`, `cuems-nodeconf`, `cuems-power-bridge`. Each also
 pins `>=0.1.0rc16,<0.1.1` in `pyproject.toml`.
 
-010's **T060** moves this library's `__version__` to the release
+010's **T060** — now **R11** — moves this library's `__version__` to the release
 `_deprecation.REMOVAL_RELEASE` has promised since feature 006 — `v0.1.1`. `dpkg` refuses `0.1.1`
 against every one of those bounds.
 

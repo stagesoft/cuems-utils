@@ -779,7 +779,8 @@ The bound was verified rather than assumed, with `dpkg --compare-versions`:
 | `0.1.1` | satisfied | **refused** | ⛔ |
 | `0.2.0` | satisfied | **refused** | ⛔ |
 
-`0.1.1` is exactly the release **T060** removes the deprecated surface in. Before this, a host that
+`0.1.1` is exactly the release the deprecated surface is removed in (**R11** of `specs/planning/deprecated-surface-removal-v0-1-1.md`,
+migrated from T060 on 2026-10-03). Before this, a host that
 upgraded the library alone satisfied `>= 0.1.0rc16` perfectly and broke the bridge at runtime —
 during a poweroff — with no packaging error anywhere. That is the failure a floor cannot express,
 which is FR-091's whole premise. The trailing `~` is what also catches the pre-release.
@@ -1463,11 +1464,12 @@ All four plus `cuems-common` now express it identically; `cuems-frontend` cannot
 uses the payload handshake instead (FR-108). **FR-091's enumeration is closed.**
 
 ⚠️ **And closing it creates one new obligation that no task in this file carries.** Every edge is
-`<< 0.1.1~`. **T060 moves this library's `__version__` to `v0.1.1`** — the release
+`<< 0.1.1~`. **R11 of `specs/planning/deprecated-surface-removal-v0-1-1.md` moves this library's `__version__` to `v0.1.1`** (migrated
+from T060 on 2026-10-03; this feature lands at `0.1.0rc16`) — the release
 `_deprecation.REMOVAL_RELEASE` has promised since feature 006. On the day it does, all five
 `debian/control` upper bounds refuse the library that is supposed to ship beside them, and `dpkg`
 refuses the whole upgrade. That is the gate working exactly as designed — `0.1.1` *is* the release
 that breaks a consumer still on the deprecated surface — but it means **the version move and a
 coordinated re-bound of five sibling packages are one atomic step, not two**. Recorded in
 `specs/planning/upcoming-feature-requirements-2026-10-02.md`; it belongs to whichever feature cuts
-the release, and T060 must not be executed without it.
+the release, and R11 must not be executed without it.
