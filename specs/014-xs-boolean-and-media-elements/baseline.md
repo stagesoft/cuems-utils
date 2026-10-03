@@ -131,11 +131,15 @@ silently. `self._schema` stays the absolute path: `read()` passes it as `xsd_pat
 
 Stated against the **post-mitigation** figures, because that is the tree 014's schema edits land on:
 
+⚠ **Prefixed `SC-014-PERF-` deliberately.** 013's `SC-PERF-001` is the mappings load against a
+16.668 ms budget and 010's is a suite budget; three features are live at once and a bare
+`SC-PERF-001` now means three different things. These are **feature-local and supersede nothing**.
+
 | Criterion | Budget | Rationale |
 |---|---|---|
-| **SC-PERF-001** | `project_mappings` load ≤ **4.06 ms** (110% of 3.690) | the shape 013 used, re-based |
-| **SC-PERF-002** | ≤ **7.79 ms/test** (110% of 7.08) | the suite |
-| **SC-PERF-003** | `script` load ≤ **14.68 ms** (110% of 13.338) | unmoved by the mitigation, so it is the honest reference for the show path |
+| **SC-014-PERF-001** | `project_mappings` load ≤ **4.06 ms** (110% of 3.690) | the shape 013 used, re-based |
+| **SC-014-PERF-002** | ≤ **7.79 ms/test** (110% of 7.08) | the suite |
+| **SC-014-PERF-003** | `script` load ≤ **14.68 ms** (110% of 13.338) | unmoved by the mitigation, so it is the honest reference for the show path |
 
 X1 removes three `simpleType` declarations and retypes five elements to a built-in, which should if
 anything help: a built-in needs no facet checks. **If any of these three is exceeded, it is recorded

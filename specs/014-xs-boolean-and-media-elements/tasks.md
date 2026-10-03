@@ -63,7 +63,12 @@ independent of everything else. If X1 were abandoned tomorrow these would still 
       `Media`. Both halves or the key is dropped in silence (plan.md §10.4) — depends on T004
 - [ ] **T006** [P] Red-first then implement: `test_coherence.py` must agree that `MediaType`'s
       schema fields and `Media`'s model fields match. It fails automatically on T004 without T005,
-      which is the check working; confirm that, do not route around it
+      which is the check working; confirm that, do not route around it.
+      **Also assert the writer claim** (plan.md §10.4): a `Media` built with the four keys **in any
+      order**, and one with some of them absent, round-trips to **schema order with no empty
+      element**. That claim — *"no writer change is needed on this branch"* — is currently asserted
+      and never verified; it is the input document's third utils deliverable dropping out, so it is
+      worth one test rather than an assumption
 - [ ] **T007** Cherry-pick `9c17418` from `origin/main` for `ease_in`/`ease_out` on
       `FadeCurveType`, with its schema hash moving in the same commit. Verified absent from this
       branch: a project saved by a `main`-line editor with an `ease_in` fade **fails T1 here today**
@@ -105,10 +110,47 @@ before the schema demands it, or the suite cannot be green at any intermediate c
 - [ ] **T014** [P] Red-first: a version-1 document with old-form booleans **and** the four media
       elements converts correctly in one pass, in both orders of appearance. This is T013's
       order-independence, asserted
-- [ ] **T015** Re-cut the **six** goldens (`tests/golden/xml/` ×5, `tests/golden/generated/` ×1) and
-      hand-rewrite the **two** already-version-2 corpus documents the registry cannot reach
-      (`fade_showcase`, `unicode_showcase`). **Diff every file to confirm the change is only what
-      was intended** — FR-021 stands: a golden is never regenerated to make a test pass
+- [ ] **T015** Move **every** golden and out-of-band document the boolean form touches. ⚠ The first
+      cut of this task said "six goldens"; **the measured count is fourteen goldens plus the nine
+      out-of-band documents**, and the gap was eight **JSON** goldens — which are the *wire* form,
+      i.e. precisely what X1 changes. Enumerated here so the red suite at T012 is planned for rather
+      than discovered, and so nobody decides mid-implementation whether to regenerate: **FR-021
+      stands — a golden is never regenerated to make a test pass.** Diff every file and confirm the
+      change is only what was intended.
+
+      **(a) The nine out-of-band documents** — already `doc_version` ≥ 2, so the registry's 1 → 2
+      step cannot reach them (plan.md §2.1):
+
+      | # | File | How |
+      |---|---|---|
+      | 1–5 | `tests/golden/xml/{cuems-editor__script_minimal, cuems-engine__projects__complex_test__script, cuems-engine__projects__empty_test__script, cuems-utils__fade_showcase, cuems-utils__unicode_showcase}.xml` | re-cut |
+      | 6 | `tests/golden/generated/example_script.xml` | re-cut |
+      | 7–8 | `tests/data/corpus/cuems-utils/{fade_showcase,unicode_showcase}.xml` | **hand-rewritten** — authored, not generated |
+      | 9 | `../cuems-engine/dev/test_xml_files/projects/complex_test_v2/script.xml` | **the ninth, and it is in a sibling.** Owned here because this task owns the nine; coordinate with T028a |
+
+      **(b) The eight JSON goldens** — not `doc_version`-marked documents, so they are absent from
+      the nine, but every one pins `"enabled": "True"` or `"adopted": "True"`:
+
+      ```
+      tests/golden/dict/cuems-editor__script_minimal.reader.json
+      tests/golden/dict/cuems-engine__network_map.reader.json
+      tests/golden/dict/cuems-engine__projects__complex_test__script.reader.json
+      tests/golden/dict/cuems-engine__projects__empty_test__script.reader.json
+      tests/golden/dict/cuems-utils__fade_showcase.reader.json
+      tests/golden/dict/cuems-utils__network_map.reader.json
+      tests/golden/dict/cuems-utils__unicode_showcase.reader.json
+      tests/golden/generated/example_script.reader.json
+      ```
+
+      **The two `network_map` ones carry `adopted`/`online`** — the only place in the golden corpus
+      where that half of X1 is visible, so they are the regression net for `network_map`'s 1 → 2.
+
+      **(c) `tests/golden/MANIFEST.sha256`** (34 lines) moves with them, in the same commit.
+
+      **(d) `tests/golden/outcomes.json` is NOT a regeneration target** — execution doc §7.2: it
+      records *pre-refactor* verdicts and a test asserts the **difference** between it and live
+      behaviour. Running `capture_goldens --force` over it destroys that baseline. Verified: it
+      contains no boolean form, so this feature must not touch it
 - [ ] **T016** Move the negative corpus with it. `tests/data/corpus/negative/` fixtures fail **for a
       reason**, and a schema change moves which error each one raises — execution doc §7.3 is the
       precedent, where a fixture kept failing while testing the wrong thing and the suite stayed
@@ -158,11 +200,22 @@ natively, not one that calls them a two-value string enum.
 
 ## Phase 4: Migration, measurement and the rule-4 release note
 
-- [ ] **T024** The rule-4 release note in [`migration-guide.md`](migration-guide.md) — the one
-      deliverable `specs/agreements/schema-evolution-convention.md` demands that cannot be inferred
-      from anything else: **what has to be converted, and when the old form stops being accepted**.
-      Rule 4's own sentence is the standard to meet — *"'We will just update the files on the nodes'
-      is not a conversion path. Nobody knows where all the files are"*
+- [ ] **T024** Complete the rule-4 release note in
+      [`migration-guide.md`](migration-guide.md) §4 — the one deliverable
+      `specs/agreements/schema-evolution-convention.md` demands that cannot be inferred from
+      anything else. Rule 4's own sentence is the standard to meet: *"'We will just update the files
+      on the nodes' is not a conversion path. Nobody knows where all the files are"*.
+
+      **Acceptance criteria**, because "write a release note" is not checkable:
+      1. **Every path named**, not counted — the 51 automatic by glob or directory, the nine
+         out-of-band by filename (T015 has the list), and the two live locations that are neither:
+         `/etc/cuems/network_map.xml` and each node's project library.
+      2. **One sentence stating when the old form stops being accepted**, with its date or release.
+         The current draft says "immediately on this feature"; that is the answer, and it must
+         survive review rather than be softened into a grace period nothing implements.
+      3. **The reshape-then-convert order** for a document needing both migrations.
+      4. **A reader who has never read `plan.md` can act on it.** That is the test: the note is for
+         an operator and a sibling maintainer, not for this feature's author
 - [ ] **T025** Document the nine already-version-2 files and the out-of-band rewrite in the same
       note (plan.md §2.1). Version 2 is briefly ambiguous and the registry cannot resolve it; say
       so plainly rather than leaving it to be discovered
@@ -172,19 +225,70 @@ natively, not one that calls them a two-value string enum.
       three `simpleType`s and retyping five elements to a built-in helped, hurt or did neither.
       013's identified mechanism (`elementpath` rebuilding a node tree per `xs:alternative`
       evaluation) is **untouched** by this feature, so a flat result is the expected one
-- [ ] **T028** Measure the siblings in arms, not by inference — the lesson 012 and 013 each learned
-      once: `cuems-engine`, `cuems-power-bridge`, `cuems-nodeconf`, `cuems-common` fixtures carry
-      **51 unmarked + 1 version-2** boolean documents between them. ⚠ The engine's control arm is
-      **unavailable** (its candidate is coupled to 012 from `c31734c`), so design the comparison
-      before a run goes red, not after
-- [ ] **T029** Record the frontend hand-off: `cuems-frontend`'s 001 began its SDD path 2026-10-03,
+### The sibling gates (E3)
+
+**One task per repository, each with the instruction that repository needs.** The single "measure
+the siblings" task this replaces was a coverage gap: it measured and nobody converted. The split
+follows 010's pattern — a gate task *here* that names the artifact and either finds it or does not,
+with the edit itself belonging to that repository.
+
+**What every sibling is being told, once, so it is not repeated five times**: your fixtures carry
+`<adopted>True</adopted>`-style text. After this feature the library **refuses** it. Run
+`cuems-convert-documents` over your fixture tree; it is the registry's 1 → 2 step and it rewrites
+the boolean text. **No source change is needed in any of these four** — they hold objects, which
+were always real `bool`s. If your suite goes red on anything that is *not* a fixture, that is a
+finding for this feature and should come back here.
+
+- [ ] **T028** [P] **`cuems-engine`** — 6 unmarked documents under `dev/test_xml_files/`, plus the
+      **one already-version-2** file T015 owns
+      (`dev/test_xml_files/projects/complex_test_v2/script.xml`; T015 rewrites it, this task
+      verifies the result in place). **Measure in arms, not by inference** — the lesson 012 and 013
+      each learned once, where the breakage was in *data* a call-site census cannot see: run at the
+      branch point, after the library change, and after one conversion pass. ⚠ **The control arm is
+      unavailable**: that candidate is coupled to feature 012 from `c31734c` onward
+      (`coerce_identity` does not exist before it), so it cannot be tested against an older library
+      to isolate a failure. Design the comparison **before** a run goes red
+- [ ] **T029** [P] **`cuems-power-bridge`** — 10 unmarked documents,
+      `tests/fixtures/network_map/map-*/settings.xml` and siblings. ⚠ **Expect it to be red before
+      you start**: measured 2026-10-02 it was already **55 failed / 221 passed** against this
+      branch, all of it 013's old device shape (183 `pre-013 device shape` refusals). **Reshape
+      first, then convert** — that order, or neither completes. Its 276/276 green state predates 013
+- [ ] **T030** [P] **`cuems-nodeconf`** — 1 unmarked document
+      (`tests/fixtures/etc_cuems/settings.xml` and `settings_sentinel.xml` per 013's table). Also
+      the one repository that **writes** `network_map.xml` every 30 s, so confirm its write path
+      emits the new boolean form after the library moves — it is the only sibling whose output this
+      feature changes
+- [ ] **T031** [P] **`cuems-common`** — 2 unmarked documents. It ships `network_map.xml` and
+      mirrors the schemas to `/etc/cuems`, so the **mirrored `.xsd` moves too**: a node with the old
+      mirrored schema and the new library validates against the wrong file. Check
+      `debian/` and whatever its postinst copies
+- [ ] **T032** [P] **`cuems-editor`** — 4 unmarked documents, of which
+      `tests/fixtures/script_minimal.xml` is **deliberately pre-013 and must stay that way** (its
+      own `tests/fixtures/README.md` records why: it is the pre-migration payload capture *and* the
+      `SKIPPED_INVALID` fixture). So this gate is **not** "convert everything" — it is "convert the
+      three and confirm the fourth is still refused, for the right reason"
+- [ ] **T033** Record every arm in [`baseline.md`](baseline.md), per repository, **including any
+      that is still red and why**. A sibling left red with the reason named is a result; a sibling
+      not run is not
+- [ ] **T034** Record the frontend hand-off: `cuems-frontend`'s 001 began its SDD path 2026-10-03,
       and its `sequence.component.ts:997` is **mutually** hard-coupled to this feature (plan.md
       §6.2 item 2). 014 can be implemented and tested without it; it cannot **ship** without it.
       Update that repository's `06-amendment-feature-014.md` status line only if asked — it is
       their document now
-- [ ] **T030** Delete `../planning/booltype-silent-false-coercion-defect.md` once this feature
+- [ ] **T035** Delete `../planning/booltype-silent-false-coercion-defect.md` once this feature
       lands, on the `dmx-universe-channel-conversion-defect.md` → `specs/009-*/` precedent. **Not
       before**: it is the record of why the work exists until the work exists
+- [ ] **T036** **The closing documentation pass** (C3) — 013 had one and this list did not.
+      `CLAUDE.md`'s "Active Technologies" and "Recent Changes", following the house shape: what
+      landed, what was measured rather than assumed, and the load-bearing facts the next feature
+      inherits. Specifically: the four media elements with `file_size`'s unbounded type and
+      `file_hash`'s lowercase rule; `_Bool` as a **swap** rather than a deletion, with
+      `Mapper._lexical` as the only producer of element text on a stdlib-`ElementTree` write path;
+      the `doc_version="2"` ambiguity and the nine files; `ConfigManager.from_json` as the new public
+      name; and the `get_schema` result with the note that it does **not** touch 013's dominant
+      mechanism. Also update `specs/planning/etc-cuems-first-install-execution.md` §5's step 6 from
+      SCAFFOLDED to LANDED, and follow `specs/agreements/documentation-prompt.md` if a
+      README/CHANGELOG pass is wanted
 
 ---
 
@@ -194,7 +298,9 @@ natively, not one that calls them a two-value string enum.
 Phase 1 (additive)      independent — can land alone
 Phase 2 (X1)            T009,T010 → T011 → T012 → T013 → T014; T015,T016,T017,T018 after T013
 Phase 3 (ingestion)     after Phase 2 (descriptor must report booleans natively)
-Phase 4 (migration)     after the phases it measures
+Phase 4 (migration)     T024,T025 after T013; T026,T027 after Phase 2
+                        T028–T032 after T013 (the conversion must exist), all [P] — different
+                        repositories; T033 after them; T034–T036 last
 ```
 
 **Parallel within a phase**: tasks marked `[P]` touch different files and may run together.

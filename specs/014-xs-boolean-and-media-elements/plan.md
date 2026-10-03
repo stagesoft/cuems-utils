@@ -29,7 +29,7 @@ below is written to them:
 | | |
 |---|---|
 | **1** | **A schema version bump on the required files is not an issue** for the coordinated work. This is what makes the combination cheap |
-| **2** | **The branch stays on rc16.** Every `feat/xml-refactor` change is planned to land **after** the rc15 work, so rc15 ships first and this branch migrates what it leaves behind |
+| **2** | **The branch stays on rc16** — already guarded: `tests/packaging/test_no_version_bump.py:17` pins `0.1.0rc16`, so a stray bump fails the suite rather than review. Every `feat/xml-refactor` change is planned to land **after** the rc15 work, so rc15 ships first and this branch migrates what it leaves behind |
 | **3** | **All schema changes land in the *existing, unreleased* 1 → 2 bump.** Nothing has shipped, so there is **no 2 → 3 step** — version 2's *meaning* absorbs X1 before anyone has seen it (§2, and the one consequence measured in §2.1) |
 | **4** | **`cuems-engine` absorbs the last fixes.** Expected to merge cleanly for lack of overlap, as that plan's §6 says — but a **thorough review is required**, not a clean-merge assumption (§6.1) |
 | **5** | **`script` and `network_map` move together**, in one release — not staged (§2) |
@@ -41,8 +41,8 @@ below is written to them:
 | **11** | **The media block is FOUR elements, not three** — `pixel_width`, `pixel_height`, `file_size` (not `size`) and `file_hash`, all `minOccurs="0"` (§10) |
 | **12** | **The `get_schema` mitigation 013 identified and left is applied here** — one line, measured at −80% on the configuration load and −58% on the suite ([`baseline.md`](baseline.md) §5) |
 
-**Answers to that document's §8 questions:** **(1)** declare the three fields natively on the
-refactor branch and cherry-pick only `9c17418`; do not merge the rc15 line. **(2)** Yes — and it is
+**Answers to that document's §8 questions:** **(1)** declare the fields natively on the
+refactor branch — **four of them, not that document's three** (decision 11, §10) — and cherry-pick only `9c17418`; do not merge the rc15 line. **(2)** Yes — and it is
 the 1 → 2 step already in flight, not a new one.
 
 ---
@@ -71,10 +71,9 @@ honestly before it is used to justify effort.
 - **The asymmetry moves rather than vanishing.** Today `decode` is the odd method out and
   `to_lexical` is free; after X1 it is the other way round. Net size of the class: about the same.
 - **`decode` must stay strict, so `be3e86e` is not made redundant.** `from_json` has no document to
-  validate, so the adapter is still T1 on that path and `"banana"` still has to be refused. What
-  changes is the accepted set, and it **widens**: `xs:boolean`'s lexical space is
-  `true|false|1|0`, so the reader must take four spellings where it now takes two — and `"True"`
-  becomes **invalid**, which is the one place this change is not purely additive for a client.
+  validate, so the adapter is still T1 on that path. The accepted set **widens** and `"True"`
+  becomes **invalid** — the one place this change is not purely additive for a client. The exact
+  table is §1.3's, stated once there rather than twice.
 - **A new invariant appears.** `<enabled>1</enabled>` becomes schema-valid. Our writer normalises
   to `true`/`false`, but a hand-edited or third-party document can carry `1`, so
   `to_lexical ∘ decode` stops being the identity on text. That is a test to add, not one to remove.
@@ -214,8 +213,8 @@ schemas.
 → `settings`, `project_mappings`, `project_settings`, `hardware_outputs`: **untouched** — no
 boolean is referenced in any of them, and `settings.xsd`'s declaration is dead and gets deleted
 with X1.
-→ The three Media elements and the two curve values are **additive**, so they need no conversion at
-all. They simply become part of what version 2 admits.
+→ The **four** media elements (decision 11, §10) and the two curve values are **additive**, so
+they need no conversion at all. They simply become part of what version 2 admits.
 
 **This answers the media plan's §8 question 2, and more cleanly than a new step would.** It asks whether
 the Media elements justify a step and notes a bump *"would give an older refactored library a clear
@@ -274,13 +273,15 @@ race — they are sequential, and this branch's job is to migrate what rc15 leav
 | | |
 |---|---|
 | **Do** | let **rc15 ship on its own schedule**, with the back-patches in that plan's §5 exactly as written. The GO-latency fix does not wait on this gate, and nothing here blocks it |
-| **Do** | implement the three Media elements **natively on the refactor branch** — three XSD elements, three `DECLARED_DEFAULTS` entries, three setter pairs. Roughly 30 lines, and `§6`'s utils points 1 and 6 are already satisfied by the branch's own machinery |
+| **Do** | implement the media elements **natively on the refactor branch** — **four** XSD elements, four `DECLARED_DEFAULTS` entries, four setter pairs (decision 11, §10 — the input document specifies three; this feature adds `file_hash`). Roughly 40 lines, and `§6`'s utils points 1 and 6 are already satisfied by the branch's own machinery |
 | **Do** | **cherry-pick `9c17418` alone** for the curve names |
 | **Do not** | merge the rc15 line into `feat/xml-refactor`. rc15 is cut from `main`, which does not contain the refactor; the merge drags main's whole divergence and then collides head-on with X1's retype of the same file |
 
 **What rc15 shipping first adds to this branch's obligations** — and it is a gain, not a cost: by
 the time the refactor lands, real project libraries will contain documents that are
-**unmarked (version 1), in the pre-013 device shape, with the three Media elements present**. That
+**unmarked (version 1), in the pre-013 device shape, with the three Media elements present** —
+**three and not four is right here**: such a document was written by rc15, which ships the input
+document's three; `file_hash` is this feature's addition and no rc15 document carries it. That
 is precisely the combination §4 orders, and it will exist in the field rather than only in a
 fixture. It should therefore be a *test fixture*, not a hypothetical: a document written by rc15,
 carried into this branch's corpus, reshaped and converted.
@@ -302,7 +303,8 @@ version-1 `<duration>`, convert-first sees old-shape cues, and neither order com
 
 **Verified, so it need not be assumed:** `_script_1_to_2` (`xml/versioning.py:173`) touches only
 `duration`, `action_type` and `fade_profiles`. It leaves every other `Media` child untouched, so
-the three new elements survive the conversion — which is the document's own §6 point 3, confirmed.
+the three new elements survive the conversion — three, again, because this is about a document
+rc15 wrote — which is the document's own §6 point 3, confirmed.
 
 Under decision 3 the boolean rewrite joins that same function, which makes the requirement sharper:
 **the rewrite must be order-independent with respect to the Media elements.** It rewrites the text
@@ -326,8 +328,8 @@ Media({'file_name': 'a.mov', 'id': '…', 'pixel_width': 1920}).keys()
 # -> ['file_name', 'id']        pixel_width is gone, no error
 ```
 
-So on this branch the three fields need **both** `DECLARED_DEFAULTS` entries **and** `set_<name>`
-accessors. A field with one and not the other is dropped in silence. (Note the local irony: that
+So on this branch the fields need **both** `DECLARED_DEFAULTS` entries **and** `set_<name>`
+accessors — **all four of them** (§10.4), the input document's three plus `file_hash`. A field with one and not the other is dropped in silence. (Note the local irony: that
 `continue` carries a long comment explaining that F17 split the lookup from the call so a *broken*
 setter could not silently drop a field — a *missing* setter still can, by design, because that is
 how undeclared keys are rejected.)
@@ -344,8 +346,8 @@ fields as the reason it exists — *"`canvas_region` is the clearest case"*. Con
 `VideoCueOutput()` emits no `canvas_region`.
 
 The inference came from `Media`'s own comment — *"All four are required by the schema, so each takes
-`Unset`"* — which explains why those four happen to use it, not what it means. **So: declare all
-three as `Unset`. Nothing new is needed.**
+`Unset`"* — which explains why those four happen to use it, not what it means. **So: declare all four new
+fields as `Unset` too — eight in total on `Media`. Nothing new is needed.**
 
 ### ✅ Point 3 confirmed above (§4). Points 5 and 6 confirmed
 
@@ -359,7 +361,7 @@ on this branch, which is one of the plan's three utils deliverables dropping out
 
 | Repository | Work |
 |---|---|
-| **`cuems-utils`** | `script.xsd` + `network_map.xsd`: retype five elements, delete three `BoolType` declarations, add three `MediaType` elements, cherry-pick the two curve values. `_Bool`: delete `to_wire`, add the lowercase `to_lexical` map, widen `decode`'s literal table to the four lexical forms. `Media`: three `Unset` entries + three setter pairs. Registry: the boolean rewrite joins the **existing `script` 1 → 2 and `network_map` 1 → 2 steps** — one shared conversion, **no new version** (decision 3, §2). Re-cut the **six** goldens (`tests/golden/xml/` ×5 + `tests/golden/generated/` ×1) and hand-rewrite the **two** already-version-2 corpus documents, which the registry cannot reach (§2.1). Update the contract tests in §1.1. **Plus the public configuration ingestion** (decision 10, §9) — one new public call, no schema change, which unblocks `cuems-editor`'s T059 |
+| **`cuems-utils`** | `script.xsd` + `network_map.xsd`: retype five elements, delete three `BoolType` declarations, add **four** `MediaType` elements plus the new `cms:Md5HashType` (decision 11, §10), cherry-pick the two curve values. `_Bool`: delete `to_wire`, add the lowercase `to_lexical` map, widen `decode`'s literal table to the four lexical forms. `Media`: three `Unset` entries + three setter pairs. Registry: the boolean rewrite joins the **existing `script` 1 → 2 and `network_map` 1 → 2 steps** — one shared conversion, **no new version** (decision 3, §2). Re-cut the **six** goldens (`tests/golden/xml/` ×5 + `tests/golden/generated/` ×1) and hand-rewrite the **two** already-version-2 corpus documents, which the registry cannot reach (§2.1). Update the contract tests in §1.1. **Plus the public configuration ingestion** (decision 10, §9) — one new public call, no schema change, which unblocks `cuems-editor`'s T059 |
 | **`cuems-editor`** | **No source change for X1** — it returns `to_wire()` and its FR-012 forbids touching the dict. The media work is its own (probe at upload, DB columns + `ALTER TABLE` migration, fill at save, repair-tool passes), and its branch has not touched those files. **One payload-version bump covers both** wire changes under its FR-047a; version 1 has not shipped, so it is free now. **Its T059 unblocks** — §9's ingestion is the call its `config_save` is waiting for, and its test is `xfail(strict=True)`, so it needs no edit to pick it up, only a re-run |
 | **`cuems-engine`** | **Nothing for X1** — zero `to_wire` in shipped source; it holds objects, already `bool`. The media read is `cue.media.get("pixel_width")`, which keeps working whatever the wire does. Its `cue.media` must stay dict-like with `.get()` — noted, and nothing in this gate changes that. **It must absorb the rc_1 fixes, and that merge gets a thorough review — see §6.1** |
 | **`cuems-nodeconf`, `cuems-power-bridge`, `cuems-common`** | **No source change** — objects, not payloads. Fixtures only: 46 + 4 + 8 boolean elements, one conversion run each |
@@ -736,7 +738,7 @@ Governance requires exceptions documented here rather than argued in review.
 
 | # | Exception | Why it is granted |
 |---|---|---|
-| **1** | **The reduced SDD path**: `plan.md`, `tasks.md`, `baseline.md` and a rule-4 release note, with **no `spec.md` story pass and no `research.md`** | The design space is closed — twelve settled decisions — and the research is already measured and committed in this document. A `spec.md` with user stories would be transcription, not thinking; there are no user stories here, there are four changes and a per-repository table. Recorded as an exception in `../planning/etc-cuems-first-install-execution.md` §5, which also states that a reduced path is **not** a lighter standard: Principles II and IV bind unchanged, which is *why* this plan exists at all |
+| **1** | **The reduced SDD path**: `plan.md`, `tasks.md`, `baseline.md` and a rule-4 release note, with **no `spec.md` story pass and no `research.md`**. ⚠ One clause is left **vacuous rather than satisfied**, and saying so is better than implying otherwise: Delivery Workflow requires task breakdowns to include *"testing work and verification steps **per story**"*, and there are no stories. `tasks.md` carries a red-first test or an explicit "why none" **per task**, which meets the intent at finer grain than the clause asks; the clause's own unit of measure is what this exception removes | The design space is closed — twelve settled decisions — and the research is already measured and committed in this document. A `spec.md` with user stories would be transcription, not thinking; there are no user stories here, there are four changes and a per-repository table. Recorded as an exception in `../planning/etc-cuems-first-install-execution.md` §5, which also states that a reduced path is **not** a lighter standard: Principles II and IV bind unchanged, which is *why* this plan exists at all |
 | **2** | **D3 relaxed again** — "wire-compatible with every XML on disk; no `.xsd` edits". This is the seventh recorded relaxation (007 once, 008 five times, 013 orthogonally) | X1 is a rule-4 file-format migration by `specs/agreements/schema-evolution-convention.md`'s own definition, and it is granted **only because the conversion exists to carry it**, which is the same condition 008's three invalidating relaxations were granted under. The media block and the curve values are rule-1 additive and need no relaxation |
 | **3** | **`doc_version="2"` becomes briefly ambiguous** — a marker that no longer determines its own content (§2.1) | Measured and bounded: 51 documents convert for free, **nine** need an out-of-band rewrite, and six of those nine are goldens already on the must-re-cut list. This is feature 012's situation verbatim, whose lesson applies — the machinery represents such a step by the *absence* of a registry entry and the repair is cross-document and out-of-band by design. The alternative, a 2 → 3 step, was rejected by decision 3 because nothing has shipped |
 
@@ -750,3 +752,8 @@ Governance requires exceptions documented here rather than argued in review.
   (2026-10-03), so the one hard-coupled line arrives shortly after this work rather than
   indefinitely later — which is what makes §6.2 item 2's mutual coupling schedulable.
 - **No descriptor union support.** §9.5's `NodeUuidType`-as-one-value-enum stays open.
+- **The four §8.1 items are not executed here.** Decision 8 folds them into feature 010's
+  requirement pass, and that is a statement about *where they are recorded*, not an implicit task in
+  this feature. **010 now carries `T070` for them** — added 2026-10-03, because until then the
+  obligation was owned by a sentence in this document and by no task in either feature. Two of the
+  four are corrections to 010's text; the other two are `cuems-frontend` work its own flow owns.
