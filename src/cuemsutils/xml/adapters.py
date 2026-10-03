@@ -19,11 +19,14 @@ Three directions, and they are genuinely three:
 ``to_wire``      Python object -> JSON-safe scalar
 
 ``to_lexical`` and ``to_wire`` differ because the UI payload is JSON while the
-XML is text. Booleans are the case that matters: ``cms:BoolType`` is an
-``xs:string`` enum of ``"True"``/``"False"`` (X1), so **both** directions emit
-the *strings*. Decoding them to JSON booleans would be the most natural
-"improvement" available here and would break every consumer of the payload at
-once (C5).
+XML is text. Booleans used to be the case that matters, and the reason has
+inverted: ``cms:BoolType`` was an ``xs:string`` enum of ``"True"``/``"False"``
+and **both** directions emitted the strings. **Feature 014 retyped it to
+``xs:boolean``** (deferred audit item X1), so the XML carries lowercase
+``true``/``false`` and the wire carries a real JSON boolean. This docstring
+used to warn that decoding them to JSON booleans "would break every consumer of
+the payload at once (C5)" — which was true, and is why the change was made as
+one coordinated ecosystem step with its consumers rather than as a tidy-up.
 """
 
 from __future__ import annotations
@@ -73,46 +76,61 @@ class _String(_Passthrough):
 
 
 class _Bool(_Passthrough):
-    """``cms:BoolType`` — an ``xs:string`` enum of ``"True"`` / ``"False"``.
+    """``xs:boolean`` — the standard type, as of feature 014 (X1).
 
-    Python ``bool`` in the object model, the capitalised *strings* on the wire
-    and in the XML. ``str(True) == "True"`` is what the current builder emits,
-    so ``to_lexical`` needs no special case; the asymmetry is all in ``decode``.
+    Python ``bool`` in the object model, **lowercase** ``true``/``false`` in
+    the XML, and a real JSON boolean on the wire.
 
-    **``decode`` refuses anything else, and that is the point.** It used to be
-    ``raw == "True"`` with a ``bool(raw)`` fallback, so every string that was
-    not exactly ``"True"`` became ``False`` — ``"true"``, ``"TRUE"``, ``"1"``,
-    ``"yes"``, ``"banana"``. From XML that is unreachable (T1 admits only the
-    two literals), but :meth:`CuemsScript.from_json` has no document to
-    validate, so *this adapter is T1* on the ingestion path the editor calls on
-    every client save. A payload carrying ``"true"`` disabled a cue, wrote
-    ``<enabled>False</enabled>`` to a schema-valid document, and was reported
-    by nothing: T1 cannot refuse a legal value, T2 has no rule for it, and the
-    ``LoadReport`` said ``CLEAN``.
+    **This used to be a bespoke ``cms:BoolType``**: an ``xs:string`` restricted
+    to ``True``/``False``, the Python ``repr`` spelling. That made it the one
+    type in the schema whose wire form was not its natural JSON form — every
+    other type, from ints to the ``CTimecode`` wrapper, already projected
+    natively — and it made the schema descriptor unable to tell a boolean from
+    a two-value string enumeration, so a descriptor-driven form rendered a
+    dropdown where a checkbox belongs. That was the argument that retired it;
+    the deferral it closes is audit item **X1**.
 
-    This was the one adapter that could turn a bad value into a *good,
-    different* one. ``_Int``, ``_Float`` and ``_CTimecodeAdapter`` raise; the
-    enum and uuid adapters pass a detectably wrong value through for ``save``'s
-    T1 to refuse on the facet. Raising here makes this one consistent with its
-    neighbours, and it is the same defect class this module's docstring says
-    ``str_to_value`` was retired to make *unrepresentable rather than
-    denylisted* — closed on the ``NameStringType`` side since feature 004 and,
-    until now, open on this one.
+    **The class survives the retype, and that is not a stylistic choice.**
+    ``Mapper._lexical`` is the *only* producer of element text and attribute
+    values on the write path, and ``write_tree`` serialises with stdlib
+    ``ElementTree``, where ``Element.text`` **must** be a ``str`` — assigning a
+    ``bool`` raises ``TypeError: cannot serialize``. Neither ``lxml`` nor
+    ``xmlschema`` is in that chain; ``xmlschema`` validates the result and
+    never encodes it. So without the ``to_lexical`` below, the inherited
+    ``str(obj)`` would write ``True``, which ``xs:boolean`` rejects — and since
+    :meth:`CuemsScript.save` validates *before* writing, the library would
+    refuse to save any document containing a cue. Deleting this class does not
+    corrupt files; it stops them being written at all.
 
-    Lowercase ``"true"`` is **not** accepted on purpose: it would make the
-    ingestion vocabulary wider than the schema's, so a value legal on the wire
-    could never appear in a file. A refusal is a one-line fix in a client and
-    is visible; a silent ``False`` is neither.
+    What moved, in one table:
 
-    No document on disk changes meaning: T1 already guarantees that only
-    ``True`` / ``False`` appear as ``BoolType`` text in a valid document.
+    ======================  =========================  ========================
+    method                  before X1                   after X1
+    ======================  =========================  ========================
+    ``decode``              strict, two literals        strict, four (plus
+                                                        ``bool``); ``"True"``
+                                                        now **refused**
+    ``to_lexical``          inherited ``str(obj)``      **overridden**, lowercase
+    ``to_wire``             overridden, a ``str``       **deleted**, inherits a
+                                                        ``bool``
+    ======================  =========================  ========================
 
-    See ``specs/planning/booltype-silent-false-coercion-defect.md``.
+    ``decode`` stays strict because :meth:`CuemsScript.from_json` has no
+    document to validate against, so this adapter *is* that path's structural
+    check. The accepted set is ``xs:boolean``'s whole lexical space and nothing
+    else: ``true``, ``false``, ``1``, ``0``, and a Python ``bool`` from a JSON
+    payload. ``"True"`` is the one spelling that moves from accepted to
+    refused, which is why ``cuems-frontend``'s ``sequence.component.ts:997`` is
+    coupled to this feature in both directions.
+
+    One consequence worth knowing rather than discovering: ``<enabled>1</enabled>``
+    is now schema-valid, so ``to_lexical ∘ decode`` is no longer the identity on
+    *text* even though it remains the identity on values.
     """
 
-    #: The only two lexical forms ``cms:BoolType`` declares, in all three
-    #: schemas that define it (``script``, ``network_map``, ``settings``).
-    _LITERALS = {"True": True, "False": False}
+    #: ``xs:boolean``'s complete lexical space. Not a convenience mapping — the
+    #: set is closed, and anything outside it is an error rather than a guess.
+    _LITERALS = {"true": True, "false": False, "1": True, "0": False}
 
     def decode(self, raw):
         if raw is None or isinstance(raw, bool):
@@ -121,12 +139,20 @@ class _Bool(_Passthrough):
             return self._LITERALS[raw]
         except (KeyError, TypeError):
             raise ValueError(
-                "cms:BoolType accepts 'True', 'False' or a bool; "
+                "xs:boolean accepts 'true', 'false', '1', '0' or a bool; "
                 f"got {raw!r}"
             ) from None
 
-    def to_wire(self, obj):
-        return self.to_lexical(obj)
+    def to_lexical(self, obj):
+        """The canonical lowercase form, or ``None`` for an absent optional.
+
+        ``str(True)`` is ``'True'``, which ``xs:boolean`` rejects, so this
+        override is the one thing standing between the object model and an
+        unwritable document. See the class docstring.
+        """
+        if obj is None:
+            return None
+        return "true" if obj else "false"
 
 
 class _Int(_Passthrough):
@@ -242,9 +268,24 @@ PASSTHROUGH: Adapter = _Passthrough()
 #: Bound by **type qname**, complex or simple (R5). Not by key name — binding
 #: by name is what ``STRING_TYPED_KEYS`` had to do, and why it needed defensive
 #: entries for keys that were not yet reachable.
+#: The XSD namespace, so a built-in type can be keyed by the same qualified
+#: name ``xmlschema`` reports for it. Feature 014's ``xs:boolean`` is the first
+#: built-in to need an adapter: every other bespoke type is a ``cms:`` one, and
+#: the table was keyed on the local name alone.
+_XSD = "{http://www.w3.org/2001/XMLSchema}"
+
 ADAPTERS: dict[str, Adapter] = {
-    # booleans — the UI contract (C5)
-    "BoolType": _Bool(),
+    # Booleans. ``xmlschema`` reports a built-in's ``type.name`` **qualified**
+    # — ``{...XMLSchema}boolean`` — so that is the key that resolves, and the
+    # bare ``"boolean"`` is kept beside it because ``FieldSpec.xsd_type``
+    # carries the local name in places (the descriptor shows ``xsd_type``
+    # unqualified). Both spellings reach the same instance; keying only one
+    # was feature 014's sharpest self-inflicted bug: ``_Bool`` stopped being
+    # reached at all, ``_Passthrough.to_lexical`` wrote ``str(False)`` ->
+    # ``"False"``, and the schema then refused the document the library had
+    # just written — 292 failures from a lookup that silently fell through.
+    f"{_XSD}boolean": _Bool(),
+    "boolean": _Bool(),
     # identifiers
     "UuidType": _UuidAdapter(),
     "TargetType": _UuidAdapter(),

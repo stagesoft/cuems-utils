@@ -85,10 +85,10 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
   <xs:complexType name="CommonPropertiesType">
     <xs:sequence>
       <!-- A flag to indicate auto arming -->
-      <xs:element name="autoload" type="cms:BoolType" />
+      <xs:element name="autoload" type="xs:boolean" />
       <xs:element name="description" type="cms:DescriptionStringType" />
       <!-- A flag to enable|disable to cue -->
-      <xs:element name="enabled" type="cms:BoolType" />
+      <xs:element name="enabled" type="xs:boolean" />
       <!-- Its own id as uuid -->
       <xs:element name="id" type="cms:UuidType" />
       <xs:element name="loop" type="cms:LoopType" /> <!-- -1/0/n -->
@@ -101,7 +101,7 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
       <xs:element name="prewait" type="cms:CTimecodeType" /> <!-- After go before play -->
       <xs:element name="target" type="cms:TargetType" /> <!-- target uuid or none -->
       <!-- Timecode behaviour flag -->
-      <xs:element name="timecode" type="cms:BoolType" />
+      <xs:element name="timecode" type="xs:boolean" />
       <!-- Dictionary of options for UI settings -->
       <xs:element name="ui_properties" type="cms:UiPropertiesType" />
     </xs:sequence>
@@ -527,13 +527,6 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
         </xs:sequence>
   </xs:complexType>
 
-  <!-- SIMPLE DATA TYPES -->
-  <xs:simpleType name="BoolType">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="True" />
-      <xs:enumeration value="False" />
-    </xs:restriction>
-  </xs:simpleType>
 
   <xs:simpleType name="ChannelNumberType">
     <xs:restriction base="xs:nonNegativeInteger">

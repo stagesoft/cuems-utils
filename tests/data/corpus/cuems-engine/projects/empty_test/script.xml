@@ -11,9 +11,9 @@
         <modified>2020-01-01T00:00:00.000</modified>
         <ui_properties></ui_properties>
         <CueList>
-            <autoload>False</autoload>
+            <autoload>false</autoload>
             <description>Cuelist description</description>
-            <enabled>False</enabled>
+            <enabled>false</enabled>
             <id>12345678-aaaa-4aaa-aaaa-123456789012</id>
             <loop>0</loop>
             <name>Test script name</name>
@@ -28,7 +28,7 @@
                 <CTimecode>00:00:00.000</CTimecode>
             </prewait>
             <target />
-            <timecode>True</timecode>
+            <timecode>true</timecode>
             <ui_properties>
                 <timeline_position>
                     <x>0</x>

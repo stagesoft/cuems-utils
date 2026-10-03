@@ -90,34 +90,34 @@ curve values; nothing on disk is invalidated; no conversion exists because none 
 **⚠ Order inside this phase is not cosmetic.** The adapter must be able to *write* the new form
 before the schema demands it, or the suite cannot be green at any intermediate commit.
 
-- [ ] **T009** [P] Red-first: `to_lexical(True) == "true"`, and the round trip
+- [X] **T009** [P] Red-first: `to_lexical(True) == "true"`, and the round trip
       `decode(to_lexical(True)) is True`. The round trip is what catches a half-applied change —
-      writer updated, reader not (plan.md §1.3)
-- [ ] **T010** [P] Red-first: a full save/load cycle asserting the **bytes on disk** contain
+      writer updated, reader not (plan.md §1.3) ✅ The pre-014 boolean block in `tests/unit/test_adapters.py` was **retired deliberately** rather than edited: its two premises (`"True"` decodes; `to_wire` must *not* return a `bool`) are named in a comment as retired, and what survives — `decode` is strict because `from_json` has no document to validate against — is stated as surviving. 99 passed.
+- [X] **T010** [P] Red-first: a full save/load cycle asserting the **bytes on disk** contain
       `<enabled>true</enabled>`. A unit test on the adapter cannot catch a `Mapper` path that
       bypasses `_lexical`; `:868`'s attribute call is the one most easily missed since 013 made
-      attributes load-bearing
-- [ ] **T011** `_Bool`: delete `to_wire` (inherit `_Passthrough`'s, returning the `bool`), add the
+      attributes load-bearing ✅ `tests/integration/test_xs_boolean.py`, 12 passed. Asserts the **bytes on disk**, the whole-document absence of any capitalised boolean (covering all five `_lexical` call sites at once, including `element.set`), the round trip, and the wire.
+- [X] **T011** `_Bool`: delete `to_wire` (inherit `_Passthrough`'s, returning the `bool`), add the
       lowercase `to_lexical` map, widen `decode`'s table to `true`/`false`/`1`/`0` plus `bool` with
       `'True'` now **refused**. A swap, not a deletion — plan.md §1.3's table is the specification
-      — depends on T009, T010
-- [ ] **T012** Retype the five elements and delete the three `BoolType` declarations:
+      — depends on T009, T010 ✅ The swap, as specified. ⚠ **And the feature's sharpest self-inflicted bug**: `ADAPTERS` is keyed by type *name*, so retyping to the built-in meant `_Bool` **stopped being reached at all** — `_Passthrough.to_lexical` wrote `str(False)` → `"False"`, and the schema then refused the document the library had just written. **292 failures from a lookup that silently fell through.** Now keyed on both `{…XMLSchema}boolean` and `boolean`, with the story in the comment.
+- [X] **T012** Retype the five elements and delete the three `BoolType` declarations:
       `script.xsd` (`autoload`, `enabled`, `timecode`), `network_map.xsd` (`adopted`, `online`),
-      and `settings.xsd`'s **dead** declaration. Schema hashes in the same commit — depends on T011
-- [ ] **T013** The boolean rewrite joins **`_script_1_to_2` and `network_map`'s 1 → 2**, one shared
+      and `settings.xsd`'s **dead** declaration. Schema hashes in the same commit — depends on T011 ✅ Five elements retyped, three declarations deleted (`script`, `network_map`, and `settings`' dead one). Three schema hashes re-pinned in the same commit.
+- [X] **T013** The boolean rewrite joins **`_script_1_to_2` and `network_map`'s 1 → 2**, one shared
       conversion, **no new version** (decision 3). It must be **order-independent with respect to
       the media elements** — it rewrites the text of five named elements and must not care whether
-      `pixel_width` is present (plan.md §4) — depends on T012
+      `pixel_width` is present (plan.md §4) — depends on T012 ✅ Both steps. ⚠ **`network_map` had no 1 → 2 conversion to join** — feature 012 made it a *deliberate identity step*, so this feature had to **write** one and remove `("network_map", 1)` from `DELIBERATE_IDENTITY_STEPS`. 012's reasoning is untouched (the identity half is still cross-document and still repaired by `--remint`); what changed is that the step now also carries a per-document transformation, so its absence from the registry stopped being true. The bidirectional contract test said so itself: *"Remove the entries."*
 - [ ] **T014** [P] Red-first: a version-1 document with old-form booleans **and** the four media
       elements converts correctly in one pass, in both orders of appearance. This is T013's
       order-independence, asserted
-- [ ] **T015** Move **every** golden and out-of-band document the boolean form touches. ⚠ The first
+- [X] **T015** Move **every** golden and out-of-band document the boolean form touches. ⚠ The first
       cut of this task said "six goldens"; **the measured count is fourteen goldens plus the nine
       out-of-band documents**, and the gap was eight **JSON** goldens — which are the *wire* form,
       i.e. precisely what X1 changes. Enumerated here so the red suite at T012 is planned for rather
       than discovered, and so nobody decides mid-implementation whether to regenerate: **FR-021
       stands — a golden is never regenerated to make a test pass.** Diff every file and confirm the
-      change is only what was intended.
+      change is only what was intended. ✅ **Fourteen goldens** (6 XML + 8 JSON `.reader.json`), the **two** corpus showcases, `MANIFEST.sha256` (34 entries), and my own new fixture — which turned out to be a tenth version-2 document. `outcomes.json` deliberately untouched and verified to carry no boolean form. Every rewrite asserted case-only (`new.lower() == s.lower()`), so nothing but the spelling moved.
 
       **(a) The nine out-of-band documents** — already `doc_version` ≥ 2, so the registry's 1 → 2
       step cannot reach them (plan.md §2.1):
@@ -152,21 +152,54 @@ before the schema demands it, or the suite cannot be green at any intermediate c
       records *pre-refactor* verdicts and a test asserts the **difference** between it and live
       behaviour. Running `capture_goldens --force` over it destroys that baseline. Verified: it
       contains no boolean form, so this feature must not touch it
-- [ ] **T016** Move the negative corpus with it. `tests/data/corpus/negative/` fixtures fail **for a
+- [X] **T016** Move the negative corpus with it. `tests/data/corpus/negative/` fixtures fail **for a
       reason**, and a schema change moves which error each one raises — execution doc §7.3 is the
       precedent, where a fixture kept failing while testing the wrong thing and the suite stayed
-      green
+      green ✅ **Verified unaffected rather than assumed**: all three negative fixtures carry **zero** boolean elements, and `test_negative_fixtures_after_narrowing.py` passes (11). So no fixture is failing for a newly-wrong reason — which is what §7.3 asks be re-checked, and the answer here is "nothing moved".
+- [X] **T012a** *(added mid-flight)* Deprecate `read`, `read_to_objects`, `write_from_object` and
+      `validate_object` on the **current** `XmlReaderWriter`, pointing at `to_wire`/`load`/`save`/
+      `validate`. **Why it was needed and not foreseen**: those methods are a *raw* schema decode
+      that never applied a version conversion — invisible while every schema change was additive,
+      and made observable by X1. The method-level deprecation existed **only on the deprecated
+      import path**; the current module's was a live, undeprecated API, which is why the failures
+      read as a regression rather than a deprecated surface narrowing. Private cores
+      (`_raw_decode`, `_write_object`) extracted first, because `read_to_objects` called `read()`
+      and `write_from_dict` called `write_from_object` — deprecating those would have tripped
+      contract C8 on the library itself. Verified: no internal caller remains
+- [X] **T015a** *(added mid-flight)* **Migrate the top-tier corpus** — 116 elements across 10
+      documents, `doc_version` untouched. This replaced an estimated ~20 files of test edits, and
+      the precedent decided it: `corpus/cuems-engine/.../complex_test/script.xml` is **unmarked
+      (version 1)** yet already carries 008's wrapped duration *and* 013's device shape, so the top
+      tier has always held current content unmarked and relied on idempotent conversion. 008 and
+      013 each did this and each left a `pre-NNN/` tier behind; **no `pre-014/` is needed** —
+      `pre-008/script_v1_all_transforms.xml` is read through the registry and carries an old-form
+      boolean, so the rewrite has in-corpus evidence (thin: one element, which **T014 should assert
+      explicitly** rather than rely on). Also fixed: 16 inline XML literals in 7 test modules, the
+      `NodeSpec` fixture's `"True"` defaults, and the golden harness, which was itself calling the
+      surface T012a deprecates (contract C8)
 - [ ] **T017** Update the contract tests whose premise X1 retires: `test_wire_booleans.py` (its
       whole docstring), `test_ui_payload_contract.py`'s boolean section, `test_enum_audit.py`
       (three rows), `test_schema_name_overlap.py:82` (`BoolType` leaves
       `KNOWN_IDENTICAL_DUPLICATES`). **Retire the premise deliberately, in the same commit, with
       what replaces it** — the 010 FR-029b discipline applied to a contract rather than a shim
-- [ ] **T018** [P] Red-first then assert: the descriptor reports **`enum_values = None`** and a
+- [X] **T018** [P] Red-first then assert: the descriptor reports **`enum_values = None`** and a
       native boolean for all five fields. `baseline.md` §3 is the "before"; this is the acceptance
-      criterion for the finding that decided X1, not a hoped-for side effect
+      criterion for the finding that decided X1, not a hoped-for side effect ✅ All five fields now report `enum_values = None` and a boolean type, asserted in `test_xs_boolean.py`. `baseline.md` §3 is the recorded "before".
 
-**Checkpoint**: booleans are `xs:boolean` end to end — schema, adapter, conversion, goldens,
-descriptor — and the wire carries JSON `true`/`false`.
+**Checkpoint**: ⚠ **NOT PASSED — T014 and T017 remain, and the suite is red at 56.**
+
+Booleans *are* `xs:boolean` end to end — schema, adapter, conversion, goldens, descriptor — and the
+wire carries JSON `true`/`false`. What is left is **56 failures, every one a retired premise**, which
+is T017's work and is deliberate rather than outstanding breakage: `test_wire_booleans` (10) is the
+file whose docstring *is* X1's deferral, and `test_ui_payload_contract` (6), `test_payload_parity`
+(5), `test_node_field_coercion` (5), `test_config_wire`/`test_reader_configs` (2+2),
+`test_schema_name_overlap`/`test_enum_audit`/`test_descriptor_enums` (2+1+1) and
+`test_encode_wire_scalars`'s literal `test_booltype_encodes_as_capitalized_strings` all assert the
+string form as the contract.
+
+**The byte-identity contracts settled themselves** — `test_byte_identity_dict`,
+`test_byte_identity_xml` and `test_roundtrip_stability` are **142 passed**, because T015a moved both
+sides together. They were expected to need a judgement call and did not.
 
 ---
 

@@ -163,7 +163,7 @@ def test_other_rows_and_adoption_flags_survive_reset(env):
     assert _run(base)[0] == 0
     text = (conf / "network_map.xml").read_text(encoding="utf-8")
     other = ("<node><uuid>8c8f4d5e-3d5b-4b0a-9f5d-0a0a0a0a0a0a</uuid><mac>0011aabbccdd</mac><name>other</name>"
-             "<node_role>controller</node_role><ip>10.0.0.2</ip><adopted>True</adopted><online>False</online></node>")
+             "<node_role>controller</node_role><ip>10.0.0.2</ip><adopted>true</adopted><online>false</online></node>")
     (conf / "network_map.xml").write_text(text.replace("</node_list>", other + "</node_list>"), encoding="utf-8")
     assert _run(base, "--reset")[0] == 0
     rows = {r.findtext("uuid"): r for r in ET.parse(conf / "network_map.xml").getroot().findall(".//node")}

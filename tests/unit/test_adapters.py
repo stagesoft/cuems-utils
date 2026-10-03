@@ -16,100 +16,148 @@ from cuemsutils.xml.adapters import ADAPTERS, PASSTHROUGH, adapter_for
 
 UUID_STR = "8726353c-5c8c-41fe-bab7-1b9d765ced77"
 
-
-# --- booleans: the UI contract -------------------------------------------
-
-
-@pytest.mark.parametrize("raw,expected", [("True", True), ("False", False)])
-def test_bool_decodes_from_the_capitalised_strings(raw, expected):
-    assert adapter_for("BoolType").decode(raw) is expected
+#: Feature 014 retyped ``cms:BoolType`` to the built-in, and ``xmlschema``
+#: reports a built-in's ``type.name`` **qualified**. There is no ``BoolType``
+#: left to ask for, which is the point — the name is gone from all three
+#: schemas, not merely unused.
+BOOLEAN_TYPE = "{http://www.w3.org/2001/XMLSchema}boolean"
 
 
-@pytest.mark.parametrize("value,expected", [(True, "True"), (False, "False")])
-def test_bool_round_trips_to_strings_in_both_output_directions(value, expected):
-    """C5 — ``to_wire`` emits a **string**, not a JSON boolean.
+# --- booleans: the UI contract, as feature 014 left it ---------------------
+#
+# This section used to pin the **opposite** contract, and the change is
+# deliberate rather than a drift. Before feature 014, ``cms:BoolType`` was an
+# ``xs:string`` enum of ``"True"``/``"False"``, so ``decode`` carried the
+# asymmetry and both output directions emitted the capitalised strings. X1
+# retyped it to the standard ``xs:boolean``: the XML now carries lowercase and
+# the wire carries a real JSON boolean.
+#
+# What is **retired** here, named rather than quietly deleted:
+#
+# * ``test_bool_decodes_from_the_capitalised_strings`` — ``"True"`` is now a
+#   *refused* spelling, so the assertion inverts (see
+#   ``test_bool_refuses_the_retired_capitalised_spelling``).
+# * ``test_bool_round_trips_to_strings_in_both_output_directions`` — its whole
+#   premise was that ``to_wire`` must **not** return a ``bool``. It now must.
+#
+# What **survives unchanged** is the thing that matters most: ``decode`` is
+# strict, because ``from_json`` has no document to validate against and this
+# adapter is that path's structural check. ``be3e86e`` established that and 014
+# widens the accepted set rather than loosening the posture.
 
-    ``cms:BoolType`` is an ``xs:string`` enum (X1). The Angular UI reads
-    ``"True"``/``"False"``; emitting real booleans would break it without a
-    line of frontend code changing.
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [("true", True), ("false", False), ("1", True), ("0", False),
+     (True, True), (False, False)],
+)
+def test_bool_decodes_xs_booleans_whole_lexical_space(raw, expected):
+    """``true|false|1|0`` plus a real ``bool`` from a JSON payload."""
+    assert adapter_for(BOOLEAN_TYPE).decode(raw) is expected
+
+
+@pytest.mark.parametrize("value,expected", [(True, "true"), (False, "false")])
+def test_bool_writes_the_canonical_lowercase_form(value, expected):
+    """``str(True)`` is ``'True'``, which ``xs:boolean`` rejects.
+
+    So ``to_lexical`` is overridden, and it is the one thing standing between
+    the object model and an unwritable document: ``Mapper._lexical`` is the only
+    producer of element text on a stdlib-``ElementTree`` write path, and
+    ``save`` validates before writing.
     """
-    adapter = adapter_for("BoolType")
-    assert adapter.to_lexical(value) == expected
-    assert adapter.to_wire(value) == expected
-    assert not isinstance(adapter.to_wire(value), bool)
+    assert adapter_for(BOOLEAN_TYPE).to_lexical(value) == expected
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_bool_wire_form_is_a_real_boolean(value):
+    """``to_wire`` is deleted; ``_Passthrough``'s is inherited.
+
+    The replacement for ``test_bool_round_trips_to_strings_in_both_output_directions``,
+    whose premise X1 retires. Both halves are asserted — ``is value`` **and**
+    ``not isinstance(..., str)`` — because ``"True" == True`` is ``False`` while
+    ``bool("False")`` is ``True``, and a test checking only truthiness would
+    pass on either encoding.
+    """
+    adapter = adapter_for(BOOLEAN_TYPE)
+    assert adapter.to_wire(value) is value
+    assert not isinstance(adapter.to_wire(value), str)
 
 
 def test_bool_none_stays_none():
-    adapter = adapter_for("BoolType")
+    adapter = adapter_for(BOOLEAN_TYPE)
     assert adapter.decode(None) is None
     assert adapter.to_lexical(None) is None
+    assert adapter.to_wire(None) is None
 
 
-#: Everything a ``cms:BoolType`` field must **refuse** on ingestion.
+#: Everything a boolean field must **refuse** on ingestion.
 #:
-#: The first ten are exactly the strings
+#: The first ten are the strings
 #: :func:`test_free_text_is_never_coerced_to_a_boolean` pins against
 #: ``NameStringType``, restated here against the *boolean* side of the same
-#: seam — that test closed the defect class on one side only, and ``"yes"``,
-#: ``"on"`` and ``"y"`` used to decode to ``False`` here.
+#: seam — ``be3e86e``'s point, which 014 keeps.
+#:
+#: ``"True"``/``"False"`` lead the list because they are what **changed**: they
+#: were the only accepted spellings and are now refused. That is the one place
+#: this feature is not purely additive for a client, and the reason
+#: ``cuems-frontend``'s ``sequence.component.ts:997`` is hard-coupled to it.
 REFUSED_BOOLS = [
+    "True", "False", "TRUE", "FALSE",
     "n", "y", "t", "f", "N", "Y", "on", "off", "no", "yes",
-    "true", "false", "TRUE", "FALSE", "True ", " True",
-    "1", "0", "", "banana", "None",
+    "True ", " true", "", "banana", "None", "2", "-1", "1.0",
 ]
 
 
 @pytest.mark.parametrize("raw", REFUSED_BOOLS)
-def test_bool_refuses_anything_the_schema_does_not_declare(raw):
-    """A value that is not ``"True"``/``"False"`` is an error, not ``False``.
+def test_bool_refuses_anything_outside_xs_booleans_lexical_space(raw):
+    """A value that is not in the space is an **error**, never a guess.
 
-    ``decode`` used to be ``raw == "True"``, so **every** other string became
+    ``decode`` used to be ``raw == "True"``, so every other string became
     ``False``: a payload carrying ``"true"`` disabled a cue, the document was
-    schema-valid (``False`` is a legal ``BoolType``), T1 could not refuse it,
-    T2 has no rule for it and the ``LoadReport`` said ``CLEAN``. A disabled cue
-    does not fire, and nothing anywhere reported it.
-
-    This is the one adapter that could turn a bad value into a *good,
-    different* one. ``_Int``/``_Float``/``_CTimecodeAdapter`` raise; the enum
-    and uuid adapters pass a detectably wrong value through for ``save``'s T1
-    to refuse on the facet. Only this one manufactured a plausible value.
-
-    See ``specs/planning/booltype-silent-false-coercion-defect.md``.
+    schema-valid, and nothing reported it (``be3e86e``). The posture is
+    unchanged here; only the accepted set moved.
     """
-    with pytest.raises(ValueError, match="cms:BoolType"):
-        adapter_for("BoolType").decode(raw)
+    with pytest.raises(ValueError, match="xs:boolean"):
+        adapter_for(BOOLEAN_TYPE).decode(raw)
 
 
-@pytest.mark.parametrize("raw", [1, 0, 2, -1, 1.0, [], {}, object()])
+def test_bool_refuses_the_retired_capitalised_spelling():
+    """Stated on its own, because it is the migration-visible change.
+
+    A client still sending ``"True"`` gets a ``SchemaError`` out of
+    ``from_json`` rather than a silently wrong value — which is the whole
+    reason this is a coordinated ecosystem step and not a tidy-up.
+    """
+    with pytest.raises(ValueError, match="xs:boolean"):
+        adapter_for(BOOLEAN_TYPE).decode("True")
+
+
+@pytest.mark.parametrize("raw", [2, -1, 1.0, [], {}, object()])
 def test_bool_refuses_non_bool_non_string_values(raw):
-    """``bool(raw)`` is gone, deliberately.
-
-    It was what made ``1`` decode to ``True`` while ``"1"`` decoded to
-    ``False`` — an inconsistency with no caller: unreachable from XML (T1
-    admits only the two literals) and from a well-formed payload (a JSON
-    boolean arrives as a ``bool``).
+    """``int``/``float`` are refused even though ``1`` and ``0`` are accepted
+    **as text**. ``xs:boolean``'s lexical space is strings; a numeric ``1`` is
+    a caller's type confusion, not a lexical form.
     """
-    with pytest.raises(ValueError, match="cms:BoolType"):
-        adapter_for("BoolType").decode(raw)
+    with pytest.raises(ValueError, match="xs:boolean"):
+        adapter_for(BOOLEAN_TYPE).decode(raw)
 
 
-def test_bool_still_accepts_what_the_schema_and_json_actually_carry():
-    """The accepted set, stated positively so the refusal above is bounded.
+def test_bool_round_trip_is_the_identity_on_values():
+    """``decode(to_lexical(x)) is x`` — the half-applied-change detector.
 
-    Nothing that a valid document or a well-formed payload can carry is
-    refused: the two XSD literals, both Python booleans, and ``None`` for an
-    absent optional element.
+    A change that updates the writer and not the reader passes both
+    one-directional tests and fails this one.
+
+    Note it is **not** the identity on *text*: ``decode("1")`` is ``True`` and
+    ``to_lexical(True)`` is ``"true"``. ``<enabled>1</enabled>`` is valid
+    ``xs:boolean``, so a hand-edited document can carry a form our writer never
+    emits. That is a property to know, not a defect.
     """
-    adapter = adapter_for("BoolType")
-    assert adapter.decode("True") is True
-    assert adapter.decode("False") is False
-    assert adapter.decode(True) is True
-    assert adapter.decode(False) is False
-    assert adapter.decode(None) is None
-
-
-# --- the defect class str_to_value created --------------------------------
-
+    adapter = adapter_for(BOOLEAN_TYPE)
+    for value in (True, False):
+        assert adapter.decode(adapter.to_lexical(value)) is value
+    assert adapter.decode("1") is True
+    assert adapter.to_lexical(True) == "true"
 
 @pytest.mark.parametrize("text", ["n", "y", "t", "f", "N", "Y", "on", "off", "no", "yes"])
 def test_free_text_is_never_coerced_to_a_boolean(text):
@@ -268,3 +316,4 @@ def test_every_adapter_implements_all_three_directions(type_name):
     assert callable(adapter.to_wire)
     assert adapter.decode(None) is None
     assert adapter.to_lexical(None) is None
+

@@ -83,8 +83,8 @@ POPULATED_MAP = (
     "<name>2cf05d21cca3._cuems_nodeconf._tcp.local.</name>"
     "<node_role>controller</node_role>"
     "<ip>192.168.1.10</ip>"
-    "<adopted>True</adopted>"
-    "<online>True</online>"
+    "<adopted>true</adopted>"
+    "<online>true</online>"
     "</node></node_list>"
     "</cms:CuemsNetworkMap>"
 ).encode("utf-8")

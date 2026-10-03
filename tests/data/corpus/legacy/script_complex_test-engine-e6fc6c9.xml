@@ -8,9 +8,9 @@
         <modified>2020-01-01T00:00:00.000</modified>
         <ui_properties />
         <CueList>
-            <autoload>False</autoload>
+            <autoload>false</autoload>
             <description>Main cuelist desc id ML</description>
-            <enabled>True</enabled>
+            <enabled>true</enabled>
             <id>12345678-aaaa-4aaa-aaaa-123456789000</id>
             <loop>1</loop>
             <name>Main cuelist id ML</name>
@@ -25,7 +25,7 @@
                 <CTimecode>00:00:00.000</CTimecode>
             </prewait>
             <target />
-            <timecode>False</timecode>
+            <timecode>false</timecode>
             <ui_properties>
                 <timeline_position>
                     <x>0</x>
@@ -34,9 +34,9 @@
             </ui_properties>
             <contents>
                 <CueList>
-                    <autoload>False</autoload>
+                    <autoload>false</autoload>
                     <description>Main cuelist desc id ML</description>
-                    <enabled>True</enabled>
+                    <enabled>true</enabled>
                     <id>12345678-aaaa-4aaa-aaaa-1234567890f0</id>
                     <loop>1</loop>
                     <name>Main cuelist id ML</name>
@@ -51,7 +51,7 @@
                         <CTimecode>00:00:00.000</CTimecode>
                     </prewait>
                     <target />
-                    <timecode>False</timecode>
+                    <timecode>false</timecode>
                     <ui_properties>
                         <timeline_position>
                             <x>0</x>
@@ -60,9 +60,9 @@
                     </ui_properties>
                     <contents>
                         <Cue class="audio">
-                            <autoload>False</autoload>
+                            <autoload>false</autoload>
                             <description>Audio cue desc id 10</description>
-                            <enabled>True</enabled>
+                            <enabled>true</enabled>
                             <id>12345678-aaaa-4aaa-aaaa-123456789001</id>
                             <loop>1</loop>
                             <name>Audio cue id 10</name>
@@ -77,7 +77,7 @@
                                 <CTimecode>00:00:00.000</CTimecode>
                             </prewait>
                             <target />
-                            <timecode>False</timecode>
+                            <timecode>false</timecode>
                             <ui_properties>
                                 <timeline_position>
                                     <x>0</x>
@@ -120,9 +120,9 @@
                             <master_vol>100</master_vol>
                         </Cue>
                         <Cue class="video">
-                            <autoload>False</autoload>
+                            <autoload>false</autoload>
                             <description>Video cue desc id V2</description>
-                            <enabled>True</enabled>
+                            <enabled>true</enabled>
                             <id>12345678-aaaa-4aaa-aaaa-123456789002</id>
                             <loop>1</loop>
                             <name>Video cue id V2</name>
@@ -137,7 +137,7 @@
                                 <CTimecode>00:00:00.000</CTimecode>
                             </prewait>
                             <target />
-                            <timecode>False</timecode>
+                            <timecode>false</timecode>
                             <ui_properties>
                                 <timeline_position>
                                     <x>0</x>
@@ -192,9 +192,9 @@
                     </contents>
                 </CueList>
                 <CueList>
-                    <autoload>False</autoload>
+                    <autoload>false</autoload>
                     <description>Main cuelist desc id ML</description>
-                    <enabled>True</enabled>
+                    <enabled>true</enabled>
                     <id>12345678-aaaa-4aaa-aaaa-1234567890f1</id>
                     <loop>1</loop>
                     <name>Main cuelist id ML</name>
@@ -209,7 +209,7 @@
                         <CTimecode>00:00:00.000</CTimecode>
                     </prewait>
                     <target />
-                    <timecode>False</timecode>
+                    <timecode>false</timecode>
                     <ui_properties>
                         <timeline_position>
                             <x>0</x>
@@ -218,9 +218,9 @@
                     </ui_properties>
                     <contents>
                         <Cue class="video">
-                            <autoload>False</autoload>
+                            <autoload>false</autoload>
                             <description>Video cue desc id V1</description>
-                            <enabled>True</enabled>
+                            <enabled>true</enabled>
                             <id>12345678-aaaa-4aaa-aaaa-123456789003</id>
                             <loop>1</loop>
                             <name>Video cue id V1</name>
@@ -235,7 +235,7 @@
                                 <CTimecode>00:00:00.000</CTimecode>
                             </prewait>
                             <target />
-                            <timecode>False</timecode>
+                            <timecode>false</timecode>
                             <ui_properties>
                                 <timeline_position>
                                     <x>0</x>
@@ -288,9 +288,9 @@
                             </outputs>
                         </Cue>
                         <Cue class="audio">
-                            <autoload>False</autoload>
+                            <autoload>false</autoload>
                             <description>Audio cue desc id 10</description>
-                            <enabled>True</enabled>
+                            <enabled>true</enabled>
                             <id>12345678-aaaa-4aaa-aaaa-123456789004</id>
                             <loop>1</loop>
                             <name>Audio cue id 10</name>
@@ -305,7 +305,7 @@
                                 <CTimecode>00:00:00.000</CTimecode>
                             </prewait>
                             <target />
-                            <timecode>False</timecode>
+                            <timecode>false</timecode>
                             <ui_properties>
                                 <timeline_position>
                                     <x>0</x>
@@ -350,9 +350,9 @@
                     </contents>
                 </CueList>
                 <Cue class="video">
-                    <autoload>False</autoload>
+                    <autoload>false</autoload>
                     <description>Video cue desc id V3</description>
-                    <enabled>True</enabled>
+                    <enabled>true</enabled>
                     <id>12345678-aaaa-4aaa-aaaa-123456789005</id>
                     <loop>1</loop>
                     <name>Video cue id V3</name>
@@ -367,7 +367,7 @@
                         <CTimecode>00:00:00.000</CTimecode>
                     </prewait>
                     <target />
-                    <timecode>False</timecode>
+                    <timecode>false</timecode>
                     <ui_properties>
                         <timeline_position>
                             <x>0</x>
@@ -420,9 +420,9 @@
                     </outputs>
                 </Cue>
                 <Cue class="video">
-                    <autoload>False</autoload>
+                    <autoload>false</autoload>
                     <description>Video cue desc id V4</description>
-                    <enabled>True</enabled>
+                    <enabled>true</enabled>
                     <id>12345678-aaaa-4aaa-aaaa-123456789006</id>
                     <loop>1</loop>
                     <name>Video cue id V4</name>
@@ -437,7 +437,7 @@
                         <CTimecode>00:00:00.000</CTimecode>
                     </prewait>
                     <target />
-                    <timecode>False</timecode>
+                    <timecode>false</timecode>
                     <ui_properties>
                         <timeline_position>
                             <x>0</x>

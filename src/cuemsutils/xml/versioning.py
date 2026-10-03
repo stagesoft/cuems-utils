@@ -220,7 +220,76 @@ def _script_1_to_2(root: ET.Element) -> list[str]:
                 dropped.append(f"fade_profiles removed from cue {identifier}")
                 parent.remove(child)
 
+    # 4. feature 014: cms:BoolType -> xs:boolean, so True/False become
+    #    true/false. Matched by element name, which is what makes it
+    #    order-independent with respect to 1 and 2 above and with respect to
+    #    this feature's own MediaType additions.
+    for name in _rewrite_booleans(root, _BOOLEAN_ELEMENTS["script"]):
+        dropped.append(f"{name} rewritten to the xs:boolean lexical form")
+
     return dropped
+
+
+# --- feature 014: cms:BoolType -> xs:boolean (audit item X1) ---------------
+#
+# The retype is a rule-4 file-format change, and this is its conversion. It
+# lands in the **existing, unreleased** 1 -> 2 steps rather than in a new
+# 2 -> 3: nothing has shipped, so version 2's *meaning* can still absorb it.
+#
+# One function for both schemas because it is one rewrite. It matches on
+# element **name**, so it is order-independent with respect to everything else
+# a step does -- including feature 014's own four `MediaType` additions, whose
+# names it does not touch and whose presence it does not check.
+
+#: ``cms:BoolType``'s two literals, mapped to ``xs:boolean``'s canonical forms.
+#: Only these two: the old type was an ``xs:string`` enum restricted to exactly
+#: ``True``/``False``, so no other spelling can appear in a document that was
+#: valid before this step.
+_BOOLEAN_LITERALS = {"True": "true", "False": "false"}
+
+#: Every element retyped by X1, by schema.
+_BOOLEAN_ELEMENTS = {
+    "script": ("autoload", "enabled", "timecode"),
+    "network_map": ("adopted", "online"),
+}
+
+
+def _rewrite_booleans(root: ET.Element, names: tuple[str, ...]) -> list[str]:
+    """Rewrite ``True``/``False`` to ``true``/``false`` in *names*.
+
+    Returns one record per element rewritten, so the ``LoadReport`` can say
+    what moved rather than only that something did.
+
+    A value that is neither literal is **left alone** rather than guessed at.
+    It cannot occur in a document that was valid under ``cms:BoolType``, and if
+    one appears anyway the strict decode that follows will refuse it by name --
+    which is a better outcome than this function inventing a value, the exact
+    failure mode ``_Bool.decode`` was tightened to remove.
+    """
+    rewritten: list[str] = []
+    for name in names:
+        for element in root.iter(name):
+            replacement = _BOOLEAN_LITERALS.get((element.text or "").strip())
+            if replacement is None:
+                continue
+            element.text = replacement
+            rewritten.append(name)
+    return rewritten
+
+
+def _network_map_1_to_2(root: ET.Element) -> list[str]:
+    """``network_map`` 1 -> 2: the boolean retype, and nothing else.
+
+    **This step used to be a deliberate identity step** (feature 012, which
+    narrowed the node identity and registered no conversion because an identity
+    repair is cross-document and cannot be done one file at a time). That
+    reasoning is untouched -- the identity half is still out of band, in
+    ``cuems-init-node --remint``. What changed is that the step now *also*
+    carries X1's boolean rewrite, which **is** a per-document transformation,
+    so the step stops being an identity and its entry leaves
+    ``DELIBERATE_IDENTITY_STEPS``.
+    """
+    return _rewrite_booleans(root, _BOOLEAN_ELEMENTS["network_map"])
 
 
 def _enclosing_id(element: ET.Element) -> str | None:
@@ -234,7 +303,8 @@ register_conversion(
     Conversion(
         description=(
             "duration reshape (bare text -> <CTimecode> wrapper); "
-            "action_type fade_in/fade_out -> play/stop; fade_profiles dropped"
+            "action_type fade_in/fade_out -> play/stop; fade_profiles dropped; "
+            "booleans rewritten to the xs:boolean lexical form (014, X1)"
         ),
         apply=_script_1_to_2,
     ),
@@ -315,5 +385,14 @@ register_conversion(
     Conversion(
         description="authored defaults dropped (default_video_output, default_audio_output)",
         apply=_hardware_outputs_1_to_2,
+    ),
+)
+
+register_conversion(
+    "network_map",
+    1,
+    Conversion(
+        description="booleans rewritten to the xs:boolean lexical form (014, X1)",
+        apply=_network_map_1_to_2,
     ),
 )

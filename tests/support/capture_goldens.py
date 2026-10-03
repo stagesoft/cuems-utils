@@ -93,6 +93,13 @@ def _outcome(exc: BaseException | None) -> dict:
     }
 
 
+def _decode_to_objects(reader, schema: str):
+    """``read_to_objects``'s body, without the deprecated public name (C8)."""
+    from cuemsutils.xml.mapper import Mapper
+
+    return Mapper(schema, document=reader.xmlfile).decode_document(reader._raw_decode())
+
+
 def _reader(doc: CorpusDoc, xmlfile: str | None = None):
     from cuemsutils.xml.xml_reader_writer import XmlReaderWriter
 
@@ -106,7 +113,10 @@ def _reader(doc: CorpusDoc, xmlfile: str | None = None):
 def capture_read_dict(doc: CorpusDoc):
     """``XmlReaderWriter.read`` — ``strip_namespaces=False`` (FR-013, config A)."""
     try:
-        return _reader(doc).read(), None
+        # The private cores throughout this harness: C8 — it measures the
+        # library and must not itself invoke the surface feature 014
+        # deprecated (see tests/support/roundtrip.py's read_dict).
+        return _reader(doc)._raw_decode(), None
     except Exception as exc:  # noqa: BLE001 - the failure is the data
         return None, exc
 
@@ -144,12 +154,12 @@ def capture_written_xml(doc: CorpusDoc):
     captured as an outcome rather than worked around.
     """
     try:
-        obj = _reader(doc).read_to_objects()
+        obj = _decode_to_objects(_reader(doc), doc.schema)
     except Exception as exc:  # noqa: BLE001
         return None, exc, None
     out = Path(tempfile.mkdtemp()) / "written.xml"
     try:
-        _reader(doc, xmlfile=str(out)).write_from_object(obj)
+        _reader(doc, xmlfile=str(out))._write_object(obj)
     except Exception as exc:  # noqa: BLE001
         return None, None, exc
     return normalize_schema_location(out.read_bytes()), None, None
@@ -343,7 +353,7 @@ def _capture_generated(writer: GoldenWriter) -> dict:
 
     script = build_generated_script()
     out = Path(tempfile.mkdtemp()) / "generated.xml"
-    XmlReaderWriter(schema_name="script", xmlfile=str(out)).write_from_object(script)
+    XmlReaderWriter(schema_name="script", xmlfile=str(out))._write_object(script)
     writer.put(
         "generated/example_script.xml",
         normalize_uuids(normalize_schema_location(out.read_bytes())),
@@ -352,7 +362,7 @@ def _capture_generated(writer: GoldenWriter) -> dict:
     # whose ``schemaLocation`` is whatever their author wrote, and relative —
     # this one was written by us moments ago, so it carries *this machine's*
     # absolute path to the ``.xsd`` straight into the golden (F24).
-    read_back = XmlReaderWriter(schema_name="script", xmlfile=str(out)).read()
+    read_back = XmlReaderWriter(schema_name="script", xmlfile=str(out))._raw_decode()
     writer.put(
         "generated/example_script.reader.json",
         normalize_uuids(normalize_schema_location(_json_bytes(read_back))),

@@ -65,8 +65,12 @@ class NodeSpec:
     role: str = "node"
     name: str = "node"
     ip: str = "10.0.0.1"
-    adopted: str = "True"
-    online: str = "True"
+    # Feature 014 retyped these to ``xs:boolean``, so the lexical form is
+    # lowercase. Kept as ``str`` rather than ``bool`` because this fixture
+    # writes XML text directly (see ``:148``) and a ``bool`` would render as
+    # ``True`` — the spelling the schema now refuses.
+    adopted: str = "true"
+    online: str = "true"
 
 
 @dataclass
@@ -222,12 +226,12 @@ def _common(identifier: str, name: str) -> str:
     ones too (T029a).
     """
     return (
-        "<autoload>False</autoload><description />"
-        f"<enabled>True</enabled><id>{identifier}</id><loop>0</loop><name>{name}</name>"
+        "<autoload>false</autoload><description />"
+        f"<enabled>true</enabled><id>{identifier}</id><loop>0</loop><name>{name}</name>"
         "<offset><CTimecode>00:00:00.000</CTimecode></offset><post_go>pause</post_go>"
         "<postwait><CTimecode>00:00:00.000</CTimecode></postwait>"
         "<prewait><CTimecode>00:00:00.000</CTimecode></prewait>"
-        "<target /><timecode>False</timecode><ui_properties />"
+        "<target /><timecode>false</timecode><ui_properties />"
     )
 
 

@@ -51,8 +51,22 @@ def _reader(schema: str, xmlfile: str):
 
 
 def read_dict(doc: CorpusDoc, source: str | Path | None = None):
-    """Reader configuration A: ``strip_namespaces=False`` (FR-013)."""
-    return _reader(doc.schema, str(source or doc.path)).read()
+    """Reader configuration A: ``strip_namespaces=False`` (FR-013).
+
+    Calls ``_raw_decode``, the **private core**, rather than the public
+    ``read()``. Two reasons, and the second is the one that matters:
+
+    * ``read()`` is deprecated as of feature 014, and contract C8 says no
+      internal caller invokes a deprecated symbol — a harness that measures the
+      library must not be the thing tripping that check.
+    * ``read()`` *is* a raw decode with no version conversion, which is exactly
+      what configuration A is defined as. There is no public equivalent,
+      deliberately: the public paths convert and report, which is a different
+      measurement. Reaching for the private name states plainly that this
+      harness measures an internal, instead of borrowing a deprecated public
+      name to do it.
+    """
+    return _reader(doc.schema, str(source or doc.path))._raw_decode()
 
 
 def read_config_dict(doc: CorpusDoc, source: str | Path | None = None):
@@ -74,7 +88,14 @@ def read_config_dict(doc: CorpusDoc, source: str | Path | None = None):
 
 
 def read_objects(doc: CorpusDoc, source: str | Path | None = None):
-    return _reader(doc.schema, str(source or doc.path)).read_to_objects()
+    """Configuration A, decoded to objects. See :func:`read_dict` on why this
+    goes through the private core rather than the deprecated ``read_to_objects``."""
+    from cuemsutils.xml.mapper import Mapper
+
+    reader = _reader(doc.schema, str(source or doc.path))
+    return Mapper(
+        doc.schema, document=str(source or doc.path)
+    ).decode_document(reader._raw_decode())
 
 
 def write_bytes(doc: CorpusDoc, obj) -> bytes:
@@ -100,7 +121,8 @@ def write_bytes_raw(doc: CorpusDoc, obj) -> bytes:
     normalizing comparison cannot make.
     """
     out = Path(tempfile.mkdtemp()) / "written.xml"
-    _reader(doc.schema, str(out)).write_from_object(obj)
+    # The private core: C8 again — see read_dict.
+    _reader(doc.schema, str(out))._write_object(obj)
     return out.read_bytes()
 
 

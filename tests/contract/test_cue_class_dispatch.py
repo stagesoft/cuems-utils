@@ -42,9 +42,9 @@ _SCHEMA = (
 )
 
 _COMMON = """
-      <autoload>False</autoload>
+      <autoload>false</autoload>
       <description>d</description>
-      <enabled>True</enabled>
+      <enabled>true</enabled>
       <id>{id}</id>
       <loop>1</loop>
       <name>n</name>
@@ -53,7 +53,7 @@ _COMMON = """
       <postwait><CTimecode>00:00:00.000</CTimecode></postwait>
       <prewait><CTimecode>00:00:00.000</CTimecode></prewait>
       <target></target>
-      <timecode>False</timecode>
+      <timecode>false</timecode>
       <ui_properties></ui_properties>
 """
 

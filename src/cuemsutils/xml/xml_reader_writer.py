@@ -4,6 +4,7 @@ from xml.etree.ElementTree import ElementTree
 
 from deprecated import deprecated
 
+from .._deprecation import deprecated_symbol
 from ..log import Logger, logged
 from .converter import CuemsConverter
 from .documents import get_pkg_schema as _get_pkg_schema
@@ -97,7 +98,7 @@ class XmlReaderWriter(CuemsXml):
         symbol, so a library that both deprecates a name and calls it fails its
         own test. C8 is satisfied here, not amended.
         """
-        self.write_from_object(Mapper(self.schema_name).decode_document(project_dict))
+        self._write_object(Mapper(self.schema_name).decode_document(project_dict))
 
     def build_xml_from_object(self, project_object):
         """Build XML data from a project object, via the schema-derived engine.
@@ -116,17 +117,25 @@ class XmlReaderWriter(CuemsXml):
             xml_root_tag=self.xml_root_tag,
         )
 
-    def write_from_object(self, project_object):
-        """Write a project object to an XML file"""
-        xml_data = self.build_xml_from_object(project_object)
-        self.write(xml_data)
+    # --- the private cores (feature 014) --------------------------------
+    #
+    # The four public methods below are deprecated, and two of them used to
+    # call the other two. Contract C8 says no internal caller invokes a
+    # deprecated symbol, so a library that both deprecates a name and calls it
+    # fails its own test — the same reasoning that moved the ``CuemsParser``
+    # hop out of ``write_from_dict`` in feature 004. The bodies move here and
+    # every caller, deprecated or not, goes through these.
 
-    def validate_object(self, project_object):
-        """Validate a project object against the schema"""
-        xml_data = self.build_xml_from_object(project_object)
-        return self.schema_object.validate(xml_data)
+    def _raw_decode(self, **kwargs):
+        """The document as ``xmlschema`` decodes it: **no version conversion**.
 
-    def read(self, **kwargs):
+        This is what ``read()`` always did and the reason it is now deprecated.
+        A document is decoded against the *current* schema with no step
+        applied, so one written for an older version reaches a strict decode
+        that refuses it. The public path (:meth:`CuemsScript.load_with_report`,
+        :func:`ConfigBase.load_config_document`) converts in memory first;
+        this does not.
+        """
         Logger.info(f"Reading {self.schema_name} document {self.xmlfile}")
         return self.schema_object.to_dict(
             self.xmlfile,
@@ -135,15 +144,77 @@ class XmlReaderWriter(CuemsXml):
             **kwargs
         )
 
-    def read_to_objects(self):
-        """Read and decode — ``Mapper.decode_document``, directly (T061a).
+    def _write_object(self, project_object):
+        self.write(self.build_xml_from_object(project_object))
 
-        Same reasoning as ``write_from_dict``: the ``CuemsParser`` hop
-        delegated here anyway, and it had to go before ``CuemsParser`` could
-        carry a deprecation warning without the library tripping contract C8
-        on itself.
+    # --- the deprecated surface (feature 014, X1) -----------------------
+
+    @deprecated_symbol(
+        "cuemsutils.cues.CuemsScript.CuemsScript.save",
+        note=(
+            "this path writes without applying a version conversion; the "
+            "public save validates and reports"
+        ),
+    )
+    def write_from_object(self, project_object):
+        """Write a project object to an XML file"""
+        self._write_object(project_object)
+
+    @deprecated_symbol(
+        "cuemsutils.cues.CuemsScript.CuemsScript.validate",
+        note="a configuration document is validated by validate_config_document",
+    )
+    def validate_object(self, project_object):
+        """Validate a project object against the schema"""
+        return self.schema_object.validate(self.build_xml_from_object(project_object))
+
+    @deprecated_symbol(
+        "cuemsutils.cues.CuemsScript.CuemsScript.to_wire",
+        note=(
+            "the returned dict no longer contains the schemaLocation key, and "
+            "this path applies **no version conversion** — a document written "
+            "for an older schema version is refused here and converted in "
+            "memory by the public load"
+        ),
+    )
+    def read(self, **kwargs):
+        """DEPRECATED — a raw schema decode, with no version conversion.
+
+        **Deprecated by feature 014**, and the trigger is X1: retyping
+        ``cms:BoolType`` to ``xs:boolean`` means a document carrying the old
+        ``True``/``False`` text is refused by the current schema. The
+        registered 1 -> 2 conversion rewrites it, but only on the **public**
+        read path — this method has never applied a conversion, which was
+        invisible while every schema change happened to be additive.
+
+        So the narrowing is not new behaviour; it is an existing property that
+        X1 made observable. Deprecating the method rather than teaching it to
+        convert is the honest answer: 008 put conversion in the public path on
+        purpose (D19/D21's three load outcomes are reported, which a raw decode
+        cannot do), and this surface is removed at ``v0.1.1`` regardless.
+
+        Use :meth:`cuemsutils.cues.CuemsScript.CuemsScript.to_wire` for a show
+        document, or the ``ConfigManager`` accessors for a configuration one.
         """
-        return Mapper(self.schema_name, document=self.xmlfile).decode_document(self.read())
+        return self._raw_decode(**kwargs)
+
+    @deprecated_symbol(
+        "cuemsutils.cues.CuemsScript.CuemsScript.load",
+        note=(
+            "this path applies no version conversion; the public load converts "
+            "in memory and returns a LoadReport saying what it did"
+        ),
+    )
+    def read_to_objects(self):
+        """DEPRECATED — read and decode, with no version conversion.
+
+        Same narrowing as :meth:`read`, for the same reason: it decodes what
+        ``_raw_decode`` returns, so a document written for an older schema
+        version never reaches the mapper.
+        """
+        return Mapper(
+            self.schema_name, document=self.xmlfile
+        ).decode_document(self._raw_decode())
 
 @deprecated(
     reason="Use XmlReaderWriter instead",

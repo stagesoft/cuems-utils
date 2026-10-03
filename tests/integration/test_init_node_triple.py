@@ -142,7 +142,7 @@ def test_the_self_row_is_seeded_through_ensure_and_other_rows_survive(env):
         '<cms:CuemsNetworkMap xmlns:cms="https://stagelab.coop/cuems/" '
         'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" doc_version="1"><node_list>'
         "<node><uuid>8c8f4d5e-3d5b-4b0a-9f5d-0a0a0a0a0a0a</uuid><mac>0011aabbccdd</mac><name>other</name>"
-        "<node_role>controller</node_role><ip>10.0.0.2</ip><adopted>True</adopted><online>False</online></node>"
+        "<node_role>controller</node_role><ip>10.0.0.2</ip><adopted>true</adopted><online>false</online></node>"
         "</node_list></cms:CuemsNetworkMap>\n"
     )
     (conf / "network_map.xml").write_text(other, encoding="utf-8")

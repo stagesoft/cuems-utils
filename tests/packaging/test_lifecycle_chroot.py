@@ -40,7 +40,7 @@ def test_custody_transfer_both_orders(chroot, built_deb, sibling_deb, tmp_path):
         b"<?xml version='1.0' encoding='utf-8'?>\n"
         b'<cms:CuemsNetworkMap xmlns:cms="https://stagelab.coop/cuems/" doc_version="1"><node_list>'
         b"<node><uuid>8c8f4d5e-3d5b-4b0a-9f5d-0a0a0a0a0a0a</uuid><mac>0011aabbccdd</mac><name>controller</name>"
-        b"<node_role>controller</node_role><ip>10.0.0.2</ip><adopted>True</adopted><online>True</online></node>"
+        b"<node_role>controller</node_role><ip>10.0.0.2</ip><adopted>true</adopted><online>true</online></node>"
         b"</node_list></cms:CuemsNetworkMap>\n"
     )
 

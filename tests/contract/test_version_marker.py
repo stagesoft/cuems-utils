@@ -146,7 +146,12 @@ EXPECTED_VERSIONS = {
 #: nothing but the marker. Detection and reporting happen in the validation
 #: error path instead (FR-023, FR-024).
 DELIBERATE_IDENTITY_STEPS = {
-    ("network_map", 1),       # 012: 1 -> 2
+    # ("network_map", 1) left this set in feature 014: that step now carries
+    # X1's boolean rewrite, which *is* a per-document transformation, so its
+    # absence from the registry stopped being the truth. 012's reasoning is
+    # untouched — the identity half is still cross-document and still repaired
+    # out of band by ``cuems-init-node --remint``. A step can carry one and not
+    # the other, and this one now does.
     ("project_mappings", 1),  # 012: 1 -> 2
     ("settings", 2),          # 012: 2 -> 3
 }

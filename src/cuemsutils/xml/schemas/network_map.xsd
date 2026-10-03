@@ -33,8 +33,8 @@
             <xs:element name="name" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
             <xs:element name="node_role" minOccurs="1" maxOccurs="1" type="cms:NodeRoleType"/>
             <xs:element name="ip" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
-            <xs:element name="adopted" minOccurs="0" maxOccurs="1" type="cms:BoolType"/>
-            <xs:element name="online" minOccurs="0" maxOccurs="1" type="cms:BoolType"/>
+            <xs:element name="adopted" minOccurs="0" maxOccurs="1" type="xs:boolean"/>
+            <xs:element name="online" minOccurs="0" maxOccurs="1" type="xs:boolean"/>
             <!-- Optional identity fields (feat/node-identity). nodeconf assigns
                  role_id during adoption; alias is operator-defined; hostname
                  is transitional (only set for legacy nodes whose OS hostname
@@ -52,12 +52,6 @@
         </xs:restriction>
     </xs:simpleType>
 
-    <xs:simpleType name="BoolType">
-        <xs:restriction base="xs:string">
-            <xs:enumeration value="True" />
-            <xs:enumeration value="False" />
-        </xs:restriction>
-    </xs:simpleType>
 
     <!-- feature 007: node_type (free text) -> node_role (real enumeration).
          controller/node/firstrun replace master/slave/firstrun. -->
