@@ -67,7 +67,7 @@ CURRENT_SCHEMA_HASHES = {
     "network_map.xsd": "bdabd064febfa1d38e6b9f6e67e5347f3a7805151e7476f10731d067fa6d67b0",
     "project_mappings.xsd": "a94822901155e8ea8b07edd604cfbde56766f5e3a2f5b0747d8f49dde2e0e956",
     "project_settings.xsd": "5cd80b9d2a5239365a764526a40c17426e158a9ec057acda2ffc97b552ea254f",
-    "script.xsd": "c34e4d659832948759d56fcb7cc98a0f116a61d16dc171582f3f7bc227ca913a",
+    "script.xsd": "e6584acaf571b82614d2773db989974720f90bd0e69cc2f6d2fe2d4d6c802ad9",
     "settings.xsd": "dcc095cd128d8d99c52adee57f2f60f4cbe11c787ddc674e3605568ce0eae777",
 }
 

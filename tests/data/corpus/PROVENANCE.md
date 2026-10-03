@@ -84,6 +84,28 @@ cue names, in a cue description and inside `ui_properties` wildcard content. It 
 decodes to objects and writes back under the pre-feature code, verified the same way as
 `fade_showcase.xml` above.
 
+### Why feature 014's media-block fixture is **not** here
+
+`tests/data/media_block/media_block_showcase.xml` exercises the four `MediaType` elements
+feature 014 adds (`pixel_width`, `pixel_height`, `file_size`, `file_hash`). It is deliberately
+**outside** this corpus, and the reason is this directory's own membership rule rather than
+convenience.
+
+Every entry here is a document *"this library itself is proven to accept today"* — that is the
+sentence `fade_showcase.xml` and `outputs.xml` were admitted under — and `outcomes.json` records
+each one's **pre-refactor verdict**, which `test_accept_reject_parity` then asserts has not
+changed.
+
+A document carrying the media block **cannot have a pre-refactor verdict.** Before 014 the four
+elements are not declared, so the pre-feature library *rejects* it. Giving it an `outcomes.json`
+entry would mean inventing a verdict for a document that did not exist when those verdicts were
+taken — precisely what the "edit it surgically or not at all" rule exists to prevent.
+
+So it lives beside its tests. This is a correction to feature 014's T001, which said to put it
+here; the task was written before the membership rule was read. A document that only becomes
+valid *because of* the feature under test belongs with that feature's tests, not in the corpus
+that proves the feature changed nothing it should not have.
+
 ### `cuems-utils/outputs.xml` is derived, not vendored — and why it had to be
 
 This is the **one** document in the corpus that was not copied from somewhere. It is

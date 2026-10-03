@@ -23,7 +23,13 @@ RETAINED = {
         "play", "pause", "stop", "load", "unload", "enable", "disable",
         "fade_action", "wait", "go_to", "pause_project", "resume_project",
     },
-    ("script", "FadeCurveType"): {"linear", "exponential", "logarithmic", "sigmoid"},
+    # ``ease_in``/``ease_out`` joined on feature 014's cherry-pick of ``main``'s
+    # ``9c17418``: the engine dispatches those two names natively, so a project
+    # saved by a ``main``-line editor failed T1 on this branch until they were
+    # here. Additive, rule 1 — no document is invalidated by their arrival.
+    ("script", "FadeCurveType"): {
+        "linear", "exponential", "logarithmic", "sigmoid", "ease_in", "ease_out",
+    },
     ("script", "PostGoType"): {"pause", "go", "go_at_end"},
     ("script", "BoolType"): {"True", "False"},
     ("settings", "BoolType"): {"True", "False"},

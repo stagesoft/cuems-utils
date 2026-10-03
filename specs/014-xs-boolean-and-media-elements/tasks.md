@@ -45,40 +45,41 @@ post-mitigation.
 **Goal**: the media block and the curve values land first, because they are rule-1 additive and
 independent of everything else. If X1 were abandoned tomorrow these would still be correct.
 
-- [ ] **T001** [P] Red-first: a `MediaType` document carrying all four new elements validates, and
+- [X] **T001** [P] Red-first: a `MediaType` document carrying all four new elements validates, and
       one carrying none of them still validates. Add the fixtures under `tests/data/corpus/`;
-      neither exists today
-- [ ] **T002** [P] Red-first: the range and the refusals, per plan.md §10.1 — `file_size` accepts
+      neither exists today ✅ `tests/data/media_block/media_block_showcase.xml` (one cue with all four, one with none) and `tests/unit/test_media_block.py`. ⚠ **Not in `tests/data/corpus/`** as this task said: corpus membership needs a pre-refactor verdict in `outcomes.json`, and a document carrying elements this feature *adds* cannot have one — the pre-014 schema rejects it. Recorded in `tests/data/corpus/PROVENANCE.md`. The attempt also cost a cascade worth knowing about: adding it there broke `test_manifest_and_disk_agree`, the pinned count, `test_every_document_has_a_golden` and six `test_accept_reject_parity` cases.
+- [X] **T002** [P] Red-first: the range and the refusals, per plan.md §10.1 — `file_size` accepts
       `107374182400` (100 GiB) and `9223372036854775808`, and **refuses** `0` and `-1`; the same
       refusals for the pixel pair. This is the test that pins the >100 GB requirement against a
-      future "let's make it `xs:long`"
-- [ ] **T003** [P] Red-first: `file_hash` accepts 32 lowercase hex and refuses uppercase, 31
+      future "let's make it `xs:long`" ✅ 6 accept cases up to 2⁶³, 18 refuse cases. `xs:positiveInteger` is unbounded and decodes to an arbitrary-precision `int`, so >100 GB needed no facet.
+- [X] **T003** [P] Red-first: `file_hash` accepts 32 lowercase hex and refuses uppercase, 31
       characters, 33 characters and non-hex (plan.md §10.2). The uppercase case is the one that
-      records the decision rather than the mechanism
-- [ ] **T004** Add the four elements to `script.xsd`'s `MediaType` after `regions`, all
+      records the decision rather than the mechanism ✅ 3 accept, 7 refuse, plus `Md5HashType` asserted to be a named type restricting `xs:string` like `UuidType`.
+- [X] **T004** Add the four elements to `script.xsd`'s `MediaType` after `regions`, all
       `minOccurs="0"`, plus the new `cms:Md5HashType`. **Update `CURRENT_SCHEMA_HASHES` in
       `tests/contract/test_schema_scope.py` in the same commit**, with the reason in the message —
-      that pairing is the whole mechanism (execution doc §7.5) — depends on T001–T003
-- [ ] **T005** Four `DECLARED_DEFAULTS` entries (**all `Unset`**) and four `set_<name>` accessors on
-      `Media`. Both halves or the key is dropped in silence (plan.md §10.4) — depends on T004
-- [ ] **T006** [P] Red-first then implement: `test_coherence.py` must agree that `MediaType`'s
+      that pairing is the whole mechanism (execution doc §7.5) — depends on T001–T003 ✅ Four elements after `regions`, `Md5HashType` beside `UuidType`, hash re-pinned twice (once for this, once after T007). ⚠ `--` is **illegal inside an XML comment** — the first draft of the comments broke the schema with `ParseError: not well-formed`.
+- [X] **T005** Four `DECLARED_DEFAULTS` entries (**all `Unset`**) and four `set_<name>` accessors on
+      `Media`. Both halves or the key is dropped in silence (plan.md §10.4) — depends on T004 ✅ Four `Unset` entries (eight total on `Media`) and four accessor pairs. ⚠ The setter refuses a **non-integral float**: `int(1.5)` truncates to 1, which is the silent-wrong-value class this whole feature exists to remove, so `int` or a string of digits only. `bool` is refused for the same reason — it is an `int` subclass, so `pixel_width = True` would have stored 1.
+- [X] **T006** [P] Red-first then implement: `test_coherence.py` must agree that `MediaType`'s
       schema fields and `Media`'s model fields match. It fails automatically on T004 without T005,
       which is the check working; confirm that, do not route around it.
       **Also assert the writer claim** (plan.md §10.4): a `Media` built with the four keys **in any
       order**, and one with some of them absent, round-trips to **schema order with no empty
       element**. That claim — *"no writer change is needed on this branch"* — is currently asserted
       and never verified; it is the input document's third utils deliverable dropping out, so it is
-      worth one test rather than an assumption
-- [ ] **T007** Cherry-pick `9c17418` from `origin/main` for `ease_in`/`ease_out` on
+      worth one test rather than an assumption ✅ `test_coherence` failed on T004-without-T005 exactly as predicted, and passed on T005 — the check working. The writer claim is now asserted, not assumed: four keys assigned in reverse order emit in schema order, and an absent field emits nothing rather than an empty element.
+- [X] **T007** Cherry-pick `9c17418` from `origin/main` for `ease_in`/`ease_out` on
       `FadeCurveType`, with its schema hash moving in the same commit. Verified absent from this
-      branch: a project saved by a `main`-line editor with an `ease_in` fade **fails T1 here today**
-- [ ] **T008** [P] Record in [`migration-guide.md`](migration-guide.md) that the media block is
+      branch: a project saved by a `main`-line editor with an `ease_in` fade **fails T1 here today** ✅ Cherry-picked as `7825d80`, Ion Reguera as author. `test_enum_audit`'s `FadeCurveType` row moved with it in the same commit.
+- [X] **T008** [P] Record in [`migration-guide.md`](migration-guide.md) that the media block is
       **four** elements and why (`file_hash` added, `file_size` named not `size`, `0` invalid by
       design), so `cuems-editor` and `cuems-engine` read one statement rather than inferring from
-      the input document's three
+      the input document's three ✅ `migration-guide.md` §2, plus a new §2.1 recording the setters' contract as implemented.
 
-**Checkpoint**: the schema admits four new optional elements and two new curve values; nothing on
-disk is invalidated; no conversion exists yet because none is needed.
+**Checkpoint**: ✅ **PASSED 2026-10-03.** The schema admits four new optional elements and two new
+curve values; nothing on disk is invalidated; no conversion exists because none is needed. Suite
+**3496 passed / 112 skipped / 2 xfailed** (from 3432 — 64 new tests).
 
 ---
 

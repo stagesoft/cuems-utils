@@ -48,6 +48,12 @@ The input document
 
 All four are `minOccurs="0"`, appended after `regions`. **Every existing project stays valid.**
 
+⚠ **The test fixture is *not* in `tests/data/corpus/`**, which T001 originally said. Corpus
+membership requires a **pre-refactor verdict** in `tests/golden/outcomes.json`, and a document
+carrying these four elements cannot have one — the pre-014 schema rejects it. Inventing an entry
+would be fabricating a verdict for a document that did not exist when those verdicts were taken.
+It lives in `tests/data/media_block/`; the reasoning is in `tests/data/corpus/PROVENANCE.md`.
+
 **Three rules that are one rule:** absent means *unknown*; `0` is **not** a value and is refused by
 the type; never write an empty element. `<pixel_width/>` fails `xs:positiveInteger` — which is
 deliberate, since a zero-byte or zero-pixel file is not playable media.
@@ -59,6 +65,23 @@ arbitrary-precision Python `int`; 2⁶³ validates too. Nothing to configure.
 **`file_hash` is lowercase-only**, matching `UuidType`'s existing `[a-f0-9]` pattern. `md5sum`,
 `hashlib` and `ffmpeg` all emit lowercase. Uppercase is refused on purpose: a wider ingestion
 vocabulary than the schema's means a value legal on the wire that can never appear in a file.
+
+### 2.1 The setters' contract, as implemented (T005)
+
+What a consumer can hand these four, measured against the landed code:
+
+| Input | Result |
+|---|---|
+| `int` ≥ 1 | stored |
+| a string of digits (`"107374182400"`) | stored as `int` |
+| `None` | **the key is removed**, not set to `None`. Absent means unknown, and that is the only way to say so |
+| `0`, a negative | **`ValueError`** |
+| `1.5`, `"1.5"`, a list, a dict | **`ValueError`** — deliberately *not* `int(value)`, which truncates. `1.5` would have stored 1: a wrong value that looks right, which is the defect class this feature exists to remove |
+| `True` / `False` | **`ValueError`** — `bool` is an `int` subclass, so without the guard `media.pixel_width = True` would store 1 |
+| `file_hash` uppercase | **`ValueError`**, not lowercased. Normalising would leave the object and the document disagreeing about what is valid |
+
+**Raising at the assignment rather than at the save is the point.** The schema would refuse these
+at `save()` anyway; failing earlier names the field and the line that caused it.
 
 **For `cuems-engine`**: a hash is a strictly stronger "was this file replaced under the same name?"
 test than comparing `file_size` against `os.stat` — a replacement of identical length passes the

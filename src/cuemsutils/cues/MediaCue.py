@@ -1,6 +1,8 @@
+import re
 from typing import Tuple
 
 from .Cue import Cue
+
 from ..helpers import CuemsDict, ensure_items, format_timecode, Unset
 from ..tools.CTimecode import CTimecode
 
@@ -74,6 +76,11 @@ def _as_region(item) -> "Region":
             f"{list(Region.declared_fields())}: {sorted(item)}"
         )
     return Region(item)
+
+
+#: ``cms:Md5HashType``'s pattern, mirrored. Lowercase only, 32 characters —
+#: the same shape and the same case rule as ``UuidType``.
+_MD5_RE = re.compile(r"[a-f0-9]{32}")
 
 
 class Region(CuemsDict):
@@ -198,6 +205,17 @@ class Media(CuemsDict):
         'id': Unset,
         'duration': Unset,
         'regions': Unset,
+        # Feature 014's media block. ``Unset`` for the same reason the four
+        # above use it, and **not** for the reason that comment gives: those
+        # four are required by the schema, these are ``minOccurs="0"``, and
+        # ``Unset`` is what "declared but emits nothing when absent" *means*
+        # (``helpers.py``'s ``Unset`` docstring, with ``canvas_region`` as the
+        # precedent). Defaulting them to ``None`` would start emitting four
+        # empty elements, which ``xs:positiveInteger`` rejects.
+        'pixel_width': Unset,
+        'pixel_height': Unset,
+        'file_size': Unset,
+        'file_hash': Unset,
     }
     
     def __init__(self, init_dict = None):
@@ -336,6 +354,124 @@ class Media(CuemsDict):
         super().__setitem__('regions', [_as_region(item) for item in regions])
 
     regions: list[Region] = property(get_regions, set_regions)
+
+    # --- the media block (feature 014) ----------------------------------
+    #
+    # Four optional elements, measured once by whoever probes the file and read
+    # thereafter, so the engine does not run ffprobe while holding the command
+    # lock. Each needs **both** a ``DECLARED_DEFAULTS`` entry and a
+    # ``set_<name>`` accessor: ``CuemsDict.setter`` resolves
+    # ``getattr(self, f"set_{k}")`` and ``continue``s on ``AttributeError``, so
+    # a field with one and not the other is dropped **in silence**.
+    #
+    # ``None`` removes the key rather than storing it. Absent means *unknown*,
+    # and that is the only way to say so: the schema has no empty form, and 0
+    # is not a value.
+
+    def _set_positive_int(self, key, value):
+        """Store a positive integer, or remove the key when *value* is ``None``.
+
+        Shared by the three integers because the rule is one rule. Accepts an
+        ``int`` or a string of digits and stores an ``int``; **no upper bound**,
+        deliberately — ``file_size`` must hold a file past 100 GB, which is
+        107,374,182,400 bytes and overflows a 32-bit int. Python's ``int`` is
+        arbitrary-precision and ``xs:positiveInteger`` is unbounded, so the
+        range is a property of the types rather than something to check.
+
+        Raises:
+            ValueError: *value* is not a positive integer. Raising here rather
+                than letting the schema refuse it at save names the field and
+                fails at the assignment that caused it.
+        """
+        if value is None:
+            super().pop(key, None)
+            return
+        if isinstance(value, bool):
+            # ``bool`` is an ``int`` subclass, so this would otherwise store
+            # ``True`` as 1 — a plausible-looking pixel width.
+            raise ValueError(f"{key} must be a positive integer, got a bool")
+        if isinstance(value, int):
+            coerced = value
+        elif isinstance(value, str) and value.isdigit():
+            coerced = int(value)
+        else:
+            # Deliberately **not** ``int(value)`` on anything else: that
+            # truncates, so ``1.5`` would store 1 — a wrong value that looks
+            # right, which is the defect class this whole feature exists to
+            # remove (see ``_Bool.decode``, which used to make ``False`` out of
+            # any string). A fractional pixel count or byte count is nonsense;
+            # refusing it names the field at the assignment.
+            raise ValueError(
+                f"{key} must be a positive integer or a string of digits, "
+                f"got {value!r}"
+            )
+        if coerced < 1:
+            raise ValueError(
+                f"{key} must be positive; absent means unknown and 0 is not a "
+                f"value, so pass None to clear it rather than {coerced}"
+            )
+        super().__setitem__(key, coerced)
+
+    def get_pixel_width(self):
+        """The media's original width in pixels, or ``None`` if unknown.
+
+        The media's **own** size as ``ffprobe`` reports it — not the layer's
+        size on screen, which is ``CanvasRegionType``'s ``width``/``height`` as
+        unit floats.
+        """
+        return super().get('pixel_width')
+
+    def set_pixel_width(self, value):
+        self._set_positive_int('pixel_width', value)
+
+    pixel_width = property(get_pixel_width, set_pixel_width)
+
+    def get_pixel_height(self):
+        """The media's original height in pixels, or ``None`` if unknown."""
+        return super().get('pixel_height')
+
+    def set_pixel_height(self, value):
+        self._set_positive_int('pixel_height', value)
+
+    pixel_height = property(get_pixel_height, set_pixel_height)
+
+    def get_file_size(self):
+        """The file's size in bytes when it was measured, or ``None``."""
+        return super().get('file_size')
+
+    def set_file_size(self, value):
+        self._set_positive_int('file_size', value)
+
+    file_size = property(get_file_size, set_file_size)
+
+    def get_file_hash(self):
+        """The file's md5 when it was measured, or ``None`` if unknown."""
+        return super().get('file_hash')
+
+    def set_file_hash(self, value):
+        """Store a 32-character lowercase md5, or remove the key for ``None``.
+
+        **Nothing is normalised.** An uppercase digest raises rather than being
+        lowercased, because the schema refuses it and silently "fixing" a value
+        here would mean the object and the document disagree about what is
+        valid. ``md5sum``, ``hashlib`` and ``ffmpeg`` all emit lowercase, so
+        the strict form costs a caller nothing it was not already doing.
+
+        Raises:
+            ValueError: *value* is not 32 lowercase hexadecimal characters.
+        """
+        if value is None:
+            super().pop('file_hash', None)
+            return
+        if not isinstance(value, str) or not _MD5_RE.fullmatch(value):
+            raise ValueError(
+                f"file_hash must be 32 lowercase hexadecimal characters "
+                f"(cms:Md5HashType), got {value!r}"
+            )
+        super().__setitem__('file_hash', value)
+
+    file_hash = property(get_file_hash, set_file_hash)
+
 
 class MediaCue(Cue):
     """Base class for media-related cues (audio and video).
