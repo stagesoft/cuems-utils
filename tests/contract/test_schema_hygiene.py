@@ -71,17 +71,25 @@ def test_timecodetype_remains_the_inner_ctimecode_elements_type():
 #: library's own frame-1 semantics, documented rather than encoded.
 #:
 #: T011's task text names four lines (24, 78, 82, 242); this file's current
-#: state carries two more (438, 439), a rollover-bug comment in ``__str__``
-#: illustrating wrapped-vs-monotonic output with example timecodes. Same
-#: character as the other four — prose, not a stored or schema value — so
-#: added here rather than treated as a discrepancy to chase.
+#: state carries two more, a rollover-bug comment in ``__str__`` illustrating
+#: wrapped-vs-monotonic output with example timecodes. Same character as the
+#: other four — prose, not a stored or schema value — so added here rather
+#: than treated as a discrepancy to chase.
+#:
+#: **Moved 2026-10-03, positionally only.** Five of the six shifted when
+#: ``.milliseconds`` was put on ``_deprecation.deprecated_symbol``: 78→79 and
+#: 82→83 from the import swap, 242→258 and 438/439→454/455 from the expanded
+#: docstring. The **count is unchanged at six**, so no new frame-based form
+#: was introduced — which is the thing this pin exists to catch. Any future
+#: edit to ``CTimecode.py`` above line 455 moves these again; re-run and
+#: re-record rather than widening the check.
 _ALLOWED_FRAME_FORM_LOCATIONS = {
     ("src/cuemsutils/tools/CTimecode.py", 24),
-    ("src/cuemsutils/tools/CTimecode.py", 78),
-    ("src/cuemsutils/tools/CTimecode.py", 82),
-    ("src/cuemsutils/tools/CTimecode.py", 242),
-    ("src/cuemsutils/tools/CTimecode.py", 438),
-    ("src/cuemsutils/tools/CTimecode.py", 439),
+    ("src/cuemsutils/tools/CTimecode.py", 79),
+    ("src/cuemsutils/tools/CTimecode.py", 83),
+    ("src/cuemsutils/tools/CTimecode.py", 258),
+    ("src/cuemsutils/tools/CTimecode.py", 454),
+    ("src/cuemsutils/tools/CTimecode.py", 455),
 }
 
 _FRAME_FORM_RE = re.compile(r"\b\d{2}:\d{2}:\d{2}:\d{2}\b")

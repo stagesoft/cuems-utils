@@ -107,7 +107,7 @@ The text is preserved in substance; where §4 found it wrong, the correction is 
       | 2 | `xml/XmlBuilder.py:362` | `_FROZEN_BUILDERS`, via `deprecated_symbol(_MIGRATION)` | *(T058's target, still correct)* |
       | 3 | `xml/xml_reader_writer.py:130` | `XmlWriter` | `0.0.7` |
       | 4 | `xml/xml_reader_writer.py:137` | `XmlReader` | `0.0.7` |
-      | 5 | `tools/CTimecode.py:204` | `.milliseconds` → `.milliseconds_rounded` | see §5's open question |
+      | 5 | `tools/CTimecode.py:204` | `.milliseconds` → `.milliseconds_rounded` | `0.1.0rc6`. **Scheduled here 2026-10-03** — notice normalised, see §7 |
       | 6 | `cues/Cue.py:367` | → `localize_cue` | `0.1.0rc4` |
       | 7 | `cues/AudioCue.py:81` | → `loop_cue` (CueHandler) | `0.0.9rc5` |
       | 8 | `tools/CommunicatorServices.py:155` | `Nng_request_response` → `NngRequestResponse` | `0.1.0rc1` |
@@ -178,10 +178,13 @@ FR-UX-002's missing consumer; its T076's upper bound).
 
 ## 5. What this document does **not** settle
 
-1. **Is `v0.1.1` the first stable release?** `tools/CTimecode.py:204`'s own reason says
-   `.milliseconds` *"will be removed at the first stable release"* — a different promise from
-   `REMOVAL_RELEASE = "v0.1.1"`. This library has never shipped a non-rc version. If `0.1.1` is not
-   that release, R8's item 5 is not due yet and must be split out.
+*(One of the four was settled on 2026-10-03; it is struck rather than removed, because the
+reasoning is what makes the answer checkable.)*
+
+1. ~~**Is `v0.1.1` the first stable release?**~~ **Answered 2026-10-03 by normalising the notice
+   — see §7.** `CTimecode.milliseconds` no longer makes a promise of its own; it reads
+   `REMOVAL_RELEASE` like every other retired symbol, so R8's item 5 is due with the rest and needs
+   no split.
 2. **Items 3–9 of R8 have never been censused.** 010's census pattern covers
    `cuemsutils.xml.{Settings,XmlReaderWriter,Parsers,CMLCuemsConverter}` and
    `cuemsutils.timeoutloop`. `XmlReader`/`XmlWriter`, `Nng_bus_hub`, `Nng_request_response`,
@@ -230,3 +233,81 @@ deprecated surface.
 | **SC-PERF-001**'s clause *"the deprecated-surface removal does not make the suite slower"* | **moves** (R12). Its other clauses stay |
 | **US10** *"The deprecated surface comes out and the guide records what moved"* | **splits.** The count and the guide stay as 010's; the removal and the version move here. The story title needs amending either way |
 | **FR-090** structural ordering | **stays**, with its far end in another document: the chain is still census → zero → deletions, and the deletions are now out of reach by construction, which is a stronger guarantee than a task ordering |
+
+---
+
+## 7. `CTimecode.milliseconds` joins the uniform notice (2026-10-03)
+
+**Done, in code**, ahead of the rest of this document — because it was a *promise* that disagreed
+with the schedule, not a deletion, and leaving it to `v0.1.1` would have left §5's question open
+until the release it was blocking.
+
+### What it said, and why that was a problem
+
+```python
+@deprecated(
+    reason=("Renamed to .milliseconds_rounded (int, rounded) — or use "
+            ".milliseconds_exact (float, precise) for precision-sensitive code. "
+            "The old .milliseconds will be removed at the first stable release."),
+    version="0.1.0rc6",
+)
+```
+
+Hand-written at the call site, naming **"the first stable release"** — a different date from the one
+every other deprecation in this package names, and one **no consumer could act on**, because this
+library has never shipped a non-rc version. `_deprecation.py`'s whole premise is that *"fixing that
+string once here is what makes FR-027's 'one message format' true by construction rather than by
+review across ~20 sites"*; this site was outside that guarantee.
+
+### What it says now
+
+```python
+@deprecated_symbol(
+    ".milliseconds_rounded",
+    note=("the replacement rounds where this truncated, so at fractional "
+          "framerates (29.97, 23.976) a value may differ by 1 ms; use "
+          ".milliseconds_exact (float) for precision-sensitive code"),
+)
+```
+
+→ `use .milliseconds_rounded instead; removed in v0.1.1; note: the replacement rounds where this
+truncated…`
+
+Three things that change, each deliberate:
+
+- **The release comes from `REMOVAL_RELEASE`**, so this symbol is scheduled with the rest of R8 and
+  cannot drift from it again.
+- **The rounding caveat moves to `note`** — the parameter `_deprecation.py` documents as existing
+  for *"exactly one message (D2a)"*, a replacement whose output differs from the original's in a way
+  *"a consumer told only 'use X instead' would find out by comparing payloads in production"*. The
+  `int()`-vs-`round()` difference at 29.97 and 23.976 is the same shape, so this is the second user
+  of a parameter built for the case rather than a new mechanism.
+- **`version="0.1.0rc6"` is dropped from the decorator** and kept in the docstring. It rendered as
+  *"Deprecated since version 0.1.0rc6"*, which was correct — but `deprecated_symbol` takes no
+  `version`, and passing one only here would make this message the one that differs. The fact is
+  worth keeping; a divergent format is not.
+
+`from deprecated import deprecated` goes with it — this was the file's only direct use.
+
+### Tests
+
+Two, in `tests/unit/test_ctimecode.py` beside the existing emission tests:
+
+- `test_milliseconds_warning_uses_the_packages_one_message_format` asserts
+  `deprecation_reason(".milliseconds_rounded")` and `REMOVAL_RELEASE` are both in the message, plus
+  that the caveat travels as a `note`. **It fails against the old message**, which contained
+  neither — which is why it is worth pinning beyond "a warning is emitted", which two existing
+  tests already cover.
+- `test_milliseconds_removal_release_matches_the_retired_surface` pins `REMOVAL_RELEASE == "v0.1.1"`
+  from this side, so a move shows up here rather than in a docstring nobody re-reads.
+
+Suite **3432 passed / 112 skipped / 2 xfailed**.
+
+### One pin moved with it
+
+`tests/contract/test_schema_hygiene.py`'s `_ALLOWED_FRAME_FORM_LOCATIONS` records the exact lines of
+`CTimecode.py` where a frame-based timecode may appear in prose. Five of its six entries shifted —
+78→79 and 82→83 from the import swap, 242→258 and 438/439→454/455 from the expanded docstring. The
+**count is unchanged at six**, so no new frame-based form was introduced, which is what that pin
+exists to catch. Updated in the same change, with the reason recorded beside it, on the same
+discipline as the schema-hash pin.

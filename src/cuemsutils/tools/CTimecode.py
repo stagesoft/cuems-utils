@@ -29,9 +29,10 @@ from __future__ import annotations
 
 import warnings
 
-from deprecated import deprecated
 from timecode import Timecode
 import json_fix  # noqa: F401  -- registers __json__ JSON support
+
+from .._deprecation import deprecated_symbol
 
 
 class CTimecode(Timecode):
@@ -201,13 +202,13 @@ class CTimecode(Timecode):
         return round(self.milliseconds_exact)
 
     @property
-    @deprecated(
-        reason=(
-            "Renamed to .milliseconds_rounded (int, rounded) — or use "
-            ".milliseconds_exact (float, precise) for precision-sensitive code. "
-            "The old .milliseconds will be removed at the first stable release."
+    @deprecated_symbol(
+        ".milliseconds_rounded",
+        note=(
+            "the replacement rounds where this truncated, so at fractional "
+            "framerates (29.97, 23.976) a value may differ by 1 ms; use "
+            ".milliseconds_exact (float) for precision-sensitive code"
         ),
-        version="0.1.0rc6",
     )
     def milliseconds(self) -> int:
         """DEPRECATED — alias of .milliseconds_rounded.
@@ -219,7 +220,22 @@ class CTimecode(Timecode):
         call-site to the explicit name to clarify rounding intent and
         silence this warning.
 
-        Will be removed in the first stable release after 0.1.0rc6.
+        **Deprecated since 0.1.0rc6; removed in** ``_deprecation.REMOVAL_RELEASE``
+        (``v0.1.1``), on the same schedule as every other retired surface.
+
+        The notice used to be hand-written here and promised removal "at the
+        first stable release" — a different date from the one every *other*
+        deprecation in this package names, and one no consumer could act on
+        because this library has never shipped a non-rc version. It now goes
+        through :func:`cuemsutils._deprecation.deprecated_symbol`, so the
+        message is the single format FR-027 requires and the release is read
+        from one constant rather than restated in prose. The rounding caveat
+        moves to that decorator's ``note`` — the parameter that exists for
+        exactly this case, a replacement whose output differs from the
+        original's in a way a caller would otherwise discover in production.
+
+        Scheduled with the rest of the removal in
+        ``specs/planning/deprecated-surface-removal-v0-1-1.md`` (R8, item 5).
         """
         return self.milliseconds_rounded
 
