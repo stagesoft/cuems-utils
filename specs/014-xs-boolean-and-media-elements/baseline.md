@@ -245,11 +245,11 @@ types, which has no other driver in this feature. It is carried in
 
 ---
 
-## 8. The sibling gates, per repository (T033 — **partial**, two of five)
+## 8. The sibling gates, per repository (T033 — **partial**, three of five)
 
-**Two gates have landed and reported.** Three have not run. T033 is recorded as partial rather than
+**Three gates have landed and reported.** Two have not run. T033 is recorded as partial rather than
 held back, because *"a sibling left red with the reason named is a result; a sibling not run is
-not"* — and the two that ran deserve their record now.
+not"* — and the three that ran deserve their record now.
 
 The prompt the gate sessions work from is
 [`../planning/feature-014-sibling-gate-prompt.md`](../planning/feature-014-sibling-gate-prompt.md).
@@ -258,15 +258,34 @@ The prompt the gate sessions work from is
 |---|---|---|---|---|---|
 | `cuems-editor` | T032 | 154 passed / 2 skipped / 1 xfailed | **5 failed / 149 passed** | 154 / 2 / 1 → **161 passed / 2 skipped** after its T059 | ✅ **green** |
 | `cuems-nodeconf` | T030 | 32 failed / 142 passed | **33 failed / 141 passed** | 32 failed / 142 passed → **174 / 174** after an independent 013 fix | ✅ **green** |
+| `cuems-power-bridge` | T029 | 55 failed / 221 passed | **55 failed / 221 passed** — identical set, confirmed by diff | **276 / 0** | ✅ **green** |
 | `cuems-engine` | T028 | — | — | — | not run |
-| `cuems-power-bridge` | T029 | — | — | — | not run |
 | `cuems-common` | T031 | — | — | — | not run |
 
-Arm counts for the two landed gates are **as those repositories measured them**, in their own
+Arm counts for the three landed gates are **as those repositories measured them**, in their own
 environments, and are attributed rather than re-derived — `cuems-nodeconf`'s suite needs `zeroconf`,
 which this repository's test environment does not carry, so re-running it here is not possible.
-What *was* independently verified here is every claim either report makes **about this repository's
+What *was* independently verified here is every claim each report makes **about this repository's
 code**; see below.
+
+### 8.0 Three arms in, one result stands out: **014 broke almost nothing**
+
+| Repository | Failures attributable to 014 | Attributable to 013, pre-existing |
+|---|---|---|
+| `cuems-power-bridge` | **0** — arms A and B identical, diffed | 55 |
+| `cuems-nodeconf` | **1** | 32 |
+| `cuems-editor` | 5 | 0 |
+
+**Six failures across three repositories, and 87 pre-existing ones.** Arm A is what separates them,
+and without it `cuems-power-bridge` would have reported 55 failures against this feature and **every
+one of them would have been someone else's** — which is the clearest vindication of the three-arm
+method the gates could have produced.
+
+The counterpart finding: **013's sibling migration was never completed**, and two gates have now
+had to do it. `specs/013-device-class-reshape/sibling-repository-updates.md` left
+`cuems-power-bridge` and `cuems-nodeconf` as *"a prediction for them"*; the prediction was right and
+nobody closed it, so 014's gates closed it — 11 settings documents hand-rewritten between them. That
+is a cross-feature debt pattern worth naming before 015 inherits it.
 
 ### 8.1 `cuems-editor` — T032, and UR-5 closed in the same session
 
@@ -341,7 +360,31 @@ the ordinary state of any node whose `settings.xml` predates 2026-09-23 — whil
 `/etc/cuems/settings.xml` is a counterexample** (flat-shaped, zero retired fields, reshapes
 cleanly), so it is not *every* document either. Both bounds are measured in that record.
 
-### 8.3 A process defect in the gate prompt itself, found by being used
+### 8.3 `cuems-power-bridge` — T029, green, and the cleanest arm pair of the three
+
+`dd1256f`, GPG-signed. **Arms A and B are identical, confirmed by diffing the failing-test sets** —
+so 014 caused **zero** failures here. Arm C is **276 / 0**, which restores the green state its
+CLAUDE.md records as predating 013.
+
+- **8 of 10 `network_map.xml` converted by the tool**: `map-{controller-only,mixed,no-self,no-settings,none-adopted,partial-resolve,two-adopted,unresolvable}`.
+- ⚠ **2 of 10 left old-form by design, and this repository's §4.1 did not say so.**
+  `map-incomplete` exists to test `NETWORK_MAP_INVALID` (a missing required `<mac>`) and
+  `map-pre007` to test `NETWORK_MAP_RETIRED_VOCABULARY` (an old `<node_type>`) — verified in
+  `tests/test_network_map_adapter.py:171,173`. **The tool correctly refused both**, and converting
+  them would have defeated the fixtures' own purpose.
+- **No source change**, and the report says how it established that: it grepped `src/` for the wire
+  literals and found none. A negative result with its method stated.
+- **No retired premises** — it holds objects throughout and never asserted on the lexical form.
+
+**The general rule those two fixtures establish**, which is better than the enumeration §4.1
+attempted: **a fixture whose purpose is to be refused must keep the form it is refused for.** Three
+instances across two repositories now — `cuems-editor`'s `script_minimal.xml` (refused for its
+device shape) and these two. §4.1 named the editor's because that repository's own README did; it
+could not have named power-bridge's without reading its tests, which is exactly why the gate belongs
+in the repository and not here. **The check is "is this document refused for the reason it was
+written to test?", not "is it converted?"**
+
+### 8.4 A process defect in the gate prompt itself, found by being used
 
 `cuems-nodeconf`'s report §4: `../cuems-utils` was found mid-measurement in a detached `HEAD` at a
 commit predating `0.1.0rc14`, because a second sibling session was running its gate against the
@@ -357,3 +400,15 @@ that silently measured the wrong library is worse than no arm"*.
 
 That nodeconf's session caught it before trusting any result is the reason there is a correction
 rather than a wrong record.
+
+**Confirmed working by the next gate, mid-flight.** `cuems-power-bridge`'s session picked up the
+corrected instruction and took arm A from *"a disposable worktree at 84705b9"*, reporting it as the
+proper practice for parallel sessions. So the fix was validated by use within hours of being
+written, by a session that never saw the broken version — and `cuems-power-bridge` produced the one
+arm pair in the whole set that is **identical between A and B**, which is only trustworthy *because*
+the shared checkout never moved under it.
+
+**The lesson, stated for whoever writes the next cross-repository prompt**: a prompt that tells N
+parallel sessions to mutate one shared resource is a defect in the prompt, not in the sessions. It
+cost one near-miss, caught only because the session verified its library resolution before trusting
+a number — which the prompt also told it to do. Two instructions, one of which saved the other.

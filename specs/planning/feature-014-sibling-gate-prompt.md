@@ -20,14 +20,25 @@ measurement that can be reported as red with a reason rather than averaged away.
 | Session opened in | Gate | Rough size | State |
 |---|---|---|---|
 | `cuems-engine` | T028 | 6 documents + **1 hand-rewrite**; three measurement arms | **open** |
-| `cuems-power-bridge` | T029 | 10 documents; **starts red for a 013 reason** | **open** |
 | `cuems-common` | T031 | 3 documents + 2 modules of inline literals | **open** |
 | `cuems-nodeconf` | T030 | — | ✅ done 2026-10-05 (`61c5705`) |
 | `cuems-editor` | T032 | — | ✅ done 2026-10-05 (`22093fd`) |
+| `cuems-power-bridge` | T029 | — | ✅ done 2026-10-05 (`dd1256f`) |
 
-Only the three **open** rows need a session. The two done ones are kept for their reports, which are
-worth reading before starting one of the others — `cuems-nodeconf`'s in particular found a
-`settings` migration dead end and a race in this prompt, both since fixed.
+Only the two **open** rows need a session. The three done ones are kept for their reports, which are
+worth reading before starting one of the others:
+
+- **`cuems-nodeconf`** found a `settings` migration dead end and a race in this prompt, both since
+  fixed.
+- **`cuems-power-bridge`** confirmed the dead end independently (9 of 9 of its settings fixtures)
+  and produced the cleanest result in the set: **arms A and B identical**, so 014 caused zero
+  failures there.
+- **`cuems-editor`** closed its own T059 in the same session, resolving UR-5.
+
+**What three landed gates have established, and the open two should expect:** most of arm B is
+probably **not 014**. Across the three, **six failures were attributable to this feature and 87
+were pre-existing** — nearly all of them 013's device shape, never migrated in the siblings. Take
+arm A.
 
 **After all five report**, T033–T036 are done back in `cuems-utils` — T033 records every arm in
 `specs/014-xs-boolean-and-media-elements/baseline.md`, T034 the frontend hand-off, T035 deletes
@@ -173,6 +184,25 @@ it. Verify it is still on `014-xs-boolean-and-media-elements` and clean before y
 If the worktree cannot be created, say so and report arm A as **UNAVAILABLE — shared checkout in
 use** rather than switching the branch anyway. An arm reported unavailable with the reason is a
 result; an arm that silently measured the wrong library is worse than no arm.
+
+### The rule three gates have now hit — a refusal fixture keeps its old form
+
+⚠ **Do not convert a fixture whose purpose is to be refused.** It must keep the form it is refused
+for, or the test passes for a new reason and stops testing anything. Three instances so far, and
+nobody predicted any of them from outside the repository that owns them:
+
+| Repository | Fixture | Exists to test |
+|---|---|---|
+| `cuems-editor` | `tests/fixtures/script_minimal.xml` | refusal for the **pre-013 device shape** |
+| `cuems-power-bridge` | `tests/fixtures/network_map/map-incomplete/network_map.xml` | `NETWORK_MAP_INVALID` — a missing required `<mac>` |
+| `cuems-power-bridge` | `tests/fixtures/network_map/map-pre007/network_map.xml` | `NETWORK_MAP_RETIRED_VOCABULARY` — an old `<node_type>` |
+
+**`cuems-convert-documents` will refuse these for you** — it did in both power-bridge cases — but do
+not rely on that: a document can be refusal-testing *and* convertible. **The check is "is this
+document still refused for the reason it was written to test?", not "is it converted?"** Read the
+test that consumes each fixture before you touch it, and say in your report which ones you left and
+why. §4.1 of the migration guide enumerates the ones this repository could see from outside; your
+repository's tests are the authority on the rest.
 
 **If a failure is not a fixture, stop and report it.** That is a finding for feature 014 itself and
 belongs back in `cuems-utils`, not worked around here. Every one of the ~96 failures 013 measured in
@@ -411,26 +441,33 @@ reaching into another's tree, which is the thing the gate split exists to stop.
 **Expected arm B figures, so a session can tell a surprise from the forecast** — measured
 2026-10-02 (power-bridge) and 2026-10-05 (editor), both against this branch:
 
-| Repository | Arm B | Dominant cause |
-|---|---|---|
-| `cuems-editor` | **5 failed / 149 passed — confirmed exactly** 2026-10-05 | 1 retired premise + 4 payload |
-| `cuems-nodeconf` | **33 failed / 141 passed**, measured 2026-10-05 | **32 of them are 013's device shape**, present identically in arm A. Only **one** was 014's |
-| `cuems-power-bridge` | 55 failed / 221 passed, 2026-10-02 | **013's device shape**, not 014 |
-| `cuems-engine` | unmeasured since 013 (`1 failed / 922 passed` then) | — |
-| `cuems-common` | unmeasured; at least one certain failure | the `.xml.example` validated raw |
+| Repository | Arm B | Attributable to 014 | Dominant cause |
+|---|---|---|---|
+| `cuems-editor` | **5 failed / 149 passed — confirmed exactly** | 5 | 1 retired premise + 4 payload |
+| `cuems-nodeconf` | **33 failed / 141 passed** | **1** | **32 are 013's device shape**, identical in arm A |
+| `cuems-power-bridge` | **55 failed / 221 passed** | **0** | **all 55 are 013's**, arms A and B diffed identical |
+| `cuems-engine` | unmeasured since 013 (`1 failed / 922 passed` then) | — | — |
+| `cuems-common` | unmeasured; at least one certain failure | — | the `.xml.example` validated raw |
 
 A session that measures a figure far from these should say so — it means something moved between
 2026-10-02 and its run, and that is worth more than the gate itself.
 
-⚠ **The pattern in the two landed rows is the thing to expect**: in both, most of arm B was **not
-014**. `cuems-nodeconf`'s 33 was 32 pre-existing 013 failures plus one boolean; the editor's 5 were
-all 014's but four were one payload shape. **Arm A is what separates them**, which is why it is
-worth the worktree — without it, `cuems-nodeconf` would have reported 33 failures against this
-feature and 32 of them would have been someone else's.
+⚠ **The pattern across the three landed rows is the thing to expect**: in two of three, most of
+arm B was **not 014** — and in `cuems-power-bridge`, *none* of it was. **Arm A is what separates
+them**, which is why it is worth the worktree: without it that repository would have reported 55
+failures against this feature and every one would have been someone else's.
 
 **Two findings came back from gates rather than from this repository's own work**, so expect your
 session to produce one too and leave room for it:
 `cuems-nodeconf` found that 013's reshape defeats F3's `settings` conversion
-(`settings-reshape-defeats-f3-conversion-defect.md` — it blocks the tag), and `cuems-editor` found
-that `conf_path`/`project_path` refuse the file a first save would create (UR-6). Neither was
-visible from inside `cuems-utils`.
+(`settings-reshape-defeats-f3-conversion-defect.md` — it blocks the tag, and
+`cuems-power-bridge` then hit it 9 times out of 9), and `cuems-editor` found that
+`conf_path`/`project_path` refuse the file a first save would create (UR-6). Neither was visible
+from inside `cuems-utils`.
+
+⚠ **013's sibling migration was never completed, and the 014 gates are paying for it.** Two gates
+have now hand-rewritten 11 `settings.xml` between them because
+`specs/013-device-class-reshape/sibling-repository-updates.md` left the siblings as *"a prediction
+for them"* and nobody closed it. **If your repository has `settings.xml` fixtures, check them for
+the pre-013 shape before you start**, and report that work separately from 014's — both landed
+gates did, which is why the attribution above is possible at all.

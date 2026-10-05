@@ -11,6 +11,14 @@ SPDX-License-Identifier: GPL-3.0-or-later
 orders on a real pre-013 document. The sibling named the dead end; the mechanism below is narrower
 than its report states and makes the fix a small one.
 
+**Confirmed a second time, by a second repository, the same day**: `cuems-power-bridge`'s gate
+(T029, `dd1256f`) found **all nine** of its `settings.xml` fixtures in exactly this state and
+reached the same conclusion independently — *"cuems-reshape-devices wraps the players first, so F3's
+`_settings_1_to_2` converter — which only matches the old flat paths — never sees
+`audio_cards`/`universes` and the post-reshape validation refuses the document."* It applied the
+same remedy as `cuems-nodeconf` and correctly declined to re-file. **Three independent arrivals at
+one mechanism**, which is the strongest evidence in this record and is why §3's bound moved.
+
 **Severity: this blocks the `xml-refactor-merge-candidate` tag.** Not because it is subtle, but
 because the affected document is every `settings.xml` last written before 2026-09-23 and not
 regenerated since — which on a deployed node is the ordinary case. §3 bounds that in both
@@ -96,6 +104,18 @@ that, but **not** as wide as a first reading suggests. Both bounds below are mea
 So: **every `settings.xml` last written before 2026-09-23 and not regenerated since.** On a deployed
 node that is the ordinary case, which is why this blocks the tag.
 
+**Measured, and it is 11 for 11.** Every pre-F3 `settings.xml` any gate has pointed a tool at has
+hit the dead end, and every one needed a hand-rewrite:
+
+| Repository | Documents in the dead-end state | Migrated by a shipped tool |
+|---|---|---|
+| `cuems-power-bridge` | **9 of 9** `tests/fixtures/network_map/map-*/settings.xml` — flat players **and** `audio_cards`+`universes` in every one (verified at `dd1256f^`) | **0** |
+| `cuems-nodeconf` | **2 of 2** `tests/fixtures/etc_cuems/{settings,settings_sentinel}.xml` | **0** |
+| `cuems-utils` | 0 — its fixtures were migrated shape-first, document by document, so none was ever in both states when a tool was pointed at it | — |
+
+**Eleven documents, zero migrated by the tools, eleven hand-rewritten across two sibling sessions.**
+When two independent gates work around a tool the same way, the tool is the thing to change.
+
 **The lower bound, because the converse does not hold** — and this box is the counterexample, so it
 is stated rather than left for someone to find:
 
@@ -120,6 +140,12 @@ document, so none was ever in both states at once when a tool was pointed at it 
 document on this box happens to sit in the eight-day window. Two migrations, each tested in
 isolation, never exercised together — which is exactly what 013's `_as_the_load_path_sees_it` was
 written to prevent for `script`, and got right there.
+
+**It took a sibling gate to find it, and that is the generalisable part.** Not because the siblings
+looked harder, but because they held the only documents that were in both states at once. A
+call-site census could not see it (012's lesson), a schema diff could not see it (013's), and this
+repository's own suite could not see it because its fixtures had already been moved one axis at a
+time. What found it was pointing a shipped tool at a document nobody had curated.
 
 ## 4. The fix, and the one to avoid
 
@@ -162,7 +188,7 @@ this record is the prompt for it. **Delete this file once that feature lands.**
 puts the new schema in front of nodes holding these documents. Everything else in 011–015 can ship
 with it; this cannot ship without it.
 
-## 6. What `cuems-nodeconf` did locally, and why it does not close this
+## 6. What the two siblings did locally, and why it does not close this
 
 It hand-rewrote its two fixtures (`61c5705`): players wrapped, `audio_cards`/`universes` dropped,
 `doc_version="2"` set, validated against the live schema; its suite went 142/174 → **174/174**. That
@@ -170,5 +196,11 @@ is the right call for a fixture and it closed that repository's 013 debt — whi
 `specs/013-device-class-reshape/sibling-repository-updates.md` had explicitly left open as *"a
 prediction for them"* and nobody closed.
 
+`cuems-power-bridge` did the same to its nine (`dd1256f`): players wrapped,
+`audio_cards`/`universes` dropped — and its suite went **55 failed / 221 passed → 276 / 0**. Its
+report states plainly that this is *"a pre-existing defect, not something I introduced or need to
+re-file"*, which is the right call and the reason this record exists to be pointed at.
+
 But a hand-rewrite is not available to an operator with a node in the field, and that is the case
-§3 is about.
+§3 is about. **Two sessions have now each hand-written what the tool should have produced**; a third
+should not have to.

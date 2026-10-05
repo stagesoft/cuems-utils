@@ -482,11 +482,23 @@ finding for this feature and should come back here.
       unavailable**: that candidate is coupled to feature 012 from `c31734c` onward
       (`coerce_identity` does not exist before it), so it cannot be tested against an older library
       to isolate a failure. Design the comparison **before** a run goes red
-- [ ] **T029** [P] **`cuems-power-bridge`** — 10 unmarked documents,
+- [X] **T029** [P] **`cuems-power-bridge`** — 10 unmarked documents,
       `tests/fixtures/network_map/map-*/settings.xml` and siblings. ⚠ **Expect it to be red before
       you start**: measured 2026-10-02 it was already **55 failed / 221 passed** against this
       branch, all of it 013's old device shape (183 `pre-013 device shape` refusals). **Reshape
       first, then convert** — that order, or neither completes. Its 276/276 green state predates 013
+      ✅ **Done in that repository**, 2026-10-05, `dd1256f`, GPG-signed. **Arms A and B identical,
+      confirmed by diffing the failing-test sets — so 014 caused *zero* failures here.** Arm C
+      **276 / 0**. Recorded in [`baseline.md`](baseline.md) §8.3.
+      ⚠ **8 of 10, not 10.** `map-incomplete` and `map-pre007` exist to test `NETWORK_MAP_INVALID`
+      and `NETWORK_MAP_RETIRED_VOCABULARY`; the tool correctly refused both and converting them
+      would defeat their purpose. **The general rule that replaces §4.1's enumeration: a fixture
+      whose purpose is to be refused keeps the form it is refused for** — third instance, after the
+      editor's `script_minimal.xml`.
+      ⚠ **It also hand-fixed nine `settings.xml`** and independently confirmed the 013/F3 dead end
+      ([`../planning/settings-reshape-defeats-f3-conversion-defect.md`](../planning/settings-reshape-defeats-f3-conversion-defect.md)):
+      **9 of 9 were pre-013 *and* pre-F3**, zero migrable by any shipped tool. Correctly declined to
+      re-file an existing defect
 - [X] **T030** [P] **`cuems-nodeconf`** — 1 unmarked document
       (`tests/fixtures/etc_cuems/settings.xml` and `settings_sentinel.xml` per 013's table). Also
       the one repository that **writes** `network_map.xml` every 30 s, so confirm its write path
@@ -538,14 +550,20 @@ finding for this feature and should come back here.
       [`../planning/upcoming-feature-requirements-2026-10-02.md`](../planning/upcoming-feature-requirements-2026-10-02.md) §8
 - [ ] **T033** Record every arm in [`baseline.md`](baseline.md), per repository, **including any
       that is still red and why**. A sibling left red with the reason named is a result; a sibling
-      not run is not — 🟡 **PARTIAL, two of five**: [`baseline.md`](baseline.md) §8 records
-      `cuems-editor` (T032) and `cuems-nodeconf` (T030), both green, with their findings. Arm counts
-      are **attributed to those repositories' own measurements, not re-derived** — `cuems-nodeconf`'s
-      suite needs `zeroconf`, which this test environment does not carry. Every claim either report
-      makes *about this repository's code* was verified here. T028, T029 and T031 have not run.
-      §8.3 also records a **defect in the gate prompt itself**, found by being used: its arm-A
+      not run is not — 🟡 **PARTIAL, three of five**: [`baseline.md`](baseline.md) §8 records
+      `cuems-editor` (T032), `cuems-nodeconf` (T030) and `cuems-power-bridge` (T029), **all three
+      green**, with their findings. Arm counts are **attributed to those repositories' own
+      measurements, not re-derived** — `cuems-nodeconf`'s suite needs `zeroconf`, which this test
+      environment does not carry. Every claim each report makes *about this repository's code* was
+      verified here. T028 and T031 have not run.
+      **§8.0 is the result three arms make visible**: **six failures attributable to 014 across
+      three repositories, against 87 pre-existing ones** — and without arm A, `cuems-power-bridge`
+      would have reported all 55 of its own against this feature.
+      §8.4 also records a **defect in the gate prompt itself**, found by being used: its arm-A
       instruction had each session switch the shared `../cuems-utils` checkout, which races as soon
-      as two `[P]` gates run at once. Now a per-session `git worktree`, verified
+      as two `[P]` gates run at once. Now a per-session `git worktree` — **confirmed working
+      mid-flight by T029**, which took arm A from a disposable worktree and reported it as the right
+      practice for parallel sessions
 - [ ] **T034** Record the frontend hand-off: `cuems-frontend`'s 001 began its SDD path 2026-10-03,
       and its `sequence.component.ts:997` is **mutually** hard-coupled to this feature (plan.md
       §6.2 item 2). 014 can be implemented and tested without it; it cannot **ship** without it.
