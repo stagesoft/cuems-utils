@@ -178,12 +178,12 @@ class CTimecodeXmlBuilder(GenericSimpleSubObjectXmlBuilder):
 #: frontend sent, and the parsers assign keys in arrival order (869fat84r).
 MEDIA_ELEMENT_ORDER = (
     'file_name', 'id', 'duration', 'regions',
-    'pixel_width', 'pixel_height', 'file_size',
+    'pixel_width', 'pixel_height', 'file_size', 'file_md5',
 )
 
 #: Optional MediaType elements: a ``None`` value writes no element at all
 #: (an empty ``<pixel_width/>`` would fail ``xs:positiveInteger``).
-MEDIA_OPTIONAL_ELEMENTS = frozenset({'pixel_width', 'pixel_height', 'file_size'})
+MEDIA_OPTIONAL_ELEMENTS = frozenset({'pixel_width', 'pixel_height', 'file_size', 'file_md5'})
 
 
 def _media_items_in_schema_order(media):

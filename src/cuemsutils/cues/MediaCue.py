@@ -244,7 +244,8 @@ class Media(CuemsDict):
     #
     # ``pixel_width`` / ``pixel_height`` are the original size of the file's
     # first video stream, as ffprobe reports it, and ``file_size`` is the
-    # file's size in bytes when they were measured. The editor stores them at
+    # file's size in bytes when they were measured. ``file_md5`` (below)
+    # identifies the file itself. The editor stores them at
     # upload so the engine does not have to probe the file when it arms a
     # cue; ``file_size`` lets the engine notice a file replaced under the
     # same name. All three are optional: absent means unknown.
@@ -303,6 +304,28 @@ class Media(CuemsDict):
         self._set_positive_int('file_size', file_size)
 
     file_size = property(get_file_size, set_file_size)
+
+    def get_file_md5(self):
+        """The file's MD5 (32 lowercase hex digits), or ``None``. Every media
+        type; it comes from the upload, which already carries it (D18)."""
+        return self._get_optional('file_md5')
+
+    def set_file_md5(self, file_md5):
+        """Set the file's MD5 (any case, stored lowercase); ``None`` removes it.
+
+        Raises:
+            ValueError: for anything that is not 32 hex digits.
+        """
+        if file_md5 is None:
+            self.pop('file_md5', None)
+            return
+        if not isinstance(file_md5, str) or len(file_md5) != 32 or any(
+            c not in '0123456789abcdef' for c in file_md5.lower()
+        ):
+            raise ValueError(f"Media file_md5 must be 32 hex digits, not {file_md5!r}")
+        super().__setitem__('file_md5', file_md5.lower())
+
+    file_md5 = property(get_file_md5, set_file_md5)
 
 class MediaCue(Cue):
     """Base class for media-related cues (audio and video).
