@@ -1,18 +1,36 @@
-"""FR-010 (T032) — booleans on the wire are the **strings** ``"True"``/``"False"``.
+"""Feature 014 — booleans on the wire are **real JSON booleans** (X1).
 
-``cms:BoolType`` is an ``xs:string`` restricted to those two literals, not an
-``xs:boolean``. So the payload carries the capitalised Python spelling as text,
-the Angular UI reads ``cueData.enabled === true || cueData.enabled === 'True'``,
-and **writes back the string form**.
+**This file's premise was retired deliberately.** It used to assert the
+opposite, and its own docstring said why:
 
-Decoding them to JSON booleans is the single most natural "improvement"
-available in this code and would break every consumer of the payload at once.
-It is deferred item X1 and a file-format migration; it is explicitly forbidden
-here.
+    ``cms:BoolType`` is an ``xs:string`` restricted to those two literals, not
+    an ``xs:boolean``. So the payload carries the capitalised Python spelling
+    as text […] Decoding them to JSON booleans is the single most natural
+    "improvement" available in this code and would break every consumer of the
+    payload at once. It is deferred item X1 and a file-format migration; it is
+    explicitly forbidden here.
 
-Both halves are asserted — ``is "True"`` **and** ``is not True`` — because
-``True == 1`` and ``"True" != True`` are different questions, and a test that
-only checked truthiness would pass on either encoding.
+Every sentence of that was true when written. **Feature 014 is X1**: the type
+is retyped, the migration is done, and the consumers moved with it as one
+coordinated step — which is exactly the condition the deferral named, not an
+exception to it.
+
+So the file is kept and inverted rather than deleted. Deleting it would lose
+the only place that states the wire's boolean form *is* a contract and not an
+accident; a reader meeting ``"enabled": true`` later should find an assertion
+saying it must be a ``bool``, with the history of why it once had to be a
+string.
+
+**What survives unchanged**, and it is the more important half:
+:func:`test_the_object_still_holds_real_python_booleans`. The object model held
+real ``bool``s before X1 and holds them after — the wire was the only thing
+that differed — so that assertion never moved. It is the reason
+``if cue.enabled:`` in ``cuems-engine`` was always safe.
+
+Both halves of every assertion are kept (``is True`` **and**
+``not isinstance(..., str)``) because ``"False"`` is truthy: a test checking
+only truthiness would pass on either encoding, which is how a half-applied
+change hides.
 """
 
 from __future__ import annotations
@@ -54,18 +72,25 @@ def test_every_boolean_field_is_the_string_form(doc):
     found = _boolean_values(CuemsScript.load(doc.path).to_wire())
     assert found, f"{doc.relpath} carries no boolean fields to check"
     for path, value in found:
-        assert not isinstance(value, bool), f"{path} is a JSON boolean"
-        assert isinstance(value, str), f"{path} is {type(value).__name__}"
-        assert value in ("True", "False"), f"{path} == {value!r}"
+        assert isinstance(value, bool), (
+            f"{path} is {type(value).__name__}, not a bool — X1 retyped "
+            f"cms:BoolType to xs:boolean, so the wire carries JSON booleans"
+        )
+        assert not isinstance(value, str), f"{path} is still a string: {value!r}"
 
 
 @pytest.mark.parametrize("doc", SCRIPT_DOCS, ids=IDS)
-def test_the_json_text_carries_no_bare_json_booleans_for_those_fields(doc):
-    """The same claim at the bytes, where a consumer actually meets it."""
+def test_the_json_text_carries_no_quoted_booleans_for_those_fields(doc):
+    """The same claim at the bytes, where a consumer actually meets it.
+
+    Inverted with the rest: the old spelling is what must now be absent. This
+    is the assertion ``cuems-frontend``'s ``sequence.component.ts:997`` is
+    coupled to — it writes ``'True'``, which the library now refuses.
+    """
     text = CuemsScript.load(doc.path).to_json()
     for field in BOOLEAN_FIELDS:
-        assert f'"{field}": true' not in text
-        assert f'"{field}": false' not in text
+        assert f'"{field}": "True"' not in text, field
+        assert f'"{field}": "False"' not in text, field
 
 
 @pytest.mark.parametrize("doc", SCRIPT_DOCS, ids=IDS)

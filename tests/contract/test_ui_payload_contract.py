@@ -41,13 +41,17 @@ def _walk(node, path="", out=None):
 
 
 @pytest.mark.parametrize("doc", SCRIPT_DOCS, ids=IDS)
-def test_booleans_are_the_strings_true_and_false(doc):
-    """``cms:BoolType`` is an ``xs:string`` enum (X1), not ``xs:boolean``.
+def test_booleans_are_real_json_booleans(doc):
+    """``xs:boolean`` as of feature 014, not a ``cms:BoolType`` string enum.
 
-    So the payload carries ``"True"`` / ``"False"`` — capitalised Python
-    spelling, as strings. Decoding them to real JSON booleans would be the
-    single most natural "improvement" to make here and would break every
-    consumer of the payload at once.
+    **Retired premise (feature 014, X1).** This asserted the capitalised strings,
+    and called decoding them to real JSON booleans "the single most natural
+    improvement […] would break every consumer of the payload at once". Feature
+    014 **is** that change, made as the one coordinated ecosystem step the
+    warning asked for rather than as a tidy-up — see
+    ``tests/contract/test_wire_booleans.py``'s docstring for the full history.
+    Inverted rather than deleted: the wire's boolean form is a contract, and a
+    reader meeting ``true`` later should find an assertion that says so.
     """
     found = [
         (path, value)
@@ -56,8 +60,8 @@ def test_booleans_are_the_strings_true_and_false(doc):
     ]
     assert found, f"{doc.relpath} carries no boolean fields to check"
     for path, value in found:
-        assert isinstance(value, str), f"{path} decoded to {type(value).__name__}"
-        assert value in ("True", "False"), f"{path} == {value!r}"
+        assert isinstance(value, bool), f"{path} decoded to {type(value).__name__}"
+        assert not isinstance(value, str), f"{path} is still a string: {value!r}"
 
 
 @pytest.mark.parametrize("doc", SCRIPT_DOCS, ids=IDS)
@@ -174,15 +178,25 @@ def test_the_projection_and_the_decoder_agree_on_that_shape():
     assert [sorted(i) for i in decoded] == [sorted(i) for i in projected]
 
 
-def test_no_script_document_decodes_a_python_bool():
+def test_only_the_declared_boolean_fields_decode_as_a_python_bool():
     """The negative form of the boolean rule, across the whole corpus.
 
-    Stated separately because the per-field check only inspects the three known
-    boolean fields; this one would catch a *new* field decoding as ``bool``.
+    **Narrowed, not retired** (014, X1). It used to assert that *nothing*
+    decoded as a ``bool``, because ``cms:BoolType`` was a string enum. The
+    three declared booleans now legitimately do — so the test keeps the value
+    it actually had, which was catching a **new** field decoding as ``bool``
+    without anyone deciding it should, and only the exemption set is new.
+
+    A fourth boolean element arriving in a schema is a wire-contract change for
+    ``cuems-frontend``; this is what makes it arrive loudly.
     """
     offenders = []
     for doc in SCRIPT_DOCS:
-        for path, _key, value in _walk(rt.read_dict(doc)):
-            if isinstance(value, bool):
+        for path, key, value in _walk(rt.read_dict(doc)):
+            if isinstance(value, bool) and key not in BOOLEAN_FIELDS:
                 offenders.append(f"{doc.relpath}{path}")
-    assert not offenders, f"JSON booleans in the UI payload: {offenders}"
+    assert not offenders, (
+        f"undeclared JSON booleans in the UI payload: {offenders}. "
+        f"Only {sorted(BOOLEAN_FIELDS)} are xs:boolean; a new one is a wire "
+        "change and needs a decision, not a passing test."
+    )

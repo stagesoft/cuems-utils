@@ -323,17 +323,21 @@ def test_json_readwrite(caplog):
     # The library used to echo them back unchanged, because ``__json__`` dumped
     # the object's own Python values — which is exactly the inconsistency F21
     # names: the *other* payload the same editor receives, ``project_load``,
-    # has always carried ``"False"`` as a **string**, because ``cms:BoolType``
-    # is an ``xs:string`` enum in the schema.
+    # carried ``"False"`` as a **string**, because ``cms:BoolType`` was an
+    # ``xs:string`` enum in the schema. Feature 006 unified the two on one
+    # projection, which meant answering in the schema's form on both.
     #
-    # Both payloads now come from one projection, so the library answers in the
-    # schema's form on both. No frontend change is required — the Angular UI's
-    # ``=== true || === 'True'`` dual-check already absorbs it — and removing
-    # that dual-check is the frontend team's to schedule.
+    # **Feature 014 (X1) removed the cause rather than the symptom.** The three
+    # booleans are the built-in ``xs:boolean`` now, so the schema's form *is*
+    # the JSON form, and difference (a) below — this comment's whole reason for
+    # existing — is closed. The retirement is recorded rather than deleted:
+    # (a) is now the assertion that the payload matches, with the old
+    # expectation stated so a reader meeting a pre-014 editor payload knows
+    # which side changed.
     #
-    # So the round trip is asserted where it is meaningful — **stability**,
-    # which is the property a consumer actually depends on — and the three
-    # enumerated differences are named rather than tolerated in silence.
+    # The round trip is still asserted where it is meaningful — **stability**,
+    # which is the property a consumer actually depends on — and the remaining
+    # differences are named rather than tolerated in silence.
 
     # 1. Stability: the projection is a fixed point. Feed its own output back
     #    in and nothing moves. An unstable payload is the real hazard here,
@@ -363,10 +367,15 @@ def test_json_readwrite(caplog):
     assert audio_after['prewait'] == {'CTimecode': '00:00:05.000'}
 
     # 3. The enumerated differences, each stated once.
-    #    a. ``cms:BoolType`` is an ``xs:string`` enum, so booleans render as
-    #       the capitalised strings ``project_load`` has always carried.
+    #    a. **Closed by feature 014 (X1).** This read
+    #       ``after[...]['autoload'] == 'False'``: the editor sent a JSON
+    #       boolean and got back the capitalised string ``cms:BoolType``
+    #       spelled. With ``xs:boolean`` the value survives as itself, so what
+    #       was a difference is now the round trip holding. ``is False`` on both
+    #       sides, because ``"False"`` is truthy and ``== False`` would pass for
+    #       ``0`` too.
     assert before['CueList']['autoload'] is False
-    assert after['CueList']['autoload'] == 'False'
+    assert after['CueList']['autoload'] is False
     #    b. Wildcard ``ui_properties`` content has no declared type, so its
     #       scalars render as strings (X10's documented fallback).
     assert before['ui_properties']['warning'] == 0

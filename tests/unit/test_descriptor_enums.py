@@ -1,10 +1,14 @@
 """Enumeration facets, read per schema and never by bare QName (T054, FR-029, research R4).
 
-``BoolType`` is declared independently in ``script.xsd``, ``settings.xsd`` and
-``network_map.xsd`` — one namespace, no imports, three separate definitions.
-Reading a facet by a bare type name would silently resolve to whichever
-schema happened to load first; every assertion here goes through a specific
-``(schema, type)`` pair to prove that never happens.
+``BoolType`` *used to be* declared independently in ``script.xsd``,
+``settings.xsd`` and ``network_map.xsd`` — one namespace, no imports, three
+separate definitions — and reading a facet by a bare type name would silently
+resolve to whichever schema happened to load first. **Feature 014 deleted all
+three** in favour of the built-in ``xs:boolean``, so that particular hazard is
+gone; several other types are still duplicated the same way
+(``CanvasRegionType``, ``DateType``, ``NonEmptyString``, …), so the rule
+stands: every assertion here goes through a specific ``(schema, type)`` pair,
+never a bare QName.
 """
 
 from __future__ import annotations
@@ -42,21 +46,40 @@ def test_every_declared_enum_field_matches_its_own_schemas_facets():
     assert checked > 0
 
 
-def test_bool_type_resolves_independently_per_schema():
-    """The same QName, three schemas, each read from its own schema object."""
-    script_values = get_schema("script").types["BoolType"].enumeration
-    settings_values = get_schema("settings").types["BoolType"].enumeration
-    network_map_values = get_schema("network_map").types["BoolType"].enumeration
+def test_bool_type_is_gone_from_every_schema():
+    """Retired premise (014, X1), inverted rather than deleted.
 
-    assert set(script_values) == {"True", "False"}
-    assert set(settings_values) == {"True", "False"}
-    assert set(network_map_values) == {"True", "False"}
+    This asserted that ``BoolType`` *resolves independently per schema* — the
+    same QName declared three times, each read from its own schema object. That
+    was the anti-drift property F2 cared about, and X1 dissolved it: the three
+    declarations are **deleted** and the elements carry the built-in
+    ``xs:boolean``, so there is no name to diverge.
 
+    Kept as the assertion that the deletion is total. A declaration creeping
+    back into one schema and not the others is the X14-class defect the
+    original test guarded against, and this is what now catches it.
+    """
+    for schema_name in ("script", "settings", "network_map"):
+        assert "BoolType" not in get_schema(schema_name).types, schema_name
+
+
+def test_a_boolean_field_is_no_longer_reported_as_an_enumeration():
+    """The finding that decided X1, asserted at the descriptor.
+
+    ``autoload`` and ``adopted`` came back with
+    ``enum_values=('True', 'False')`` — structurally identical to ``post_go``'s
+    three values — so a descriptor-driven form rendered a two-option dropdown
+    where a checkbox belongs, and feature 010's T031a would have verified that
+    as correct.
+    """
     descriptor = SchemaDescriptor()
-    script_field = _field(descriptor, "script", "CueType", "autoload")
-    network_map_field = _field(descriptor, "network_map", "NodeType", "adopted")
-    assert set(script_field.enum_values) == {"True", "False"}
-    assert set(network_map_field.enum_values) == {"True", "False"}
+    for schema_name, type_name, field_name in (
+        ("script", "CueType", "autoload"),
+        ("network_map", "NodeType", "adopted"),
+    ):
+        field = _field(descriptor, schema_name, type_name, field_name)
+        assert field.enum_values is None, (schema_name, field_name, field.enum_values)
+        assert "bool" in field.xsd_type.lower(), field.xsd_type
 
 
 def test_union_enumeration_is_read_from_its_member_type():

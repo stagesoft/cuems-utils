@@ -160,12 +160,23 @@ class XmlReaderWriter(CuemsXml):
         """Write a project object to an XML file"""
         self._write_object(project_object)
 
-    @deprecated_symbol(
-        "cuemsutils.cues.CuemsScript.CuemsScript.validate",
-        note="a configuration document is validated by validate_config_document",
-    )
     def validate_object(self, project_object):
-        """Validate a project object against the schema"""
+        """Validate a project object against the schema.
+
+        **Deliberately NOT decorated here**, unlike its three neighbours above,
+        and the first attempt at feature 014 got this wrong: a blanket
+        ``deprecated_symbol`` pointing at ``CuemsScript.validate`` **regressed
+        feature 013's FR-036**, which made this method's advice *per schema*
+        because ``CuemsScript.validate`` builds a **show** document and so
+        cannot validate a ``settings.xml`` at all. A consumer following that
+        advice is sent somewhere that cannot work, with no reason to doubt it —
+        013's UR-5 finding, and worse than no advice.
+
+        The replacement depends on the **instance**, so it is decided at the
+        call by ``_deprecation._per_instance_deprecated`` and wired in
+        ``cuemsutils.xml.__init__``'s ``per_instance``. Decorating the method
+        here would shadow that with a single wrong string.
+        """
         return self.schema_object.validate(self.build_xml_from_object(project_object))
 
     @deprecated_symbol(

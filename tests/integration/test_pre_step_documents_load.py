@@ -23,6 +23,7 @@ import pytest
 from cuemsutils.errors import SchemaError, ValidationError
 from cuemsutils.tools.ConfigBase import load_config_document
 from cuemsutils.xml.settings import NetworkMap, ProjectMappings, Settings
+from tests.contract.test_version_steps import NO_LONGER_AN_IDENTITY_STEP
 from tests.support.cluster_fixture import (
     SHAPES,
     NodeSpec,
@@ -62,15 +63,30 @@ def test_a_converged_pre_step_document_loads(tmp_path, schema_name):
 
 @pytest.mark.parametrize("schema_name", sorted(CASES))
 def test_the_marker_is_recognised_rather_than_reported_unknown(tmp_path, schema_name):
-    """Not "unknown version" and not "malformed". The registry represents this
-    step by the absence of an entry, and the walk records it as an identity
-    step — which is a positive statement, not a shrug."""
+    """Not "unknown version" and not "malformed". The walk says what it did.
+
+    **Premise narrowed by 014 (X1), not loosened.** This asserted that every
+    one of the three steps describes itself as an *identity* step — the
+    registry representing it by the absence of an entry. ``network_map`` 1 -> 2
+    now carries the boolean rewrite, so it has a registered ``Conversion`` and
+    a description of its own; see
+    :data:`tests.contract.test_version_steps.NO_LONGER_AN_IDENTITY_STEP`, which
+    is where that exception is named.
+
+    What the test is actually for survives both cases: the marker produces a
+    *described* step rather than an unknown version or a parse failure. The
+    identity wording still binds for the two schemas it still applies to.
+    """
     reader, version = CASES[schema_name]
     path = _write(tmp_path, schema_name, SHAPES["uuid4"], version)
     document = load_config_document(reader, str(path), schema_name)
     assert len(document.document_conversions) >= 1
     for step in document.document_conversions:
-        assert "identity" in step.description
+        assert step.description, (schema_name, step)
+        if schema_name in NO_LONGER_AN_IDENTITY_STEP:
+            assert "xs:boolean" in step.description, step.description
+        else:
+            assert "identity" in step.description
 
 
 @pytest.mark.parametrize("schema_name", sorted(CASES))

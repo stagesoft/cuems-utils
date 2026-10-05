@@ -79,7 +79,12 @@ GENERIC_ELEMENT_NAMES = frozenset({
 #: stay duplicated, but they may not *drift*.
 KNOWN_IDENTICAL_DUPLICATES = {
     "CanvasRegionType": ("project_mappings", "script"),
-    "BoolType": ("network_map", "script", "settings"),
+    # ``BoolType`` left this set in feature 014: X1 deleted all three
+    # declarations in favour of the built-in ``xs:boolean``, so there is no
+    # duplicated name left to keep in step. This is the **stronger** outcome
+    # the F2 ratchet exists to reach — a duplicate resolved by deletion rather
+    # than by being watched — and it is the second entry to leave by that
+    # route, after 012 removed ``UuidType``.
     "DateType": ("script", "settings"),
     "NonEmptyString": (
         "hardware_outputs", "network_map", "project_mappings", "project_settings",

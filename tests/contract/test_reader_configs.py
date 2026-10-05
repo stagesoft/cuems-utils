@@ -92,19 +92,27 @@ def test_only_configuration_a_carries_the_namespaced_schema_location(doc):
 def _as_configuration_a_shape(value):
     """Configuration B's value, as Configuration A would have decoded it.
 
-    Identity everywhere except ``network_map`` (feature 007, research R1):
-    Configuration A never runs the adapter table, so its ``bool``-typed
-    fields stay the capitalised strings ``cms:BoolType`` spells and its
-    ``NodeRoleType``/``UuidType`` fields stay bare text. Configuration B now
-    decodes those for ``network_map`` alone. Without this normalisation, "the
-    difference is confined to namespace handling" would be false for exactly
-    the schema this feature types — not because the two configurations
-    disagree on *content*, but because one of them is typed and the golden
-    JSON representation makes that visible as a value, not just a Python
-    type.
+    **Now an identity, and kept as one deliberately (feature 014, X1).**
+
+    This used to bridge one real divergence on ``network_map`` (feature 007,
+    research R1). Configuration A never runs the adapter table, so its
+    ``cms:BoolType`` fields arrived as the capitalised strings that type
+    spelled, while Configuration B's adapter decoded them to Python ``bool``
+    — and the bridge was ``str(value)``, in that direction, because A's
+    spelling was the one on the wire.
+
+    X1 retyped those fields to the built-in ``xs:boolean``, which ``xmlschema``
+    decodes to a real ``bool`` **without** any adapter. Both configurations now
+    produce the same Python value, so there is nothing left to bridge: the
+    ``str(value)`` branch would now *introduce* the divergence it was written
+    to absorb.
+
+    It stays as a named identity rather than being deleted, because the
+    normalisation is the thing the test below is claiming it does not need.
+    A future typed-versus-untyped divergence on this schema belongs here, and
+    the reasoning above is what tells the next reader which direction to
+    bridge in.
     """
-    if isinstance(value, bool):
-        return str(value)
     if isinstance(value, dict):
         return {k: _as_configuration_a_shape(v) for k, v in value.items()}
     if isinstance(value, list):

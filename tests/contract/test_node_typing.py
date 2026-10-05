@@ -64,7 +64,9 @@ def test_every_typed_field_resolves_to_a_non_passthrough_adapter():
     # binding the new name is what kept feature 007's "uuid decodes to Uuid"
     # from being retired without a word.
     typed_fields = {"uuid": "NodeUuidType", "node_role": "NodeRoleType",
-                    "adopted": "BoolType", "online": "BoolType"}
+                    # 014/X1: the built-in, reported unqualified by the
+                    # descriptor. ``BoolType`` no longer exists in any schema.
+                    "adopted": "boolean", "online": "boolean"}
     spec = derive_named("network_map", "NodeType")
     for name, xsd_type in typed_fields.items():
         field = spec.field(name)

@@ -266,8 +266,9 @@ def test_the_unenumerated_divergence_is_exactly_as_measured(three_ways):
     """**A recorded scope question, not a pass.**
 
     Pre-005 (`79632c3`) this harness measured **44** type differences in four
-    groups. BC1, BC2 and T037 closed 30 of them. The remaining **14** are in
-    three groups that FR-019 does not enumerate and no task closes:
+    groups. BC1, BC2 and T037 closed 30 of them, and **014's X1 closed three
+    more** (see ``opaque_dmx`` below). The remaining **11** are in three groups
+    that FR-019 does not enumerate and no task closes:
 
     ``wildcard_none`` (6)
         ``ui_properties`` wildcard content round-trips ``None`` and ``int`` as
@@ -276,10 +277,20 @@ def test_the_unenumerated_divergence_is_exactly_as_measured(three_ways):
         — because fixing it rewrites editor state for every cue in every
         project.
 
-    ``opaque_dmx`` (4)
+    ``opaque_dmx`` (**1**, was 4 until feature 014)
         ``Mapper.OPAQUE_TYPES`` decodes a ``DmxCue`` with ``model(body)`` and
-        never recurses, so its ``autoload``, ``enabled``, ``timecode`` and scene
-        ``id`` stay the strings ``xmlschema`` produced.
+        never recurses, so whatever ``xmlschema`` produced is what the object
+        holds. That used to be four differences — ``autoload``, ``enabled``,
+        ``timecode`` and the scene ``id``, all strings.
+
+        **Three of them closed without touching ``OPAQUE_TYPES``.** X1 retyped
+        the three booleans from ``cms:BoolType`` (an ``xs:string`` enum) to the
+        built-in ``xs:boolean``, and ``xmlschema`` decodes that to a Python
+        ``bool`` itself — so the value arrives typed before the recursion that
+        never happens would have mattered. The group was never really about
+        opacity for those three; it was about the declared type. What remains is
+        ``DmxScene/id``, ``int`` on the built side and ``str`` on the decoded
+        one, which *is* the opacity and still needs the recursion.
 
     ``built_uncoerced`` (4)
         the **built** side is the less typed one: ``output_geometry/x_scale``
@@ -315,6 +326,6 @@ def test_the_unenumerated_divergence_is_exactly_as_measured(three_ways):
     assert counts.get("ui_properties", 0) == 0, "BC1 regressed"
     assert counts.get("regions", 0) == 0, "BC2 regressed"
     assert counts.get("wildcard_none") == 6, counts
-    assert counts.get("opaque_dmx") == 4, counts
+    assert counts.get("opaque_dmx") == 1, counts
     assert counts.get("built_uncoerced") == 4, counts
-    assert sum(counts.values()) == 14, counts
+    assert sum(counts.values()) == 11, counts

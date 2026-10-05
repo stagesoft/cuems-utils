@@ -78,10 +78,29 @@ class TestIntendedTypingPreserved:
     the original suite (research R1, R2)."""
 
     @pytest.mark.parametrize("field", ["adopted", "online"])
-    @pytest.mark.parametrize("text,expected", [("True", True), ("False", False)])
+    @pytest.mark.parametrize(
+        "text,expected",
+        # Feature 014 retyped these to ``xs:boolean``, so the lexical forms are
+        # its four, not ``cms:BoolType``'s two. ``"True"`` is now **refused** —
+        # which is the point: the coercion this class exists to pin still
+        # happens, through a different (and standard) vocabulary.
+        [("true", True), ("false", False), ("1", True), ("0", False)],
+    )
     def test_bools_still_coerced(self, field, text, expected):
         decoded = _decode_node(**{field: text})
         assert decoded[field] is expected
+
+    @pytest.mark.parametrize("field", ["adopted", "online"])
+    def test_the_retired_capitalised_spelling_is_refused(self, field):
+        """Added with 014: the old form is an error, not a silent ``False``.
+
+        ``cms:BoolType``'s two literals were the *only* accepted spellings
+        before; ``"True"`` is now outside ``xs:boolean``'s lexical space. The
+        refusal is what makes a half-migrated consumer visible instead of
+        quietly unadopting a node.
+        """
+        with pytest.raises(Exception, match="boolean"):
+            _decode_node(**{field: "True"})
 
     def test_uuid_still_coerced(self):
         raw = "3f2504e0-4f89-41d3-9a0c-0305e82c3301"
@@ -105,8 +124,8 @@ class TestFullNodeRoundTrip:
             "name": "none",
             "node_role": "node",
             "ip": "10.0.0.7",
-            "adopted": "True",
-            "online": "True",
+            "adopted": "true",
+            "online": "true",
             "role_id": "n",
             "alias": "off",
             "hostname": "007",

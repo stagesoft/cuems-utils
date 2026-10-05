@@ -6,7 +6,7 @@ feature they disagreed (F21):
 ============================  =====================  ====================
 field                         ``initial_template``   ``project_load``
 ============================  =====================  ====================
-``enabled``/``autoload``      ``true`` (bool)        ``"True"`` (str)
+``enabled``/``autoload``      ``true`` (bool)        ``true`` (bool, since 014)
 ``ui_properties.warning``     ``0`` (int)            ``"0"`` (str)
 ``schemaLocation``            absent                 **present**
 ============================  =====================  ====================
@@ -23,6 +23,9 @@ behaviour change 1.
 
 No frontend change is required: the Angular UI's
 ``=== true || === 'True'`` dual-check already absorbs the boolean case.
+*(Feature 014 made the wire a real boolean, so the dual check's second
+half is now dead code on the frontend side — recorded in that
+repository's ``06-amendment-feature-014.md`` §3.)*
 Removing that dual-check is the frontend team's to schedule, and is why they
 are told (``frontend-note.md``).
 """
@@ -99,8 +102,10 @@ def test_the_template_payload_carries_the_project_load_forms(doc):
     booleans = _collect(template, ("autoload", "enabled", "timecode"))
     assert booleans, f"{doc.relpath} carries no boolean fields to check"
     for path, value in booleans:
-        assert value in ("True", "False"), f"{path} == {value!r}"
-        assert not isinstance(value, bool), f"{path} is a JSON boolean"
+        # Retired premise (014, X1): this asserted the capitalised strings and
+        # that the value was *not* a bool. Both halves invert together.
+        assert isinstance(value, bool), f"{path} is {type(value).__name__}"
+        assert not isinstance(value, str), f"{path} is still a string: {value!r}"
 
 
 def _collect(node, keys, path="$", out=None):

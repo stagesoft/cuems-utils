@@ -31,10 +31,12 @@ RETAINED = {
         "linear", "exponential", "logarithmic", "sigmoid", "ease_in", "ease_out",
     },
     ("script", "PostGoType"): {"pause", "go", "go_at_end"},
-    ("script", "BoolType"): {"True", "False"},
-    ("settings", "BoolType"): {"True", "False"},
+    # The three ``BoolType`` rows left this table in feature 014. X1 retyped
+    # the five elements to the built-in ``xs:boolean`` and deleted every
+    # declaration, so there is no enumeration to audit: a boolean stopped being
+    # a two-value string enum, which is the finding that decided the retype —
+    # the descriptor could not tell it from ``PostGoType`` above.
     ("settings", "AutoOrIntLatencyMsType"): {"auto"},
-    ("network_map", "BoolType"): {"True", "False"},
     ("network_map", "NodeRoleType"): {"controller", "node", "firstrun"},
     # feature 012, uuid4 convergence. ``NotProvisionedUuidType`` is an
     # enumeration of exactly **one** value on purpose (FR-021, assumption 1):

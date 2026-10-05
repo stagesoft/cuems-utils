@@ -22,13 +22,24 @@ def _wire(obj):
     return MAPPER.encode_wire(obj)
 
 
-def test_booltype_encodes_as_capitalized_strings():
+def test_booleans_encode_as_real_json_booleans():
+    """Renamed from ``test_booltype_encodes_as_capitalized_strings`` (014, X1).
+
+    The old name *was* the premise: ``cms:BoolType`` was an ``xs:string`` enum,
+    so the wire carried the capitalised Python spelling. X1 retyped it to
+    ``xs:boolean`` and ``_Bool.to_wire`` is gone, so ``_Passthrough``'s is
+    inherited and the value passes through as the ``bool`` the object holds.
+
+    ``is True`` / ``is False`` rather than ``==``: ``"True" == True`` is
+    ``False`` but ``bool("False")`` is ``True``, so an equality check against a
+    truthy string could pass on the old encoding.
+    """
     cue = Cue({"name": "probe", "autoload": True, "enabled": False})
     wire = _wire(cue)
-    assert wire["autoload"] == "True"
-    assert wire["enabled"] == "False"
-    assert isinstance(wire["autoload"], str)
-    assert isinstance(wire["enabled"], str)
+    assert wire["autoload"] is True
+    assert wire["enabled"] is False
+    assert not isinstance(wire["autoload"], str)
+    assert not isinstance(wire["enabled"], str)
 
 
 def test_percenttype_and_looptype_encode_as_int():

@@ -41,16 +41,16 @@ def test_a_mixed_adoption_state_survives_unchanged(tmp_path):
     cluster = build_cluster(tmp_path, shapes=["uuid1", "uuid5"])
     rows = [
         NodeSpec(cluster.nodes[0].uuid, mac_for(0), "controller", "n0", "10.0.0.1",
-                 adopted="True", online="True"),
+                 adopted="true", online="true"),
         NodeSpec(cluster.nodes[1].uuid, mac_for(1), "node", "n1", "10.0.0.2",
-                 adopted="False", online="False"),
+                 adopted="false", online="false"),
     ]
     (cluster.conf / "network_map.xml").write_text(network_map_xml(rows), encoding="utf-8")
     state = state_dir(tmp_path)
 
     before = remint.adoption_state(cluster.conf / "network_map.xml")
-    assert before[mac_for(0)] == ("True", "True")
-    assert before[mac_for(1)] == ("False", "False")
+    assert before[mac_for(0)] == ("true", "true")
+    assert before[mac_for(1)] == ("false", "false")
 
     code, out = run_remint(cluster, state)
 

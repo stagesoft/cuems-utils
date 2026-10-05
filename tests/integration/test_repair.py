@@ -81,7 +81,18 @@ def test_every_fade_profiles_drop_is_reported_zero_silent():
 
     dropped = [d for record in report.conversions for d in record.dropped_elements]
     assert dropped, "the fade_profiles block must be reported dropped"
-    assert len(dropped) == 1  # exactly one AudioCue carries fade_profiles in this fixture
+
+    # 014 (X1) added the boolean rewrite to this same 1 -> 2 step, so the step
+    # now reports more than the drop. The premise narrows rather than loosens:
+    # the count is still exact, it is just taken over the fade_profiles records
+    # alone. "Zero silent" is what this test is for, and an unfiltered length
+    # check would start passing for the wrong reason the next time the step
+    # grows.
+    fade_drops = [d for d in dropped if "fade_profiles" in d]
+    assert len(fade_drops) == 1, dropped  # exactly one AudioCue carries it here
+    assert all(
+        "fade_profiles" in d or "xs:boolean" in d for d in dropped
+    ), f"an unaccounted-for conversion record: {dropped}"
 
 
 # --- T116: a repaired-then-saved document does not re-report on reload ----

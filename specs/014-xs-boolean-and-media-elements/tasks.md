@@ -108,9 +108,18 @@ before the schema demands it, or the suite cannot be green at any intermediate c
       conversion, **no new version** (decision 3). It must be **order-independent with respect to
       the media elements** — it rewrites the text of five named elements and must not care whether
       `pixel_width` is present (plan.md §4) — depends on T012 ✅ Both steps. ⚠ **`network_map` had no 1 → 2 conversion to join** — feature 012 made it a *deliberate identity step*, so this feature had to **write** one and remove `("network_map", 1)` from `DELIBERATE_IDENTITY_STEPS`. 012's reasoning is untouched (the identity half is still cross-document and still repaired by `--remint`); what changed is that the step now also carries a per-document transformation, so its absence from the registry stopped being true. The bidirectional contract test said so itself: *"Remove the entries."*
-- [ ] **T014** [P] Red-first: a version-1 document with old-form booleans **and** the four media
+- [X] **T014** [P] Red-first: a version-1 document with old-form booleans **and** the four media
       elements converts correctly in one pass, in both orders of appearance. This is T013's
-      order-independence, asserted
+      order-independence, asserted ✅ `tests/unit/test_boolean_conversion.py`, **14 passed**. Both
+      steps, both orders (`media-first` / `media-last` parametrisation), and three properties the
+      rest of the feature leans on without saying so: **idempotence** — which is *why* the migrated
+      top-tier corpus can stay unmarked at version 1, since the conversion runs over
+      already-converted documents on every read and `_BOOLEAN_LITERALS` is keyed on the **old**
+      spellings; a non-literal value **left alone rather than guessed at**, so the strict decode
+      refuses it by name; and the step **reporting** what it rewrote. It also closes T015a's
+      thin-coverage note explicitly: an assertion that `pre-008/script_v1_all_transforms.xml` still
+      carries an old-form boolean, so a future edit to that fixture cannot silently remove the
+      rewrite's only in-corpus evidence
 - [X] **T015** Move **every** golden and out-of-band document the boolean form touches. ⚠ The first
       cut of this task said "six goldens"; **the measured count is fourteen goldens plus the nine
       out-of-band documents**, and the gap was eight **JSON** goldens — which are the *wire* form,
@@ -177,29 +186,86 @@ before the schema demands it, or the suite cannot be green at any intermediate c
       explicitly** rather than rely on). Also fixed: 16 inline XML literals in 7 test modules, the
       `NodeSpec` fixture's `"True"` defaults, and the golden harness, which was itself calling the
       surface T012a deprecates (contract C8)
-- [ ] **T017** Update the contract tests whose premise X1 retires: `test_wire_booleans.py` (its
+- [X] **T017** Update the contract tests whose premise X1 retires: `test_wire_booleans.py` (its
       whole docstring), `test_ui_payload_contract.py`'s boolean section, `test_enum_audit.py`
       (three rows), `test_schema_name_overlap.py:82` (`BoolType` leaves
       `KNOWN_IDENTICAL_DUPLICATES`). **Retire the premise deliberately, in the same commit, with
       what replaces it** — the 010 FR-029b discipline applied to a contract rather than a shim
+      ✅ **Twenty modules, 56 → 0 failures.** Every premise inverted or narrowed, never deleted, with
+      the retirement recorded in the docstring or comment that held it.
+
+      **The four the task named**: `test_wire_booleans.py` (whole-file premise — its docstring *was*
+      X1's deferral note, now the assertion that the deferral is discharged, 21 passed);
+      `test_ui_payload_contract.py` (inverted, **and the negative rule narrowed** to exempt exactly
+      the three declared booleans rather than relaxed); `test_enum_audit.py` (three rows removed);
+      `test_schema_name_overlap.py` (the entry removed — **the second duplicate resolved by
+      deletion**, after 012's `UuidType`, which is the only state in which the stale-entry test
+      demands the removal).
+
+      **Sixteen the task did not name**, which is the part worth recording — the premise sat in
+      places a grep for `BoolType` does not reach:
+      `test_encode_wire_scalars.py` (`test_booltype_encodes_as_capitalized_strings` →
+      `test_booleans_encode_as_real_json_booleans`), `test_descriptor_enums.py` (now asserts the
+      deletion is **total** across all three schemas — a declaration creeping back into one and not
+      the others is the X14-class defect the original guarded),
+      `test_node_field_coercion.py` (vocabulary moved to `true|false|1|0`, **plus** a new refusal
+      test for `"True"`), `test_config_wire.py` and `test_reader_configs.py` (both held a
+      `bool` → `str` **bridge** that is now an identity; kept as named identities, because the
+      bridge is the thing those tests claim they no longer need, and the comment says which
+      direction a future one would go), `test_version_steps.py`
+      (`NO_LONGER_AN_IDENTITY_STEP = {"network_map"}` named, with the other-direction assertion),
+      `test_payload_parity.py`, `test_node_typing.py`,
+      `test_type_coercion_live_paths.py`, `test_xml.py::test_json_readwrite` (**difference (a) of
+      three closed** — 006 unified the two editor payloads *on the string form*; X1 removed the
+      cause, so what was an enumerated difference is now the round trip holding),
+      `test_repair.py` ("zero silent" **narrowed, not loosened** — the count is still exact, taken
+      over the `fade_profiles` records alone, because an unfiltered length check would start passing
+      for the wrong reason the next time that step grows),
+      `test_pre_step_documents_load.py` (the identity wording still binds for the two schemas it
+      still applies to), `test_init_node_overlay.py`, `test_init_node_triple.py`,
+      `test_remint_preserves_adoption.py` (a row's spelling now **survives** instead of being
+      re-encoded), and `test_network_map_roundtrip.py`.
+
+      ⚠ **Two findings worth more than the edits.**
+
+      **(a) `test_construction_parity.py`'s `opaque_dmx` group went 4 → 1, and nothing in this
+      feature aimed at it.** `Mapper.OPAQUE_TYPES` decodes a `DmxCue` without recursing, so its
+      `autoload`, `enabled`, `timecode` and scene `id` were all strings. Retyping to the built-in
+      closed **three of the four** — `xmlschema` decodes `xs:boolean` to a Python `bool` itself, so
+      the value arrives typed before the missing recursion could matter. The group was never about
+      opacity for those three; it was about the declared type. 005's recorded residual drops from
+      **14 to 11**, and what remains (`DmxScene/id`) genuinely *is* the opacity.
+
+      **(b) 007's `pre-state/` was not rewritten to keep its own test green.**
+      `test_network_map_roundtrip.py` compares a written document against
+      `specs/007-node-model-migration/pre-state/network_map.xml`, which carries `True`. The
+      normalisation went on the side that **moved**, beside the existing `doc_version` strip and for
+      the same reason — a landed feature's directory is frozen historical record, not a fixture
+      to retrofit. CLAUDE.md's rule, applied where it actually came up
 - [X] **T018** [P] Red-first then assert: the descriptor reports **`enum_values = None`** and a
       native boolean for all five fields. `baseline.md` §3 is the "before"; this is the acceptance
       criterion for the finding that decided X1, not a hoped-for side effect ✅ All five fields now report `enum_values = None` and a boolean type, asserted in `test_xs_boolean.py`. `baseline.md` §3 is the recorded "before".
 
-**Checkpoint**: ⚠ **NOT PASSED — T014 and T017 remain, and the suite is red at 56.**
+**Checkpoint**: ✅ **PASSED 2026-10-05.** `3535 passed, 113 skipped, 2 xfailed in 26.36 s`
+(**7.47 ms/test** — the `get_schema` mitigation T002 applied dominates this figure; the number is
+not comparable to any pre-014 baseline and Phase 4's T027 is where it gets stated properly).
 
-Booleans *are* `xs:boolean` end to end — schema, adapter, conversion, goldens, descriptor — and the
-wire carries JSON `true`/`false`. What is left is **56 failures, every one a retired premise**, which
-is T017's work and is deliberate rather than outstanding breakage: `test_wire_booleans` (10) is the
-file whose docstring *is* X1's deferral, and `test_ui_payload_contract` (6), `test_payload_parity`
-(5), `test_node_field_coercion` (5), `test_config_wire`/`test_reader_configs` (2+2),
-`test_schema_name_overlap`/`test_enum_audit`/`test_descriptor_enums` (2+1+1) and
-`test_encode_wire_scalars`'s literal `test_booltype_encodes_as_capitalized_strings` all assert the
-string form as the contract.
+Booleans are `xs:boolean` end to end — schema, adapter, conversion, goldens, descriptor — and the
+wire carries JSON `true`/`false`.
+
+**The red suite went 292 → 56 → 0, and the three numbers mean different things.** 292 was a genuine
+bug (T011's `ADAPTERS` key fall-through). 56 was **retired premises**, not breakage: tests asserting
+the string form *as the contract*, which is exactly what this phase changes. 0 is T017, which
+inverted or narrowed every one of them in place.
 
 **The byte-identity contracts settled themselves** — `test_byte_identity_dict`,
 `test_byte_identity_xml` and `test_roundtrip_stability` are **142 passed**, because T015a moved both
 sides together. They were expected to need a judgement call and did not.
+
+**Two things this phase learned that the plan did not predict**: the premise lives in places a grep
+for `BoolType` cannot find (T017 named sixteen modules the task did not), and retyping to a built-in
+closed three residual divergences in `test_construction_parity.py` that no task was aimed at, because
+`xmlschema` types the value itself and no adapter had to reach it (T017 ⚠(a)).
 
 ---
 

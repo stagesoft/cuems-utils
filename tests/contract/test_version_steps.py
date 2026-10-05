@@ -53,14 +53,43 @@ def test_the_other_three_schemas_did_not_move():
     assert versioning.CURRENT_VERSION["hardware_outputs"] == 2
 
 
+#: The step feature 014 gave a body to. Its absence from ``_CONVERSIONS`` was
+#: feature 012's decision; X1 added a per-document transformation to the same
+#: step, so the absence stopped being true. 012's reasoning is untouched — the
+#: *identity* half is still cross-document and still repaired out of band by
+#: ``cuems-init-node --remint``; a step can carry one and not the other, and
+#: this one now carries both.
+NO_LONGER_AN_IDENTITY_STEP = {"network_map"}
+
+
 @pytest.mark.parametrize("schema_name,versions", sorted(STEPS.items()))
 def test_no_conversion_is_registered_for_the_step(schema_name, versions):
     """The absence **is** the identity step (research R5). Registering a
     do-nothing ``Conversion`` to carry a description would violate the
     machinery's documented invariant and leave a future reader unable to tell a
-    deliberate identity step from a transformation that lost its body."""
+    deliberate identity step from a transformation that lost its body.
+
+    **Two schemas still hold that shape; ``network_map`` no longer does** —
+    see :data:`NO_LONGER_AN_IDENTITY_STEP`. The exclusion is named rather than
+    the test loosened, so the invariant still binds everywhere it applies and
+    the one exception has a reason attached to it.
+    """
+    if schema_name in NO_LONGER_AN_IDENTITY_STEP:
+        pytest.skip(f"{schema_name} 1 -> 2 carries X1's boolean rewrite (014)")
     before, _after = versions
     assert versioning._CONVERSIONS.get((schema_name, before)) is None
+
+
+def test_the_network_map_step_carries_exactly_the_boolean_rewrite():
+    """The other direction: what replaced the absence, asserted.
+
+    Without this, ``NO_LONGER_AN_IDENTITY_STEP`` would be an exemption that
+    excuses *any* conversion appearing on that step, including one added by
+    accident.
+    """
+    conversion = versioning._CONVERSIONS.get(("network_map", 1))
+    assert conversion is not None, "014 registered this step; it is missing"
+    assert "xs:boolean" in conversion.description, conversion.description
 
 
 @pytest.mark.parametrize("schema_name,versions", sorted(STEPS.items()))
@@ -83,8 +112,16 @@ def test_a_pre_step_document_is_recognised_and_recorded_as_an_identity_step(
     steps = versioning.convert(schema_name, tree, before, after)
     assert len(steps) == after - before
     for step in steps:
-        assert "identity" in step.description
-        assert step.dropped_elements == ()
+        if schema_name in NO_LONGER_AN_IDENTITY_STEP:
+            # 014: the step runs X1's boolean rewrite, so it is no longer an
+            # identity and no longer silent. What this test still pins for it
+            # is the half 012 cared about: the **identity** is not repaired
+            # here — asserted by the test immediately below, which the
+            # exclusion does not touch.
+            assert "xs:boolean" in step.description, step.description
+        else:
+            assert "identity" in step.description
+            assert step.dropped_elements == ()
 
 
 @pytest.mark.parametrize("schema_name,versions", sorted(STEPS.items()))

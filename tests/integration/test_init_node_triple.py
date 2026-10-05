@@ -153,7 +153,9 @@ def test_the_self_row_is_seeded_through_ensure_and_other_rows_survive(env):
     rows = {r.findtext("uuid"): r for r in root.findall(".//node")}
     assert len(rows) == 2
     kept = rows["8c8f4d5e-3d5b-4b0a-9f5d-0a0a0a0a0a0a"]
-    assert kept.findtext("adopted") == "True" and kept.findtext("online") == "False" and kept.findtext("node_role") == "controller"
+    # 014: ``xs:boolean``'s lexical space is ``true``/``false``, so the row is
+    # returned in the spelling it arrived in rather than re-encoded.
+    assert kept.findtext("adopted") == "true" and kept.findtext("online") == "false" and kept.findtext("node_role") == "controller"
 
 
 # -- T036 ------------------------------------------------------------------------

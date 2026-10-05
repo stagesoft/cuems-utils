@@ -168,4 +168,7 @@ def test_other_rows_and_adoption_flags_survive_reset(env):
     assert _run(base, "--reset")[0] == 0
     rows = {r.findtext("uuid"): r for r in ET.parse(conf / "network_map.xml").getroot().findall(".//node")}
     kept = rows["8c8f4d5e-3d5b-4b0a-9f5d-0a0a0a0a0a0a"]
-    assert kept.findtext("adopted") == "True" and kept.findtext("online") == "False"
+    # 014: the spelling the row was written with is the spelling that survives.
+    # It used to come back capitalised, because ``cms:BoolType``'s lexical space
+    # was ``True``/``False`` and the write path re-encoded into it.
+    assert kept.findtext("adopted") == "true" and kept.findtext("online") == "false"

@@ -83,6 +83,21 @@ def test_round_trip_diff_is_exactly_the_rename_and_value_mapping(
 
     stripped_added = stripped_added.replace(
         f' doc_version="{CURRENT_VERSION["network_map"]}"', "")
+
+    # Feature 014 (X1) is a **third** independent change every write picks up,
+    # normalised the same way and for the same reason: ``adopted``/``online``
+    # are ``xs:boolean`` now, whose lexical space is ``true``/``false``, where
+    # ``cms:BoolType``'s was ``True``/``False``.
+    #
+    # The pre-state document is **not** rewritten to match. It is 007's frozen
+    # historical record of what was on disk before that rename, and a landed
+    # feature's own directory is not retroactively edited to keep a later
+    # feature's test green — the normalisation goes on the side that moved.
+    for old_form, new_form in (("True", "true"), ("False", "false")):
+        for name in ("adopted", "online"):
+            stripped_removed = stripped_removed.replace(
+                f"<{name}>{old_form}</{name}>", f"<{name}>{new_form}</{name}>")
+
     assert stripped_removed == stripped_added
 
 

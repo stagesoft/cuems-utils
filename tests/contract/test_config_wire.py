@@ -71,17 +71,23 @@ NON_DOMAIN_KEYS = frozenset({SCHEMA_LOCATION, "doc_version"})
 def _wire_form(value):
     """The golden's decoded value, converted to its ``to_wire()`` form.
 
-    Identity for every field except ``network_map``'s ``bool`` ones (feature
-    007, research R1): decoding now produces a real ``bool`` where the
-    golden used to record — and the wire form still is — the capitalised
-    string ``_Bool.to_lexical``/``to_wire`` emit. That was an *identity*
-    before this feature (the decoded value already was the string), which is
-    exactly the property FR-011a gives up for ``network_map`` alone; every
-    other config schema's golden carries no JSON ``bool`` at all, so this is
-    a no-op for them.
+    **Now the identity, and that is the retirement** (feature 014, X1).
+
+    This used to special-case ``network_map``'s booleans: feature 007 made
+    decoding produce a real ``bool`` while ``to_wire`` still emitted the
+    capitalised string, so comparing a decoded golden against a wire
+    projection needed ``bool -> str(bool)`` to bridge them. That asymmetry was
+    the one thing FR-011a gave up for ``network_map`` alone.
+
+    X1 removed the asymmetry rather than the comparison: ``_Bool.to_wire`` is
+    deleted and ``_Passthrough``'s is inherited, so the wire form of a boolean
+    **is** the decoded value. The bridge has nothing left to bridge.
+
+    Kept as a function rather than inlined away, because the recursion is what
+    makes "identity" a checked claim over the whole tree instead of an
+    assertion about the top level — and because a future type that *does*
+    project differently would come back here.
     """
-    if isinstance(value, bool):
-        return str(value)
     if isinstance(value, dict):
         return {k: _wire_form(v) for k, v in value.items()}
     if isinstance(value, list):
