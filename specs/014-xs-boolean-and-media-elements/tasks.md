@@ -487,23 +487,65 @@ finding for this feature and should come back here.
       you start**: measured 2026-10-02 it was already **55 failed / 221 passed** against this
       branch, all of it 013's old device shape (183 `pre-013 device shape` refusals). **Reshape
       first, then convert** — that order, or neither completes. Its 276/276 green state predates 013
-- [ ] **T030** [P] **`cuems-nodeconf`** — 1 unmarked document
+- [X] **T030** [P] **`cuems-nodeconf`** — 1 unmarked document
       (`tests/fixtures/etc_cuems/settings.xml` and `settings_sentinel.xml` per 013's table). Also
       the one repository that **writes** `network_map.xml` every 30 s, so confirm its write path
       emits the new boolean form after the library moves — it is the only sibling whose output this
-      feature changes
-- [ ] **T031** [P] **`cuems-common`** — 2 unmarked documents. It ships `network_map.xml` and
-      mirrors the schemas to `/etc/cuems`, so the **mirrored `.xsd` moves too**: a node with the old
-      mirrored schema and the new library validates against the wrong file. Check
-      `debian/` and whatever its postinst copies
-- [ ] **T032** [P] **`cuems-editor`** — 4 unmarked documents, of which
+      feature changes ✅ **Done in that repository**, 2026-10-05, `4d7c91d` + `61c5705`, reported
+      back at `2045897` in `../cuems-nodeconf/specs/sibling-gates/014-xs-boolean-and-media-elements.md`.
+      Arms 32/142 → 33/141 → 32/142, then **174/174**. Recorded in [`baseline.md`](baseline.md) §8.2.
+      ⚠ The document it had to convert was `network_map.xml`, not `settings.xml` — this task named
+      the wrong file: `settings.xsd` declares no boolean, so `settings.xml` and `settings_sentinel.xml`
+      needed nothing, and the report says so explicitly rather than leaving them unmentioned.
+      The write-path check was done **on bytes**, as asked.
+
+      🔴 **And it returned a finding that outranks the gate**: 013's `reshape_players` defeats F3's
+      `settings` 1 → 2 conversion, because `reshape_file` reshapes before
+      `_as_the_load_path_sees_it` runs the conversion, whose paths are the pre-013 flat ones.
+      Reproduced here in both tool orders. **Not 014's, and it blocks the coordinated tag** —
+      [`../planning/settings-reshape-defeats-f3-conversion-defect.md`](../planning/settings-reshape-defeats-f3-conversion-defect.md)
+- [ ] **T031** [P] **`cuems-common`** — ⚠ **corrected 2026-10-05: 3 documents, not 2**, and no
+      mirror to move. The third is `etc/cuems/network_map.xml.example`, which a `*.xml` glob misses
+      and which **breaks a test**: `tests/test_documented_validation.py::test_documented_command_accepts_valid_maps[example]`
+      validates it directly against this repository's `network_map.xsd` **with no version
+      conversion**, so `True` is simply invalid there. Two of its test modules also carry **inline
+      XML literals** (`test_controller_resolution.py`, `test_network_map_conversion.py`); in the
+      latter they are the input *and* the expected output of `cuems-migrate-network-map`, which
+      never touches a boolean — so convert **both sides or neither**.
+      ⚠ **It no longer mirrors the schemas**: feature 011 transferred custody and `debian/postinst`
+      copies this repository's own `/usr/share/cuems/schemas/network_map.xsd`, so there is no stale
+      mirror. Verified. See [`migration-guide.md`](migration-guide.md) §4.1
+- [X] **T032** [P] **`cuems-editor`** — 4 unmarked documents, of which
       `tests/fixtures/script_minimal.xml` is **deliberately pre-013 and must stay that way** (its
       own `tests/fixtures/README.md` records why: it is the pre-migration payload capture *and* the
       `SKIPPED_INVALID` fixture). So this gate is **not** "convert everything" — it is "convert the
-      three and confirm the fourth is still refused, for the right reason"
+      three and confirm the fourth is still refused, for the right reason" ✅ **Done in that
+      repository**, 2026-10-05, `8f8b46e`. Arm B was **5 failed / 149 passed — exactly the figure
+      the gate prompt forecast**, which is what the forecast was for. Two `network_map.xml` fixtures
+      converted; `script_minimal.xml` confirmed refused **for its device shape, not a boolean**;
+      `script_minimal_013.xml` left to the on-read conversion. The retired premise was inverted, not
+      deleted, and `test_project_payload` gained a **fifth** sanctioned delta — note that against
+      010's recorded four. Recorded in [`baseline.md`](baseline.md) §8.1.
+
+      **It also closed its own T059 in the same session** (`365d57f`, `d6fa83b`), so UR-5 is
+      **resolved** and the `xfail(strict=True)` is gone — 161 passed / 2 skipped. §3.1 of
+      [`migration-guide.md`](migration-guide.md) predicted the ~6 lines and that they were that
+      repository's to write.
+      ⚠ **One new report, verified here: `cuems-editor` UR-6** — `conf_path`/`project_path` refuse
+      the file a first save would create, so a project's *first* `config_save` cannot resolve a
+      write target. All three claims confirmed by test, including the pivotal one (`.save()` does
+      **not** require the path to pre-exist). Collected in
+      [`../planning/upcoming-feature-requirements-2026-10-02.md`](../planning/upcoming-feature-requirements-2026-10-02.md) §8
 - [ ] **T033** Record every arm in [`baseline.md`](baseline.md), per repository, **including any
       that is still red and why**. A sibling left red with the reason named is a result; a sibling
-      not run is not
+      not run is not — 🟡 **PARTIAL, two of five**: [`baseline.md`](baseline.md) §8 records
+      `cuems-editor` (T032) and `cuems-nodeconf` (T030), both green, with their findings. Arm counts
+      are **attributed to those repositories' own measurements, not re-derived** — `cuems-nodeconf`'s
+      suite needs `zeroconf`, which this test environment does not carry. Every claim either report
+      makes *about this repository's code* was verified here. T028, T029 and T031 have not run.
+      §8.3 also records a **defect in the gate prompt itself**, found by being used: its arm-A
+      instruction had each session switch the shared `../cuems-utils` checkout, which races as soon
+      as two `[P]` gates run at once. Now a per-session `git worktree`, verified
 - [ ] **T034** Record the frontend hand-off: `cuems-frontend`'s 001 began its SDD path 2026-10-03,
       and its `sequence.component.ts:997` is **mutually** hard-coupled to this feature (plan.md
       §6.2 item 2). 014 can be implemented and tested without it; it cannot **ship** without it.

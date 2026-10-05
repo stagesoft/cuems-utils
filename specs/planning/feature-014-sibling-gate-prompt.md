@@ -17,13 +17,17 @@ measurement that can be reported as red with a reason rather than averaged away.
 **Which sessions to open** (`cuems-frontend` is *not* one of them — its share is T034, its own
 `06-amendment-feature-014.md` is the authority, and it is an Angular repo with no Python suite):
 
-| Session opened in | Gate | Rough size |
-|---|---|---|
-| `cuems-engine` | T028 | 6 documents + **1 hand-rewrite**; three measurement arms |
-| `cuems-power-bridge` | T029 | 10 documents; **starts red for a 013 reason** |
-| `cuems-nodeconf` | T030 | 1 document + a write-path check + 2 doc fixes |
-| `cuems-common` | T031 | 3 documents + 2 modules of inline literals |
-| `cuems-editor` | T032 | 3 of 4 documents + its own T059 close |
+| Session opened in | Gate | Rough size | State |
+|---|---|---|---|
+| `cuems-engine` | T028 | 6 documents + **1 hand-rewrite**; three measurement arms | **open** |
+| `cuems-power-bridge` | T029 | 10 documents; **starts red for a 013 reason** | **open** |
+| `cuems-common` | T031 | 3 documents + 2 modules of inline literals | **open** |
+| `cuems-nodeconf` | T030 | — | ✅ done 2026-10-05 (`61c5705`) |
+| `cuems-editor` | T032 | — | ✅ done 2026-10-05 (`22093fd`) |
+
+Only the three **open** rows need a session. The two done ones are kept for their reports, which are
+worth reading before starting one of the others — `cuems-nodeconf`'s in particular found a
+`settings` migration dead end and a race in this prompt, both since fixed.
 
 **After all five report**, T033–T036 are done back in `cuems-utils` — T033 records every arm in
 `specs/014-xs-boolean-and-media-elements/baseline.md`, T034 the frontend hand-off, T035 deletes
@@ -135,16 +139,40 @@ counts:
 | **B — after the library change** | your suite against the 014 branch, **your tree untouched** | this is the one that shows the damage, and it is the number that justifies the work |
 | **C — after conversion** | your suite against the 014 branch, your fixtures converted | this is the one that has to be green |
 
-To take arm A, point at the pre-014 commit without disturbing that tree:
+### Taking arm A — use a **worktree**, never a branch switch
+
+⚠ **Corrected 2026-10-05, after `cuems-nodeconf`'s gate hit this for real** (its report §4):
+`../cuems-utils` was found mid-measurement in a detached `HEAD` at a commit predating `0.1.0rc14`,
+because a *second* sibling session was running its own gate against the same shared checkout and had
+switched it. Nothing was wrong in either repository; the shared tree is simply not safe to move
+while another session is measuring against it. An earlier draft of this prompt told you to switch
+it, which is what created the race.
+
+**So do not move `../cuems-utils` at all.** Make your own throwaway worktree at the branch point and
+point your suite at that:
 
 ```bash
-git -C ../cuems-utils stash list     # check it is clean first; if not, STOP and report
-git -C ../cuems-utils log --oneline -1
-# arm A: ../cuems-utils at 84705b9 (the 014 branch point)
+git -C ../cuems-utils status --porcelain          # must be empty; if not, STOP and report
+git -C ../cuems-utils branch --show-current       # must be 014-xs-boolean-and-media-elements
+
+# your own pre-014 copy, named after this repository so two sessions cannot collide
+W=/tmp/cuems-utils-pre014-$(basename "$(git rev-parse --show-toplevel)")
+git -C ../cuems-utils worktree add --detach "$W" 84705b9
+
+# arm A: run your suite with cuemsutils resolved to "$W/src" instead of ../cuems-utils/src
+#   poetry/pytest repos:  PYTHONPATH="$W/src" ...
+#   hatch repos:          whatever your CLAUDE.md says, with the path overridden
+
+git -C ../cuems-utils worktree remove --force "$W"   # when you are done with arm A
 ```
 
-**Never commit in `../cuems-utils` and never leave it on a detached HEAD.** Return it to
-`014-xs-boolean-and-media-elements` before you finish, and verify you did.
+**Never commit in `../cuems-utils`, never check out a different commit in it, and never leave it on
+a detached HEAD.** Arms B and C run against it as it stands, which is the whole point of not moving
+it. Verify it is still on `014-xs-boolean-and-media-elements` and clean before you finish.
+
+If the worktree cannot be created, say so and report arm A as **UNAVAILABLE — shared checkout in
+use** rather than switching the branch anyway. An arm reported unavailable with the reason is a
+result; an arm that silently measured the wrong library is worse than no arm.
 
 **If a failure is not a fixture, stop and report it.** That is a finding for feature 014 itself and
 belongs back in `cuems-utils`, not worked around here. Every one of the ~96 failures 013 measured in
@@ -385,11 +413,24 @@ reaching into another's tree, which is the thing the gate split exists to stop.
 
 | Repository | Arm B | Dominant cause |
 |---|---|---|
-| `cuems-editor` | 5 failed / 149 passed | 1 retired premise + 4 payload |
-| `cuems-power-bridge` | 55 failed / 221 passed | **013's device shape**, not 014 |
+| `cuems-editor` | **5 failed / 149 passed — confirmed exactly** 2026-10-05 | 1 retired premise + 4 payload |
+| `cuems-nodeconf` | **33 failed / 141 passed**, measured 2026-10-05 | **32 of them are 013's device shape**, present identically in arm A. Only **one** was 014's |
+| `cuems-power-bridge` | 55 failed / 221 passed, 2026-10-02 | **013's device shape**, not 014 |
 | `cuems-engine` | unmeasured since 013 (`1 failed / 922 passed` then) | — |
-| `cuems-nodeconf` | unmeasured | — |
 | `cuems-common` | unmeasured; at least one certain failure | the `.xml.example` validated raw |
 
 A session that measures a figure far from these should say so — it means something moved between
 2026-10-02 and its run, and that is worth more than the gate itself.
+
+⚠ **The pattern in the two landed rows is the thing to expect**: in both, most of arm B was **not
+014**. `cuems-nodeconf`'s 33 was 32 pre-existing 013 failures plus one boolean; the editor's 5 were
+all 014's but four were one payload shape. **Arm A is what separates them**, which is why it is
+worth the worktree — without it, `cuems-nodeconf` would have reported 33 failures against this
+feature and 32 of them would have been someone else's.
+
+**Two findings came back from gates rather than from this repository's own work**, so expect your
+session to produce one too and leave room for it:
+`cuems-nodeconf` found that 013's reshape defeats F3's `settings` conversion
+(`settings-reshape-defeats-f3-conversion-defect.md` — it blocks the tag), and `cuems-editor` found
+that `conf_path`/`project_path` refuse the file a first save would create (UR-6). Neither was
+visible from inside `cuems-utils`.

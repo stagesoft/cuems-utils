@@ -242,3 +242,118 @@ here.
 deliberately so** ([`plan.md`](plan.md) §9.5): fixing it needs the descriptor to learn about union
 types, which has no other driver in this feature. It is carried in
 `../planning/upcoming-feature-requirements-2026-10-02.md`.
+
+---
+
+## 8. The sibling gates, per repository (T033 — **partial**, two of five)
+
+**Two gates have landed and reported.** Three have not run. T033 is recorded as partial rather than
+held back, because *"a sibling left red with the reason named is a result; a sibling not run is
+not"* — and the two that ran deserve their record now.
+
+The prompt the gate sessions work from is
+[`../planning/feature-014-sibling-gate-prompt.md`](../planning/feature-014-sibling-gate-prompt.md).
+
+| Repository | Gate | Arm A (pre-014) | Arm B (library moved) | Arm C (converted) | State |
+|---|---|---|---|---|---|
+| `cuems-editor` | T032 | 154 passed / 2 skipped / 1 xfailed | **5 failed / 149 passed** | 154 / 2 / 1 → **161 passed / 2 skipped** after its T059 | ✅ **green** |
+| `cuems-nodeconf` | T030 | 32 failed / 142 passed | **33 failed / 141 passed** | 32 failed / 142 passed → **174 / 174** after an independent 013 fix | ✅ **green** |
+| `cuems-engine` | T028 | — | — | — | not run |
+| `cuems-power-bridge` | T029 | — | — | — | not run |
+| `cuems-common` | T031 | — | — | — | not run |
+
+Arm counts for the two landed gates are **as those repositories measured them**, in their own
+environments, and are attributed rather than re-derived — `cuems-nodeconf`'s suite needs `zeroconf`,
+which this repository's test environment does not carry, so re-running it here is not possible.
+What *was* independently verified here is every claim either report makes **about this repository's
+code**; see below.
+
+### 8.1 `cuems-editor` — T032, and UR-5 closed in the same session
+
+`8f8b46e` (the gate), `365d57f` (T059), `d6fa83b` (`project_uuid` on the wire), `22093fd` (reports).
+
+**Arm B was 5 failed / 149 passed — exactly the figure the gate prompt forecast**, which is worth
+recording because the forecast was the point of including it: a session can tell a surprise from the
+expected. One retired premise (`test_node_merge.py::test_merged_nodes_carry_the_string_wire_form`)
+plus four in `test_project_payload.py`.
+
+- **Two `network_map.xml` fixtures converted** with `cuems-convert-documents`.
+- **`script_minimal.xml` left old-form, for the right reason** — refused for its **pre-013 device
+  shape**, not for a boolean. That is precisely the distinction T032 asked be checked rather than
+  assumed, and the report makes it explicitly.
+- **`script_minimal_013.xml` left untouched** — no `doc_version`, so the library converts it 1 → 2
+  in memory on load. Correct, and a document the tool would also have converted; leaving it
+  exercises the on-read path instead.
+- **The retired premise was inverted, not deleted**, and `test_project_payload` gained a **fifth
+  sanctioned delta (e)**: `autoload`/`enabled`/`timecode` are JSON booleans rather than
+  `"True"`/`"False"`. Note what that means for 010's count — this feature adds a fifth to the four
+  payload deltas CLAUDE.md records.
+- **UR-5 is closed**, pinned to `429f8d2` in that repository's own report, and the
+  `xfail(strict=True)` is **removed**. §3.1 of
+  [`migration-guide.md`](migration-guide.md) predicted the ~6 lines in `config_save` and that they
+  were that repository's to write; they were written there, not here.
+
+⚠ **One new upstream report, and it is a real gap**: **UR-6** — `conf_path`/`project_path` refuse the
+file a first save would create, so a project's *first* `config_save` of
+`project_settings`/`project_mappings` cannot resolve a write target. **All three of its claims were
+verified here** by test on 2026-10-05, including the pivotal one: `.save()` does *not* require the
+path to pre-exist, so the limitation is entirely in the two helpers. Recorded with both candidate
+fixes in [`../planning/upcoming-feature-requirements-2026-10-02.md`](../planning/upcoming-feature-requirements-2026-10-02.md) §8.
+**Not 014's** — it arrived after this feature's public-surface pass landed.
+
+### 8.2 `cuems-nodeconf` — T030, green, and one finding that outranks the gate
+
+`4d7c91d` (the gate), `61c5705` (an independent 013 fixture fix). Its report is
+`../cuems-nodeconf/specs/sibling-gates/014-xs-boolean-and-media-elements.md`.
+
+- **One document converted**: `tests/fixtures/etc_cuems/network_map.xml`. `settings.xml` and
+  `settings_sentinel.xml` needed nothing *for 014* — and the report **says so explicitly** rather
+  than leaving them unmentioned, which is what T030 asked for.
+- **The write-path check was done on bytes, not the object**, as instructed — nodeconf is the one
+  sibling whose *output* this feature changes. It extended an existing on-disk assertion
+  (`test_an_adoption_between_passes_is_on_disk_after_the_next_pass`) whose regex was pinned to
+  `<adopted>\s*True\s*</adopted>`; narrowed to the lowercase form, same guarantee.
+- **The one-way door was checked and found to need nothing**: it looked for an upgrade/rollback
+  procedure in its own docs that would need the "upgrade the package before nodeconf restarts, no
+  rollback after" rule and reports that none exists. A negative result, stated.
+- **Two doc corrections**: `CLAUDE.md:25` and
+  `specs/001-network-map-object-adoption/quickstart.md:76,80` — both named by §4.1 of the migration
+  guide as teaching the retired spelling.
+
+**Arms A and B and C share an identical 32-failure set**, which is the whole value of measuring in
+arms: 014 **neither caused nor fixed** it. The cause is **feature 013's device reshape, never
+applied to that repository's `settings.xml` fixtures** — which
+`specs/013-device-class-reshape/sibling-repository-updates.md` had already named as *"a prediction
+for them"* and nobody closed. It closed it locally by hand-rewrite (174/174).
+
+🔴 **The finding that outranks this gate**, and it is this repository's:
+**013's `reshape_players` defeats F3's `settings` 1 → 2 conversion.** `reshape_file` reshapes the
+tree *before* handing it to `_as_the_load_path_sees_it` — the mechanism 013 built so the two tools
+would compose — and `_settings_1_to_2` addresses `audio_cards`/`universes` by their **pre-013 flat
+paths**, which the reshape has just renamed. Both `find`s miss, both `continue`, nothing is dropped,
+and validation then refuses the document. **Reproduced here in both tool orders** and recorded with
+the mechanism, the bounds and the fix to avoid in
+[`../planning/settings-reshape-defeats-f3-conversion-defect.md`](../planning/settings-reshape-defeats-f3-conversion-defect.md).
+
+**It is not 014's and it blocks the coordinated tag.** Also worth noting against the sibling's own
+framing: its report calls the case *"likely rare in the field"* and the schema history says it is
+the ordinary state of any node whose `settings.xml` predates 2026-09-23 — while **this box's live
+`/etc/cuems/settings.xml` is a counterexample** (flat-shaped, zero retired fields, reshapes
+cleanly), so it is not *every* document either. Both bounds are measured in that record.
+
+### 8.3 A process defect in the gate prompt itself, found by being used
+
+`cuems-nodeconf`'s report §4: `../cuems-utils` was found mid-measurement in a detached `HEAD` at a
+commit predating `0.1.0rc14`, because a second sibling session was running its gate against the
+same shared checkout and had switched it. Neither repository was at fault — **the prompt was**. Its
+arm-A instruction told each session to point the shared tree at `84705b9`, which is a race by
+construction as soon as two gates run at once, and the gates are marked `[P]`.
+
+**Corrected 2026-10-05**: the prompt now has each session create its **own detached `git worktree`**
+at the branch point, named after the repository so two cannot collide, and says never to move
+`../cuems-utils` at all. Verified working. It also now says to report arm A as
+`UNAVAILABLE — shared checkout in use` rather than switching the branch anyway, because *"an arm
+that silently measured the wrong library is worse than no arm"*.
+
+That nodeconf's session caught it before trusting any result is the reason there is a correction
+rather than a wrong record.

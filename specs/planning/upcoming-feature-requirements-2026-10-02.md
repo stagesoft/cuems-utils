@@ -16,8 +16,25 @@ it once every row below is either in a feature's `spec.md` or recorded as declin
 
 ---
 
-## 1. Blocking a landed consumer task — `cuems-editor` UR-5
+## 0. Closed and newly opened — the 2026-10-05 consumer round
 
+Two sibling gates have landed and reported. This section is the index; the detail is below.
+
+| Item | State |
+|---|---|
+| **`cuems-editor` UR-5** — no public config ingestion (§1) | ✅ **CLOSED** by 014's `ConfigManager.from_json`, pinned to `429f8d2` in that repository's own report. Its T059 `xfail(strict=True)` is **removed** and the suite is **161 passed / 2 skipped** (was 154/2/1 at the branch point). §1 below is now history, kept because it is the statement of the requirement the call was built against |
+| **`cuems-editor` UR-6** — `conf_path`/`project_path` refuse a file a first save would create | 🔴 **NEW, open** — §8. Found *by* closing UR-5, which is the usual shape: the ingestion works, and now the write target is the thing missing |
+| **`cuems-editor` UR-4** — a duplicate identity carries no structured identity (§2) | Still open, unchanged |
+| **The descriptor flattens a union into a one-value enumeration** (§5) | Still open, unchanged — still not 014's |
+| **013's reshape defeats F3's `settings` 1 → 2 conversion** | 🔴 **NEW, and it blocks the tag.** Not a requirement — a **defect**, with its own record: [`settings-reshape-defeats-f3-conversion-defect.md`](settings-reshape-defeats-f3-conversion-defect.md). Found by `cuems-nodeconf`'s gate, verified here, and narrower than that report states |
+
+## 1. Blocking a landed consumer task — `cuems-editor` UR-5 — ✅ CLOSED 2026-10-05
+
+> **✅ CLOSED 2026-10-05 by feature 014**, `429f8d2`. `ConfigManager.from_json(SchemaName, payload)`
+> is the call this section asked for, and `cuems-editor` has taken it up at `365d57f` / `22093fd`.
+> The requirement text below is left as written, because it is what the call was specified against;
+> the follow-on gap it exposed is §8.
+>
 > **✅ ASSIGNED 2026-10-02: this lands in feature `014`.** Reviewed against 014's work and folded
 > into its plan as §9 — `specs/014-xs-boolean-and-media-elements/plan.md`, decision 10.
 > The reason it belongs there rather than in a later feature is a measured correlation: **the only
@@ -154,3 +171,61 @@ shape (<videoplayer>/<audioplayer>/<dmxplayer> on <node>). Run `cuems-reshape-de
 The diagnostic is exactly right and names its own remedy — worth recording as evidence that 013's
 refusal path reads well in the one place it matters, and as a reminder that any tool run on this box
 against the host configuration (rather than a fixture `CUEMS_CONF_PATH`) needs that migration first.
+
+---
+
+## 8. `cuems-editor` UR-6 — the write target a first save needs does not exist
+
+**Report**: `../cuems-editor/specs/001-cuems-utils-migration/upstream-reports/UR-6-config-path-helpers-require-existence.md`,
+2026-10-05, measured against this repository at `b8b44e7` (i.e. *including* UR-5's fix).
+**Verified here the same day**, all three of its claims, by test rather than by reading.
+
+**The gap.** `ConfigBase.conf_path(file_name)` and `ConfigManager.project_path(project_uname,
+file_name)` both check `path.exists` and raise `FileNotFoundError` — and every `save_*` accessor
+defaults its `path` argument to exactly that call. So there is **no public way to obtain the
+canonical write target for a configuration file that does not exist yet**, which is the ordinary
+state of a project's `settings.xml`/`mappings.xml`: `load_project_settings` explicitly tolerates it
+(*"Keeping default settings"*).
+
+**Measured, 2026-10-05:**
+
+| Claim | Result |
+|---|---|
+| `conf_path('never_existed.xml')` | `FileNotFoundError: Configuration file …/never_existed.xml not found` |
+| `project_path('some_project', 'settings.xml')` | `FileNotFoundError: Project file …/projects/some_project/settings.xml not found` |
+| `document.save(<path that has never existed>)` | **writes it correctly** — 1901 bytes |
+| `document.save(<path whose parent directory is absent>)` | `FileNotFoundError` on the temp file — a separate and correct matter |
+
+**So the limitation is entirely in the two helpers, not in `.save()`.** That is the finding, and it
+is what makes the fix small.
+
+⚠ **The strongest evidence is this repository's own test suite**, which the report found and quoted:
+`tests/integration/test_config_manager_save_accessors.py:59-65` documents the limitation in a
+docstring and then works around it with
+`monkeypatch.setattr(config_manager, "project_path", _project_path)` — **replacing the method**,
+because there is no supported way to get a tolerant write target. A library whose own tests
+monkeypatch a public method to exercise a public save path has named the gap itself; the consumer
+merely read it.
+
+**What the consumer did.** Nothing hand-rolled: it declines to duplicate the
+`library_path/projects/<uname>/<file>` convention this library owns, calls the real `project_path`,
+and lets the error surface. `cuems-editor`'s
+`test_config_save_of_project_settings_fails_before_the_file_exists_pending_ur6` pins today's
+behaviour so it flips to a round-trip assertion the day this lands, and
+`test_config_save_of_project_settings_persists_once_the_file_exists` proves the rest of its wiring
+already works. That is the right posture and it is the second time that repository has taken it
+(UR-5's `xfail(strict=True)` was the first).
+
+**Two candidate shapes**, from the report, with this repository's reading of each:
+
+| Shape | Reading |
+|---|---|
+| `conf_path(file_name, must_exist=False)` / `project_path(…, must_exist=False)` | **Preferred.** Smallest surface, keeps one path convention in one place, and is purely additive — the default stays `True`, so `load_*`'s reliance on a missing file being reported as missing is untouched. A keyword-only parameter, so no positional call site can acquire it by accident |
+| One call that ingests, resolves the target and persists | Larger, and it re-opens the installer question 014 settled deliberately (plan.md §9.3: `from_json` returns the object; `save_*` writes what the manager holds). It would also have to answer "which project" for two of the four domains, which is the consumer's own lookup |
+
+**Non-negotiable either way, and the report says so first**: this is an **addition**, not a
+loosening. `conf_path`/`project_path` must keep refusing a missing file for every existing caller.
+
+**Carry it with the test fix.** Whichever feature takes this should also retire
+`test_config_manager_save_accessors.py`'s monkeypatch, because that workaround *is* the defect's
+in-repository footprint — leaving it would keep a passing test that documents a gap as permanent.
