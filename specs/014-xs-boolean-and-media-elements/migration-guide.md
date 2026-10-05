@@ -170,8 +170,17 @@ manifest is unchanged apart from `api/public_api.json` gaining the one new metho
 **Find them with this, in any checkout or on any node:**
 
 ```bash
-grep -rlE '<(autoload|enabled|timecode|adopted|online)>(True|False)</' . --include='*.xml'
+# NOT --include='*.xml'. That filter misses two real classes, both measured:
+#   cuems-common/etc/cuems/network_map.xml.example   (a shipped document)
+#   inline XML literals in test sources (.py)
+grep -rlE '<(autoload|enabled|timecode|adopted|online)>(True|False)</' . \
+  --exclude-dir=.git --exclude-dir=tmp
 ```
+
+⚠ **A grep for the element form is necessary and not sufficient.** It does not find a document
+assembled from an f-string, nor a Python literal `'True'` assigned to one of these fields, nor a
+*docstring* that teaches the retired spelling. All three exist in the tree — see §4.1's last two
+rows — so each repository's own suite going green is the check, not the grep going quiet.
 
 **Three routes, and which one a file takes is decided by its `doc_version`:**
 
@@ -187,8 +196,20 @@ Ten are already converted (this repository, T015a). The remaining **41** are bel
 same everywhere:
 
 ```bash
-cuems-convert-documents <directory>      # backs each document up before rewriting
+# ⚠ cuems-convert-documents takes FILES, not a directory. A directory argument
+# is reported "skipped ([Errno 21] Is a directory)" and exits 1 — verified.
+find <directory> -name '*.xml' -print0 | xargs -0 cuems-convert-documents
 ```
+
+Each converted document gets a sibling backup named `<file>.<YYYYmmddTHHMMSS>.bak` before a byte is
+rewritten, and a backup failure is fatal **for that document only** — the batch continues. The tool
+is idempotent, so a second pass over an already-converted tree reports `already current` and
+changes nothing.
+
+⚠ **`cuems-reshape-devices` is not symmetric with it**, which matters for §4.5: given paths it also
+takes files, but given *no* paths it **discovers** a tree from `--conf` / `--library` (or
+`CUEMS_CONF_PATH`). `cuems-convert-documents` has no discovery mode at all. So the two tools cannot
+be handed the same argument, and the `find | xargs` form above is the one that works for both.
 
 | Repository | Paths | Elements | Gate |
 |---|---|---|---|
@@ -196,8 +217,20 @@ cuems-convert-documents <directory>      # backs each document up before rewriti
 | `cuems-engine` | `dev/network_map.xml`, `dev/test_xml_files/network_map.xml`, `dev/test_xml_files/script_one_cue_in_a_cuelist.xml`, `dev/test_xml_files/projects/{complex_test,empty_test,fade_actions_v1}/script.xml` — **6** | 78 (incl. §4.2's one) | T028 |
 | `cuems-power-bridge` | `tests/fixtures/network_map/map-{no-self,controller-only,incomplete,mixed,pre007,none-adopted,two-adopted,partial-resolve,unresolvable,no-settings}/network_map.xml` — **10** | 46 | T029 |
 | `cuems-editor` | `tests/fixtures/conf/network_map.xml`, `tests/fixtures/script_minimal_013.xml`, `specs/001-cuems-utils-migration/evidence/mappings-capture/network_map.xml` — **3 of 4**. ⚠ `tests/fixtures/script_minimal.xml` is the **fourth and must stay old-form**: its own `tests/fixtures/README.md` records why (the pre-migration payload capture *and* the `SKIPPED_INVALID` fixture). This gate is "convert the three and confirm the fourth is still refused, **for the right reason**" | 38 | T032 |
-| `cuems-common` | `tests/fixtures/maps/{converted,unconverted}.xml` — **2**. It also **ships** `network_map.xml` and **mirrors the six XSDs** to `/etc/cuems`, so the mirrored schema moves too: a node with the old mirrored `network_map.xsd` and the new library validates against the wrong file. Check `debian/` and what `postinst` copies | 8 | T031 |
+| `cuems-common` | `tests/fixtures/maps/{converted,unconverted}.xml` **and `etc/cuems/network_map.xml.example`** — **3, not 2**. ⚠ The example is the one that *breaks a test*: `tests/test_documented_validation.py::test_documented_command_accepts_valid_maps[example]` validates it **directly against cuems-utils' `network_map.xsd` with no version conversion**, so `True` is simply invalid there now. ⚠ It no longer mirrors the XSDs — feature 011 transferred custody and its `postinst` copies cuems-utils' own `/usr/share/cuems/schemas/network_map.xsd`, so there is **no stale mirror to move** (this row said otherwise until 2026-10-05) | 12 | T031 |
 | `cuems-nodeconf` | `tests/fixtures/etc_cuems/network_map.xml` — **1**. Also the one repository that **writes** `network_map.xml` every 30 s, so confirm its write path emits the new form | 4 | T030 |
+
+**Two classes a path list does not reach, and both are real:**
+
+| Class | Where | What to do |
+|---|---|---|
+| **Inline XML literals in test sources** | `cuems-common/tests/test_controller_resolution.py`, `cuems-common/tests/test_network_map_conversion.py` | Same treatment as this repository's T015a, which fixed 16 literals across 7 modules. ⚠ In `test_network_map_conversion.py` the literals are the **input and the expected output** of `cuems-migrate-network-map`, which rewrites `node_type` only and never touches a boolean — so convert **both sides or neither**, or the test fails for a newly wrong reason |
+| **Docstrings teaching the retired spelling** | `cuems-editor/src/cuemseditor/CuemsWsServer.py:435`, `cuems-nodeconf/CLAUDE.md`, `cuems-nodeconf/specs/001-network-map-object-adoption/quickstart.md` | One-line doc corrections. §3's "no source change" is about *behaviour* and still holds — the editor returns `to_wire()` untouched — but a docstring documenting the old wire form is now wrong |
+
+**Frozen, do not touch**: `cuems-engine/specs/008-cuems-utils-migration/evidence/baseline-suite*.txt`
+and `cuems-editor/specs/001-cuems-utils-migration/evidence/suite-after-import.txt` are **captured
+test output** in landed feature directories. They record what a run *said* on a given day; rewriting
+them would falsify evidence, which is the opposite of what they are for.
 
 **Deliberately *not* converted, in this repository — 18 files, 195 elements.** They carry the old
 form because that is what they are *for*, and converting them would delete the evidence the
@@ -256,7 +289,7 @@ No glob finds these and no test suite covers them. They are the reason rule 4 ex
 | Where | What | When |
 |---|---|---|
 | **`/etc/cuems/network_map.xml`**, on **every node** | `<adopted>` and `<online>` per row | Converted on read automatically (it is unmarked), but **`cuems-nodeconf` rewrites it every 30 s** and `CuemsNetworkMapType.save()` bumps the marker — after which an **older** `cuems-utils` refuses it with `DocumentTooNewError`. So: upgrade the package *before* nodeconf restarts, and there is **no rollback** afterwards (012's migration guide §9b, same mechanism) |
-| **Each node's project library** — `<library_path>/projects/*/script.xml` | `<autoload>`, `<enabled>`, `<timecode>` per cue | Converted on read. Persist it with one pass per node: `cuems-convert-documents <library_path>/projects` |
+| **Each node's project library** — `<library_path>/projects/*/script.xml` | `<autoload>`, `<enabled>`, `<timecode>` per cue | Converted on read. Persist it with one pass per node: `find <library_path>/projects -name '*.xml' -print0 \| xargs -0 cuems-convert-documents` |
 
 `/etc/cuems/settings.xml`, `/etc/cuems/default_mappings.xml` and each project's `mappings.xml`
 **need nothing** — their schemas carry no boolean element (see the top of §4).
@@ -282,12 +315,17 @@ does not move and no stable release cuts here.
 013's device shape and this one:
 
 ```bash
-cuems-reshape-devices  <directory>   # device shape — no version step
-cuems-convert-documents <directory>  # 1 → 2 — now carrying the boolean rewrite
+find <directory> -name '*.xml' -print0 > /tmp/docs           # one list, used twice
+xargs -0 cuems-reshape-devices  < /tmp/docs   # device shape — no version step
+xargs -0 cuems-convert-documents < /tmp/docs  # 1 → 2 — now carrying the boolean rewrite
 ```
 
 **That order, or neither completes**: reshape-first sees a version-1 `<duration>`, convert-first
 sees old-shape cues. `cuems-power-bridge` is the one sibling measured as needing both (T029).
+
+On a **node** rather than a checkout, reshape's discovery mode is the better first half
+(`cuems-reshape-devices` with no paths, which reads `CUEMS_CONF_PATH` and the library); the second
+half still needs the `find | xargs` form, because convert has no equivalent.
 
 ## 5. Rollback *(pending)*
 
