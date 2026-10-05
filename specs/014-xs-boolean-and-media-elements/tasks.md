@@ -470,7 +470,7 @@ the boolean text. **No source change is needed in any of these four** — they h
 were always real `bool`s. If your suite goes red on anything that is *not* a fixture, that is a
 finding for this feature and should come back here.
 
-- [ ] **T028** [P] **`cuems-engine`** — 6 unmarked documents under `dev/test_xml_files/`, plus the
+- [X] **T028** [P] **`cuems-engine`** — 6 unmarked documents under `dev/test_xml_files/`, plus the
       **one already-version-2** file T015 owns
       (`dev/test_xml_files/projects/complex_test_v2/script.xml`; T015 rewrites it, this task
       verifies the result in place). ⚠ **Corrected 2026-10-05 by T025: T015 did *not* rewrite it.**
@@ -570,18 +570,24 @@ finding for this feature and should come back here.
       write target. All three claims confirmed by test, including the pivotal one (`.save()` does
       **not** require the path to pre-exist). Collected in
       [`../planning/upcoming-feature-requirements-2026-10-02.md`](../planning/upcoming-feature-requirements-2026-10-02.md) §8
-- [ ] **T033** Record every arm in [`baseline.md`](baseline.md), per repository, **including any
+- [X] **T033** Record every arm in [`baseline.md`](baseline.md), per repository, **including any
       that is still red and why**. A sibling left red with the reason named is a result; a sibling
-      not run is not — 🟡 **PARTIAL, four of five**: [`baseline.md`](baseline.md) §8 records
-      `cuems-editor` (T032), `cuems-nodeconf` (T030), `cuems-power-bridge` (T029) and `cuems-common`
-      (T031), **all four green**, with their findings. Arm counts are **attributed to those
-      repositories' own measurements, not re-derived** — `cuems-nodeconf`'s suite needs `zeroconf`,
-      which this test environment does not carry. Every claim each report makes *about this
-      repository's code* was verified here. **Only `cuems-engine` (T028) has not run.**
-      **§8.0 is the result four arms make visible**: **eight failures attributable to 014 across
-      four repositories, against 87 pre-existing ones** — and without arm A, `cuems-power-bridge`
-      would have reported all 55 of its own against this feature.
-      §8.4 also records a **defect in the gate prompt itself**, found by being used: its arm-A
+      not run is not — ✅ **COMPLETE, five of five**: [`baseline.md`](baseline.md) §8 records every
+      gate — `cuems-editor` (T032), `cuems-nodeconf` (T030), `cuems-power-bridge` (T029),
+      `cuems-common` (T031) and `cuems-engine` (T028) — **all five green**, each with its findings
+      and each red arm attributed. Arm counts are **attributed to those repositories' own
+      measurements, not re-derived** (`cuems-nodeconf`'s suite needs `zeroconf`, absent from this
+      test environment); every claim each report makes *about this repository's code* was verified
+      here, and three were corrected.
+      **§8.0 is the result**: **eight failures attributable to 014 across five repositories, against
+      183 that were already there.** Without arm A, `cuems-engine` and `cuems-power-bridge` would
+      between them have reported **151 failures against this feature, every one someone else's**.
+      🔴 **The cross-cutting finding of the whole round: 013's device migration was never completed
+      in *three* of the five siblings**, so 014's gates paid the debt — 11 `settings.xml`
+      hand-rewritten plus five documents reshaped in `cuems-engine`. **015 must close its own
+      sibling fixtures in its own feature**, or the next feature's gates discover them with its own
+      signal buried underneath.
+      §8.6 also records a **defect in the gate prompt itself**, found by being used: its arm-A
       instruction had each session switch the shared `../cuems-utils` checkout, which races as soon
       as two `[P]` gates run at once. Now a per-session `git worktree` — **confirmed working
       mid-flight by T029**, which took arm A from a disposable worktree and reported it as the right

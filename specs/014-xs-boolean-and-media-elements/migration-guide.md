@@ -350,7 +350,44 @@ xargs -0 cuems-convert-documents < /tmp/docs  # 1 → 2 — now carrying the boo
 ```
 
 **That order, or neither completes**: reshape-first sees a version-1 `<duration>`, convert-first
-sees old-shape cues. `cuems-power-bridge` is the one sibling measured as needing both (T029).
+sees old-shape cues. `cuems-power-bridge` and `cuems-engine` both needed both (T029, T028).
+
+🔴 **A third order exists, for the one class §4.2 is about, and the two above do not cover it.**
+Found by `cuems-engine`'s gate (T028) and reproduced here on
+`dev/test_xml_files/projects/complex_test_v2/script.xml`. A document that is **already
+`doc_version="2"`**, carries **old-form booleans** *and* is **old device shape** fails
+reshape-first:
+
+```
+cuems-reshape-devices <file>
+  -> skipped (would not validate: failed validating 'False' with
+     XsdAtomicBuiltin(name='xs:boolean'); Reason: 'False' is not a boolean value)
+```
+
+**Why**: reshape validates its output *as the load path will see it*, which applies any **registered
+version conversion** — and for a document already at the current version there is none to apply, so
+the booleans are never rewritten and the current schema refuses them. §4.2's ambiguity in operational
+form.
+
+**The order that works, verified** — booleans by hand *first*, because no tool will do it for a
+version-2 document:
+
+```bash
+# 1. case-only substitution on the five elements, by hand or by script.
+#    Assert case-only: new.lower() == old.lower() for every substitution.
+# 2. then the device shape:
+cuems-reshape-devices <file>          # -> reshaped
+# 3. convert is then a no-op, correctly:
+cuems-convert-documents <file>        # -> already current
+```
+
+So the full decision is **three-way**, not two:
+
+| Document | Order |
+|---|---|
+| version 1, old shape | `reshape` → `convert` (§4.5 above) |
+| version 1, current shape | `convert` alone |
+| **version 2, old shape, old booleans** | **hand-fix booleans → `reshape`** (`convert` is then a no-op) |
 
 On a **node** rather than a checkout, reshape's discovery mode is the better first half
 (`cuems-reshape-devices` with no paths, which reads `CUEMS_CONF_PATH` and the library); the second

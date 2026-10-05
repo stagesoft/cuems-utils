@@ -245,9 +245,9 @@ types, which has no other driver in this feature. It is carried in
 
 ---
 
-## 8. The sibling gates, per repository (T033 — **partial**, four of five)
+## 8. The sibling gates, per repository (T033 — **complete, five of five**)
 
-**Four gates have landed and reported.** One has not run — `cuems-engine`, T028. T033 is recorded as partial rather than
+**All five gates have landed and reported.** All five are green. T033 is recorded as partial rather than
 held back, because *"a sibling left red with the reason named is a result; a sibling not run is
 not"* — and the three that ran deserve their record now.
 
@@ -260,7 +260,7 @@ The prompt the gate sessions work from is
 | `cuems-nodeconf` | T030 | 32 failed / 142 passed | **33 failed / 141 passed** | 32 failed / 142 passed → **174 / 174** after an independent 013 fix | ✅ **green** |
 | `cuems-power-bridge` | T029 | 55 failed / 221 passed | **55 failed / 221 passed** — identical set, confirmed by diff | **276 / 0** | ✅ **green** |
 | `cuems-common` | T031 | 104 / 104 | **102 / 104** — both on `network_map.xml.example`, exactly as forecast | **104 / 104** | ✅ **green** |
-| `cuems-engine` | T028 | — | — | — | **not run** |
+| `cuems-engine` | T028 | **UNAVAILABLE** — coupled to 012 from `c31734c`, as `tasks.md` foresaw | **70 failed / 827 passed / 26 errors** | **1 failed / 922 passed** — its own pre-existing baseline | ✅ **green** |
 
 Arm counts for the three landed gates are **as those repositories measured them**, in their own
 environments, and are attributed rather than re-derived — `cuems-nodeconf`'s suite needs `zeroconf`,
@@ -268,19 +268,35 @@ which this repository's test environment does not carry, so re-running it here i
 What *was* independently verified here is every claim each report makes **about this repository's
 code**; see below.
 
-### 8.0 Four arms in, one result stands out: **014 broke almost nothing**
+### 8.0 All five in: **014 broke eight tests; 183 were already broken**
 
 | Repository | Failures attributable to 014 | Attributable to 013, pre-existing |
 |---|---|---|
+| `cuems-engine` | **0** — all 96 were the pre-013 device shape | **96** |
 | `cuems-power-bridge` | **0** — arms A and B identical, diffed | 55 |
 | `cuems-nodeconf` | **1** | 32 |
 | `cuems-common` | **2** — both on the one document a `*.xml` glob missed | 0 |
 | `cuems-editor` | 5 | 0 |
+| **Total** | **8** | **183** |
 
-**Eight failures across four repositories, and 87 pre-existing ones.** Arm A is what separates them,
-and without it `cuems-power-bridge` would have reported 55 failures against this feature and **every
-one of them would have been someone else's** — which is the clearest vindication of the three-arm
-method the gates could have produced.
+**Eight failures attributable to this feature across five repositories, against 183 that were
+already there.** Arm A is what separates them, and without it `cuems-engine` and
+`cuems-power-bridge` would between them have reported **151 failures against this feature, every one
+of them someone else's.** That is the clearest vindication of the three-arm method the gates could
+have produced, and it is the single most useful number this feature measured.
+
+🔴 **The counterpart, and it is the cross-cutting finding of the whole gate round: 013's device
+migration was never completed in *three* of the five siblings** — `cuems-nodeconf`,
+`cuems-power-bridge` and `cuems-engine`. `specs/013-device-class-reshape/sibling-repository-updates.md`
+left them as *"a prediction for them"*; the prediction was right in all three and nobody closed it,
+so **014's gates paid the debt**: 11 `settings.xml` hand-rewritten plus five documents reshaped in
+`cuems-engine`. Each gate reported that work separately from 014's, which is the only reason the
+attribution table above is possible.
+
+**The lesson for 015**: a feature that reshapes documents must close its sibling fixtures *in that
+feature*, or the next feature's gates discover it — and the next feature's signal is buried under it
+until they do. 013 measured `cuems-engine` in three arms and did exactly this correctly for *that*
+repository; what it did not do is run the other two, and it said so.
 
 The counterpart finding: **013's sibling migration was never completed**, and two gates have now
 had to do it. `specs/013-device-class-reshape/sibling-repository-updates.md` left
@@ -455,7 +471,53 @@ part of 014's diff. An arm A taken at `c02f35c` folds S1 into the measured delta
 behaviour change this feature did not make. The gate prompt names `84705b9`; §8.5's worktree
 instruction is the mechanism for reaching it without moving the shared checkout.
 
-### 8.5 A process defect in the gate prompt itself, found by being used
+### 8.5 `cuems-engine` — T028, green, and the ordering case §4.5 did not cover
+
+`9fce7e6`. **Arm A unavailable**, exactly as `tasks.md` foresaw — this repository is coupled to
+feature 012 from `c31734c` onward (`coerce_identity` does not exist before it), so there is no clean
+pre-012 comparison point. The task said *"design the comparison **before** a run goes red"*, and the
+gate did: it attributed arm B by **error type** instead, reporting all 96 as
+`cuemsutils.errors.SchemaError` for the pre-013 device shape and **zero** for the boolean. That is
+the right substitute for a missing arm and it is why this row can still claim **0 attributable to
+014** without the usual diff.
+
+- **Seven documents converted**: four by tool, **three by hand** — `dev/network_map.xml` and
+  `dev/test_xml_files/script_one_cue_in_a_cuelist.xml` (blocked by finding 2 below) and
+  `complex_test_v2/script.xml` (§4.2's already-version-2 case, which **T015 had claimed and missed**
+  and this repository's §4.2 recorded as outstanding — **now closed**). All seven verified case-only
+  before and after write, which is the discipline T015 used here.
+- **No source change**, and it confirms §2.1's claim about the media block: `MediaType`'s four new
+  optional elements are correctly ignored. *"An engine that ignores it is correct"*, asserted by a
+  suite rather than by the guide.
+- **Still red: one test**, `test_project_go.py::test_project_go_from_controller` — a `TimeoutError`
+  with `[ERR] libmtcmaster thread scheduling error`, reproducing standalone. **Environment, not 013
+  or 014**, and it matches this repository's own recorded `1 failed / 922 passed` baseline. Reported
+  with the attribution rather than left ambiguous.
+
+🔴 **The finding worth the most, and it is a gap in this feature's own release note**: §4.5
+documented *one* migration order (reshape → convert), and there is a third case it does not cover.
+`complex_test_v2/script.xml` is **already `doc_version="2"`, carries old-form booleans *and* is old
+device shape** — and reshape-first fails:
+
+```
+skipped (would not validate: failed validating 'False' with XsdAtomicBuiltin(name='xs:boolean'))
+```
+
+**Reproduced here.** The mechanism is §4.2 in operational form: reshape validates *as the load path
+will see it*, which applies any **registered** conversion — and a document already at the current
+version has none, so its booleans are never rewritten and the current schema refuses them. **The
+order that works is booleans by hand first, then reshape**, verified end to end. §4.5 now states all
+three orders instead of one.
+
+**Three further findings, each correctly scoped by the gate itself:**
+
+| # | Finding | Verdict |
+|---|---|---|
+| 2 | `dev/network_map.xml` and `dev/test_xml_files/script_one_cue_in_a_cuelist.xml` carry `xmlns:cms="https://stagelab.coop/cuems"` — **missing the trailing slash** — so both tools refuse them outright. Verified; the correct form is `…/cuems/` | **Pre-existing dead weight**, neither file referenced by any test. Same family as audit item **X15**, which recorded a namespace typo in the only out-of-repository `hardware_outputs` instance — so this is the **second** instance of that class and worth folding into whatever cleans up X15 |
+| 3 | `projects/complex_test{,_v2}/project_mappings.xml` fail reshape on a `PutType` mismatch (`<output>` with `<name>`/`<mappings>` but no `<id>`) | **Already recorded, and the gate's verdict matches 013's.** CLAUDE.md states it from 013's own pass: *"an `<output>` with no `<id>` and no `<new_nodes>` at all… the branch-point library rejects it too, verified."* Confirmed again here (`grep -c '<id>'` → 0). A correct re-identification, not a new finding |
+| 4 | **Third independent confirmation** that `write_tree` drops XML comments: `empty_test/script.xml`'s `<!-- Empty CueList -->` is gone after conversion. Verified, 1 → 0 | Corroborates §8.4's open finding. **Three repositories have now hit it**; that is enough evidence to stop calling it incidental |
+
+### 8.6 A process defect in the gate prompt itself, found by being used
 
 `cuems-nodeconf`'s report §4: `../cuems-utils` was found mid-measurement in a detached `HEAD` at a
 commit predating `0.1.0rc14`, because a second sibling session was running its gate against the

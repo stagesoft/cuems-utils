@@ -5,6 +5,38 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # Agent prompt — feature 014's sibling gates (T028–T032)
 
+> ## ✅ ALL FIVE GATES ARE DONE — 2026-10-05. This prompt is spent.
+>
+> Nothing here needs running. It is kept as the **record of what was asked and what came back**, and
+> as the working template for the next cross-repository gate round: the structure held, and the five
+> corrections it accumulated while in use (below) are the part worth reusing.
+>
+> | Gate | Repository | Commit | Arm C |
+> |---|---|---|---|
+> | T028 | `cuems-engine` | `9fce7e6` | 1 failed / 922 passed (pre-existing, environment) |
+> | T029 | `cuems-power-bridge` | `dd1256f` | 276 / 0 |
+> | T030 | `cuems-nodeconf` | `61c5705` | 174 / 174 |
+> | T031 | `cuems-common` | `e595e67` | 104 / 104 |
+> | T032 | `cuems-editor` | `22093fd` | 161 passed / 2 skipped |
+>
+> **Result: eight failures attributable to feature 014 across five repositories, against 183 that
+> were already there.** Recorded per repository in
+> `../014-xs-boolean-and-media-elements/baseline.md` §8 (T033, complete).
+>
+> **Five things this prompt got wrong and had corrected while sessions used it**, which is the
+> reusable part — a cross-repository prompt is wrong until it has been run:
+> 1. it told every session to switch one **shared** `../cuems-utils` checkout, racing by
+>    construction (caught by T030, fixed to a per-session worktree, confirmed by T029);
+> 2. it said `cuems-convert-documents` takes a **directory** — it takes files;
+> 3. it under-counted `cuems-common` by one document and sent it after a **mirrored XSD that no
+>    longer exists**;
+> 4. it enumerated refusal fixtures instead of stating the **rule**, and missed two of three;
+> 5. it did not know the tool **destroys XML comments** (found by T031, confirmed by T028), nor that
+>    §4.5's migration order has a **third case** (found by T028).
+>
+> Every one was found by a session *using* it, not by review here. **Delete this file with T036**,
+> or keep it as the template — but do not point a new session at it expecting work to be left.
+
 **One prompt, five repositories, five independent sessions.** Copy everything between the
 `>>> BEGIN` and `<<< END` markers into a **fresh** Claude Code session opened in the sibling
 repository you want done. The prompt identifies which repository it is in and routes itself; do not
@@ -19,14 +51,13 @@ measurement that can be reported as red with a reason rather than averaged away.
 
 | Session opened in | Gate | Rough size | State |
 |---|---|---|---|
-| `cuems-engine` | T028 | 6 documents + **1 hand-rewrite**; three measurement arms | **open — the last one** |
+| `cuems-engine` | T028 | — | ✅ done 2026-10-05 (`9fce7e6`) |
 | `cuems-nodeconf` | T030 | — | ✅ done 2026-10-05 (`61c5705`) |
 | `cuems-editor` | T032 | — | ✅ done 2026-10-05 (`22093fd`) |
 | `cuems-power-bridge` | T029 | — | ✅ done 2026-10-05 (`dd1256f`) |
 | `cuems-common` | T031 | — | ✅ done 2026-10-05 (`e595e67`) |
 
-**Only `cuems-engine` is left.** The four done ones are kept for their reports, which are worth
-reading before starting it:
+**All five are done.** Their reports are worth reading for what they returned:
 
 - **`cuems-nodeconf`** found a `settings` migration dead end and a race in this prompt, both since
   fixed.
@@ -36,6 +67,9 @@ reading before starting it:
 - **`cuems-editor`** closed its own T059 in the same session, resolving UR-5.
 - **`cuems-common`** found that `cuems-convert-documents` **silently destroys every XML comment**,
   and hand-rewrote its annotated example rather than losing them — see §3.
+- **`cuems-engine`** found the **third migration order** §4.5 did not cover (an already-`doc_version="2"`
+  document with old booleans *and* old device shape: hand-fix booleans, *then* reshape), closed
+  §4.2's long-outstanding item 9, and confirmed the comment loss a second time.
 
 **What three landed gates have established, and the open two should expect:** most of arm B is
 probably **not 014**. Across the three, **six failures were attributable to this feature and 87
@@ -476,7 +510,7 @@ reaching into another's tree, which is the thing the gate split exists to stop.
 | `cuems-nodeconf` | **33 failed / 141 passed** | **1** | **32 are 013's device shape**, identical in arm A |
 | `cuems-power-bridge` | **55 failed / 221 passed** | **0** | **all 55 are 013's**, arms A and B diffed identical |
 | `cuems-common` | **102 / 104** | 2 | both on the `.xml.example` validated raw — **exactly as forecast, and nothing else** |
-| `cuems-engine` | unmeasured since 013 (`1 failed / 922 passed` then) | — | — |
+| `cuems-engine` | **70 failed / 827 passed / 26 errors** | **0** | **all 96 are 013's device shape**, attributed by error type because arm A was unavailable |
 
 A session that measures a figure far from these should say so — it means something moved between
 2026-10-02 and its run, and that is worth more than the gate itself.
