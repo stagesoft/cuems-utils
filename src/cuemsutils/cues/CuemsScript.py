@@ -1,10 +1,10 @@
-import json
 import json_fix
 
 from collections.abc import Mapping
 
 from .CueList import CueList
 from .MediaCue import MediaCue
+from .._ingest import payload_as_mapping
 from ..errors import IngestError, LoadReport, SchemaError, ValidationError
 from ..log import logged, Logger
 from ..helpers import as_cuemsdict, ensure_items, new_uuid, new_datetime, unique_values_to_list, CuemsDict
@@ -551,30 +551,13 @@ class CuemsScript(CuemsDict):
         Every refusal here is *"this is not a script"*, which is why they share
         an exception type distinct from ``SchemaError``: nothing was validated,
         because there was nothing of the right shape to validate.
+
+        **The three-form stage is shared** with ``ConfigManager.from_json``
+        (feature 014, T022) rather than written twice — see
+        :func:`cuemsutils._ingest.payload_as_mapping`. What stays here is the
+        part that is genuinely about a script: which body shape counts as one.
         """
-        if isinstance(payload, (bytes, bytearray)):
-            try:
-                payload = bytes(payload).decode('utf-8')
-            except UnicodeDecodeError as exc:
-                raise IngestError(
-                    f"expected UTF-8 bytes for a {cls.__name__} payload; the "
-                    f"input is not valid UTF-8 and no other codec is guessed: "
-                    f"{exc}"
-                ) from exc
-
-        if isinstance(payload, str):
-            try:
-                payload = json.loads(payload)
-            except ValueError as exc:
-                raise IngestError(
-                    f"expected JSON text describing a {cls.__name__}: {exc}"
-                ) from exc
-
-        if not isinstance(payload, Mapping):
-            raise IngestError(
-                f"expected a {cls.__name__} payload as a mapping, JSON text or "
-                f"UTF-8 bytes; got {type(payload).__name__}"
-            )
+        payload = payload_as_mapping(payload, f"a {cls.__name__} payload")
 
         body = payload.get(cls.__name__) if len(payload) == 1 else None
         if body is not None:

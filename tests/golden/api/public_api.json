@@ -135,6 +135,7 @@
         "__init__": "(self, config_dir: str = '/etc/cuems/', load_all: bool = True)",
         "check_project_mappings": "(self) -> bool",
         "conf_path": "(self, file_name: str) -> str",
+        "from_json": "(self, schema: cuemsutils.tools.ConfigManager.SchemaName, payload)",
         "generate_example": "(self, schema: cuemsutils.tools.ConfigManager.SchemaName)",
         "get_audio_output_id": "(self, mapping_name: str)",
         "get_schema_descriptor": "(self, schema: cuemsutils.tools.ConfigManager.SchemaName)",

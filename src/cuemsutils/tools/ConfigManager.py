@@ -6,6 +6,7 @@ if TYPE_CHECKING:  # annotation only — no runtime import, so no cycle with xml
     from ..config.network_map import CuemsNetworkMapType
 
 from .ConfigBase import ConfigBase, load_config_document
+from .._ingest import payload_as_mapping
 from ..log import Logger, logged
 from ..xml.descriptor import (
     SchemaDescriptor,
@@ -59,6 +60,60 @@ class SchemaName(Enum):
     #: repository carries a namespace typo (X15). ``get_schema_descriptor``
     #: answers for it, with two unbound types.
     HARDWARE_OUTPUTS = 'hardware_outputs'
+
+#: The two schemas :meth:`ConfigManager.from_json` refuses, with the reason the
+#: caller is told. Mirrors ``cuems-editor``'s own ``CONFIG_SAVE_REFUSED`` map
+#: deliberately: the editor refused these two before this call existed, and a
+#: library that widened the set here would silently change what that repository
+#: accepts (plan.md §9.3, "Refusals stay refusals").
+_FROM_JSON_REFUSED = {
+    SchemaName.SCRIPT: (
+        "a script is built with CuemsScript.from_json, which carries the show "
+        "model's decode-time validation and its own ingest refusals"
+    ),
+    SchemaName.HARDWARE_OUTPUTS: (
+        "hardware_outputs is reserved and has no model bindings until feature "
+        "015, so there is no object to build"
+    ),
+}
+
+
+def _rewrapped_single_child(body, spec):
+    """``settings``' inner body, wrapped back into its document root.
+
+    The one tolerance :meth:`ConfigManager.from_json` grants, and it is named
+    rather than general: it fires only for a root that declares **exactly one**
+    non-repeated complex field, which is ``settings.xsd``'s ``<Settings>`` and
+    nothing else among the six schemas. ``project_settings``' single field
+    ``setting`` is repeated and so does not qualify — its root body and its
+    content are the same level.
+
+    Returns ``None`` when the shape does not apply, which the caller reports as
+    the ordinary "this is not a document of that kind" refusal.
+    """
+    fields = [field for field in spec.fields if not field.is_wildcard]
+    if len(fields) != 1:
+        return None
+    only = fields[0]
+    if only.repeated or only.child is None and only.xsd_type is not None:
+        return None
+    from ..xml.spec import derive
+
+    try:
+        child = derive(only.child) if only.child is not None else None
+    except (KeyError, StopIteration, AttributeError):
+        return None
+    if child is None:
+        from ..xml.spec import TypeKey
+
+        try:
+            child = derive(TypeKey(spec.key.schema, f"{spec.key.name}/{only.name}", is_path=True))
+        except (KeyError, StopIteration, AttributeError):
+            return None
+    if not set(body) & {field.name for field in child.fields}:
+        return None
+    return {only.name: dict(body)}
+
 
 class HardwareOutputs(dict):
     """Ports by ``{class}_{inputs|outputs}``.
@@ -544,6 +599,113 @@ class ConfigManager(ConfigBase):
         self.project_mappings.save(
             path or self.project_path(project_uname, 'mappings.xml')
         )
+
+    def from_json(self, schema: SchemaName, payload):
+        """Build a configuration document from a JSON payload (feature 014, T022).
+
+        The inbound half of the four ``save_*`` accessors, and the call
+        ``cuems-editor``'s UR-5 asked for. Symmetric with
+        :meth:`cuemsutils.cues.CuemsScript.from_json`, including its three
+        accepted forms — a JSON ``str``, UTF-8 ``bytes``, or an already-decoded
+        ``Mapping`` — which are not reimplemented here but shared with it
+        (``cuemsutils._ingest.payload_as_mapping``).
+
+        **It returns the object, and the object knows how to save itself.** All
+        four configuration roots carry ``save(path)``, which is the same body
+        ``save_settings`` / ``save_network_map`` / ``save_project_settings`` /
+        ``save_project_mappings`` delegate to. Those accessors write what *this
+        manager holds*; this one hands back a document the caller persists::
+
+            manager = ConfigManager(load_all=False)
+            document = manager.from_json(SchemaName.SETTINGS, payload)
+            document.save(manager.conf_path('settings.xml'))
+
+        There is deliberately **no installer** — no ``manager.settings = …``
+        — because two of the four domains keep the root on a private attribute
+        and inventing a fifth public name for each would be four names to the
+        one this is specified as (plan.md §9.3).
+
+        **Decoded through the same mapper call ``load_*`` uses**
+        (``Mapper.decode_config``), which is what preserves the per-schema
+        asymmetry rather than normalising it: ``network_map`` runs the adapter
+        table, so its ``adopted``/``online`` arrive as ``bool``, ``node_role``
+        as a ``NodeRole`` and ``uuid`` as a ``Uuid``; ``settings``,
+        ``project_mappings`` and ``project_settings`` store every scalar
+        exactly as given, which is the guarantee feature 007 measured
+        (SC-010a) and that normalising would have retired in silence.
+
+        **``doc_version`` is not expected.** It is excluded from every wire
+        projection, so no client payload carries one; the writer emits the
+        current version as it does on every other write.
+
+        **The accepted body shape** is the document *root*'s — the keys
+        ``root_spec`` declares, which is exactly what the matching
+        ``get_schema_descriptor(schema)`` root ``instance`` hands a client to
+        fill. One tolerance, named rather than general: ``settings`` is the one
+        schema whose root wraps its content in a single complex element
+        (``main_key`` is ``'Settings'``, not ``''``), so this library's own
+        ``to_wire('settings')`` projects one level *deeper* than the document.
+        That inner body is accepted and re-wrapped, because a public ingestion
+        that cannot read this library's own public projection is a gap rather
+        than a strictness.
+
+        Args:
+            schema: which document to build, as a :class:`SchemaName` member.
+            payload (str | bytes | Mapping): the document's wire form.
+
+        Returns:
+            The root configuration object the matching ``save_*`` writes —
+            ``CuemsSettingsType``, ``CuemsNetworkMapType``,
+            ``CuemsProjectMappingsType`` or ``CuemsProjectSettingsType``.
+
+        Raises:
+            TypeError: ``schema`` is not a :class:`SchemaName`.
+                ``get_schema_descriptor``'s posture (FR-028a) — accepting the
+                string form too would reintroduce the surface the enum removes.
+            ValueError: ``schema`` is ``script`` (that is
+                ``CuemsScript.from_json``'s) or ``hardware_outputs`` (no model
+                bindings until feature 015). The editor already refuses both
+                with those reasons and this does not widen them.
+            IngestError: the payload is **not a document of that kind** —
+                malformed JSON, non-UTF-8 bytes, a non-mapping, or a mapping
+                naming none of the root's declared fields. Nothing was
+                validated, because there was nothing of the right shape to
+                validate.
+            SchemaError: the payload *is* one and fails the decode-time
+                structural check — a retired ``"True"`` where a boolean
+                belongs, most commonly. As with ``CuemsScript.from_json``, a
+                payload accepted here can still fail ``save()``'s
+                document-level check; the asymmetry is not new.
+        """
+        from ..errors import IngestError, SchemaError
+        from ..xml.mapper import Mapper, root_spec
+
+        if not isinstance(schema, SchemaName):
+            raise TypeError(
+                f"from_json takes a SchemaName, not {type(schema).__name__}. "
+                f"Use SchemaName({schema!r}) if you are holding the string form."
+            )
+        if schema in _FROM_JSON_REFUSED:
+            raise ValueError(f"from_json of {schema.value}: {_FROM_JSON_REFUSED[schema]}")
+
+        body = payload_as_mapping(payload, f"a {schema.value} document")
+        spec = root_spec(schema.value)
+        declared = [field.name for field in spec.fields]
+
+        if not set(body) & set(declared):
+            body = _rewrapped_single_child(body, spec)
+        if body is None or not set(body) & set(declared):
+            raise IngestError(
+                f"expected a {schema.value} document; the mapping declares "
+                f"none of {declared} (got {sorted(payload)})"
+            )
+
+        try:
+            return Mapper(schema.value).decode_config(dict(body))
+        except (ValueError, TypeError, KeyError) as exc:
+            raise SchemaError(
+                f"the payload does not match {schema.value}.xsd: {exc}"
+            ) from exc
 
     def get_schema_descriptor(self, schema: SchemaName):
         """Every complex type this schema declares, described (FR-020/FR-022).

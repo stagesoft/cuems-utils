@@ -89,54 +89,205 @@ size check and fails the hash. **What you compare is your decision**, including 
 multi-gigabyte file at arm time is acceptable where `os.stat` was free. The element is optional, so
 an engine that ignores it is correct.
 
-## 3. The boolean change, per consumer *(pending — T024)*
-
-Summary now; the per-site detail lands with the work.
+## 3. The boolean change, per consumer
 
 | Repository | What it must do |
 |---|---|
-| `cuems-engine`, `cuems-nodeconf`, `cuems-power-bridge`, `cuems-common` | **no source change** — they hold objects, which were always real `bool`s. **Fixtures only** |
-| `cuems-editor` | **no source change** for the boolean — it returns `to_wire()` and its own FR-012 forbids touching the dict. One payload-version bump. **Its T059 closes by re-run** once §1's item 4 exists |
+| `cuems-engine`, `cuems-nodeconf`, `cuems-power-bridge`, `cuems-common` | **no source change** — they hold objects, which were always real `bool`s. **Fixtures only**; the paths are in §4.1 |
+| `cuems-editor` | **no source change** for the boolean — it returns `to_wire()` and its own FR-012 forbids touching the dict. One payload-version bump. Fixtures per §4.1. **Its T059 does *not* close by re-run — see §3.1** |
 | `cuems-frontend` | **one line is hard-coupled and mutual**: `sequence.component.ts:997` writes `'True'`, which this feature makes a **refused** spelling, so saving fails without it — and this feature cannot ship without it. Its own `06-amendment-feature-014.md` is the authority; its 001 began its SDD path 2026-10-03 |
+
+### 3.1 `cuems-editor`'s T059 needs an edit there after all *(T023 — correction)*
+
+**T023 said the editor's T059 "closes by re-run only". Measured, it does not.** Its
+`test_config_save_of_settings_persists_through_save_settings` is still **XFAIL**, not XPASS, with
+`ConfigManager.from_json` present and the editor's hatch environment resolving `cuemsutils` to this
+working tree (verified: `0.1.0rc16`, `/disk/Projects/StageLab/cuems-utils/src/cuemsutils/__init__.py`).
+
+**Why.** `CuemsWsUser.config_save` does not *attempt* an ingestion and fall back. It validates the
+schema name, applies `CONFIG_SAVE_REFUSED`, and then calls `notify_error_to_user` for all four
+configuration domains **unconditionally** — the message naming UR-5. There is no call site for a
+library ingestion to satisfy, so no library change can turn that test green. T023's premise was
+that the workaround was a guarded fallback; it is a hard-coded refusal.
+
+**What the library owes, and it is complete.** The whole of UR-5's "Expected" is shipped, including
+the payload shape that repository actually sends:
+
+- `ConfigManager.from_json(SchemaName, payload)` exists, takes the three forms, and returns the root
+  object the matching `save_*` writes;
+- the payload in T059 is `manager.to_wire('settings')`, which is **one level deeper** than the
+  `settings` document (`Settings.main_key` is `'Settings'`, so `ConfigBase.settings` is the root's
+  field, not the root). That exact shape is accepted — pinned by
+  `tests/integration/test_config_ingestion.py::test_from_json_ingests_this_librarys_own_settings_projection`,
+  which exists for no other reason.
+
+**What is left is in that repository**: replace `config_save`'s final `notify_error_to_user` with
+the ingestion, the save and a `{'type': 'config_save', 'value': 'OK'}` frame — the four `save_*`
+paths it already names in its own docstring. Roughly six lines. **Not done here**: T023 says *"Do
+not edit that repository"*, and that instruction is kept.
+
+⚠ **There is no public installer, by decision.** `from_json` hands back the object; the object
+carries `save(path)`, which is the same body `save_settings` / `save_network_map` /
+`save_project_settings` / `save_project_mappings` delegate to. Those accessors write what a
+`ConfigManager` *holds*, and two of the four domains hold it on a private attribute
+(`_settings_document`, `_project_settings_document`), so an installer would have been four new
+public names against the one this is specified as ([`plan.md`](plan.md) §9.3). The consumer path is:
+
+```python
+manager  = ConfigManager(load_all=False)
+document = manager.from_json(SchemaName.SETTINGS, payload)
+document.save(manager.conf_path('settings.xml'))
+```
+
+### 3.2 One asymmetry this closed on the way through *(T022)*
+
+`encode_wire` wrapped a repeated member that decoded **bare** in its *class* name, and
+`decode_config` had no branch for that key — so `project_settings`' wire form
+(`{"setting": [{"SettingType": {…}}]}`) was not ingestible by its own library: the body was stored
+as undescribed content and the document would not save. Every other repeated block in every other
+configuration schema decodes with an element wrapper (`{"node": …}`, `{"device": …}`) which is
+re-encoded in place, which is why nothing saw this until a configuration wire form was fed back in
+for the first time.
+
+Fixed in `Mapper._decode_config_item`, **not** in `from_json`, so the ingestion keeps decoding
+through exactly the call `load_*` uses. It cannot move a recorded golden: `xmlschema` never emits a
+*type* name as a dict key, so no document decode has ever reached the new branch — and the golden
+manifest is unchanged apart from `api/public_api.json` gaining the one new method.
 
 ## 4. The release note — what must be converted, and when the old form stops being accepted
 
-> **Rule 4's third deliverable.** *(pending — T024, T025. The shape is fixed; the per-path detail
-> lands with the conversion.)*
+> **Rule 4's third deliverable** (T024, T025). Rule 4's own sentence is the standard: *"'We will
+> just update the files on the nodes' is not a conversion path. Nobody knows where all the files
+> are."* So the paths below are **named, not counted**.
 
-**What must be converted**: every document carrying `<autoload>`, `<enabled>`, `<timecode>`,
-`<adopted>` or `<online>` with the text `True`/`False`. Measured across the six checkouts: **96
-files, 726 elements**, plus every node's live `/etc/cuems` and every project library in the field.
+**What must be converted**: every XML document carrying `<autoload>`, `<enabled>`, `<timecode>`,
+`<adopted>` or `<online>` with the text `True` or `False`. Nothing else in any schema is affected —
+`settings.xsd`'s `BoolType` declaration was dead (no element referenced it) and
+`project_mappings.xsd`/`project_settings.xsd` declare no boolean at all, so **no `settings.xml`,
+`mappings.xml` or project `settings.xml` needs converting**. Only `script.xml` and
+`network_map.xml` documents do.
 
-**How, and it is two different answers:**
+**Find them with this, in any checkout or on any node:**
 
-| | Count | Route |
+```bash
+grep -rlE '<(autoload|enabled|timecode|adopted|online)>(True|False)</' . --include='*.xml'
+```
+
+**Three routes, and which one a file takes is decided by its `doc_version`:**
+
+| | Count at the branch point | Route |
 |---|---|---|
-| Documents with **no `doc_version`** or version 1 | **51 files** | **Automatic.** The registry's 1 → 2 step carries the rewrite and runs on read. Nothing to do |
-| Documents **already marked `doc_version="2"`** | **9 files** | **Manual, out of band.** The registry will not touch them — they are already current, so there is no step to run |
+| **No `doc_version`**, or version 1 | **51 files** | **Automatic.** The registry's 1 → 2 step carries the rewrite and runs on read. `cuems-convert-documents` persists it |
+| Already marked **`doc_version="2"`** | **9 files** | **Manual, out of band** — §4.2. The registry will not touch them: they are already current, so there is no step to run |
+| **Live, on a node** | not countable | **`cuems-convert-documents`, per node** — §4.3 |
 
-**Why the second row exists, stated plainly rather than discovered**: this feature puts the rewrite
-into the *existing unreleased* version 2 rather than adding a version 3, so `doc_version="2"` is
-briefly ambiguous — before and after — and the version marker cannot resolve it. That is feature
-012's situation verbatim, and its lesson applies: the machinery represents such a step by the
-*absence* of a registry entry, and the repair is cross-document and out-of-band **by design**. The
-trade was measured, not assumed: 51 convert free, nine need hands, and six of the nine are goldens
-already due for re-cutting.
+### 4.1 The 51 automatic ones, by path
 
-**When the old form stops being accepted**: **immediately on this feature**, for reading *and*
-writing. `"True"` becomes a refused spelling at `from_json` and `True` becomes invalid XML text.
-There is no grace period and no dual-accept window — deliberately, because a wider ingestion
-vocabulary than the schema's is a value legal on the wire that can never appear in a file.
+Ten are already converted (this repository, T015a). The remaining **41** are below. The tool is the
+same everywhere:
 
-**The order, if a document needs both migrations** (013's device shape and this one):
-
-```
-cuems-reshape-devices        # device shape — no version step
-cuems-convert-documents      # 1 → 2 — now carrying the boolean rewrite
+```bash
+cuems-convert-documents <directory>      # backs each document up before rewriting
 ```
 
-Reversed, neither completes: reshape-first sees a version-1 `<duration>`, convert-first sees
-old-shape cues.
+| Repository | Paths | Elements | Gate |
+|---|---|---|---|
+| `cuems-utils` | `tests/data/corpus/{cuems-engine,cuems-editor,cuems-utils}/**`, `tests/data/corpus/cuems-engine/projects/*/script.xml` — **10 documents, 116 elements, done** (T015a) | 116 | — |
+| `cuems-engine` | `dev/network_map.xml`, `dev/test_xml_files/network_map.xml`, `dev/test_xml_files/script_one_cue_in_a_cuelist.xml`, `dev/test_xml_files/projects/{complex_test,empty_test,fade_actions_v1}/script.xml` — **6** | 78 (incl. §4.2's one) | T028 |
+| `cuems-power-bridge` | `tests/fixtures/network_map/map-{no-self,controller-only,incomplete,mixed,pre007,none-adopted,two-adopted,partial-resolve,unresolvable,no-settings}/network_map.xml` — **10** | 46 | T029 |
+| `cuems-editor` | `tests/fixtures/conf/network_map.xml`, `tests/fixtures/script_minimal_013.xml`, `specs/001-cuems-utils-migration/evidence/mappings-capture/network_map.xml` — **3 of 4**. ⚠ `tests/fixtures/script_minimal.xml` is the **fourth and must stay old-form**: its own `tests/fixtures/README.md` records why (the pre-migration payload capture *and* the `SKIPPED_INVALID` fixture). This gate is "convert the three and confirm the fourth is still refused, **for the right reason**" | 38 | T032 |
+| `cuems-common` | `tests/fixtures/maps/{converted,unconverted}.xml` — **2**. It also **ships** `network_map.xml` and **mirrors the six XSDs** to `/etc/cuems`, so the mirrored schema moves too: a node with the old mirrored `network_map.xsd` and the new library validates against the wrong file. Check `debian/` and what `postinst` copies | 8 | T031 |
+| `cuems-nodeconf` | `tests/fixtures/etc_cuems/network_map.xml` — **1**. Also the one repository that **writes** `network_map.xml` every 30 s, so confirm its write path emits the new form | 4 | T030 |
+
+**Deliberately *not* converted, in this repository — 18 files, 195 elements.** They carry the old
+form because that is what they are *for*, and converting them would delete the evidence the
+conversion works:
+
+- `tests/data/corpus/pre-008/**` (12 files) and `tests/data/corpus/pre-013/script.xml` — the
+  pre-version corpus tiers, read **through** the registry. `pre-008/script_v1_all_transforms.xml`
+  is the rewrite's only in-corpus evidence, and `test_boolean_conversion.py` asserts it still
+  carries an old-form boolean so a future fixture edit cannot silently remove it (T014).
+- `specs/007-node-model-migration/pre-state/**` (4 files) — a landed feature's directory is frozen
+  historical record. `test_network_map_roundtrip.py` normalises on the side that **moved**, beside
+  the existing `doc_version` strip (T017 ⚠(b)).
+
+### 4.2 The nine already-`doc_version="2"` ones, by filename *(T025)*
+
+**Why this row exists at all, stated plainly rather than left to be discovered.** This feature puts
+the rewrite into the *existing, unreleased* `script` 1 → 2 and `network_map` 1 → 2 steps rather than
+adding a version 3. So `doc_version="2"` is **briefly ambiguous** — it means both the pre-boolean
+and the post-boolean shape — and **the version marker cannot tell them apart**. The registry sees a
+current document and runs nothing. That is feature 012's situation verbatim, and its lesson applies:
+the machinery represents such a step by the *absence* of a registry entry, and the repair is
+cross-document and out-of-band **by design**. The trade was measured, not assumed: 51 convert free,
+nine need hands, and six of the nine were goldens already due for re-cutting.
+
+The ambiguity window closes when the coordinated `xml-refactor-merge-candidate` tag ships, because
+nothing outside these checkouts has ever been written at version 2.
+
+| # | File | How | Status |
+|---|---|---|---|
+| 1 | `tests/golden/xml/cuems-editor__script_minimal.xml` | re-cut | ✅ T015 |
+| 2 | `tests/golden/xml/cuems-engine__projects__complex_test__script.xml` | re-cut | ✅ T015 |
+| 3 | `tests/golden/xml/cuems-engine__projects__empty_test__script.xml` | re-cut | ✅ T015 |
+| 4 | `tests/golden/xml/cuems-utils__fade_showcase.xml` | re-cut | ✅ T015 |
+| 5 | `tests/golden/xml/cuems-utils__unicode_showcase.xml` | re-cut | ✅ T015 |
+| 6 | `tests/golden/generated/example_script.xml` | re-cut | ✅ T015 |
+| 7 | `tests/data/corpus/cuems-utils/fade_showcase.xml` | **hand-rewritten** — authored, not generated | ✅ T015 |
+| 8 | `tests/data/corpus/cuems-utils/unicode_showcase.xml` | **hand-rewritten** | ✅ T015 |
+| 9 | `../cuems-engine/dev/test_xml_files/projects/complex_test_v2/script.xml` | **hand-rewritten** — the ninth, and it is **in a sibling** | ⚠ **outstanding** |
+
+⚠ **Item 9 is still old-form, verified 2026-10-05.** T015 claimed it and T015's completion note
+does not mention it, so it was missed rather than deferred. It is a *sibling* file and T028 is the
+gate that was written to "verify the result in place" — so it is named here as outstanding rather
+than rewritten from this repository. **T028 must rewrite it, not merely check it.** A plain
+`cuems-convert-documents` pass will **not** fix it: the file is already `doc_version="2"`, which is
+exactly what §4.2 is about.
+
+**`tests/golden/outcomes.json` is not on this list and must not be touched.** It records
+*pre-refactor* verdicts and a test asserts the **difference** between it and live behaviour;
+`capture_goldens --force` over it destroys that baseline. Verified: it carries no boolean form, so
+this feature does not need to.
+
+### 4.3 The two live locations, which are neither of the above
+
+No glob finds these and no test suite covers them. They are the reason rule 4 exists.
+
+| Where | What | When |
+|---|---|---|
+| **`/etc/cuems/network_map.xml`**, on **every node** | `<adopted>` and `<online>` per row | Converted on read automatically (it is unmarked), but **`cuems-nodeconf` rewrites it every 30 s** and `CuemsNetworkMapType.save()` bumps the marker — after which an **older** `cuems-utils` refuses it with `DocumentTooNewError`. So: upgrade the package *before* nodeconf restarts, and there is **no rollback** afterwards (012's migration guide §9b, same mechanism) |
+| **Each node's project library** — `<library_path>/projects/*/script.xml` | `<autoload>`, `<enabled>`, `<timecode>` per cue | Converted on read. Persist it with one pass per node: `cuems-convert-documents <library_path>/projects` |
+
+`/etc/cuems/settings.xml`, `/etc/cuems/default_mappings.xml` and each project's `mappings.xml`
+**need nothing** — their schemas carry no boolean element (see the top of §4).
+
+**On an offline node** `cuems-convert-documents` is already installed by the package; it needs no
+network. The library's own read path converts in memory regardless, so a node that is never
+converted still *works* — what it loses is the persistence, and it keeps paying the conversion on
+every read.
+
+### 4.4 When the old form stops being accepted
+
+**Immediately on this feature**, for reading *and* writing. `"True"` is a refused spelling at
+`from_json` and `True` is invalid XML text in those five elements. **There is no grace period and no
+dual-accept window**, deliberately: a wider ingestion vocabulary than the schema's is a value legal
+on the wire that can never appear in a file — the same argument that makes `file_hash` lowercase-only
+(§2) and the same defect class `_Bool.decode` was fixed for in `be3e86e`.
+
+The date is the coordinated `xml-refactor-merge-candidate` tag, after features 011–015. `0.1.0rc16`
+does not move and no stable release cuts here.
+
+### 4.5 The order, if a document needs both migrations
+
+013's device shape and this one:
+
+```bash
+cuems-reshape-devices  <directory>   # device shape — no version step
+cuems-convert-documents <directory>  # 1 → 2 — now carrying the boolean rewrite
+```
+
+**That order, or neither completes**: reshape-first sees a version-1 `<duration>`, convert-first
+sees old-shape cues. `cuems-power-bridge` is the one sibling measured as needing both (T029).
 
 ## 5. Rollback *(pending)*
 

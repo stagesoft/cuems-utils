@@ -253,9 +253,32 @@ def _public_methods(cls):
 #: The parameter is a :class:`SchemaName` **enum member**, never a string, so
 #: SC-004's deeper intent — no stringly-typed schema naming on the public
 #: surface — is preserved rather than merely worked around.
+#: The **third** exception, added by feature 014 (T022, plan.md §9.3):
+#: ``ConfigManager.from_json``.
+#:
+#: Unlike the two above it, this one *is* domain work — it builds a document —
+#: so the exemption is argued differently and the argument is recorded rather
+#: than inherited. ``CuemsScript.from_json`` names no schema because the schema
+#: is a property of the **type**: the caller holds a ``CuemsScript`` and the
+#: class carries ``SCHEMA_NAME``. A JSON payload carries no type. The symmetric
+#: design — ``CuemsSettingsType.from_json(payload)`` as a classmethod per root
+#: — would name no schema either, and it is unreachable: ``cuemsutils.config``
+#: exports nothing and is internal by decision (feature 006), which is exactly
+#: why UR-5 asked for this shape (*"the editor would either import
+#: cuemsutils.config (Q14) or hand-build an object"* — it does neither).
+#:
+#: The alternative that keeps SC-004 literally — four methods, one per domain —
+#: was rejected: the one consumer that asked for this dispatches on a
+#: ``SchemaName`` it is already holding, so four names would make it build a
+#: dispatch table to get back to the parameter it started with.
+#:
+#: As with the other two, the parameter is a :class:`SchemaName` member and
+#: never a string, which ``test_the_exceptions_take_the_enum_not_a_string``
+#: checks for all three.
 SCHEMA_PARAMETER_EXCEPTIONS = frozenset({
     "ConfigManager.get_schema_descriptor",
     "ConfigManager.generate_example",
+    "ConfigManager.from_json",
 })
 
 

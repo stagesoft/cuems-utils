@@ -145,3 +145,100 @@ X1 removes three `simpleType` declarations and retypes five elements to a built-
 anything help: a built-in needs no facet checks. **If any of these three is exceeded, it is recorded
 as exceeded rather than restated as passing**, per Principle IV and this repository's practice
 across 006, 008, 012 and 013.
+
+---
+
+## 6. The three budgets, validated after Phase 3 (T026)
+
+**Measured 2026-10-05**, after Phases 1–3, same method as §1 (best of 3 medians of 5 warm runs,
+one warm call first, fresh process). Three independent runs of each, because two of the three land
+*at the line* and a single run would have picked an answer rather than measured one.
+
+| Criterion | Budget | Measured (3 runs, best-of-medians) | Verdict |
+|---|---|---|---|
+| **SC-014-PERF-001** | `project_mappings` ≤ 4.06 ms | **4.066 / 4.150 / 4.409** | ⚠ **EXCEEDED** by 0.1–8.6% |
+| **SC-014-PERF-002** | ≤ 7.79 ms/test | **7.30 / 7.12 / 7.16** (3565–3566 tests in 26.02 / 25.39 / 25.53 s) | ✅ **MET**, 6–9% under |
+| **SC-014-PERF-003** | `script` ≤ 14.68 ms | **14.682 / 14.982 / 15.316** | ⚠ **EXCEEDED** by 0.01–4.3% |
+
+`settings` carries no budget and is recorded anyway: **1.983 / 2.013 / 2.032 ms** against §5's
+1.646 ms "After".
+
+### 6.1 The two overruns are the instrument, and that is measured rather than argued
+
+Recorded as exceeded above, per Principle IV. But "exceeded" is not the same as "this feature made
+it slower", and the control arm separates the two. **The same three measurements were taken, in the
+same session, on `2cc5506`** — the commit that applied the `get_schema` mitigation and *nothing
+else*, i.e. the exact tree §5 measured at 3.690 / 1.646 / 13.311:
+
+| Path | §5's recorded "After" | `2cc5506`, **re-measured today** | `e295289` (Phase 2) | HEAD (Phase 3) |
+|---|---|---|---|---|
+| `project_mappings` | 3.690 ms | **4.049 / 4.118 / 4.172** | 4.036 / 4.089 / 4.144 | 4.066 / 4.150 / 4.409 |
+| `settings` | 1.646 ms | **1.947 / 1.978 / 2.019** | 1.943 / 1.951 / 2.062 | 1.983 / 2.013 / 2.032 |
+| `script` | 13.311 ms | **14.456 / 14.852 / 14.994** | 14.639 / 14.927 / 14.967 | 14.682 / 14.982 / 15.316 |
+
+**The pre-edit tree does not reproduce the numbers the budgets were derived from.** `2cc5506` reads
+4.05–4.17 where §5 recorded 3.690, and 14.46–14.99 where it recorded 13.311 — so
+SC-014-PERF-001 is already exceeded *by the tree it was calibrated on*, before a single schema byte
+moved. The three arms are mutually indistinguishable: every path's three-run band overlaps every
+other arm's.
+
+So the mechanism is **session and machine state**, which is exactly what §1's own ⚠ warns about one
+level up (*"Compare within this document, not against 013's absolute figures… Machine state
+differs"*). What this feature adds to that warning is the measured consequence: **a 110%-of-baseline
+budget is below this instrument's resolution.** The run-to-run spread on a single unchanged tree is
+±4–8%, so a 10% headroom cannot distinguish a regression from a quiet afternoon. 013 hit the same
+wall from the other side when it had to say *"compare within this document"*; 014 is the feature
+where the budget shape itself is the finding.
+
+**No mitigation applied, and none is indicated** — there is nothing measured to mitigate. The
+honest statement of the overrun is: *both budgets are exceeded, by a margin smaller than the
+measurement noise, on a tree where the pre-change control is also exceeded by the same margin.*
+
+**Phase 3 contributes nothing measurable**, which is the one thing these runs do resolve cleanly:
+`e295289` and HEAD are indistinguishable on all three paths, and the only hot-path line Phase 3
+adds is one `is not None` test per repeated configuration member in `_decode_config_item`.
+
+## 7. The descriptor after X1 — helped, hurt, or neither? (T027)
+
+**Neither.** The predicted flat result, and now measured rather than predicted.
+
+Cold build in a **fresh process** per measurement (the descriptor's `derive` is `lru_cache`d, so an
+in-process repeat measures the cache), three processes per schema, same session, HEAD against
+`2cc5506`:
+
+| Schema | Complex types | `2cc5506` cold | HEAD cold | HEAD warm |
+|---|---|---|---|---|
+| `script` | **34** (unchanged) | 228.5 / 233.9 / 236.2 ms | **230.7 / 233.6 / 235.3 ms** | 1.08–1.54 ms |
+| `network_map` | **3** (unchanged) | 106.0 / 108.6 / 109.1 ms | **106.1 / 106.9 / 107.2 ms** | 0.066–0.067 ms |
+| `settings` | **10** (unchanged) | 122.6 / 133.9 / 134.8 ms | **122.9 / 124.4 / 135.2 ms** | 0.249–0.338 ms |
+
+Every band overlaps. Removing three `simpleType` declarations and retyping five elements to a
+built-in changed neither the build time nor the **number of described types** — correctly, since
+the descriptor describes *complex* types and a `simpleType` was never one of them.
+
+**Why flat is the right answer and not a disappointment.** The hypothesis in §5's budget table was
+that a built-in *should if anything help*, because it needs no facet checks. The facet checks it
+removes are three enumeration pairs on five elements — and 013 profiled the dominant cost as
+`elementpath` building a **fresh node tree over the document per `xs:alternative` or `xs:assert`
+evaluation**, which scales with document size × class-carrying elements. **This feature does not
+touch that mechanism at all.** A flat result is therefore the prediction confirmed, not a missing
+win: there was no facet cost large enough to see next to a per-evaluation tree rebuild.
+
+**What did move, and it is the one X1 result worth stating in performance terms**: three of the four
+residual type divergences in `test_construction_parity.py`'s `opaque_dmx` group closed with no code
+aimed at them, because `xmlschema` decodes `xs:boolean` to a Python `bool` itself and the missing
+`OPAQUE_TYPES` recursion never had to reach the value (T017 ⚠(a)). That is correctness, not speed,
+and it is free.
+
+### 7.1 The descriptor's reported types — the acceptance criterion from §3
+
+§3 recorded the "before": `adopted`, `online` and `enabled` each reporting
+`xsd_type='BoolType'` with `enum_values=('True', 'False')`, structurally indistinguishable from
+`post_go`'s genuine three-value enumeration. **All five fields now report `enum_values = None` and
+a boolean type**, asserted in `tests/integration/test_xs_boolean.py` (T018) rather than inspected
+here.
+
+§3's second "before" — `NodeUuidType` reporting as an enumeration of one value — is **unchanged and
+deliberately so** ([`plan.md`](plan.md) §9.5): fixing it needs the descriptor to learn about union
+types, which has no other driver in this feature. It is carried in
+`../planning/upcoming-feature-requirements-2026-10-02.md`.

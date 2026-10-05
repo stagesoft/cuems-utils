@@ -276,31 +276,113 @@ closed three residual divergences in `test_construction_parity.py` that no task 
 **Depends on Phase 2** — plan.md §9.2: build it against a descriptor that reports booleans
 natively, not one that calls them a two-value string enum.
 
-- [ ] **T019** [P] Red-first, per domain: `get_schema_descriptor(X).instance` → `from_json(X, …)` →
-      `save_X()` → `load_X()` equals what went in. The loop §9.2 describes, asserted
-- [ ] **T020** [P] Red-first: after ingestion `network_map`'s `adopted` is a `bool`, `node_role` a
+- [X] **T019** [P] Red-first, per domain: `get_schema_descriptor(X).instance` → `from_json(X, …)` →
+      `save_X()` → `load_X()` equals what went in. The loop §9.2 describes, asserted ✅
+      `tests/integration/test_config_ingestion.py`, **30 passed** (25 red first; the 4 that were
+      green from the start are the descriptor-shape half, which already held). The loop is asserted
+      in **two** halves because a round trip cannot reach the first: that the descriptor's root
+      `instance` names *exactly* the keys the ingestion accepts, per domain — otherwise the loop
+      would close only for documents that never came from the descriptor.
+      ⚠ **`save_X()` is not the persistence step, and could not be.** `save_*` writes what the
+      *manager holds*, and two of the four domains hold it on a private attribute
+      (`_settings_document`, `_project_settings_document`). The round trip therefore persists
+      through the root object's own public `save(path)` — the same body all four `save_*` delegate
+      to — and then reads back through `load_network_map()` / `load_base_settings()` where a public
+      accessor answers with the root. Recorded in `migration-guide.md` §3.1 so no consumer goes
+      looking for an installer that is deliberately absent
+- [X] **T020** [P] Red-first: after ingestion `network_map`'s `adopted` is a `bool`, `node_role` a
       `NodeRole`, `uuid` a `Uuid` — **and the other three schemas' scalars are still `str`.** The
       second half is what catches an ingestion that "helpfully" coerces everywhere, which is the
-      007 regression this feature must not cause
-- [ ] **T021** [P] Red-first: `from_json(NETWORK_MAP, {… "adopted": true …})` is accepted and
+      007 regression this feature must not cause ✅ Both halves. ⚠ **"still `str`" is the wrong
+      instrument and the test says so**: some of those scalars were never `str` — `xmlschema`
+      decodes `xs:int` to an `int` with no adapter involved, and feature 012's per-**field** opt-in
+      makes `settings`' own `node/uuid` a `Uuid`. A literal reading would have had to grant two
+      exceptions and would then have stopped catching the regression it exists for. So the
+      assertion is **identical types to what `load_*` itself produces**, compared scalar by scalar
+      over a recursive type map, plus the direct check that no `bool` appears anywhere in the three
+      non-opted-in schemas. That is strictly stronger than the task's wording and is the same
+      guarantee (007 SC-010a)
+- [X] **T021** [P] Red-first: `from_json(NETWORK_MAP, {… "adopted": true …})` is accepted and
       `"adopted": "True"` is **refused**. This assertion exists only because both changes land
-      together; written against either alone it would be wrong
-- [ ] **T022** Implement `ConfigManager.from_json(SchemaName, payload)` — three accepted forms
+      together; written against either alone it would be wrong ✅ Both, and the refusal is a
+      `SchemaError` naming the offending value — it comes from `_Bool.decode`'s table through the
+      same `Mapper` call `load_*` uses, not from a check written for the ingestion
+- [X] **T022** Implement `ConfigManager.from_json(SchemaName, payload)` — three accepted forms
       (`str`, UTF-8 `bytes`, `Mapping`), decoding through **the same mapper call `load_*` uses**,
       returning the **object** `save_*` writes, not a dict. `doc_version` never expected. `script`
-      and `hardware_outputs` keep their refusals — depends on T019–T021
-- [ ] **T023** [P] Verify `cuems-editor`'s T059 closes by **re-run only**: its
+      and `hardware_outputs` keep their refusals — depends on T019–T021 ✅ As specified, plus four
+      things the task did not foresee:
+
+      **(a) The three-form stage is factored, not copied.** `CuemsScript._ingest` had it inline;
+      writing it a second time would have made the feature that exists to remove a second decoder
+      ship one. It is now `cuemsutils._ingest.payload_as_mapping`, private like `_deprecation`, and
+      what stays at each call site is the part that genuinely differs — which body shape counts as
+      a document of that kind. `CuemsScript`'s `import json` became dead and was removed; one
+      refusal message gains the word "payload" (nothing pinned it, verified across all six
+      checkouts).
+
+      **(b) ⚠ A pre-existing projection/ingestion asymmetry, found by being the first caller to
+      close the loop.** `encode_wire` wraps a repeated member that decoded **bare** in its *class*
+      name, and `decode_config` had no branch for that key. `project_settings` is the one schema
+      where that happens (`<setting>` repeats *directly* under the root, so its members are bare
+      `SettingType` objects), so its own wire form — `{"setting": [{"SettingType": {…}}]}` — was
+      **not ingestible by its own library**: the body was stored as undescribed content and the
+      document would not save. Fixed in `Mapper._decode_config_item`, **not** in `from_json`, so
+      the ingestion keeps decoding through exactly the call `load_*` uses. It cannot move a
+      recorded golden — `xmlschema` never emits a *type* name as a dict key, so no document decode
+      has ever reached the new branch, and the suite's byte-identity and golden-immutability
+      contracts confirm it.
+
+      **(c) One named tolerance, for `settings` only.** `ConfigManager.to_wire('settings')` projects
+      the root's `Settings` **field**, one level deeper than the document, because
+      `Settings.main_key` is `'Settings'` and not `''`. That is the payload `cuems-editor`'s T059
+      actually sends. A public ingestion that cannot read its own library's public projection is a
+      gap, not a strictness, so the inner body is accepted and re-wrapped — generalised over "the
+      root declares exactly one non-repeated complex field", which is `settings.xsd` and nothing
+      else among the six. Pinned by its own test so a future reader deleting it is told by name.
+
+      **(d) SC-004 needs its third recorded exception**, and it is argued differently from the two
+      above it. `get_schema_descriptor` and `generate_example` are exempt because describing a
+      schema is *meta*; `from_json` builds a document, which is domain work. It is exempt because
+      **a JSON payload carries no type**: `CuemsScript.from_json` names no schema only because the
+      class carries `SCHEMA_NAME`, and the symmetric design — `CuemsSettingsType.from_json` — is
+      unreachable, since `cuemsutils.config` exports nothing by decision and that is precisely why
+      UR-5 asked for this shape. Four per-domain methods would make the one consumer that asked
+      build a dispatch table to get back to the parameter it started with. Recorded with the
+      argument in `tests/contract/test_public_api_surface.py`, and
+      `test_the_exceptions_take_the_enum_not_a_string` now covers all three
+- [X] **T023** [P] Verify `cuems-editor`'s T059 closes by **re-run only**: its
       `test_config_save_of_settings_persists_through_save_settings` is `xfail(strict=True)` and must
       turn **XPASS**. Record it in [`migration-guide.md`](migration-guide.md). Do not edit that
-      repository
+      repository ⚠ **Measured, and the task's premise is false: it stays XFAIL.** Recorded as a
+      correction in `migration-guide.md` §3.1 rather than worked around.
 
-**Checkpoint**: 62 of 63 becomes 63 of 63 in `cuems-editor` without a line changing there.
+      Run with that repository's own hatch environment resolving `cuemsutils` to this working tree
+      (verified `0.1.0rc16`, `/disk/Projects/StageLab/cuems-utils/src/cuemsutils/__init__.py`):
+      `12 passed, 1 xfailed`. **Why**: `CuemsWsUser.config_save` does not *attempt* an ingestion and
+      fall back — after the schema-name check and `CONFIG_SAVE_REFUSED` it calls
+      `notify_error_to_user` for all four configuration domains **unconditionally**, with the
+      message naming UR-5. There is no call site a library change can satisfy. T023 assumed a
+      guarded fallback; it is a hard-coded refusal.
+
+      **The library's half is complete, including the payload shape that repository actually
+      sends** — pinned by `test_from_json_ingests_this_librarys_own_settings_projection`, which
+      exists for no other reason. What is left is ~6 lines in `config_save`, in that repository,
+      and **this task says not to edit it**, so it is not edited. It belongs with T032.
+
+      Also measured while there: `cuems-editor`'s full suite is **5 failed / 149 passed / 2 skipped
+      / 1 xfailed**, and the **same 5 fail at `e295289` with Phase 3 stashed** — they are Phase 2
+      (X1) fixture casualties and are T032's, not Phase 3's. Phase 3 adds **zero** editor failures.
+
+**Checkpoint**: ⚠ **NOT MET, and it was unreachable from this repository.** 62 of 63 stays 62 of 63
+until `cuems-editor` edits `config_save`; the checkpoint's "without a line changing there" was the
+mistaken part, not the close itself.
 
 ---
 
 ## Phase 4: Migration, measurement and the rule-4 release note
 
-- [ ] **T024** Complete the rule-4 release note in
+- [X] **T024** Complete the rule-4 release note in
       [`migration-guide.md`](migration-guide.md) §4 — the one deliverable
       `specs/agreements/schema-evolution-convention.md` demands that cannot be inferred from
       anything else. Rule 4's own sentence is the standard to meet: *"'We will just update the files
@@ -316,15 +398,64 @@ natively, not one that calls them a two-value string enum.
       3. **The reshape-then-convert order** for a document needing both migrations.
       4. **A reader who has never read `plan.md` can act on it.** That is the test: the note is for
          an operator and a sibling maintainer, not for this feature's author
-- [ ] **T025** Document the nine already-version-2 files and the out-of-band rewrite in the same
+
+      ✅ `migration-guide.md` §4, rewritten against all four criteria. §4.1 names every one of the
+      51 by path and per repository with its gate task, **and names the 18 this repository
+      deliberately leaves old-form** (the `pre-008`/`pre-013` tiers and 007's frozen `pre-state/`)
+      with the reason, which the criteria did not ask for and a sibling maintainer will otherwise
+      read as 18 missed files. §4.3 is the two live locations. §4.4 is the one sentence. §4.5 is the
+      order. Also added, because it is what makes the note actionable rather than descriptive: the
+      `grep -rlE` one-liner that finds the files on any node, and the measured fact that **no
+      `settings.xml`, `mappings.xml` or project `settings.xml` needs converting at all** —
+      `settings.xsd`'s `BoolType` declaration was dead and the other two config schemas declare no
+      boolean, so only `script.xml` and `network_map.xml` are affected. Verified against all five
+      schemas rather than assumed
+- [X] **T025** Document the nine already-version-2 files and the out-of-band rewrite in the same
       note (plan.md §2.1). Version 2 is briefly ambiguous and the registry cannot resolve it; say
-      so plainly rather than leaving it to be discovered
-- [ ] **T026** Validate the three budgets in `baseline.md` §5 and record each, **including any that
-      is exceeded — recorded as exceeded rather than restated as passing**
-- [ ] **T027** [P] Re-measure the descriptor and the suite after Phase 2, and state whether removing
+      so plainly rather than leaving it to be discovered ✅ `migration-guide.md` §4.2 — all nine by
+      filename, each with its status, and the ambiguity stated as a consequence of putting the
+      rewrite in the *existing unreleased* version 2 rather than as a quirk.
+      ⚠ **Item 9 is still old-form, verified 2026-10-05**:
+      `../cuems-engine/dev/test_xml_files/projects/complex_test_v2/script.xml`. T015's table claimed
+      it and T015's completion note does not mention it, so it was **missed, not deferred**. It is a
+      sibling file and T028 was written to "verify the result in place", so it is named as
+      outstanding rather than rewritten from here — **and T028 must now rewrite it, not check it.**
+      A plain `cuems-convert-documents` pass will not fix it: the file is already `doc_version="2"`,
+      which is the whole of §4.2
+- [X] **T026** Validate the three budgets in `baseline.md` §5 and record each, **including any that
+      is exceeded — recorded as exceeded rather than restated as passing** ✅ `baseline.md` §6.
+      **SC-014-PERF-002 met** (7.12–7.30 ms/test against ≤ 7.79, three runs). **SC-014-PERF-001 and
+      SC-014-PERF-003 exceeded**, by 0.1–8.6% and 0.01–4.3%, and recorded as exceeded.
+      ⚠ **The overrun is the instrument, and a control arm proves it rather than arguing it**: the
+      same three measurements on `2cc5506` — the commit that applied the `get_schema` mitigation and
+      *nothing else*, i.e. the exact tree §5 measured at 3.690 / 1.646 / 13.311 — read **4.05–4.17 /
+      1.95–2.02 / 14.46–14.99** today. SC-014-PERF-001 is exceeded *by the tree it was calibrated
+      on*, before a schema byte moved, and all three arms (`2cc5506`, Phase 2, Phase 3) are mutually
+      indistinguishable. The finding that outlives the numbers: **a 110%-of-baseline budget sits
+      below this instrument's resolution** — the run-to-run spread on one unchanged tree is ±4–8%.
+      No mitigation applied, because there is nothing measured to mitigate
+- [X] **T027** [P] Re-measure the descriptor and the suite after Phase 2, and state whether removing
       three `simpleType`s and retyping five elements to a built-in helped, hurt or did neither.
       013's identified mechanism (`elementpath` rebuilding a node tree per `xs:alternative`
-      evaluation) is **untouched** by this feature, so a flat result is the expected one
+      evaluation) is **untouched** by this feature, so a flat result is the expected one ✅
+      **Neither** — the predicted result, now measured. `baseline.md` §7: cold descriptor build in a
+      *fresh process* per measurement (`derive` is `lru_cache`d, so an in-process repeat measures
+      the cache), three processes per schema, HEAD against `2cc5506` in the same session. Every band
+      overlaps: `script` 230.7–235.3 against 228.5–236.2, `network_map` 106.1–107.2 against
+      106.0–109.1, `settings` 122.9–135.2 against 122.6–134.8. The **number of described types is
+      unchanged too** (34 / 3 / 10) — correctly, since the descriptor describes *complex* types and
+      a `simpleType` was never one. The facet cost removed is three enumeration pairs on five
+      elements, against a per-evaluation `elementpath` tree rebuild this feature does not touch, so
+      flat is the prediction confirmed rather than a missing win. Suite: 7.12–7.30 ms/test
+
+**Checkpoint (T024–T027)**: ✅ **PASSED 2026-10-05.** The rule-4 release note names every path, the
+nine out-of-band files are named individually with one recorded as outstanding, and all three
+budgets are measured against a same-session control arm — one met, two exceeded and recorded as
+exceeded with the mechanism identified. Suite **3565–3566 passed, 112–113 skipped, 2 xfailed in
+25.39–26.02 s**.
+
+The sibling gates T028–T036 are **not started** — they were outside this pass's scope.
+
 ### The sibling gates (E3)
 
 **One task per repository, each with the instruction that repository needs.** The single "measure
@@ -342,7 +473,10 @@ finding for this feature and should come back here.
 - [ ] **T028** [P] **`cuems-engine`** — 6 unmarked documents under `dev/test_xml_files/`, plus the
       **one already-version-2** file T015 owns
       (`dev/test_xml_files/projects/complex_test_v2/script.xml`; T015 rewrites it, this task
-      verifies the result in place). **Measure in arms, not by inference** — the lesson 012 and 013
+      verifies the result in place). ⚠ **Corrected 2026-10-05 by T025: T015 did *not* rewrite it.**
+      Verified still old-form, so this task **rewrites** it rather than verifying it — and
+      `cuems-convert-documents` will not, because the file is already `doc_version="2"`
+      (`migration-guide.md` §4.2). The other six are the automatic kind. **Measure in arms, not by inference** — the lesson 012 and 013
       each learned once, where the breakage was in *data* a call-site census cannot see: run at the
       branch point, after the library change, and after one conversion pass. ⚠ **The control arm is
       unavailable**: that candidate is coupled to feature 012 from `c31734c` onward

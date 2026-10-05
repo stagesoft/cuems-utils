@@ -439,7 +439,41 @@ class Mapper:
             if member is not None and member.child is not None:
                 chosen = self._alternative_for(body, member, path)
                 return {tag: self._decode_config_child(body, derive(chosen), (*path, tag))}
+            if self._names_this_type(tag, child_spec):
+                # The **type-name** wrapper ``encode_wire`` produces for a
+                # repeated member that decoded *bare* (feature 014, T022).
+                #
+                # The two directions were asymmetric here, and nothing could
+                # see it until a configuration wire form was fed back in.
+                # ``decode_config`` preserves an element wrapper
+                # (``{"node": …}``) where the raw document had one, and
+                # ``_encode_wrapped_item`` re-encodes it in place. But
+                # ``project_settings``' ``<setting>`` repeats *directly*, so
+                # its members decode to bare ``SettingType`` objects — and
+                # ``_tag_for_item`` then falls back to the class name, emitting
+                # ``{"SettingType": {…}}`` on the wire. Fed back in, that key
+                # named no declared child, so the body was stored verbatim as
+                # undescribed content and the document would not save.
+                #
+                # Unwrapping it here rather than in ``ConfigManager.from_json``
+                # keeps one decoder: the ingestion decodes through exactly the
+                # call ``load_*`` uses (plan.md §9.3). And it cannot move any
+                # recorded golden — ``xmlschema`` never emits a *type* name as
+                # a key, so no document decode has ever reached this branch.
+                return self._decode_config_value(body, child_spec, path)
         return self._decode_config_value(item, child_spec, path)
+
+    def _names_this_type(self, tag: str, child_spec: TypeSpec) -> bool:
+        """``tag`` is ``child_spec``'s own type name, or its model's class name.
+
+        Deliberately narrow: the tag must name *this* type, not merely be
+        undeclared. Anything else stays undescribed content, which is what the
+        leaked ``schemaLocation`` relies on.
+        """
+        if tag == child_spec.key.name:
+            return True
+        model = self._model_for_spec(child_spec)
+        return model is not None and model.__name__ == tag
 
     # -- encode: wire ---------------------------------------------------
 
