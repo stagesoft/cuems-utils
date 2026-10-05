@@ -516,7 +516,7 @@ finding for this feature and should come back here.
       `_as_the_load_path_sees_it` runs the conversion, whose paths are the pre-013 flat ones.
       Reproduced here in both tool orders. **Not 014's, and it blocks the coordinated tag** —
       [`../planning/settings-reshape-defeats-f3-conversion-defect.md`](../planning/settings-reshape-defeats-f3-conversion-defect.md)
-- [ ] **T031** [P] **`cuems-common`** — ⚠ **corrected 2026-10-05: 3 documents, not 2**, and no
+- [X] **T031** [P] **`cuems-common`** — ⚠ **corrected 2026-10-05: 3 documents, not 2**, and no
       mirror to move. The third is `etc/cuems/network_map.xml.example`, which a `*.xml` glob misses
       and which **breaks a test**: `tests/test_documented_validation.py::test_documented_command_accepts_valid_maps[example]`
       validates it directly against this repository's `network_map.xsd` **with no version
@@ -527,6 +527,28 @@ finding for this feature and should come back here.
       ⚠ **It no longer mirrors the schemas**: feature 011 transferred custody and `debian/postinst`
       copies this repository's own `/usr/share/cuems/schemas/network_map.xsd`, so there is no stale
       mirror. Verified. See [`migration-guide.md`](migration-guide.md) §4.1
+      ✅ **Done in that repository**, 2026-10-05, `e595e67`. Arms **104/104 → 102/104 → 104/104**,
+      and **both arm-B failures were the `.xml.example`** — exactly what the forecast predicted and
+      nothing else. It confirmed both corrections above (no mirror; `postinst`'s `node_type` step
+      unaffected) and corrected one of mine: `tests/fixtures/maps/{converted,unconverted}.xml` are
+      **orphaned**, not an input/expected pair, so "both sides or neither" did not apply. Recorded in
+      [`baseline.md`](baseline.md) §8.4.
+      🔴 **And it found a property of a tool *this* repository ships**:
+      `cuems-convert-documents` **silently destroys every XML comment** (measured: 10 → 0, 40 lines
+      → 24, exit 0) — it *"nearly ran over a doc file unattended"*. Not new and not 014's — but 014
+      is the first release note telling operators to run it over **live** files, and
+      `/etc/cuems/network_map.xml` is a conffile they edit. Undocumented and untested; warning added
+      to `migration-guide.md` §4.1 and §4.3, and to the gate prompt.
+      ⚠ **Scoped on review, because the report bundled a benign item with the serious one**:
+      whitespace **survives** (it is text — the 40 → 24 is exactly the 16 comment lines) and so does
+      **`xsi:schemaLocation`**, verified. What is dropped beside the comments is an **unused**
+      `xmlns:xsi` declaration, which carries no information. The one thing to protect is the comments.
+      ⚠ **One correction to that report** (`baseline.md` §8.4a): its arm A was taken at `c02f35c`,
+      called "the true 014 branch point". That is **013's landing commit**; the branch point is
+      `84705b9`, 14 commits later. Its arm A is still sound — that repository imports no
+      `cuemsutils` and none of the 14 touches a schema — but `be3e86e` (**S1**, a *precondition*) is
+      among them, so the same substitution would corrupt `cuems-engine`'s arm A. The prompt now says
+      so explicitly
 - [X] **T032** [P] **`cuems-editor`** — 4 unmarked documents, of which
       `tests/fixtures/script_minimal.xml` is **deliberately pre-013 and must stay that way** (its
       own `tests/fixtures/README.md` records why: it is the pre-migration payload capture *and* the
@@ -550,14 +572,14 @@ finding for this feature and should come back here.
       [`../planning/upcoming-feature-requirements-2026-10-02.md`](../planning/upcoming-feature-requirements-2026-10-02.md) §8
 - [ ] **T033** Record every arm in [`baseline.md`](baseline.md), per repository, **including any
       that is still red and why**. A sibling left red with the reason named is a result; a sibling
-      not run is not — 🟡 **PARTIAL, three of five**: [`baseline.md`](baseline.md) §8 records
-      `cuems-editor` (T032), `cuems-nodeconf` (T030) and `cuems-power-bridge` (T029), **all three
-      green**, with their findings. Arm counts are **attributed to those repositories' own
-      measurements, not re-derived** — `cuems-nodeconf`'s suite needs `zeroconf`, which this test
-      environment does not carry. Every claim each report makes *about this repository's code* was
-      verified here. T028 and T031 have not run.
-      **§8.0 is the result three arms make visible**: **six failures attributable to 014 across
-      three repositories, against 87 pre-existing ones** — and without arm A, `cuems-power-bridge`
+      not run is not — 🟡 **PARTIAL, four of five**: [`baseline.md`](baseline.md) §8 records
+      `cuems-editor` (T032), `cuems-nodeconf` (T030), `cuems-power-bridge` (T029) and `cuems-common`
+      (T031), **all four green**, with their findings. Arm counts are **attributed to those
+      repositories' own measurements, not re-derived** — `cuems-nodeconf`'s suite needs `zeroconf`,
+      which this test environment does not carry. Every claim each report makes *about this
+      repository's code* was verified here. **Only `cuems-engine` (T028) has not run.**
+      **§8.0 is the result four arms make visible**: **eight failures attributable to 014 across
+      four repositories, against 87 pre-existing ones** — and without arm A, `cuems-power-bridge`
       would have reported all 55 of its own against this feature.
       §8.4 also records a **defect in the gate prompt itself**, found by being used: its arm-A
       instruction had each session switch the shared `../cuems-utils` checkout, which races as soon

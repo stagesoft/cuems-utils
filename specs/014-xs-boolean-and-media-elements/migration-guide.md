@@ -206,6 +206,35 @@ rewritten, and a backup failure is fatal **for that document only** — the batc
 is idempotent, so a second pass over an already-converted tree reports `already current` and
 changes nothing.
 
+🔴 **It silently destroys every XML comment in the document.** Found by `cuems-common`'s gate
+(T031) and measured here: `etc/cuems/network_map.xml.example` went **10 comments → 0, 40 lines →
+24**, with no warning and exit 0. `cuems-reshape-devices` behaves the same way — both write through
+`write_tree`, i.e. stdlib `ElementTree`, which does not retain comment nodes on parse.
+
+**What survives, measured, because the blast radius matters and the first report overstated it:**
+
+| | |
+|---|---|
+| XML comments | 🔴 **destroyed**, all of them, silently |
+| Indentation and whitespace | ✅ **preserved** — it is text, so ElementTree keeps it. The 40 → 24 above is exactly the 16 comment lines, nothing else moved |
+| `xsi:schemaLocation` | ✅ **preserved** — verified on a corpus document that carries one |
+| `xmlns:xsi` with **nothing using it** | ⚠ dropped — and **harmless**: an unused namespace declaration carries no information. T031 reported this alongside the comments; it is correct as observed and is not the same severity |
+
+So the one thing to protect is the comments.
+
+This is **not** new behaviour and **not** 014's, but 014 is the first release note that tells
+operators to run the tool over live files, so it is the first time it matters:
+
+- **Hand-rewrite any document whose comments are part of its value** — what that gate did for its
+  annotated example, and what `cuems-nodeconf` did to carry one dmx-latency comment into its
+  reshaped `<player>` block.
+- **`/etc/cuems/network_map.xml` is a `dpkg` conffile that operators edit** (see `cuems-common`'s
+  `debian/postinst`, which reasons at length about `.dpkg-dist`/`.dpkg-old`). If a node's map carries
+  operator comments, the `.bak` is the only copy afterwards — and nobody reads a `.bak`.
+- The property is **undocumented and untested** here: no test asserts either preservation or loss,
+  so nothing would catch it changing in either direction. Worth a pinning test whichever way it is
+  decided, and that decision is not 014's.
+
 ⚠ **`cuems-reshape-devices` is not symmetric with it**, which matters for §4.5: given paths it also
 takes files, but given *no* paths it **discovers** a tree from `--conf` / `--library` (or
 `CUEMS_CONF_PATH`). `cuems-convert-documents` has no discovery mode at all. So the two tools cannot
@@ -217,14 +246,14 @@ be handed the same argument, and the `find | xargs` form above is the one that w
 | `cuems-engine` | `dev/network_map.xml`, `dev/test_xml_files/network_map.xml`, `dev/test_xml_files/script_one_cue_in_a_cuelist.xml`, `dev/test_xml_files/projects/{complex_test,empty_test,fade_actions_v1}/script.xml` — **6** | 78 (incl. §4.2's one) | T028 |
 | `cuems-power-bridge` | `tests/fixtures/network_map/map-{no-self,controller-only,mixed,none-adopted,two-adopted,partial-resolve,unresolvable,no-settings}/network_map.xml` — **8 of 10** ✅ done `dd1256f`. ⚠ **`map-incomplete` and `map-pre007` must stay old-form** — they exist to test `NETWORK_MAP_INVALID` (missing `<mac>`) and `NETWORK_MAP_RETIRED_VOCABULARY` (old `<node_type>`); the tool correctly refused both. Same rule as the editor's `script_minimal.xml`: **a fixture whose purpose is to be refused keeps the form it is refused for**. It also hand-fixed **9 `settings.xml`** for the separate 013/F3 dead end | 46 | T029 |
 | `cuems-editor` | `tests/fixtures/conf/network_map.xml`, `tests/fixtures/script_minimal_013.xml`, `specs/001-cuems-utils-migration/evidence/mappings-capture/network_map.xml` — **3 of 4**. ⚠ `tests/fixtures/script_minimal.xml` is the **fourth and must stay old-form**: its own `tests/fixtures/README.md` records why (the pre-migration payload capture *and* the `SKIPPED_INVALID` fixture). This gate is "convert the three and confirm the fourth is still refused, **for the right reason**" | 38 | T032 |
-| `cuems-common` | `tests/fixtures/maps/{converted,unconverted}.xml` **and `etc/cuems/network_map.xml.example`** — **3, not 2**. ⚠ The example is the one that *breaks a test*: `tests/test_documented_validation.py::test_documented_command_accepts_valid_maps[example]` validates it **directly against cuems-utils' `network_map.xsd` with no version conversion**, so `True` is simply invalid there now. ⚠ It no longer mirrors the XSDs — feature 011 transferred custody and its `postinst` copies cuems-utils' own `/usr/share/cuems/schemas/network_map.xsd`, so there is **no stale mirror to move** (this row said otherwise until 2026-10-05) | 12 | T031 |
+| `cuems-common` | ✅ **done** `e595e67`. `tests/fixtures/maps/converted.xml` **and `etc/cuems/network_map.xml.example`** — **2 documents + 2 test modules + 3 doc files**; `unconverted.xml` deliberately left (orphaned, never schema-valid). ⚠ The example is the one that *breaks a test*: `tests/test_documented_validation.py::test_documented_command_accepts_valid_maps[example]` validates it **directly against cuems-utils' `network_map.xsd` with no version conversion**, so `True` is simply invalid there now. ⚠ It no longer mirrors the XSDs — feature 011 transferred custody and its `postinst` copies cuems-utils' own `/usr/share/cuems/schemas/network_map.xsd`, so there is **no stale mirror to move** (this row said otherwise until 2026-10-05) | 12 | T031 |
 | `cuems-nodeconf` | `tests/fixtures/etc_cuems/network_map.xml` — **1**. Also the one repository that **writes** `network_map.xml` every 30 s, so confirm its write path emits the new form | 4 | T030 |
 
 **Two classes a path list does not reach, and both are real:**
 
 | Class | Where | What to do |
 |---|---|---|
-| **Inline XML literals in test sources** | `cuems-common/tests/test_controller_resolution.py`, `cuems-common/tests/test_network_map_conversion.py` | Same treatment as this repository's T015a, which fixed 16 literals across 7 modules. ⚠ In `test_network_map_conversion.py` the literals are the **input and the expected output** of `cuems-migrate-network-map`, which rewrites `node_type` only and never touches a boolean — so convert **both sides or neither**, or the test fails for a newly wrong reason |
+| **Inline XML literals in test sources** | `cuems-common/tests/test_controller_resolution.py`, `cuems-common/tests/test_network_map_conversion.py` — ✅ **done** `e595e67` | Same treatment as this repository's T015a, which fixed 16 literals across 7 modules. ⚠ My "convert **both sides or neither**" warning here rested on a wrong assumption — that `tests/fixtures/maps/{converted,unconverted}.xml` were a pair consumed by that test. They are not: **both are orphaned**, no test references either, and T031 converted `converted.xml` while deliberately leaving `unconverted.xml`, which predates the `node_type`→`node_role` migration and was never schema-valid regardless of boolean spelling. The *inline* literals were the real work |
 | **Docstrings teaching the retired spelling** | `cuems-editor/src/cuemseditor/CuemsWsServer.py:435`, `cuems-nodeconf/CLAUDE.md`, `cuems-nodeconf/specs/001-network-map-object-adoption/quickstart.md` | One-line doc corrections. §3's "no source change" is about *behaviour* and still holds — the editor returns `to_wire()` untouched — but a docstring documenting the old wire form is now wrong |
 
 **Frozen, do not touch**: `cuems-engine/specs/008-cuems-utils-migration/evidence/baseline-suite*.txt`
@@ -288,7 +317,7 @@ No glob finds these and no test suite covers them. They are the reason rule 4 ex
 
 | Where | What | When |
 |---|---|---|
-| **`/etc/cuems/network_map.xml`**, on **every node** | `<adopted>` and `<online>` per row | Converted on read automatically (it is unmarked), but **`cuems-nodeconf` rewrites it every 30 s** and `CuemsNetworkMapType.save()` bumps the marker — after which an **older** `cuems-utils` refuses it with `DocumentTooNewError`. So: upgrade the package *before* nodeconf restarts, and there is **no rollback** afterwards (012's migration guide §9b, same mechanism) |
+| **`/etc/cuems/network_map.xml`**, on **every node** | `<adopted>` and `<online>` per row | Converted on read automatically (it is unmarked), but **`cuems-nodeconf` rewrites it every 30 s** and `CuemsNetworkMapType.save()` bumps the marker — after which an **older** `cuems-utils` refuses it with `DocumentTooNewError`. So: upgrade the package *before* nodeconf restarts, and there is **no rollback** afterwards (012's migration guide §9b, same mechanism). ⚠ **Check for operator comments first** — the tool deletes them (§4.1); nodeconf's next write would have too |
 | **Each node's project library** — `<library_path>/projects/*/script.xml` | `<autoload>`, `<enabled>`, `<timecode>` per cue | Converted on read. Persist it with one pass per node: `find <library_path>/projects -name '*.xml' -print0 \| xargs -0 cuems-convert-documents` |
 
 `/etc/cuems/settings.xml`, `/etc/cuems/default_mappings.xml` and each project's `mappings.xml`

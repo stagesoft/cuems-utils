@@ -245,9 +245,9 @@ types, which has no other driver in this feature. It is carried in
 
 ---
 
-## 8. The sibling gates, per repository (T033 — **partial**, three of five)
+## 8. The sibling gates, per repository (T033 — **partial**, four of five)
 
-**Three gates have landed and reported.** Two have not run. T033 is recorded as partial rather than
+**Four gates have landed and reported.** One has not run — `cuems-engine`, T028. T033 is recorded as partial rather than
 held back, because *"a sibling left red with the reason named is a result; a sibling not run is
 not"* — and the three that ran deserve their record now.
 
@@ -259,8 +259,8 @@ The prompt the gate sessions work from is
 | `cuems-editor` | T032 | 154 passed / 2 skipped / 1 xfailed | **5 failed / 149 passed** | 154 / 2 / 1 → **161 passed / 2 skipped** after its T059 | ✅ **green** |
 | `cuems-nodeconf` | T030 | 32 failed / 142 passed | **33 failed / 141 passed** | 32 failed / 142 passed → **174 / 174** after an independent 013 fix | ✅ **green** |
 | `cuems-power-bridge` | T029 | 55 failed / 221 passed | **55 failed / 221 passed** — identical set, confirmed by diff | **276 / 0** | ✅ **green** |
-| `cuems-engine` | T028 | — | — | — | not run |
-| `cuems-common` | T031 | — | — | — | not run |
+| `cuems-common` | T031 | 104 / 104 | **102 / 104** — both on `network_map.xml.example`, exactly as forecast | **104 / 104** | ✅ **green** |
+| `cuems-engine` | T028 | — | — | — | **not run** |
 
 Arm counts for the three landed gates are **as those repositories measured them**, in their own
 environments, and are attributed rather than re-derived — `cuems-nodeconf`'s suite needs `zeroconf`,
@@ -268,15 +268,16 @@ which this repository's test environment does not carry, so re-running it here i
 What *was* independently verified here is every claim each report makes **about this repository's
 code**; see below.
 
-### 8.0 Three arms in, one result stands out: **014 broke almost nothing**
+### 8.0 Four arms in, one result stands out: **014 broke almost nothing**
 
 | Repository | Failures attributable to 014 | Attributable to 013, pre-existing |
 |---|---|---|
 | `cuems-power-bridge` | **0** — arms A and B identical, diffed | 55 |
 | `cuems-nodeconf` | **1** | 32 |
+| `cuems-common` | **2** — both on the one document a `*.xml` glob missed | 0 |
 | `cuems-editor` | 5 | 0 |
 
-**Six failures across three repositories, and 87 pre-existing ones.** Arm A is what separates them,
+**Eight failures across four repositories, and 87 pre-existing ones.** Arm A is what separates them,
 and without it `cuems-power-bridge` would have reported 55 failures against this feature and **every
 one of them would have been someone else's** — which is the clearest vindication of the three-arm
 method the gates could have produced.
@@ -384,7 +385,77 @@ could not have named power-bridge's without reading its tests, which is exactly 
 in the repository and not here. **The check is "is this document refused for the reason it was
 written to test?", not "is it converted?"**
 
-### 8.4 A process defect in the gate prompt itself, found by being used
+### 8.4 `cuems-common` — T031, green, and it found a property of *this* repository's tool
+
+`e595e67`. Arms **104 / 104 → 102 / 104 → 104 / 104**, and **both arm-B failures were on
+`etc/cuems/network_map.xml.example`** — the document §4.1 was corrected on 2026-10-04 to name, and
+the one a `*.xml` glob misses. The forecast said *"at least one certain failure, the `.xml.example`
+validated raw"*; it was exactly that and nothing else.
+
+- **2 documents, 2 test modules, 3 doc files.** `tests/fixtures/maps/converted.xml` by tool; the
+  example **hand-rewritten**; inline literals in `test_network_map_conversion.py` and
+  `test_controller_resolution.py`; and `CLAUDE.md`, `docs/node-identity-contract.md`, `README.md`
+  where doc tables quoted `True`/`False` as the literal wire form.
+- **No source change**, with the reason given: that package holds no objects, only text and scripts
+  that pass the value through unexamined.
+- **Confirmed both corrections this repository made to T031's task text**: no stale schema mirror
+  (`debian/postinst:173` installs this repository's own copy), and `debian/postinst`'s
+  `node_type`→`node_role` step is unaffected because it never touched booleans.
+- ⚠ **It corrected one of my own warnings.** §4.1 said to convert `tests/fixtures/maps/{converted,
+  unconverted}.xml` *"both sides or neither"*, on the assumption they were the input/expected pair
+  of `test_network_map_conversion.py`. **They are not** — both are orphaned, no test references
+  either — so it converted one and deliberately left `unconverted.xml`, which predates the
+  `node_type`→`node_role` migration and was never schema-valid regardless of boolean spelling. The
+  *inline* literals were the real work. Corrected in §4.1.
+
+🔴 **The finding, and it is about a tool this repository ships**: **`cuems-convert-documents`
+silently destroys every XML comment.** That gate hit it on its annotated example, hand-rewrote
+instead, and reports it *"nearly ran over a doc file unattended"* — which is the right warning to
+take from it. Measured here afterwards: the example goes **10 comments → 0 and 40 lines → 24**, with
+no warning and exit 0. `cuems-reshape-devices` does the same; both write through `write_tree`, i.e.
+stdlib `ElementTree`, which drops comment nodes on parse.
+
+**Scoped here, because the report bundled a benign item with the serious one:**
+
+| | |
+|---|---|
+| XML comments | 🔴 **destroyed**, silently |
+| Indentation / whitespace | ✅ **preserved** — it is text. The 40 → 24 is exactly the 16 comment lines |
+| `xsi:schemaLocation` | ✅ **preserved**, verified on a corpus document carrying one |
+| `xmlns:xsi` with nothing using it | ⚠ dropped, and **harmless** — an unused namespace declaration carries no information |
+
+T031 reported the `xmlns:xsi` drop beside the comment loss as one finding. Both observations are
+correct; only the first is a problem, and separating them is what keeps the warning actionable
+rather than alarming. **The one thing to protect is the comments.**
+
+It is **not new** and **not 014's**, but 014 is the first release note instructing operators to run
+the tool over **live** files, and `/etc/cuems/network_map.xml` is a `dpkg` conffile operators edit.
+After a conversion pass the `.bak` is the only copy of their comments, and nobody reads a `.bak`.
+**Undocumented and untested** — no test asserts preservation *or* loss, so nothing would catch it
+moving either way. Recorded in [`migration-guide.md`](migration-guide.md) §4.1 and §4.3 with the
+warning; a pinning test is for whoever decides the behaviour, not for 014.
+
+### 8.4a One correction to that report — the arm-A commit it names
+
+Its arm A was taken at `cuems-utils@c02f35c`, described as *"the true 014 branch point —
+013-device-class-reshape's tip"*. **`c02f35c` is 013's landing commit; the 014 branch point is
+`84705b9`** (`git merge-base 014-xs-boolean-and-media-elements feat/xml-refactor`), and **14 commits
+separate them**.
+
+**Its arm A is still sound**, and the reasoning that got it there was right — it rejected
+`main` because that branch sits 224 commits behind and predates feature 007, which would have been a
+useless baseline. For *that* repository the two commits are equivalent: it carries no
+`import cuemsutils` at all, its tests validate against the XSD directly, and **none of the 14
+commits touches a schema** (verified).
+
+**But it would not be equivalent for `cuems-engine`**, the one gate still open, and that is why this
+is worth writing down. `be3e86e` — the strict `_Bool.decode` — is among those 14. It is **S1 in
+`tasks.md`'s "Already settled — do not redo"** precisely because it is a *precondition* rather than
+part of 014's diff. An arm A taken at `c02f35c` folds S1 into the measured delta and would report a
+behaviour change this feature did not make. The gate prompt names `84705b9`; §8.5's worktree
+instruction is the mechanism for reaching it without moving the shared checkout.
+
+### 8.5 A process defect in the gate prompt itself, found by being used
 
 `cuems-nodeconf`'s report §4: `../cuems-utils` was found mid-measurement in a detached `HEAD` at a
 commit predating `0.1.0rc14`, because a second sibling session was running its gate against the

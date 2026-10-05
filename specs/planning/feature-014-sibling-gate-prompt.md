@@ -19,14 +19,14 @@ measurement that can be reported as red with a reason rather than averaged away.
 
 | Session opened in | Gate | Rough size | State |
 |---|---|---|---|
-| `cuems-engine` | T028 | 6 documents + **1 hand-rewrite**; three measurement arms | **open** |
-| `cuems-common` | T031 | 3 documents + 2 modules of inline literals | **open** |
+| `cuems-engine` | T028 | 6 documents + **1 hand-rewrite**; three measurement arms | **open — the last one** |
 | `cuems-nodeconf` | T030 | — | ✅ done 2026-10-05 (`61c5705`) |
 | `cuems-editor` | T032 | — | ✅ done 2026-10-05 (`22093fd`) |
 | `cuems-power-bridge` | T029 | — | ✅ done 2026-10-05 (`dd1256f`) |
+| `cuems-common` | T031 | — | ✅ done 2026-10-05 (`e595e67`) |
 
-Only the two **open** rows need a session. The three done ones are kept for their reports, which are
-worth reading before starting one of the others:
+**Only `cuems-engine` is left.** The four done ones are kept for their reports, which are worth
+reading before starting it:
 
 - **`cuems-nodeconf`** found a `settings` migration dead end and a race in this prompt, both since
   fixed.
@@ -34,6 +34,8 @@ worth reading before starting one of the others:
   and produced the cleanest result in the set: **arms A and B identical**, so 014 caused zero
   failures there.
 - **`cuems-editor`** closed its own T059 in the same session, resolving UR-5.
+- **`cuems-common`** found that `cuems-convert-documents` **silently destroys every XML comment**,
+  and hand-rewrote its annotated example rather than losing them — see §3.
 
 **What three landed gates have established, and the open two should expect:** most of arm B is
 probably **not 014**. Across the three, **six failures were attributable to this feature and 87
@@ -130,6 +132,23 @@ It writes a `<file>.<YYYYmmddTHHMMSS>.bak` beside each document **before** rewri
 backup failure is fatal for that document only, and it is idempotent — a second pass reports
 `already current` and changes nothing. **Delete the `.bak` files before committing.**
 
+🔴 **It also silently destroys every XML comment**, with no warning and exit 0 — measured 10
+comments → 0 on `cuems-common`'s annotated example, which that gate *"nearly ran over unattended"*.
+`cuems-reshape-devices` does the same; both write through stdlib `ElementTree`, which drops comment
+nodes on parse. **Check before you convert**, every time:
+
+```bash
+grep -c '<!--' <file>      # non-zero -> hand-rewrite instead of converting
+```
+
+**If a document's comments are part of its value, hand-rewrite it** — that is what `cuems-common`
+did for its annotated example and `cuems-nodeconf` for one dmx-latency comment it carried into a
+reshaped `<player>` block.
+
+Measured, so you know what you are *not* risking: **indentation and whitespace survive** (they are
+text), and so does **`xsi:schemaLocation`**. An **unused** `xmlns:xsi` declaration is dropped, which
+is harmless — it carries no information. **The one thing to protect is the comments.**
+
 Expect three verdicts per file and read them: `converted`, `already current`, and
 `skipped (root element names no bundled schema)`. **`already current` on a file you know carries
 `True` is §4.2's case, not a success** — it means the document is marked `doc_version="2"` and needs
@@ -176,6 +195,16 @@ git -C ../cuems-utils worktree add --detach "$W" 84705b9
 
 git -C ../cuems-utils worktree remove --force "$W"   # when you are done with arm A
 ```
+
+⚠ **`84705b9` is the branch point — do not substitute 013's tip.** `cuems-common`'s gate used
+`c02f35c` instead, reasoning (correctly) that `main` sits 224 commits behind and would be a useless
+baseline — but `c02f35c` is **013's landing commit**, and **14 commits separate it from the 014
+branch point**. For that repository the two were equivalent: it imports no `cuemsutils` and none of
+the 14 touches a schema. **For a repository that imports the library they are not**, because
+`be3e86e` — the strict `_Bool.decode` — is among them, and `tasks.md` lists it as **S1, "Already
+settled — do not redo"**, i.e. a *precondition* rather than part of 014's diff. An arm A at
+`c02f35c` folds S1 into your measured delta and reports a change this feature did not make.
+Verify with `git -C ../cuems-utils merge-base 014-xs-boolean-and-media-elements feat/xml-refactor`.
 
 **Never commit in `../cuems-utils`, never check out a different commit in it, and never leave it on
 a detached HEAD.** Arms B and C run against it as it stands, which is the whole point of not moving
@@ -446,13 +475,13 @@ reaching into another's tree, which is the thing the gate split exists to stop.
 | `cuems-editor` | **5 failed / 149 passed — confirmed exactly** | 5 | 1 retired premise + 4 payload |
 | `cuems-nodeconf` | **33 failed / 141 passed** | **1** | **32 are 013's device shape**, identical in arm A |
 | `cuems-power-bridge` | **55 failed / 221 passed** | **0** | **all 55 are 013's**, arms A and B diffed identical |
+| `cuems-common` | **102 / 104** | 2 | both on the `.xml.example` validated raw — **exactly as forecast, and nothing else** |
 | `cuems-engine` | unmeasured since 013 (`1 failed / 922 passed` then) | — | — |
-| `cuems-common` | unmeasured; at least one certain failure | — | the `.xml.example` validated raw |
 
 A session that measures a figure far from these should say so — it means something moved between
 2026-10-02 and its run, and that is worth more than the gate itself.
 
-⚠ **The pattern across the three landed rows is the thing to expect**: in two of three, most of
+⚠ **The pattern across the four landed rows is the thing to expect**: in two of four, most of
 arm B was **not 014** — and in `cuems-power-bridge`, *none* of it was. **Arm A is what separates
 them**, which is why it is worth the worktree: without it that repository would have reported 55
 failures against this feature and every one would have been someone else's.
