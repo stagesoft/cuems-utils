@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
-"""Stored media dimensions: ``pixel_width``, ``pixel_height``, ``file_size``.
+"""Stored media dimensions: ``pixel_width``, ``pixel_height``, ``file_size``,
+and the file's ``file_md5``.
 
 The node engine used to run ``ffprobe`` for a video file's size on its first
 arm since the engine started, under the command lock, so a GO sent right
@@ -18,7 +19,11 @@ hold, and they are tested separately because they share no code:
   raw and never calls the setters, so validity and order there come from the
   XSD and from ``MediaXmlBuilder``.
 
-Design: cuems-RELATIONS Plans/2026-10-01-engine-late-go-media-probe.md §3.1.
+``file_md5`` (D18) identifies the file unambiguously, for integrity checks; it
+is the MD5 the upload already carries. ``file_size`` and ``file_md5`` apply to
+every media type; the pixel size to VideoCues only.
+
+Design: cuems-RELATIONS Plans/2026-10-01-engine-late-go-media-probe.md §3.1, D18.
 """
 
 from __future__ import annotations
@@ -29,7 +34,7 @@ from pathlib import Path
 
 import pytest
 
-from cuemsutils.cues import CueList, CuemsScript, VideoCue
+from cuemsutils.cues import AudioCue, CueList, CuemsScript, VideoCue
 from cuemsutils.cues.MediaCue import Media, Region
 from cuemsutils.xml import XmlReaderWriter
 from cuemsutils.xml.Parsers import CuemsParser
@@ -235,3 +240,88 @@ class TestRead:
         assert _media_children(out) == SCHEMA_ORDER
         assert _validate(out) is None
         assert _video_media(_read(out)).get("pixel_width") == 1920
+
+
+# ---------------------------------------------------------------------------
+# file_md5 (D18)
+# ---------------------------------------------------------------------------
+
+MD5 = "d41d8cd98f00b204e9800998ecf8427e"
+FULL_ORDER = SCHEMA_ORDER + ["file_md5"]
+
+
+class TestFileMd5:
+    def test_absent_means_none(self):
+        assert Media(_media()).file_md5 is None
+
+    def test_stored_lowercase(self):
+        assert Media(_media(file_md5=MD5.upper())).file_md5 == MD5
+
+    def test_none_removes_the_key(self):
+        media = Media(_media(file_md5=MD5))
+        media.file_md5 = None
+        assert "file_md5" not in media
+
+    @pytest.mark.parametrize("bad", ["xyz", MD5[:-1], MD5 + "0", "g" * 32, "", 123, True])
+    def test_invalid_values_are_rejected(self, bad):
+        with pytest.raises(ValueError):
+            Media(_media(file_md5=bad))
+
+    def test_written_last_whatever_the_dict_order(self):
+        media = Media()
+        media.file_md5 = MD5
+        media.file_size = 5000
+        media.pixel_height = 1080
+        media.pixel_width = 1920
+        media.setter(_media())
+        path = _write(_script(media), "pixdims_md5_order.xml")
+        assert _media_children(path) == FULL_ORDER
+        assert _validate(path) is None
+
+    def test_round_trip_keeps_it_as_str(self):
+        media = Media(_media(pixel_width=1920, pixel_height=1080, file_size=7, file_md5=MD5))
+        loaded = _video_media(_read(_write(_script(media), "pixdims_md5_rt.xml")))
+        assert loaded.get("file_md5") == MD5
+
+    @pytest.mark.parametrize("md5", ["00000000000000000000000000000007",
+                                     "12e45678901234567890123456789012"])
+    def test_a_number_shaped_md5_survives_the_parser(self, md5):
+        """All digits, or digits with one 'e', would be coerced to int/float
+        by str_to_value and no longer validate on the next save."""
+        media = Media(_media(file_size=7, file_md5=md5))
+        first = _write(_script(media), "pixdims_md5_num1.xml")
+        loaded = _read(first)
+        assert _video_media(loaded).get("file_md5") == md5
+        second = _write(loaded, "pixdims_md5_num2.xml")
+        assert _validate(second) is None
+        as_json = XmlReaderWriter(schema_name="script", xmlfile=str(first)).read()
+        assert _video_media(CuemsParser(as_json).parse()).get("file_md5") == md5
+
+    def test_none_writes_no_element(self):
+        media = Media(_media(file_size=7))
+        dict.__setitem__(media, "file_md5", None)
+        path = _write(_script(media), "pixdims_md5_none.xml")
+        assert _media_children(path) == SCHEMA_ORDER[:4] + ["file_size"]
+        assert _validate(path) is None
+
+    @pytest.mark.parametrize("element", ["<file_md5>xyz</file_md5>", f"<file_md5>{MD5.upper()}</file_md5>",
+                                         "<file_md5/>", f"<file_md5>{MD5}0</file_md5>"])
+    def test_the_schema_rejects_invalid_values(self, element):
+        text = _write(_script(Media(_media())), "pixdims_md5_bad_base.xml").read_text()
+        bad = TMP_DIR / "pixdims_md5_bad.xml"
+        bad.write_text(text.replace("</regions>", "</regions>" + element, 1))
+        with pytest.raises(Exception):
+            _validate(bad)
+
+    def test_an_audio_cue_carries_size_and_md5(self):
+        """Size and MD5 apply to every media type (the pixel size does not)."""
+        cue = AudioCue({"Media": Media(_media(file_size=99, file_md5=MD5)),
+                        "ui_properties": {"warning": None}})
+        script = CuemsScript({"CueList": CueList({"contents": [cue]})})
+        script.name = "audio md5"
+        now = datetime.now(timezone.utc).isoformat()
+        script.created = now
+        script.modified = now
+        path = _write(script, "pixdims_md5_audio.xml")
+        assert _media_children(path) == SCHEMA_ORDER[:4] + ["file_size", "file_md5"]
+        assert _validate(path) is None
