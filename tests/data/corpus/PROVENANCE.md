@@ -87,7 +87,7 @@ decodes to objects and writes back under the pre-feature code, verified the same
 ### Why feature 014's media-block fixture is **not** here
 
 `tests/data/media_block/media_block_showcase.xml` exercises the four `MediaType` elements
-feature 014 adds (`pixel_width`, `pixel_height`, `file_size`, `file_hash`). It is deliberately
+feature 014 adds (`pixel_width`, `pixel_height`, `file_size`, `file_md5`). It is deliberately
 **outside** this corpus, and the reason is this directory's own membership rule rather than
 convenience.
 

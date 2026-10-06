@@ -28,7 +28,7 @@ MEDIA_BLOCK = (
     "<pixel_width>3840</pixel_width>"
     "<pixel_height>2160</pixel_height>"
     "<file_size>107374182400</file_size>"
-    "<file_hash>d41d8cd98f00b204e9800998ecf8427e</file_hash>"
+    "<file_md5>d41d8cd98f00b204e9800998ecf8427e</file_md5>"
 )
 
 
@@ -94,7 +94,7 @@ def test_the_media_block_is_untouched_by_the_boolean_rewrite(media_first):
     assert _texts(tree, "pixel_width") == ["3840"]
     assert _texts(tree, "pixel_height") == ["2160"]
     assert _texts(tree, "file_size") == ["107374182400"]
-    assert _texts(tree, "file_hash") == ["d41d8cd98f00b204e9800998ecf8427e"]
+    assert _texts(tree, "file_md5") == ["d41d8cd98f00b204e9800998ecf8427e"]
 
 
 def test_a_cue_with_no_media_block_converts_beside_one_that_has_it():

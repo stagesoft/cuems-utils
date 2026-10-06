@@ -316,6 +316,17 @@ ADAPTERS: dict[str, Adapter] = {
     "DescriptionStringType": _String(),
     "EmptyStringType": _String(),
     "DateType": _String(),
+    # feature 014's md5 (T040). Bound **explicitly**, though it restricts
+    # xs:string and so would reach the right answer through PASSTHROUGH anyway:
+    # being correct by *consequence* is exactly what the NodeUuidType comment
+    # above says to avoid, and this is the type with the sharpest reason to be
+    # certain. The input document (specs/planning/
+    # stored-media-values-preimplementation.md §5) records that an old parser
+    # coerced an md5 of all digits — roughly one in a million — to an int, so
+    # the re-save then failed the schema. It asks the refactor for "the same
+    # protection: never coerce file_md5". That protection is this line plus the
+    # declared type, rather than STRING_TYPED_KEYS' list of key names.
+    "Md5Type": _String(),
 }
 
 

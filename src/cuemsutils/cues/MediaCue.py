@@ -78,7 +78,7 @@ def _as_region(item) -> "Region":
     return Region(item)
 
 
-#: ``cms:Md5HashType``'s pattern, mirrored. Lowercase only, 32 characters —
+#: ``cms:Md5Type``'s pattern, mirrored. Lowercase only, 32 characters —
 #: the same shape and the same case rule as ``UuidType``.
 _MD5_RE = re.compile(r"[a-f0-9]{32}")
 
@@ -215,7 +215,7 @@ class Media(CuemsDict):
         'pixel_width': Unset,
         'pixel_height': Unset,
         'file_size': Unset,
-        'file_hash': Unset,
+        'file_md5': Unset,
     }
     
     def __init__(self, init_dict = None):
@@ -444,11 +444,11 @@ class Media(CuemsDict):
 
     file_size = property(get_file_size, set_file_size)
 
-    def get_file_hash(self):
+    def get_file_md5(self):
         """The file's md5 when it was measured, or ``None`` if unknown."""
-        return super().get('file_hash')
+        return super().get('file_md5')
 
-    def set_file_hash(self, value):
+    def set_file_md5(self, value):
         """Store a 32-character lowercase md5, or remove the key for ``None``.
 
         **Nothing is normalised.** An uppercase digest raises rather than being
@@ -457,20 +457,30 @@ class Media(CuemsDict):
         valid. ``md5sum``, ``hashlib`` and ``ffmpeg`` all emit lowercase, so
         the strict form costs a caller nothing it was not already doing.
 
+        The house precedent is what settles it rather than taste:
+        :class:`~cuemsutils.tools.Uuid.Uuid` **raises** on an uppercase uuid
+        instead of lowercasing it, and ``Md5Type`` was written to match
+        ``UuidType`` facet for facet. The rc15 line's setter normalises instead
+        (*"accepts 32 hex digits in any case, and stores them lowercase"*), so
+        a caller that relied on the library lowercasing for it — the editor,
+        which stores the md5 its client sent — must ``.lower()`` before
+        assigning here. See
+        ``specs/planning/stored-media-values-preimplementation.md``.
+
         Raises:
             ValueError: *value* is not 32 lowercase hexadecimal characters.
         """
         if value is None:
-            super().pop('file_hash', None)
+            super().pop('file_md5', None)
             return
         if not isinstance(value, str) or not _MD5_RE.fullmatch(value):
             raise ValueError(
-                f"file_hash must be 32 lowercase hexadecimal characters "
-                f"(cms:Md5HashType), got {value!r}"
+                f"file_md5 must be 32 lowercase hexadecimal characters "
+                f"(cms:Md5Type), got {value!r}"
             )
-        super().__setitem__('file_hash', value)
+        super().__setitem__('file_md5', value)
 
-    file_hash = property(get_file_hash, set_file_hash)
+    file_md5 = property(get_file_md5, set_file_md5)
 
 
 class MediaCue(Cue):

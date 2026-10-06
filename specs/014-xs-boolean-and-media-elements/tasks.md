@@ -52,13 +52,13 @@ independent of everything else. If X1 were abandoned tomorrow these would still 
       `107374182400` (100 GiB) and `9223372036854775808`, and **refuses** `0` and `-1`; the same
       refusals for the pixel pair. This is the test that pins the >100 GB requirement against a
       future "let's make it `xs:long`" ✅ 6 accept cases up to 2⁶³, 18 refuse cases. `xs:positiveInteger` is unbounded and decodes to an arbitrary-precision `int`, so >100 GB needed no facet.
-- [X] **T003** [P] Red-first: `file_hash` accepts 32 lowercase hex and refuses uppercase, 31
+- [X] **T003** [P] Red-first: `file_md5` accepts 32 lowercase hex and refuses uppercase, 31
       characters, 33 characters and non-hex (plan.md §10.2). The uppercase case is the one that
-      records the decision rather than the mechanism ✅ 3 accept, 7 refuse, plus `Md5HashType` asserted to be a named type restricting `xs:string` like `UuidType`.
+      records the decision rather than the mechanism ✅ 3 accept, 7 refuse, plus `Md5Type` asserted to be a named type restricting `xs:string` like `UuidType`.
 - [X] **T004** Add the four elements to `script.xsd`'s `MediaType` after `regions`, all
-      `minOccurs="0"`, plus the new `cms:Md5HashType`. **Update `CURRENT_SCHEMA_HASHES` in
+      `minOccurs="0"`, plus the new `cms:Md5Type`. **Update `CURRENT_SCHEMA_HASHES` in
       `tests/contract/test_schema_scope.py` in the same commit**, with the reason in the message —
-      that pairing is the whole mechanism (execution doc §7.5) — depends on T001–T003 ✅ Four elements after `regions`, `Md5HashType` beside `UuidType`, hash re-pinned twice (once for this, once after T007). ⚠ `--` is **illegal inside an XML comment** — the first draft of the comments broke the schema with `ParseError: not well-formed`.
+      that pairing is the whole mechanism (execution doc §7.5) — depends on T001–T003 ✅ Four elements after `regions`, `Md5Type` beside `UuidType`, hash re-pinned twice (once for this, once after T007). ⚠ `--` is **illegal inside an XML comment** — the first draft of the comments broke the schema with `ParseError: not well-formed`.
 - [X] **T005** Four `DECLARED_DEFAULTS` entries (**all `Unset`**) and four `set_<name>` accessors on
       `Media`. Both halves or the key is dropped in silence (plan.md §10.4) — depends on T004 ✅ Four `Unset` entries (eight total on `Media`) and four accessor pairs. ⚠ The setter refuses a **non-integral float**: `int(1.5)` truncates to 1, which is the silent-wrong-value class this whole feature exists to remove, so `int` or a string of digits only. `bool` is refused for the same reason — it is an `int` subclass, so `pixel_width = True` would have stored 1.
 - [X] **T006** [P] Red-first then implement: `test_coherence.py` must agree that `MediaType`'s
@@ -73,13 +73,72 @@ independent of everything else. If X1 were abandoned tomorrow these would still 
       `FadeCurveType`, with its schema hash moving in the same commit. Verified absent from this
       branch: a project saved by a `main`-line editor with an `ease_in` fade **fails T1 here today** ✅ Cherry-picked as `7825d80`, Ion Reguera as author. `test_enum_audit`'s `FadeCurveType` row moved with it in the same commit.
 - [X] **T008** [P] Record in [`migration-guide.md`](migration-guide.md) that the media block is
-      **four** elements and why (`file_hash` added, `file_size` named not `size`, `0` invalid by
+      **four** elements and why (`file_md5` added, `file_size` named not `size`, `0` invalid by
       design), so `cuems-editor` and `cuems-engine` read one statement rather than inferring from
       the input document's three ✅ `migration-guide.md` §2, plus a new §2.1 recording the setters' contract as implemented.
 
 **Checkpoint**: ✅ **PASSED 2026-10-03.** The schema admits four new optional elements and two new
 curve values; nothing on disk is invalidated; no conversion exists because none is needed. Suite
 **3496 passed / 112 skipped / 2 xfailed** (from 3432 — 64 new tests).
+
+### Phase 1 amendment — the rename, 2026-10-06 (T037)
+
+- [X] **T037** **`file_hash` → `file_md5`, `Md5HashType` → `Md5Type`** across schema, model, tests,
+      fixture and documents, with `CURRENT_SCHEMA_HASHES` re-pinned in the same change. Driven by
+      the input document's successor,
+      [`../planning/stored-media-values-preimplementation.md`](../planning/stored-media-values-preimplementation.md)
+      (D18, 2026-10-05), which ships the **fourth** element too and names it `file_md5` — a name
+      rc15 has **already shipped**, back-patched into rc14 and `pre_release_1`. Recorded as plan.md
+      **decision 13** and argued in **§10.5**.
+      **Red-first: none, and deliberately.** A rename has no new behaviour to pin; the existing
+      T001–T006 suite *is* the test, and the evidence is that it still passes under the new names.
+      The one assertion that had to be added is prose, not code: `test_media_block.py`'s docstring
+      now records why the element half is load-bearing (an element name is an instance-document
+      name) and the type half is not.
+      ✅ Eleven files. Suite **3483 passed / 12 failed**, byte-identical to the pre-rename baseline
+      — measured by stashing the change and re-running, so "no new failures" is verified rather
+      than claimed. All twelve are pre-existing and environmental: four absent sibling checkouts,
+      `tests/unit/test_ctimecode.py` uncollectable (no `hypothesis` in the hatch-test env), the API
+      snapshot, the published-scripts set, the load budget, and two packaging premises.
+      ⚠ `\b` word boundaries do **not** match `get_file_hash`/`set_file_hash`/`test_file_hash_*` —
+      `_` is a word character, so the first `sed` pass left the accessors behind while renaming the
+      property that pointed at them. The suite caught it; a grep for the old name is the cheaper
+      check and is worth running after any rename in this package.
+
+- [X] **T038** [P] Record the two obligations that document places on `cuems-utils` and that are
+      **already met at `69acaef`** — verified by measurement, not by reading (plan.md §10.7):
+      (a) *"never coerce `file_md5`"* — an all-digit md5 loads as a `str`, because the adapter
+      table binds **types** rather than key names and `Md5Type` restricts `xs:string`, so
+      `STRING_TYPED_KEYS`' defect class cannot recur here; (b) *"please keep the old file's mode"* —
+      `write_tree` already `chmod`s the temporary to the target's mode before `os.replace`
+      (`xml/documents.py:273-333`), landed as **010 T080**. The request is stale.
+      ✅ Both measured; recorded in plan.md §10.7 as a table.
+
+- [ ] **T039** **The two obligations this feature pushes outward**, neither of which is
+      `cuems-utils` work and both of which would otherwise be owned by a sentence and no task:
+      **(a) `cuems-editor` must `.lower()` a client md5 before assigning it.** This branch's setter
+      raises on uppercase where rc15's lowercased (plan.md §10.6). Safe on both lines — `.lower()`
+      is a no-op against rc15's setter — so it should land **before** the merge, not during it.
+      **(b) the AudioCue pixel rule has no validator.** `MediaType` is shared, so only the editor's
+      strip keeps a pixel size off an AudioCue; `script.xsd`'s comment and migration-guide §2 now
+      state it, but nothing enforces it. If it is worth enforcing, the place is the editor's fill,
+      not this schema.
+      Carry both into the sibling-gate correspondence rather than this repository's tasks.
+
+- [X] **T040** [P] Bind `Md5Type` to `_String()` in `ADAPTERS`. It resolves to `PASSTHROUGH` today
+      and is correct **by consequence**, which is exactly what the table's own `NodeUuidType`
+      comment says to avoid — those names were bound *"so that a future element naming one directly
+      does not silently fall through to the passthrough"*. Same argument, same type family
+      ✅ One line in `adapters.py` plus `test_md5_is_bound_explicitly_and_never_coerced`, which pins
+      **both** halves of the input document's §5 warning: an all-digit md5 **and** the "digits with
+      one `e`" case that an old parser read as a float in exponent notation. Suite 3488 passed, the
+      failure set byte-identical to baseline.
+
+- [X] **T041** Answer *"should `pixel_width`/`pixel_height` belong to `VideoCue` rather than to
+      `Media`?"* — asked 2026-10-06. **No**, and the reason is structural rather than a preference:
+      the model cannot move without the schema, the schema cannot express the split by extension,
+      and the split would convert a silent editor-side correction into a hard save failure. Argued
+      in full as plan.md **§10.8**, because a question worth asking once is worth not re-deriving.
 
 ---
 
@@ -604,7 +663,7 @@ finding for this feature and should come back here.
       `CLAUDE.md`'s "Active Technologies" and "Recent Changes", following the house shape: what
       landed, what was measured rather than assumed, and the load-bearing facts the next feature
       inherits. Specifically: the four media elements with `file_size`'s unbounded type and
-      `file_hash`'s lowercase rule; `_Bool` as a **swap** rather than a deletion, with
+      `file_md5`'s lowercase rule; `_Bool` as a **swap** rather than a deletion, with
       `Mapper._lexical` as the only producer of element text on a stdlib-`ElementTree` write path;
       the `doc_version="2"` ambiguity and the nine files; `ConfigManager.from_json` as the new public
       name; and the `get_schema` result with the note that it does **not** touch 013's dominant

@@ -149,8 +149,32 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     overflows a 32-bit int. `xs:positiveInteger` is unbounded and decodes to an
     arbitrary-precision `int` (2⁶³ verified), so the requirement is met by the type alone. `0` is
     **invalid by design** for all three integers: absent means unknown, and a zero-byte file is not
-    playable media. `file_hash` is `cms:Md5HashType`, 32 **lowercase** hex, matching `UuidType`'s
+    playable media. `file_md5` is `cms:Md5Type`, 32 **lowercase** hex, matching `UuidType`'s
     existing pattern — uppercase refused for the same reason `_Bool` refuses `"true"`.
+  - **Renamed 2026-10-06 (plan.md decision 13, §10.5): `file_hash` → `file_md5`,
+    `Md5HashType` → `Md5Type`.** 014 chose the original names when its input document specified
+    only three elements and the fourth was its own; the successor document
+    (`specs/planning/stored-media-values-preimplementation.md`, D18) ships four and names the
+    fourth, and **rc15 has already shipped that name** — into rc15 plus back-patches to rc14 and
+    `pre_release_1`. An element name is an **instance-document** name, so matching it is an
+    obligation: two spellings would mean an rc15-written project carrying a `Media` child version 2
+    does not declare, refused by T1 at the point where the reason reads worst. The type half is
+    cosmetic (no document names a type) and was done so the two lines' schemas diff as one type.
+    ⚠ `\b` in `sed` does **not** match `get_file_hash`/`set_file_hash` — `_` is a word character —
+    so grep for the old name after any rename here.
+  - **Two divergences from the rc15 line survive the rename, both deliberate, and one is somebody
+    else's one-liner.** (a) **The case rule**: rc15's setter lowercases an uppercase digest, this
+    one **raises**. The strict form is the consistent one — `Uuid` raises on an uppercase uuid too
+    (measured), and `Md5Type` matches `UuidType` facet for facet — so **`cuems-editor` must
+    `.lower()` a client md5 before assigning**, which is a no-op against rc15's setter and should
+    land before the merge. (b) **`pixel_width`/`pixel_height` are VideoCue-only by convention and
+    no schema here can enforce it**: `MediaType` is shared, so only the editor's strip keeps a
+    pixel size off an AudioCue. Both are pinned, the second as an explicit negative-knowledge test.
+  - **Two obligations that document places on this package were already met**, verified rather than
+    assumed: *"never coerce `file_md5`"* — an all-digit md5 loads as a `str`, because the adapter
+    table binds **types** and `Md5Type` restricts `xs:string`, so `STRING_TYPED_KEYS`' defect class
+    cannot recur; and *"keep the old file's mode"* — `write_tree` already `chmod`s the temporary to
+    the target's mode before `os.replace` (`xml/documents.py:273-333`, **010 T080**).
   - Two commits landed on `feat/xml-refactor` before the branch was cut and are **preconditions,
     not this feature's diff**: `be3e86e` (strict `_Bool.decode`) and `84705b9` (`CTimecode`'s
     notice). Marked settled as S1/S2 in `tasks.md`.

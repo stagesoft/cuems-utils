@@ -62,12 +62,20 @@ SCHEMAS_DIR = REPO_ROOT / "src" / "cuemsutils" / "xml" / "schemas"
 #: no document on disk is affected — but it is precisely the drift this pin
 #: exists to surface, and the two hashes moving beside the correction is the
 #: mechanism working rather than an inconvenience.
+#:
+#: Updated 2026-10-06 for ``script.xsd``: the media block's fourth element is
+#: renamed ``file_hash`` -> ``file_md5`` and its type ``Md5HashType`` ->
+#: ``Md5Type``, adopting the names the rc15 line already shipped (and
+#: back-patched into rc14 and ``pre_release_1``). The element name is an
+#: **instance-document** name, so this one is not cosmetic: a divergence here
+#: would mean an rc15-written project carried a child version 2 does not
+#: declare. See ``../../specs/planning/stored-media-values-preimplementation.md``.
 CURRENT_SCHEMA_HASHES = {
     "hardware_outputs.xsd": "e509dcee2ae8f461e3c25dfc680a73a0da31519159c1f0e3fb1199cc6dc46f5a",
     "network_map.xsd": "f1aecab856c49068197d064c8eb2309e972bc21ea508d4549e18277e1b55329b",
     "project_mappings.xsd": "a94822901155e8ea8b07edd604cfbde56766f5e3a2f5b0747d8f49dde2e0e956",
     "project_settings.xsd": "5cd80b9d2a5239365a764526a40c17426e158a9ec057acda2ffc97b552ea254f",
-    "script.xsd": "cf8cea1e1876ca452f063dc7f33bc6d29a02b1abfb351045be6d5375e26a9710",
+    "script.xsd": "b6bdebb18ba9630018d6246d7d885a8e99518078ce10780e4a74f2eeb6885cf2",
     "settings.xsd": "67ffe9ae1ae86a00f152b633b0ce9c9f9321d67eb9d9200b2f1467bb1fe0aa0b",
 }
 

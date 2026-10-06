@@ -294,8 +294,8 @@ claimed this file and did not rewrite it; verified still old-form 2026-10-05. **
 case-only, e.g. by asserting `new.lower() == old.lower()` for each substitution.
 
 Also, from the migration guide §2.1: `MediaType` gained `pixel_width`, `pixel_height`, `file_size`
-and `file_hash`, all optional. **An engine that ignores them is correct** — adopting them is your
-decision, not this gate's. If you want the note: `file_hash` is a strictly stronger "was this file
+and `file_md5`, all optional. **An engine that ignores them is correct** — adopting them is your
+decision, not this gate's. If you want the note: `file_md5` is a strictly stronger "was this file
 replaced under the same name?" test than `file_size` against `os.stat`, and whether hashing a
 multi-gigabyte file at arm time is acceptable is yours to judge.
 

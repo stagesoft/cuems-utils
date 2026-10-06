@@ -2,9 +2,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Feature 014 — the four optional ``MediaType`` elements (T001, T002, T003).
 
-``pixel_width``, ``pixel_height``, ``file_size`` and ``file_hash``, all
-``minOccurs="0"``. The input document specified three; ``file_hash`` is this
-feature's addition (plan.md decision 11, §10).
+``pixel_width``, ``pixel_height``, ``file_size`` and ``file_md5``, all
+``minOccurs="0"`` (plan.md decision 11, §10).
+
+**Renamed 2026-10-06**: ``file_hash`` -> ``file_md5``, ``Md5HashType`` ->
+``Md5Type``. When this feature was planned the input document specified three
+elements and the fourth was 014's own addition, free to be named here. Its D18
+revision (``specs/planning/stored-media-values-preimplementation.md``) ships the
+fourth too, as ``file_md5``, and rc15 **has already shipped it** — into rc15
+itself and back-patched into rc14 and ``pre_release_1``. An element name is an
+instance-document name, so two spellings would not be a style disagreement: an
+rc15-written project would carry a ``Media`` child this schema does not declare,
+and T1 would refuse the document version 2 is supposed to absorb.
 
 Three things these tests exist to pin, each of which is a decision rather than
 a mechanism:
@@ -16,10 +25,21 @@ a mechanism:
   "let's make it ``xs:long``".
 * **``0`` is not a value.** Absent means unknown; a zero-byte or zero-pixel
   file is not playable media. All three integers share the rule.
-* **``file_hash`` is lowercase-only**, matching ``UuidType``'s existing
+* **``file_md5`` is lowercase-only**, matching ``UuidType``'s existing
   ``[a-f0-9]`` pattern. ``md5sum``, ``hashlib`` and ``ffmpeg`` all emit
   lowercase, and accepting uppercase would make the ingestion vocabulary wider
   than the schema's — the same argument ``_Bool`` makes about ``"true"``.
+
+  ⚠ **This is the one place the two lines still disagree, and it is deliberate.**
+  rc15's setter *"accepts 32 hex digits in any case, and stores them lowercase"*;
+  this one raises. The house precedent decides it: ``Uuid`` **raises** on an
+  uppercase uuid rather than lowercasing it (measured —
+  ``Uuid("B1B2...4AAA...")`` is a ``ValueError``), and ``Md5Type`` was written to
+  match ``UuidType`` facet for facet. So the normalising setter is rc15's
+  outlier, not this one. **The obligation this creates is the editor's**: it
+  stores the md5 the client sent, so it must ``.lower()`` before assigning, where
+  on rc15 the library did that for it. Recorded in
+  ``specs/planning/stored-media-values-preimplementation.md``.
 """
 
 from __future__ import annotations
@@ -43,8 +63,8 @@ _MEDIA_RE = re.compile(r"(<Media>)(.*?)(</Media>)", re.S)
 
 #: The four elements this feature adds, stripped out to give a clean base.
 _BLOCK_RE = re.compile(
-    r"<(pixel_width|pixel_height|file_size|file_hash)>[^<]*</\1>|"
-    r"<(pixel_width|pixel_height|file_size|file_hash)\s*/>"
+    r"<(pixel_width|pixel_height|file_size|file_md5)>[^<]*</\1>|"
+    r"<(pixel_width|pixel_height|file_size|file_md5)\s*/>"
 )
 
 
@@ -75,7 +95,7 @@ def test_a_media_block_with_all_four_elements_validates():
         "<pixel_width>3840</pixel_width>"
         "<pixel_height>2160</pixel_height>"
         "<file_size>107374182400</file_size>"
-        "<file_hash>d41d8cd98f00b204e9800998ecf8427e</file_hash>"
+        "<file_md5>d41d8cd98f00b204e9800998ecf8427e</file_md5>"
     )
 
 
@@ -90,7 +110,7 @@ def test_a_media_block_with_none_of_them_still_validates():
         "<pixel_width>1920</pixel_width>",
         "<pixel_width>1920</pixel_width><pixel_height>1080</pixel_height>",
         "<file_size>1</file_size>",
-        "<file_hash>d41d8cd98f00b204e9800998ecf8427e</file_hash>",
+        "<file_md5>d41d8cd98f00b204e9800998ecf8427e</file_md5>",
     ],
     ids=["width-only", "pixel-pair", "size-only", "hash-only"],
 )
@@ -120,7 +140,7 @@ def test_an_empty_element_is_refused():
     """"Never write an empty one" is enforced by the type, not by convention."""
     assert not _is_valid("<pixel_width/>")
     assert not _is_valid("<file_size/>")
-    assert not _is_valid("<file_hash/>")
+    assert not _is_valid("<file_md5/>")
 
 
 # --- T002: the range, and the refusals --------------------------------------
@@ -182,8 +202,8 @@ def test_the_three_integers_refuse_zero_and_everything_non_positive(element, val
         "ffffffffffffffffffffffffffffffff",
     ],
 )
-def test_file_hash_accepts_32_lowercase_hex(value):
-    assert _is_valid(f"<file_hash>{value}</file_hash>")
+def test_file_md5_accepts_32_lowercase_hex(value):
+    assert _is_valid(f"<file_md5>{value}</file_md5>")
 
 
 @pytest.mark.parametrize(
@@ -198,7 +218,7 @@ def test_file_hash_accepts_32_lowercase_hex(value):
         ("", "empty"),
     ],
 )
-def test_file_hash_refuses_everything_else(value, why):
+def test_file_md5_refuses_everything_else(value, why):
     """Lowercase-only, matching ``UuidType``'s existing ``[a-f0-9]`` pattern.
 
     The uppercase case is the one that records a *decision*: ``md5sum``,
@@ -206,14 +226,14 @@ def test_file_hash_refuses_everything_else(value, why):
     vocabulary than the schema's is a value legal on the wire that can never
     appear in a file — the same argument ``_Bool`` makes about ``"true"``.
     """
-    assert not _is_valid(f"<file_hash>{value}</file_hash>"), why
+    assert not _is_valid(f"<file_md5>{value}</file_md5>"), why
 
 
 def test_md5_hash_type_is_a_named_type_shaped_like_uuid_type():
     """One declared vocabulary, one house style for a pattern-restricted string."""
     types = get_schema("script").types
-    assert "Md5HashType" in types, "the hash needs a named type, not an inline restriction"
-    md5, uuid = types["Md5HashType"], types["UuidType"]
+    assert "Md5Type" in types, "the hash needs a named type, not an inline restriction"
+    md5, uuid = types["Md5Type"], types["UuidType"]
     assert md5.base_type.name == uuid.base_type.name  # both restrict xs:string
 
 
@@ -230,7 +250,7 @@ def _written_media(media_fields: dict) -> str:
     script, _ = CuemsScript.load_with_report(FIXTURE)
     cue = script['CueList'].contents[0]
     media = cue['Media']
-    for key in ('pixel_width', 'pixel_height', 'file_size', 'file_hash'):
+    for key in ('pixel_width', 'pixel_height', 'file_size', 'file_md5'):
         setattr(media, key, None)
     for key, value in media_fields.items():
         setattr(media, key, value)
@@ -242,7 +262,7 @@ def _written_media(media_fields: dict) -> str:
 
 
 SCHEMA_ORDER = ['file_name', 'id', 'duration', 'regions',
-                'pixel_width', 'pixel_height', 'file_size', 'file_hash']
+                'pixel_width', 'pixel_height', 'file_size', 'file_md5']
 
 
 def test_the_writer_emits_schema_order_whatever_the_assignment_order():
@@ -254,7 +274,7 @@ def test_the_writer_emits_schema_order_whatever_the_assignment_order():
     a dropped deliverable is worth one test rather than a sentence.
     """
     written = _written_media({
-        'file_hash': 'd41d8cd98f00b204e9800998ecf8427e',
+        'file_md5': 'd41d8cd98f00b204e9800998ecf8427e',
         'file_size': 107374182400,
         'pixel_height': 2160,
         'pixel_width': 3840,
@@ -267,7 +287,7 @@ def test_the_writer_omits_an_absent_field_rather_than_emitting_it_empty():
     """``<pixel_width/>`` fails ``xs:positiveInteger``, so absent must mean absent."""
     written = _written_media({'pixel_width': 1920})
     assert '<pixel_width>1920</pixel_width>' in written
-    for absent in ('pixel_height', 'file_size', 'file_hash'):
+    for absent in ('pixel_height', 'file_size', 'file_md5'):
         assert f'<{absent}' not in written, f'{absent} was emitted: {written}'
 
 
@@ -282,7 +302,7 @@ def test_a_partial_block_still_round_trips_and_revalidates():
     script, _ = CuemsScript.load_with_report(FIXTURE)
     media = script['CueList'].contents[0]['Media']
     media.file_size = None
-    media.file_hash = None
+    media.file_md5 = None
     out = Path(tempfile.mkdtemp()) / 's.xml'
     script.save(str(out))
 
@@ -290,7 +310,7 @@ def test_a_partial_block_still_round_trips_and_revalidates():
     reloaded, _ = CuemsScript.load_with_report(str(out))
     again = reloaded['CueList'].contents[0]['Media']
     assert again.pixel_width == 3840 and again.pixel_height == 2160
-    assert again.file_size is None and again.file_hash is None
+    assert again.file_size is None and again.file_md5 is None
 
 
 # --- the setters' own contract ----------------------------------------------
@@ -342,6 +362,105 @@ def test_the_hash_setter_normalises_nothing():
 
     media = Media()
     with pytest.raises(ValueError):
-        media.file_hash = "D41D8CD98F00B204E9800998ECF8427E"
-    media.file_hash = "d41d8cd98f00b204e9800998ecf8427e"
-    assert media.file_hash == "d41d8cd98f00b204e9800998ecf8427e"
+        media.file_md5 = "D41D8CD98F00B204E9800998ECF8427E"
+    media.file_md5 = "d41d8cd98f00b204e9800998ecf8427e"
+    assert media.file_md5 == "d41d8cd98f00b204e9800998ecf8427e"
+
+
+# --- "who carries what" (T037): the one rule the schema cannot enforce ------
+
+
+def _audio_document(extra: str) -> str:
+    """The fixture with the **second** (audio) cue's media block replaced.
+
+    ``_document`` deliberately swaps the first match only, and the first cue in
+    the fixture is the video one. Every test above therefore drives the video
+    path; this builds the audio one, which is the half of the input document's
+    "who carries what" table that nothing exercised.
+    """
+    text = pathlib.Path(FIXTURE).read_text(encoding="utf-8")
+    seen = 0
+
+    def swap(match):
+        nonlocal seen
+        seen += 1
+        if seen == 2:
+            base = _BLOCK_RE.sub("", match.group(2))
+            return f"{match.group(1)}{base}{extra}{match.group(3)}"
+        return match.group(0)
+
+    swapped = _MEDIA_RE.sub(swap, text)
+    assert seen == 2, f"fixture no longer has two Media blocks ({seen})"
+    return swapped
+
+
+def test_an_audiocue_carries_file_size_and_md5():
+    """The input document's §8 names this test and it did not exist.
+
+    ``file_size`` and ``file_md5`` are **every** media type's, audio included —
+    an audio file has a size and a digest like any other. The fixture's audio
+    cue carries an empty block and ``_document`` only ever swaps the first
+    (video) one, so the audio half of the table was asserted nowhere.
+    """
+    assert get_schema("script").is_valid(_audio_document(
+        "<file_size>5242880</file_size>"
+        "<file_md5>d41d8cd98f00b204e9800998ecf8427e</file_md5>"
+    ))
+
+
+def test_an_audiocue_pixel_size_validates_because_no_schema_can_refuse_it():
+    """**Negative knowledge, pinned deliberately.**
+
+    The pixel pair is VideoCue-only *by convention*: ``MediaType`` is shared, so
+    an AudioCue's ``Media`` validates with a pixel size exactly as a VideoCue's
+    does. The input document states the rule as "never, even when it plays a
+    video file", and its editor **strips** a pixel size from an AudioCue before
+    save — which is the only place the rule is enforced anywhere.
+
+    This test asserts the gap rather than the rule, so that a later reader does
+    not mistake the convention for something a validator checks. If the schema
+    ever *can* refuse it (a type split, or an assertion), this test is the one
+    that should fail and be rewritten.
+    """
+    assert get_schema("script").is_valid(_audio_document(
+        "<pixel_width>1920</pixel_width><pixel_height>1080</pixel_height>"
+    )), "if this now fails, the convention became enforceable — rewrite this test"
+
+
+def test_an_all_digit_md5_survives_the_load_as_a_string():
+    """The input document's §5 warning, which cannot recur on this branch.
+
+    It records that an old parser coerced an md5 of all digits (or digits with
+    one ``e`` — about one in a million) to an ``int``/``float``, so a re-save
+    then failed the schema, and asks the refactor for *"the same protection:
+    never coerce ``file_md5``"*.
+
+    It is met **structurally** rather than by a list. ``STRING_TYPED_KEYS``
+    guarded *key names*; the adapter table binds *types*, and ``Md5Type``
+    restricts ``xs:string``, so ``xmlschema`` decodes by the declared type and
+    never by what the value looks like. This is the assertion that says so.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from cuemsutils.cues import CuemsScript
+
+    digits = "1" * 32
+    source = Path(tempfile.mkdtemp()) / "all_digits.xml"
+    source.write_text(
+        pathlib.Path(FIXTURE).read_text(encoding="utf-8").replace(
+            "d41d8cd98f00b204e9800998ecf8427e", digits
+        ),
+        encoding="utf-8",
+    )
+
+    script, _ = CuemsScript.load_with_report(str(source))
+    media = script['CueList'].contents[0]['Media']
+    value = media.file_md5
+    assert isinstance(value, str), f"coerced to {type(value).__name__}: {value!r}"
+    assert value == digits
+
+    # And it still re-saves valid, which is the failure the warning describes.
+    out = Path(tempfile.mkdtemp()) / "resaved.xml"
+    script.save(str(out))
+    assert get_schema("script").is_valid(str(out))

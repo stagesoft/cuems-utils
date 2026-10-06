@@ -38,12 +38,31 @@ below is written to them:
 | **8** | **Feature 010's requirement changes are being implemented now**, and this gate's requirement changes **fold into that pass** rather than being carried separately (§8) |
 | **9** | **`cuems-frontend`'s share is unloaded into that repository** — landed 2026-10-02 as `specs/planning/xml-refactor/06-amendment-feature-014.md` (`ad305f9`). This document keeps its measurements and stops being the owner (§6.2) |
 | **10** | **`cuems-editor` UR-5's correction belongs to this repository, and lands *in this feature*** — the public configuration-document ingestion that unblocks that repository's T059. Reviewed against 014's work and folded in, because the one configuration domain that needs it is the one 014 retypes (§9) |
-| **11** | **The media block is FOUR elements, not three** — `pixel_width`, `pixel_height`, `file_size` (not `size`) and `file_hash`, all `minOccurs="0"` (§10) |
+| **11** | **The media block is FOUR elements, not three** — `pixel_width`, `pixel_height`, `file_size` (not `size`) and `file_md5`, all `minOccurs="0"` (§10). **Amended 2026-10-06, see decision 13** |
 | **12** | **The `get_schema` mitigation 013 identified and left is applied here** — one line, measured at −80% on the configuration load and −58% on the suite ([`baseline.md`](baseline.md) §5) |
+| **13** | **`file_hash` → `file_md5`, `Md5HashType` → `Md5Type`** (2026-10-06). The rc15 line converged on the same four elements and named the fourth first; an element name is an instance-document name, so matching it is an obligation and not a preference (§10.5) |
 
 **Answers to that document's §8 questions:** **(1)** declare the fields natively on the
 refactor branch — **four of them, not that document's three** (decision 11, §10) — and cherry-pick only `9c17418`; do not merge the rc15 line. **(2)** Yes — and it is
 the 1 → 2 step already in flight, not a new one.
+
+> **Amendment, 2026-10-06 — the input document moved, and decision 11 is half superseded.**
+> This plan was written against
+> [`../planning/media-pixel-dimensions-for-xml-refactor.md`](../planning/media-pixel-dimensions-for-xml-refactor.md),
+> which specified **three** media elements. Its successor,
+> [`../planning/stored-media-values-preimplementation.md`](../planning/stored-media-values-preimplementation.md)
+> (revised to D18/D20, 2026-10-05), specifies **four** — and names the fourth
+> **`file_md5`**, typed `cms:Md5Type`, which **rc15 has already shipped** and back-patched into
+> rc14 and `pre_release_1`.
+>
+> So decision 11's *conclusion* is confirmed from the other side — the two lines independently
+> arrived at four elements — while its *premise* ("the input document specifies three, this
+> feature adds the fourth, and so this feature names it") no longer holds. The naming is no
+> longer 014's to make, and 014's names have been changed to rc15's (decision 13). Everything
+> below that argues from "three versus four" should be read with that correction; the two places
+> where it changed a *fact* rather than a framing are marked inline (§3's fixture, §4's
+> conversion claim). The one surviving behavioural divergence between the lines is the setter's
+> case rule, resolved in favour of this branch in **§10.6**.
 
 ---
 
@@ -192,7 +211,7 @@ needs a conversion; a version step is indivisible.
 | Change | Nature | Needs a conversion? |
 |---|---|---|
 | **X1** booleans → `xs:boolean` | **breaking** — retypes five elements in two schemas | **yes**: `True`→`true`, `False`→`false` |
-| **The media block** — `pixel_width`, `pixel_height`, `file_size`, `file_hash` | **additive**, **four** optional elements on `MediaType` (decision 11, §10) | no |
+| **The media block** — `pixel_width`, `pixel_height`, `file_size`, `file_md5` | **additive**, **four** optional elements on `MediaType` (decision 11, §10) | no |
 | **`ease_in` / `ease_out`** (`9c17418`, on `main`, **not** on this branch — verified) | **additive**, two enumeration values on `FadeCurveType` | no |
 
 **Decision 3 settles where they land: inside the 1 → 2 step already in flight.** Not a new 2 → 3.
@@ -273,18 +292,26 @@ race — they are sequential, and this branch's job is to migrate what rc15 leav
 | | |
 |---|---|
 | **Do** | let **rc15 ship on its own schedule**, with the back-patches in that plan's §5 exactly as written. The GO-latency fix does not wait on this gate, and nothing here blocks it |
-| **Do** | implement the media elements **natively on the refactor branch** — **four** XSD elements, four `DECLARED_DEFAULTS` entries, four setter pairs (decision 11, §10 — the input document specifies three; this feature adds `file_hash`). Roughly 40 lines, and `§6`'s utils points 1 and 6 are already satisfied by the branch's own machinery |
+| **Do** | implement the media elements **natively on the refactor branch** — **four** XSD elements, four `DECLARED_DEFAULTS` entries, four setter pairs (decision 11, §10 — the input document specifies three; this feature adds `file_md5`). Roughly 40 lines, and `§6`'s utils points 1 and 6 are already satisfied by the branch's own machinery |
 | **Do** | **cherry-pick `9c17418` alone** for the curve names |
 | **Do not** | merge the rc15 line into `feat/xml-refactor`. rc15 is cut from `main`, which does not contain the refactor; the merge drags main's whole divergence and then collides head-on with X1's retype of the same file |
 
 **What rc15 shipping first adds to this branch's obligations** — and it is a gain, not a cost: by
 the time the refactor lands, real project libraries will contain documents that are
-**unmarked (version 1), in the pre-013 device shape, with the three Media elements present** —
-**three and not four is right here**: such a document was written by rc15, which ships the input
-document's three; `file_hash` is this feature's addition and no rc15 document carries it. That
+**unmarked (version 1), in the pre-013 device shape, with the Media elements present**. That
 is precisely the combination §4 orders, and it will exist in the field rather than only in a
 fixture. It should therefore be a *test fixture*, not a hypothetical: a document written by rc15,
 carried into this branch's corpus, reshaped and converted.
+
+> **Corrected 2026-10-06 — the fixture carries FOUR elements, not three.** This paragraph read
+> *"with the three Media elements present — three and not four is right here: such a document was
+> written by rc15, which ships the input document's three; `file_md5` is this feature's addition
+> and no rc15 document carries it."* That was true of the input document and is **false of rc15 as
+> shipped**: rc15 ships `file_md5` too. A three-element fixture would therefore not be *"a document
+> written by rc15"* at all, and the one element most likely to expose a reader defect — the only
+> **string**-typed member of the block, and the one whose all-digit values an old parser used to
+> coerce to `int` (that document's §5 "known limitation") — would be the one the fixture omits.
+> **The fixture must carry all four.**
 
 ---
 
@@ -303,8 +330,9 @@ version-1 `<duration>`, convert-first sees old-shape cues, and neither order com
 
 **Verified, so it need not be assumed:** `_script_1_to_2` (`xml/versioning.py:173`) touches only
 `duration`, `action_type` and `fade_profiles`. It leaves every other `Media` child untouched, so
-the three new elements survive the conversion — three, again, because this is about a document
-rc15 wrote — which is the document's own §6 point 3, confirmed.
+**all four** new elements survive the conversion — four, since rc15 writes four (amendment,
+2026-10-06; this sentence said "three, again, because this is about a document rc15 wrote") —
+which is the input document's own §6 point 3, confirmed.
 
 Under decision 3 the boolean rewrite joins that same function, which makes the requirement sharper:
 **the rewrite must be order-independent with respect to the Media elements.** It rewrites the text
@@ -329,7 +357,7 @@ Media({'file_name': 'a.mov', 'id': '…', 'pixel_width': 1920}).keys()
 ```
 
 So on this branch the fields need **both** `DECLARED_DEFAULTS` entries **and** `set_<name>`
-accessors — **all four of them** (§10.4), the input document's three plus `file_hash`. A field with one and not the other is dropped in silence. (Note the local irony: that
+accessors — **all four of them** (§10.4), the input document's three plus `file_md5`. A field with one and not the other is dropped in silence. (Note the local irony: that
 `continue` carries a long comment explaining that F17 split the lookup from the call so a *broken*
 setter could not silently drop a field — a *missing* setter still can, by design, because that is
 how undeclared keys are rejected.)
@@ -361,7 +389,7 @@ on this branch, which is one of the plan's three utils deliverables dropping out
 
 | Repository | Work |
 |---|---|
-| **`cuems-utils`** | `script.xsd` + `network_map.xsd`: retype five elements, delete three `BoolType` declarations, add **four** `MediaType` elements plus the new `cms:Md5HashType` (decision 11, §10), cherry-pick the two curve values. `_Bool`: delete `to_wire`, add the lowercase `to_lexical` map, widen `decode`'s literal table to the four lexical forms. `Media`: three `Unset` entries + three setter pairs. Registry: the boolean rewrite joins the **existing `script` 1 → 2 and `network_map` 1 → 2 steps** — one shared conversion, **no new version** (decision 3, §2). Re-cut the **six** goldens (`tests/golden/xml/` ×5 + `tests/golden/generated/` ×1) and hand-rewrite the **two** already-version-2 corpus documents, which the registry cannot reach (§2.1). Update the contract tests in §1.1. **Plus the public configuration ingestion** (decision 10, §9) — one new public call, no schema change, which unblocks `cuems-editor`'s T059 |
+| **`cuems-utils`** | `script.xsd` + `network_map.xsd`: retype five elements, delete three `BoolType` declarations, add **four** `MediaType` elements plus the new `cms:Md5Type` (decision 11, §10), cherry-pick the two curve values. `_Bool`: delete `to_wire`, add the lowercase `to_lexical` map, widen `decode`'s literal table to the four lexical forms. `Media`: three `Unset` entries + three setter pairs. Registry: the boolean rewrite joins the **existing `script` 1 → 2 and `network_map` 1 → 2 steps** — one shared conversion, **no new version** (decision 3, §2). Re-cut the **six** goldens (`tests/golden/xml/` ×5 + `tests/golden/generated/` ×1) and hand-rewrite the **two** already-version-2 corpus documents, which the registry cannot reach (§2.1). Update the contract tests in §1.1. **Plus the public configuration ingestion** (decision 10, §9) — one new public call, no schema change, which unblocks `cuems-editor`'s T059 |
 | **`cuems-editor`** | **No source change for X1** — it returns `to_wire()` and its FR-012 forbids touching the dict. The media work is its own (probe at upload, DB columns + `ALTER TABLE` migration, fill at save, repair-tool passes), and its branch has not touched those files. **One payload-version bump covers both** wire changes under its FR-047a; version 1 has not shipped, so it is free now. **Its T059 unblocks** — §9's ingestion is the call its `config_save` is waiting for, and its test is `xfail(strict=True)`, so it needs no edit to pick it up, only a re-run |
 | **`cuems-engine`** | **Nothing for X1** — zero `to_wire` in shipped source; it holds objects, already `bool`. The media read is `cue.media.get("pixel_width")`, which keeps working whatever the wire does. Its `cue.media` must stay dict-like with `.get()` — noted, and nothing in this gate changes that. **It must absorb the rc_1 fixes, and that merge gets a thorough review — see §6.1** |
 | **`cuems-nodeconf`, `cuems-power-bridge`, `cuems-common`** | **No source change** — objects, not payloads. Fixtures only: 46 + 4 + 8 boolean elements, one conversion run each |
@@ -631,18 +659,29 @@ tasks.
 
 ---
 
-## 10. The media block — four elements (decision 11)
+## 10. The media block — four elements (decision 11, names amended by decision 13)
 
 The input document ([`../planning/media-pixel-dimensions-for-xml-refactor.md`](../planning/media-pixel-dimensions-for-xml-refactor.md)
-§1) specifies three. **This feature ships four.** All four are `minOccurs="0"`, appended after
+§1) specified three. **This feature ships four** — and so, as of its D18 revision
+([`../planning/stored-media-values-preimplementation.md`](../planning/stored-media-values-preimplementation.md)
+§1, 2026-10-05), does rc15. All four are `minOccurs="0"`, appended after
 `regions` in `MediaType`, and every existing project stays valid.
 
 | Element | Type | Why |
 |---|---|---|
-| `pixel_width` | `xs:positiveInteger` | the media's original width, as `ffprobe` reports it. **Not** the layer's size on screen — `width`/`height` already exist in `CanvasRegionType` as unit floats |
-| `pixel_height` | `xs:positiveInteger` | the same, for height |
-| `file_size` | `xs:positiveInteger` | **named `file_size`, not `size`** (decision 11). Bytes |
-| **`file_hash`** | `cms:Md5HashType` *(new)* | **the fourth, added here.** The md5 sum of the file when the dimensions were measured |
+| Element | Type | Carried by | Why |
+|---|---|---|---|
+| `pixel_width` | `xs:positiveInteger` | **VideoCue only** | the media's original width, as `ffprobe` reports it. **Not** the layer's size on screen — `width`/`height` already exist in `CanvasRegionType` as unit floats |
+| `pixel_height` | `xs:positiveInteger` | **VideoCue only** | the same, for height |
+| `file_size` | `xs:positiveInteger` | every media type | **named `file_size`, not `size`** (decision 11). Bytes |
+| **`file_md5`** | `cms:Md5Type` *(new type)* | every media type | the md5 sum of the file when the dimensions were measured. Named for rc15's element (decision 13) |
+
+**The "carried by" column is a convention no schema here enforces**, and that is worth stating
+because it is the block's only unenforceable rule. `MediaType` is shared, so an AudioCue's `Media`
+validates with a pixel size exactly as a VideoCue's does. The input document states it as
+*"never, even when it plays a video file"* and its editor **strips** a pixel size from an AudioCue
+before save. `file_size` and `file_md5` carry on every type, audio included. Recorded in
+`script.xsd`'s own comment beside the two elements, since the convention *is* the contract.
 
 ### 10.1 `file_size` must hold a file larger than 100 GB — verified
 
@@ -668,13 +707,13 @@ and its editor-side fill strips `None`, `0` and non-numeric values before save s
 never reach the XSD. If a zero-length file ever needs representing, that is `xs:nonNegativeInteger`
 and a decision to take then, not a hedge to build in now.
 
-### 10.2 `file_hash` needs a type, and the house style settles its shape
+### 10.2 `file_md5` needs a type, and the house style settles its shape
 
 An md5 sum is 32 hex characters. The pattern follows `UuidType`'s exactly — which is **lowercase
 only** (`[a-f0-9]`) with both length facets pinned:
 
 ```xml
-<xs:simpleType name="Md5HashType">
+<xs:simpleType name="Md5Type">
   <xs:restriction base="xs:string">
     <xs:pattern value="[a-f0-9]{32}" />
     <xs:maxLength value="32" />
@@ -715,8 +754,123 @@ Per §5's two confirmations and one correction, unchanged by the fourth element:
 - **No writer change.** The spec-driven writer already orders by schema position and omits absent
   fields, so the input document's `MediaXmlBuilder` fix does not apply to this branch.
 - The setters accept a positive `int` or a string of digits and store an `int`; `None` removes the
-  key; anything else raises. `file_hash`'s setter normalises nothing — a non-matching string is a
+  key; anything else raises. `file_md5`'s setter normalises nothing — a non-matching string is a
   `ValueError`, because the schema will refuse it at save and failing at assignment names the field.
+  **The one place the two lines still differ; argued in §10.6.**
+
+### 10.5 The names are rc15's, and that is an obligation (decision 13, 2026-10-06)
+
+| | 014 as planned | **as shipped** | why |
+|---|---|---|---|
+| element | `file_hash` | **`file_md5`** | **obligation.** An element name is an *instance-document* name |
+| type | `Md5HashType` | **`Md5Type`** | consistency only — a type name never appears in a document |
+
+**The element rename is not a preference.** 014 chose `file_hash` when it was adding a fourth
+element the input document did not have, so the name was 014's to pick. It no longer is: rc15 ships
+`file_md5` and has **back-patched it into rc14 and `pre_release_1`**, so the name is in the field
+in three XSDs before this branch releases anything. Two spellings of one element would mean an
+rc15-written project carries a `Media` child version 2 does not declare — and that document is
+exactly what §3 and §4 commit this branch to absorbing. T1 would refuse it, at the point in the
+pipeline where the reason is hardest to read.
+
+**The type rename is housekeeping, and is included because it is free.** Type names are internal to
+the XSD; nothing on disk references one. It is done so that whoever diffs the two lines' `script.xsd`
+during the merge — which §3 makes a real activity — sees one type, not two names for an identical
+one. The two length facets stay: they are redundant with the pattern and match `UuidType`, where
+rc15's copy declares the pattern alone. **Both declarations accept exactly the same 32 strings**, so
+the difference is not a compatibility question.
+
+**Cost of the rename, measured:** eleven files, zero new test failures (3483 passed / 12 failed,
+byte-identical to the pre-rename baseline — all twelve pre-existing and environmental: absent
+sibling checkouts, a missing `hypothesis`, the API snapshot and the load budget). One schema hash
+re-pinned in `tests/contract/test_schema_scope.py`, which is that pin working as designed.
+
+### 10.6 The case rule — the one surviving divergence, resolved in this branch's favour
+
+The two lines disagree, and only here:
+
+| | rc15 | **this branch** |
+|---|---|---|
+| `set_file_md5("D41D…427E")` | lowercases it and stores `d41d…427e` | **`ValueError`** |
+
+**This branch's strict setter is the consistent one, and the house precedent decides it rather than
+taste.** Measured: `Uuid("B1B2C3D4-0001-4AAA-8AAA-000000000001")` raises `ValueError` — `Uuid` does
+**not** lowercase an uppercase uuid either. `Md5Type` was written to match `UuidType` facet for
+facet (§10.2), so matching its *case behaviour* is the same decision applied once more. rc15's
+normalising setter is the outlier of the two.
+
+**But the obligation this creates is real and belongs to `cuems-editor`.** Its upload path stores
+*"the MD5 the client already sends, which `CuemsUpload.check_file_integrity` verifies"* — it does
+not compute the digest, so it does not control its case. On rc15 the library lowercased for it; on
+this branch it must `.lower()` before assigning, or an uppercase client digest becomes a
+per-cue `ValueError` and the md5 is silently not stored (that document's §2: *"errors are handled
+per cue"*). **One line in the editor, and it is wanted on both lines** — calling `.lower()` is a
+no-op against rc15's setter, so the editor can land it before the merge rather than during it.
+
+### 10.7 Two of that document's obligations on `cuems-utils` are already met — verified, not assumed
+
+Both are stated there as work this branch still owes; both are already true at `69acaef`.
+
+| Obligation (input document) | State on this branch |
+|---|---|
+| §5: *"rc15 keeps `file_md5` a string (`STRING_TYPED_KEYS`). **Your refactor needs the same protection**: never coerce `file_md5`"* — an md5 of all digits (≈1 in a million) otherwise loads as an `int` and the re-save fails the schema | **Met, and structurally rather than by a list.** Measured: a project whose `file_md5` is `"111…1"` (32 digits) loads as a `str`. `STRING_TYPED_KEYS` guarded *key names*; the adapter table binds *types* (`adapters.py:269`), and `Md5Type` restricts `xs:string`, so `xmlschema` decodes by declared type and never by the value's appearance. The defect class the input document warns about cannot occur here |
+| §2b: *"Your `CuemsScript.save` is atomic too, **but does not copy the mode**: please keep the old file's mode"* | **Met** — and by a different feature. `write_tree` stats the target and `chmod`s the temporary to its mode before `os.replace` (`xml/documents.py:273-333`), landed as **010 T080** after `cuems-nodeconf` measured `0644` in and `0600` out. The request is stale, and for the same reason it was made: the nodes' rsync reads these files as `nobody` |
+
+**Done as T040:** `Md5Type` is bound to `_String()` in `ADAPTERS` explicitly. It resolved to
+`PASSTHROUGH` and was correct by consequence, which is precisely the situation the table's own
+comment on `NodeUuidType` says to avoid — those were bound *"so that a future element naming one
+directly does not silently fall through to the passthrough"*. Same argument, same type family. The
+test pins **both** halves of §5's warning: an all-digit md5, and the "digits with one `e`" case an
+old parser read as a float in exponent notation.
+
+### 10.8 Why `pixel_*` stays on `Media` and does not move to `VideoCue` (T041)
+
+Asked 2026-10-06: the pixel pair is video-only, so would the model be better — and stay aligned —
+if the fields belonged to the video cue rather than to the shared `Media`? **No.** Three findings,
+in increasing order of how hard they are to work around.
+
+**1. The model cannot move without the schema.** `tests/unit/test_coherence.py`'s
+`test_declared_and_derived_field_sets_are_equal` asserts **set equality** between a model's
+declared fields and its bound type's derived fields. `Media` is bound to `MediaType`
+(`registry.bind("MediaType", Media)`), so dropping `pixel_width`/`pixel_height` from
+`DECLARED_DEFAULTS` while `MediaType` still declares them fails coherence immediately — the same
+check that fired on T004-without-T005, working the other way round. The two halves move together or
+not at all, which means this is a schema question wearing a model question's clothes.
+
+**2. The schema cannot express the split by extension, which is how the cue hierarchy is built.**
+`<Media type="cms:MediaType"/>` is declared in **`MediaCueType`** (`script.xsd:150`), and
+`AudioCueType` and `VideoCueType` are both `xs:extension base="cms:MediaCueType"`. `xs:extension`
+**appends** a particle; it cannot retype an element inherited from the base. To give `VideoCueType`
+a different `<Media>` type it would have to become an `xs:restriction` and **restate the whole
+inherited content model** — every `CueClassType` field, `Media`, `outputs` — with `<Media>`
+retyped. It is expressible in XSD 1.1 (the substituted type must derive from the declared one, and
+a `VideoMediaType` extending `MediaType` does), but it turns the cue hierarchy's one uniform
+derivation shape into a special case — in the hierarchy whose derivation constraints `script.xsd`'s
+own comment above `CueClassType` already spends a paragraph explaining.
+
+**3. It would turn a silent correction into a hard save failure — and that is the decisive one.**
+The input document's §2 says the editor's fill *"first **strips** invalid values from every
+`Media`, and any pixel size from AudioCues, **so a client value can never fail the XSD**"*. That
+sentence states the intent plainly: the strip exists *because* the XSD does not catch this. Make
+the schema catch it and the strip stops being a correction and becomes the only thing standing
+between a plausible client bug — a frontend sending `pixel_width` on an audio cue — and a refused
+save. Today that costs the client nothing; under a split type it costs the operator their save, and
+the T1 message would name a type derivation rather than the mistake.
+
+**On alignment specifically**, which is what makes this more than a question of taste: documents
+would in fact stay mutually valid both ways — rc15's single `MediaType` accepts a 014 document, and
+014 accepts every rc15 document, because rc15 never writes a pixel size onto an AudioCue. So the
+split is **not** a compatibility break. It is a divergence in **where the rule lives**: on this
+branch the schema, on every other line the editor. That is the worse kind of difference, because it
+stays invisible until the one case where the two disagree, and the back-patched lines (rc14,
+`pre_release_1`) can never be given the stricter form.
+
+**What is done instead**, and it is the honest version of the same concern: the rule is stated in
+`script.xsd` beside the two elements, in §10's table and in migration-guide §2 — and pinned by
+`test_an_audiocue_pixel_size_validates_because_no_schema_can_refuse_it`, which asserts the **gap**
+rather than the rule, so no later reader mistakes the convention for something a validator checks.
+If it ever becomes enforceable, that test is the one that fails and asks to be rewritten. **If it
+should be enforced sooner, the place is the editor's fill** — where it already is — not this schema.
 
 ---
 

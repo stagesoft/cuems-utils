@@ -191,7 +191,15 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
 
       <!-- The media's ORIGINAL size in pixels (first video stream), as ffprobe
            reports it. Not the layer's size on screen: width/height already
-           exist in CanvasRegionType as unit floats. -->
+           exist in CanvasRegionType as unit floats.
+
+           VIDEO CUES ONLY, and this is the one rule in the block that no
+           schema here can enforce: MediaType is shared, so an AudioCue's
+           Media validates with a pixel size just as a VideoCue's does. The
+           rc15 line states it as "never, even when it plays a video file",
+           and its editor STRIPS a pixel size from an AudioCue before save.
+           file_size and file_md5 carry on every media type, audio included.
+           Recorded here because the convention is the contract. -->
       <xs:element name="pixel_width" type="xs:positiveInteger" minOccurs="0" />
       <xs:element name="pixel_height" type="xs:positiveInteger" minOccurs="0" />
 
@@ -205,7 +213,7 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
            same name" check than file_size alone, since a replacement of
            identical length passes a size comparison. What a consumer compares
            is its own decision; this schema only carries the value. -->
-      <xs:element name="file_hash" type="cms:Md5HashType" minOccurs="0" />
+      <xs:element name="file_md5" type="cms:Md5Type" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
 
@@ -621,8 +629,17 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
        lowercase for the same reason: md5sum, hashlib and ffmpeg all emit
        lowercase, and accepting uppercase would make the ingestion vocabulary
        wider than the schema's: a value legal on the wire that could never
-       appear in a file. -->
-  <xs:simpleType name="Md5HashType">
+       appear in a file.
+
+       Named Md5Type (not Md5HashType) as of 2026-10-06: this is the name the
+       rc15 line shipped, and back-patched into rc14 and pre_release_1. The type
+       name never appears in an instance document, so this half of the rename is
+       for the people diffing the two schemas during the merge; the element
+       rename beside it is the half that is load-bearing. The two length facets
+       are redundant with the pattern and kept anyway, because UuidType has
+       them — rc15's copy declares the pattern alone and accepts exactly the
+       same set. -->
+  <xs:simpleType name="Md5Type">
     <xs:restriction base="xs:string">
       <xs:pattern value="[a-f0-9]{32}" />
       <xs:maxLength value="32" />

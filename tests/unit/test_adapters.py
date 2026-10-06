@@ -194,6 +194,33 @@ def test_keys_that_should_coerce_still_do():
     assert adapter_for("UnitFloat").decode("0.5") == 0.5
 
 
+def test_md5_is_bound_explicitly_and_never_coerced():
+    """Feature 014 T040 — bound rather than correct by consequence.
+
+    ``Md5Type`` restricts ``xs:string``, so it would decode correctly through
+    ``PASSTHROUGH`` too. It is bound anyway for the reason the table's own
+    ``NodeUuidType`` comment gives: a type that is right by *consequence* goes
+    wrong silently the day something changes around it.
+
+    The value being pinned is the one the input document warns about
+    (``specs/planning/stored-media-values-preimplementation.md`` §5): an md5 of
+    all digits — about one in a million — which an older parser coerced to an
+    ``int``, so that the next save failed the schema.
+    """
+    assert "Md5Type" in ADAPTERS, "bound by name, not reached by fallthrough"
+    assert adapter_for("Md5Type") is not PASSTHROUGH
+
+    all_digits = "1" * 32
+    assert adapter_for("Md5Type").decode(all_digits) == all_digits
+    assert isinstance(adapter_for("Md5Type").decode(all_digits), str)
+
+    # The "digits with one e" half of that warning — a valid md5 that Python
+    # would read as a float in exponent notation.
+    exponent = "1" * 31 + "e"
+    assert adapter_for("Md5Type").decode(exponent) == exponent
+    assert isinstance(adapter_for("Md5Type").decode("1e9" + "0" * 29), str)
+
+
 # --- identifiers ----------------------------------------------------------
 
 

@@ -24,7 +24,7 @@ Sections marked *(pending)* have a task against them in [`tasks.md`](tasks.md).
    retyped to the standard `xs:boolean`, so XML text becomes `true`/`false` and the JSON wire
    carries `true`/`false` instead of `"True"`/`"False"`.
 2. **`MediaType` gains four optional elements**: `pixel_width`, `pixel_height`, `file_size` and
-   `file_hash`.
+   `file_md5`.
 3. **`FadeCurveType` gains `ease_in` and `ease_out`**, cherry-picked from `main`.
 4. **`ConfigManager.from_json(SchemaName, payload)`** is new: the first public way to build a
    configuration document from JSON, which is what `cuems-editor`'s `config_save` has been waiting
@@ -33,20 +33,39 @@ Sections marked *(pending)* have a task against them in [`tasks.md`](tasks.md).
 **No new schema version.** All of it lands in the **existing, unreleased** `script` 1 → 2 and
 `network_map` 1 → 2 steps. `0.1.0rc16` does not move.
 
-## 2. The media block is **four** elements, not three *(T008)*
+## 2. The media block — **four** elements, named as rc15 names them *(T008)*
 
-The input document
-([`../planning/media-pixel-dimensions-for-xml-refactor.md`](../planning/media-pixel-dimensions-for-xml-refactor.md)
-§1) specifies three. **Read this instead**, and note two naming points it is easy to get wrong:
-
-| Element | Type | Note |
-|---|---|---|
-| `pixel_width` | `xs:positiveInteger` | the media's **original** size, as `ffprobe` reports it — not the layer's size on screen. `width`/`height` already mean something else in `CanvasRegionType` |
-| `pixel_height` | `xs:positiveInteger` | |
-| `file_size` | `xs:positiveInteger` | **`file_size`, not `size`.** Bytes. Holds a file well past 100 GB — see below |
-| **`file_hash`** | `cms:Md5HashType` | **the fourth, new in this feature.** 32 **lowercase** hex characters |
+| Element | Type | Carried by | Note |
+|---|---|---|---|
+| `pixel_width` | `xs:positiveInteger` | **VideoCue only** | the media's **original** size, as `ffprobe` reports it — not the layer's size on screen. `width`/`height` already mean something else in `CanvasRegionType` |
+| `pixel_height` | `xs:positiveInteger` | **VideoCue only** | |
+| `file_size` | `xs:positiveInteger` | every media type | **`file_size`, not `size`.** Bytes. Holds a file well past 100 GB — see below |
+| **`file_md5`** | `cms:Md5Type` | every media type | 32 **lowercase** hex characters |
 
 All four are `minOccurs="0"`, appended after `regions`. **Every existing project stays valid.**
+
+⚠ **Renamed 2026-10-06 — if you read an earlier draft of this guide, two names changed.**
+
+| | earlier draft | **now** |
+|---|---|---|
+| element | `file_hash` | **`file_md5`** |
+| type | `Md5HashType` | **`Md5Type`** |
+
+These are the names the **rc15 line already ships**, in rc15 and back-patched into rc14 and
+`pre_release_1`. When this feature was planned its input document specified only three elements, so
+the fourth was 014's to name; the successor document
+([`../planning/stored-media-values-preimplementation.md`](../planning/stored-media-values-preimplementation.md),
+revised 2026-10-05) ships the fourth as `file_md5`. **The element rename is load-bearing**: an
+element name appears in every instance document, so two spellings would mean an rc15-written
+project carrying a `Media` child this schema does not declare, refused by T1. The type rename is
+cosmetic — a type name appears in no document — and is done so the two lines' schemas diff as one
+type.
+
+**`pixel_width`/`pixel_height` on an AudioCue is the block's one unenforceable rule.** `MediaType`
+is shared, so the schema accepts them there; the rc15 line states *"never, even when it plays a
+video file"* and its editor **strips** them from an AudioCue before save. `file_size` and
+`file_md5` carry on every type, audio included. Treat it as contract even though no validator will
+tell you.
 
 ⚠ **The test fixture is *not* in `tests/data/corpus/`**, which T001 originally said. Corpus
 membership requires a **pre-refactor verdict** in `tests/golden/outcomes.json`, and a document
@@ -62,7 +81,7 @@ deliberate, since a zero-byte or zero-pixel file is not playable media.
 overflows a 32-bit int. `xs:positiveInteger` has **no upper bound** and decodes to an
 arbitrary-precision Python `int`; 2⁶³ validates too. Nothing to configure.
 
-**`file_hash` is lowercase-only**, matching `UuidType`'s existing `[a-f0-9]` pattern. `md5sum`,
+**`file_md5` is lowercase-only**, matching `UuidType`'s existing `[a-f0-9]` pattern. `md5sum`,
 `hashlib` and `ffmpeg` all emit lowercase. Uppercase is refused on purpose: a wider ingestion
 vocabulary than the schema's means a value legal on the wire that can never appear in a file.
 
@@ -78,10 +97,19 @@ What a consumer can hand these four, measured against the landed code:
 | `0`, a negative | **`ValueError`** |
 | `1.5`, `"1.5"`, a list, a dict | **`ValueError`** — deliberately *not* `int(value)`, which truncates. `1.5` would have stored 1: a wrong value that looks right, which is the defect class this feature exists to remove |
 | `True` / `False` | **`ValueError`** — `bool` is an `int` subclass, so without the guard `media.pixel_width = True` would store 1 |
-| `file_hash` uppercase | **`ValueError`**, not lowercased. Normalising would leave the object and the document disagreeing about what is valid |
+| `file_md5` uppercase | **`ValueError`**, not lowercased. Normalising would leave the object and the document disagreeing about what is valid |
 
 **Raising at the assignment rather than at the save is the point.** The schema would refuse these
 at `save()` anyway; failing earlier names the field and the line that caused it.
+
+⚠ **The uppercase row is where this library differs from rc15, and `cuems-editor` must act on it.**
+rc15's setter *"accepts 32 hex digits in any case, and stores them lowercase"*; this one raises. The
+strict form is the consistent one — measured, `Uuid("B1B2C3D4-0001-4AAA-…")` raises too, so `Uuid`
+does not normalise case either, and `Md5Type` matches `UuidType` facet for facet. **But the editor
+stores the md5 its client sent**, so it does not control the case: it must `.lower()` before
+assigning, where rc15 did that for it. Otherwise an uppercase client digest becomes a per-cue
+`ValueError` and the md5 is silently not stored. **One line, and it is safe on both lines** —
+`.lower()` is a no-op against rc15's setter, so land it before the merge, not during it.
 
 **For `cuems-engine`**: a hash is a strictly stronger "was this file replaced under the same name?"
 test than comparing `file_size` against `os.stat` — a replacement of identical length passes the
@@ -333,7 +361,7 @@ every read.
 **Immediately on this feature**, for reading *and* writing. `"True"` is a refused spelling at
 `from_json` and `True` is invalid XML text in those five elements. **There is no grace period and no
 dual-accept window**, deliberately: a wider ingestion vocabulary than the schema's is a value legal
-on the wire that can never appear in a file — the same argument that makes `file_hash` lowercase-only
+on the wire that can never appear in a file — the same argument that makes `file_md5` lowercase-only
 (§2) and the same defect class `_Bool.decode` was fixed for in `be3e86e`.
 
 The date is the coordinated `xml-refactor-merge-candidate` tag, after features 011–015. `0.1.0rc16`
