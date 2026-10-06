@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
 from typing import Tuple
 
 from .Cue import Cue
@@ -236,6 +239,93 @@ class Media(CuemsDict):
         super().__setitem__('regions', regions)
 
     regions: list[Region] = property(get_regions, set_regions)
+
+    # --- Stored size of the media file (869fat84r) --------------------------
+    #
+    # ``pixel_width`` / ``pixel_height`` are the original size of the file's
+    # first video stream, as ffprobe reports it, and ``file_size`` is the
+    # file's size in bytes when they were measured. ``file_md5`` (below)
+    # identifies the file itself. The editor stores them at
+    # upload so the engine does not have to probe the file when it arms a
+    # cue; ``file_size`` lets the engine notice a file replaced under the
+    # same name. All three are optional: absent means unknown.
+    #
+    # Parsing a project never calls these setters (the parsers assign keys
+    # raw), so the schema and MediaXmlBuilder, not these, guard what is read
+    # from and written to a file.
+
+    def _get_optional(self, key):
+        return self.get(key)
+
+    def _set_positive_int(self, key, value):
+        """Store *value* as a positive ``int``; ``None`` removes the key.
+
+        Raises:
+            ValueError: for anything that is not a positive integer or a
+                string of digits (``bool`` included: it is an ``int``).
+        """
+        if value is None:
+            self.pop(key, None)
+            return
+        if isinstance(value, bool):
+            raise ValueError(f"Media {key} must be a positive integer, not {value!r}")
+        if isinstance(value, str) and value.isdigit():
+            value = int(value)
+        if not isinstance(value, int) or value <= 0:
+            raise ValueError(f"Media {key} must be a positive integer, not {value!r}")
+        super().__setitem__(key, value)
+
+    def get_pixel_width(self):
+        """Width in pixels of the media's first video stream, or ``None``."""
+        return self._get_optional('pixel_width')
+
+    def set_pixel_width(self, pixel_width):
+        """Set the width in pixels; ``None`` removes it."""
+        self._set_positive_int('pixel_width', pixel_width)
+
+    pixel_width = property(get_pixel_width, set_pixel_width)
+
+    def get_pixel_height(self):
+        """Height in pixels of the media's first video stream, or ``None``."""
+        return self._get_optional('pixel_height')
+
+    def set_pixel_height(self, pixel_height):
+        """Set the height in pixels; ``None`` removes it."""
+        self._set_positive_int('pixel_height', pixel_height)
+
+    pixel_height = property(get_pixel_height, set_pixel_height)
+
+    def get_file_size(self):
+        """Size in bytes of the file the dimensions were measured on, or ``None``."""
+        return self._get_optional('file_size')
+
+    def set_file_size(self, file_size):
+        """Set the file size in bytes; ``None`` removes it."""
+        self._set_positive_int('file_size', file_size)
+
+    file_size = property(get_file_size, set_file_size)
+
+    def get_file_md5(self):
+        """The file's MD5 (32 lowercase hex digits), or ``None``. Every media
+        type; it comes from the upload, which already carries it (D18)."""
+        return self._get_optional('file_md5')
+
+    def set_file_md5(self, file_md5):
+        """Set the file's MD5 (any case, stored lowercase); ``None`` removes it.
+
+        Raises:
+            ValueError: for anything that is not 32 hex digits.
+        """
+        if file_md5 is None:
+            self.pop('file_md5', None)
+            return
+        if not isinstance(file_md5, str) or len(file_md5) != 32 or any(
+            c not in '0123456789abcdef' for c in file_md5.lower()
+        ):
+            raise ValueError(f"Media file_md5 must be 32 hex digits, not {file_md5!r}")
+        super().__setitem__('file_md5', file_md5.lower())
+
+    file_md5 = property(get_file_md5, set_file_md5)
 
 class MediaCue(Cue):
     """Base class for media-related cues (audio and video).
