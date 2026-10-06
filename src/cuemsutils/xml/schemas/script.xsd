@@ -186,8 +186,30 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
       <xs:element name="id" type="cms:TargetType" />
       <xs:element name="duration" type="cms:TimecodeType" />
       <xs:element name="regions" type="cms:RegionsType" />
+      <!-- Stored size of the media file (869fat84r), measured by the editor
+           at upload so the engine does not probe the file when it arms a cue.
+           pixel_width / pixel_height: the ORIGINAL size of the file's first
+           video stream, as ffprobe reports it; not the layer's size on screen
+           (that would get its own names) and unrelated to CanvasRegionType's
+           unit-float width / height. file_size: the file's size in bytes when
+           they were measured; the engine compares it with its own copy to
+           notice a file replaced under the same name. Optional: absent means
+           unknown, and the engine then probes as before. The pixel size is
+           for VideoCues only; file_size and file_md5 for every media type.
+           file_md5: the file's MD5 (lowercase hex), from the upload, which
+           already carries it; identifies the file for integrity checks. -->
+      <xs:element name="pixel_width" type="xs:positiveInteger" minOccurs="0" />
+      <xs:element name="pixel_height" type="xs:positiveInteger" minOccurs="0" />
+      <xs:element name="file_size" type="xs:positiveInteger" minOccurs="0" />
+      <xs:element name="file_md5" type="cms:Md5Type" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
+
+  <xs:simpleType name="Md5Type">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9a-f]{32}" />
+    </xs:restriction>
+  </xs:simpleType>
 
   <xs:complexType name="OutputsType">
     <xs:choice minOccurs="0" maxOccurs="unbounded">
