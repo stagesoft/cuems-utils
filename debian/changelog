@@ -1,11 +1,16 @@
-cuems-utils (0.1.0rc15) UNRELEASED; urgency=medium
+cuems-utils (0.1.0rc15) unstable; urgency=medium
 
+  * Merge main into debian/bookworm (0.1.0rc15, 869fat84r): MediaType
+    gains optional pixel_width / pixel_height (VideoCue), file_size and
+    file_md5 (every media); the builder writes them in schema order and the
+    parser keeps file_md5 a string. Same code as cuemsutils 0.1.0rc15 on
+    PyPI (tag v0.1.0rc15).
   * Replaces: cuems-engine (<< 0.1.0rc6-2~). Engine debs up to 0.1.0rc6-1
     also ship /usr/lib/cuems/bin/cffi-gen-src (cffi's console script), so
     upgrading cuems-utils on a box with any of them failed with "trying to
     overwrite" unless forced. cuems-engine 0.1.0rc6-2 stops shipping it.
 
- -- Ion Reguera <ion@stagelab.coop>  Tue, 06 Oct 2026 21:00:00 +0200
+ -- Ion Reguera <ion@stagelab.coop>  Tue, 06 Oct 2026 20:18:57 +0200
 
 cuems-utils (0.1.0rc14) unstable; urgency=medium
 

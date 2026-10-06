@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
 from ..cues import *
 from ..cues.FadeProfile import FadeFunctionParameter, FadeProfile
 from ..cues.MediaCue import Media, Region
@@ -33,6 +36,9 @@ STRING_TYPED_KEYS = frozenset({
     'name', 'description', 'file_name',
     # defensive -- see above
     'output_name', 'parameter_name', 'icon', 'color', 'unix_name',
+    # an MD5 is hex: about one in a million is all digits (-> int) or digits
+    # with one 'e' (-> float), and would no longer validate (869fat84r D18)
+    'file_md5',
 })
 
 class GenericDict(dict):
