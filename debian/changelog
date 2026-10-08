@@ -1,3 +1,17 @@
+cuems-utils (0.1.0rc16) unstable; urgency=medium
+
+  * Merge main into debian/bookworm (0.1.0rc16, 869fej07m): media cues
+    without a usable media block. MediaCue.media_status() classifies a
+    cue's media as none / invalid / ok without touching the raising
+    file_name property; CueList.get_media (editor path) raises a named
+    ValueError for an invalid block instead of a bare KeyError 'file_name'
+    and skips a None block with a warning; CuemsScript.get_own_media
+    (engine path) never raises - both shapes are logged and skipped, so a
+    legacy <Media/> project still loads and that cue fails at arm as
+    before. Same code as cuemsutils 0.1.0rc16 on PyPI (tag v0.1.0rc16).
+
+ -- Ion Reguera <ion@stagelab.coop>  Thu, 08 Oct 2026 21:15:25 +0200
+
 cuems-utils (0.1.0rc15) unstable; urgency=medium
 
   * Merge main into debian/bookworm (0.1.0rc15, 869fat84r): MediaType
