@@ -23,10 +23,142 @@ Two sibling gates have landed and reported. This section is the index; the detai
 | Item | State |
 |---|---|
 | **`cuems-editor` UR-5** — no public config ingestion (§1) | ✅ **CLOSED** by 014's `ConfigManager.from_json`, pinned to `429f8d2` in that repository's own report. Its T059 `xfail(strict=True)` is **removed** and the suite is **161 passed / 2 skipped** (was 154/2/1 at the branch point). §1 below is now history, kept because it is the statement of the requirement the call was built against |
-| **`cuems-editor` UR-6** — `conf_path`/`project_path` refuse a file a first save would create | 🔴 **NEW, open** — §8. Found *by* closing UR-5, which is the usual shape: the ingestion works, and now the write target is the thing missing |
-| **`cuems-editor` UR-4** — a duplicate identity carries no structured identity (§2) | Still open, unchanged |
-| **The descriptor flattens a union into a one-value enumeration** (§5) | Still open, unchanged — still not 014's |
+| **`cuems-editor` UR-6** — `conf_path`/`project_path` refuse a file a first save would create | 🔴 **NEW, open** — §8. Found *by* closing UR-5, which is the usual shape: the ingestion works, and now the write target is the thing missing. **Tag gate since 2026-10-08 — §0a, G1** |
+| **`cuems-editor` UR-4** — a duplicate identity carries no structured identity (§2) | Still open, unchanged. Not a tag gate: the consumer's fallback degrades safely |
+| **The descriptor flattens a union into a one-value enumeration** (§5) | Still open, unchanged — still not 014's. **Confirmed not a tag gate 2026-10-08 — §0a** |
 | **013's reshape defeats F3's `settings` 1 → 2 conversion** | 🔴 **NEW, and it blocks the tag.** Not a requirement — a **defect**, with its own record: [`settings-reshape-defeats-f3-conversion-defect.md`](settings-reshape-defeats-f3-conversion-defect.md). Found by `cuems-nodeconf`'s gate, verified here, and narrower than that report states |
+| **`cuems-frontend` UR-1** — the schema descriptor's per-type `instance` is not in `to_wire()` shape, and required output fields have a null default | 🔴 **NEW, open** (2026-10-07, from `cuems-frontend` 001). Report: `../cuems-frontend/specs/001-schema-descriptor-migration/upstream-reports/UR-1-descriptor-instance-not-wire-shaped.md`; the addendum (required fields with no default: `AudioCueOutputsType.output_vol`, `AudioChannelType.channel_num`/`channel_vol`, `VideoOutputGeometryType.x_scale`/`y_scale`, `Coordinates.x`/`y`) is in that repository's `findings.md`, *Upstream reports*. Measured at this repository's `69acaef`. Consumer workaround to delete when answered: `toWireShape` + `UR1_UI_STARTING_VALUES` in `cuems-frontend` `schema-descriptor.handler.ts`. **Tag gate since 2026-10-08 — §0a, G3** |
+| **`cuems-editor` UR-7** — `project_settings` has no public read projection | 🔴 **NEW, open** (2026-10-08). **Tag gate — §0a, G2**, where the detail lives |
+| **`NodeIndex` has no in-place setter for the operator's `alias`** | 🔴 **NEW, open** (2026-10-08), for `cuems-nodeconf`'s planned `node_set`. **Tag gate — §0a, G4**, where the detail lives |
+
+## 0a. HIGH PRIORITY — what this repository owes the `xml-refactor-merge-candidate` tag (2026-10-08)
+
+**Read this section first.** It is the work order for the coordinated tag. The rows elsewhere in this
+document keep their detail; this section ranks them, adds what the 2026-10-07/08 round found, and
+says which items are gates. The source is `cuems-editor`'s analysis of `cuems-frontend` 001's
+findings, written up as
+`../cuems-editor/specs/planning/xml-refactor/FROM-cuems-frontend-001.md` and
+`../cuems-editor/specs/planning/xml-refactor/002-specify-prompt.md` (`a3309ab`). Measured against
+this repository at `67c89bd` and `cuems-nodeconf` `feat/xml-refactor` at `2045897`.
+
+### The version does not move for this tag
+
+**`__version__` stays `0.1.0rc16`.** It is the coordinated version of the merge candidate, and
+nothing ships until every gate below is closed, so no consumer needs a version to distinguish an
+early build from a late one.
+
+The cost, stated so it is not rediscovered: `rc16` names both the 013 library (`6213b16`) and the
+014 one. Code that needs 014 (`from_json`, the `xs:boolean` wire) imports cleanly against the 013
+build and fails only at runtime. Until the tag, each consumer records the **commit** it was
+verified against, as `cuems-editor` already does in its `evidence/`. Do not propose an `rc17` to
+solve this. §3's move to `0.1.1`, with its atomic re-bound of the sibling packages, belongs to a
+later release and is unaffected.
+
+### The consumer contract this serves: read the file, edit it in the UI, write it back
+
+Each configuration document reaches the UI as **its file's actual values** and returns as a whole
+document. The read projection is `ConfigManager.to_wire(section)` on a freshly loaded manager; the
+write is `from_json` → `.save(path)`. **Measured 2026-10-08** on `cuems-editor`'s fixtures
+(load → `to_wire` → JSON → `from_json` → `save` → reload):
+
+| Document | Values after reload | File bytes |
+|---|---|---|
+| `network_map` | equal | identical |
+| `settings` | equal | differ: unindented output, `doc_version` 2 → 3, `schemaLocation` rewritten |
+
+The round trip itself needs no work. The gates are the documents and fields it cannot reach.
+
+### Tag gates, in order
+
+| # | Item | Detail | Shape asked for | Consumer test that flips |
+|---|---|---|---|---|
+| **G1** | `cuems-editor` UR-6 — no write target for a file that doesn't exist yet | **§8**, unchanged | §8's preferred shape | `cuems-editor` `test_config_save_of_project_settings_fails_before_the_file_exists_pending_ur6` |
+| **G2** | `cuems-editor` UR-7 — `project_settings` cannot be read through the public API | below | a public `project_settings` section for `to_wire`, symmetric with `from_json(SchemaName.PROJECT_SETTINGS)` | `cuems-editor` 002's `config_load('project_settings')` round trip |
+| **G3** | `cuems-frontend` UR-1 — the descriptor `instance` is not in `to_wire()` shape, and required fields have null defaults | **§0**, the `cuems-frontend` UR-1 row | as that report states | `cuems-editor` 002's strict xfail: a cue built from the instance, saved through `project_save` |
+| **G4** | `NodeIndex` cannot set the operator's `alias` in place | below | an in-place `NodeIndex` setter, see below | `cuems-nodeconf`'s `node_set`, which `cuems-editor` 002 forwards |
+| **G5** | 013's reshape defeats F3's `settings` 1 → 2 conversion | [`settings-reshape-defeats-f3-conversion-defect.md`](settings-reshape-defeats-f3-conversion-defect.md), unchanged | as that record states | as that record states |
+
+All five gate the tag. Each consumer test is a strict xfail that turns XPASS when the item lands,
+which is the posture `cuems-editor` took for UR-5 and UR-6. G5 is listed here only so the gate list
+is complete in one place.
+
+#### G2 — `project_settings` has no public read (`cuems-editor` UR-7)
+
+- **Measured.** `_PROJECTABLE_SECTIONS` (`tools/ConfigManager.py:166`) lists `project_mappings` but
+  not `project_settings`.
+- `load_project_settings` keeps the loaded document on the private `_project_settings_document`
+  (`:531`), and there is no public property.
+- So `from_json(SchemaName.PROJECT_SETTINGS)` can ingest a document that no public call can produce.
+  This is the read-side mirror of UR-5.
+- `cuems-editor`'s `tests/test_public_surface.py` forbids reaching the private attribute, so the
+  consumer has no workaround, which is correct.
+- **Asked for:**
+  - a public `project_settings` (property or section) projected through the same `to_wire()` body
+    as the other sections;
+  - added to `_PROJECTABLE_SECTIONS`;
+  - a test: `to_wire('project_settings')` → `from_json` → `save` → reload compares equal.
+- **The missing file:** `load_project_settings` already keeps defaults when the file is absent
+  (*"Keeping default settings"*). Projecting those defaults is fine. The consumer reports whether the
+  file exists itself, and G1 is what lets it be written the first time.
+- The report file is filed by `cuems-editor` feature 002 in its `upstream-reports/`; until then this
+  subsection is the statement of the requirement.
+
+#### G4 — the operator's `alias` needs an in-place setter
+
+**Why it is this repository's work.**
+- **`network_map.xml` has exactly one runtime writer, `cuems-nodeconf`, and it never re-reads the
+  file.** Measured in nodeconf `CuemsNodeConf.py`: `read_network_map()` runs only at startup, and
+  every later write (`refresh_network_map`, `_save_network_map`) serialises its in-memory copy.
+- `CuemsNetworkMapType.refresh` (`config/network_map.py:141`) decides whether to write by comparing
+  `NodeIndex.signature()` before and after the merge, never against the file on disk.
+- So a document written by anyone else is **silently reverted** by nodeconf's next write: a
+  discovery change, an IP change, any adopt or un-adopt.
+- `cuems-editor` 002 therefore stops writing `network_map` through `config_save`, and forwards alias
+  edits to a new nodeconf IPC command, `node_set`.
+- nodeconf delegates every map mutation to this library (`adopt`, `unadopt`, `merge`, `ensure`), so
+  the setter belongs here, not in the daemon.
+
+**Not involved: mDNS.** nodeconf's alias publishing (`_ui_alias`) publishes a deployment constant,
+not the operator's `<alias>`, so the setter has no publishing side effect to coordinate.
+
+**Who owns which field** — `../cuems-common/docs/node-identity-contract.md`:
+- `alias` is the only field the **operator (UI)** owns.
+- `role_id` and `hostname` are nodeconf's.
+- `ip`, `online`, `adopted` and `name` are nodeconf's; discovery's `merge` overwrites every
+  discovered field.
+
+So the setter covers `alias` only. A general "set operator fields" call would invite writes to
+fields discovery overwrites, so it is deliberately not asked for.
+
+**Asked for:** `NodeIndex.set_alias(node_uuid, alias) -> bool`.
+- **Mutates in place** (the T091/T092 aliasing contract `adopt` documents;
+  `tests/contract/test_node_aliasing.py` must cover it).
+- **Validates before touching anything**: `alias` must be `None` or match `NonEmptyString`, else
+  `ValueError`. Measured 2026-10-08: an in-place `""` makes `save` raise `SchemaError` *after* the
+  index changed, so nodeconf's pending-write retry fails on that row until restart.
+- `None` removes the key, because the element is optional (measured: saves without `<alias>`).
+- Returns `False` for an unknown uuid, and `True` otherwise, changed or not. The caller detects
+  "unchanged" by `signature()`, as nodeconf's `adopt_node` does.
+- The consumer contract and the daemon handler are in
+  `../cuems-nodeconf/specs/planning/12-node-set-alias.md`, which states these semantics
+  identically.
+- `signature()` already includes `alias`, so nodeconf's write-if-changed path picks it up with no
+  further change.
+
+**Documentation, not code, in the same change:** the docstrings of `save_network_map` and of
+`from_json` for `network_map` should say that the file has one runtime writer, and that any other
+writer is reverted. Two consumers have already read those calls as the way to persist a UI edit.
+
+### Measured, and deliberately not gates
+
+| Item | Disposition |
+|---|---|
+| The descriptor flattens a union (**§5**) | Not a gate. `cuems-editor` documents the caveat, and since G4 removes `network_map` from the UI's write path, the affected `uuid` field is displayed, never edited |
+| `save_document` writes unindented XML | Optional. Operators hand-edit `settings.xml` and `network_map.xml` (`cuems-editor` CLAUDE.md), and a UI save turns a 44-line file into one line. Worth doing; does not gate |
+| `save` upgrades `doc_version` and rewrites `schemaLocation` | Expected behaviour, documented on the consumer side. No work |
+| A content hash helper for revision tokens | Not asked. `cuems-editor` hashes the file's bytes with `hashlib` for its `config_load`/`config_save` revision check. `Md5Type`/`file_md5` (`67c89bd`) is a `Media` field and should not be generalised for this |
+| One call that ingests, resolves the target and persists | Declined again; **§8** gives the reasons |
+| An engine-side config reload | Not this repository's. `cuems-editor` replies "restart required" after a `settings` save |
 
 ## 1. Blocking a landed consumer task — `cuems-editor` UR-5 — ✅ CLOSED 2026-10-05
 
@@ -146,7 +278,7 @@ Cite them as **`<repo> UR-<n>`**, never as a bare UR number, in specs, tasks, co
 | `FR-044`'s "fold the repair tool's rewriting pass into `cuems-convert-documents`" | **Superseded by a better answer** the consumer found: the tool writes no script at all. It repairs the DB and lists `NEEDS_SAVE`. Do not re-propose the fold — see 010 `migration-guide.md` §4d and the note on 010 T028 |
 | `if 'Cue' in item: cue_data = item['Cue']`, prescribed by 013's own migration guide §4 | **Withdrawn, corrected in place 2026-10-02.** It walks the wire dict to reach an object-level result (010 FR-013b). The landed form matches on cue identity: `isinstance(cue, (AudioCue, VideoCue, DmxCue, MediaCue))`, with the bare `MediaCue` present because an unknown `class` decodes to it |
 | `xml/XmlBuilder.py` (frozen legacy) still emits per-class element names | Already scheduled for `v0.1.1` by 013; it has no live caller. Nothing new here |
-| **The descriptor flattens a union type into an enumeration of one.** Measured 2026-10-02: `network_map`'s `NodeType/uuid` comes back as `xsd_type='NodeUuidType'`, `enum_values=('00000000-0000-0000-0000-000000000000',)` — 012's union surfacing as a dropdown containing only the NOT PROVISIONED sentinel, where a uuid field belongs | **Open, and deliberately not 014's.** It is the same family as the boolean finding 014 fixes (a type the descriptor flattens into the wrong widget), but the boolean case is in scope only because 014 retypes that field anyway; this one needs `xml/descriptor.py` to learn about unions, with no other driver in 014. Found by whoever builds the descriptor-driven forms — see the gate's §9.5 |
+| **The descriptor flattens a union type into an enumeration of one.** Measured 2026-10-02: `network_map`'s `NodeType/uuid` comes back as `xsd_type='NodeUuidType'`, `enum_values=('00000000-0000-0000-0000-000000000000',)` — 012's union surfacing as a dropdown containing only the NOT PROVISIONED sentinel, where a uuid field belongs | **Open, and deliberately not 014's.** It is the same family as the boolean finding 014 fixes (a type the descriptor flattens into the wrong widget), but the boolean case is in scope only because 014 retypes that field anyway; this one needs `xml/descriptor.py` to learn about unions, with no other driver in 014. Found by whoever builds the descriptor-driven forms — see the gate's §9.5. **2026-10-08: confirmed not a tag gate (§0a)**, because `network_map` leaves the UI's write path |
 
 ## 6. 014's own inbound items, as the consumers measure them
 
@@ -175,6 +307,9 @@ against the host configuration (rather than a fixture `CUEMS_CONF_PATH`) needs t
 ---
 
 ## 8. `cuems-editor` UR-6 — the write target a first save needs does not exist
+
+> **⬆ Tag gate since 2026-10-08 — §0a, G1.** The requirement below is unchanged; only its priority
+> moved. The first `config_save` of any project document waits on it.
 
 **Report**: `../cuems-editor/specs/001-cuems-utils-migration/upstream-reports/UR-6-config-path-helpers-require-existence.md`,
 2026-10-05, measured against this repository at `b8b44e7` (i.e. *including* UR-5's fix).
