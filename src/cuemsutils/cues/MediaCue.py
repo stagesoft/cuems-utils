@@ -382,6 +382,31 @@ class MediaCue(Cue):
 
     media: Media = property(get_Media, set_Media)
 
+    def media_status(self) -> tuple[str, str | None]:
+        """Classify this cue's media without raising.
+
+        Returns ``(state, file_name)`` with ``state`` one of:
+
+        * ``'none'``    — no media object at all (``None``): what an empty
+          ``<Media/>`` or a JSON ``Media: null`` decodes to;
+        * ``'invalid'`` — a media object with no ``file_name`` key, an empty
+          ``file_name``, or no ``id`` key: what a client that dropped the
+          media block produces (``ensure_items`` builds an empty ``Media``);
+        * ``'ok'``      — a usable media reference.
+
+        Never touches the ``file_name`` property: it raises ``KeyError`` when
+        the key is missing, which is exactly the crash this replaces.
+        """
+        media = dict.get(self, 'Media')
+        if media is None:
+            return 'none', None
+        if not isinstance(media, dict):
+            return 'invalid', None
+        file_name = dict.get(media, 'file_name')
+        if not file_name or 'id' not in media:
+            return 'invalid', None
+        return 'ok', str(file_name)
+
     def get_outputs(self):
         """Get the output routing configuration.
         
