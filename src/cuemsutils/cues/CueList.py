@@ -1,6 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
 from .Cue import Cue
 from .MediaCue import MediaCue
 from ..helpers import ensure_items
+from ..log import Logger
 from ..tools.Uuid import Uuid
 
 REQ_ITEMS = {
@@ -111,9 +115,24 @@ class CueList(Cue):
         for cue in self.contents:
             if isinstance(cue, CueList):
                 media_dict.update(cue.get_media())
-            elif isinstance(cue, MediaCue) and hasattr(cue.media, 'file_name'):
-                media_dict[str(cue.id)] = {str(cue.media.id) : cue.media.file_name }
-        
+            elif isinstance(cue, MediaCue):
+                state, file_name = cue.media_status()
+                if state == 'ok':
+                    media_dict[str(cue.id)] = {str(cue.media.id): file_name}
+                elif state == 'none':
+                    # Legacy <Media/>: keep such projects listable and
+                    # duplicable; saving one is the editor's validator's job.
+                    Logger.warning(
+                        f"cue {cue.get('name')} ({cue.get('id')}) has no media, skipped"
+                    )
+                else:
+                    # A media block without a file: a client dropped it. Never
+                    # skip silently — a save that got through would write an
+                    # empty <Media/> and lose the cue's media for good.
+                    raise ValueError(
+                        f"cue {cue.get('name')} ({cue.get('id')}) has no media file"
+                    )
+
         return media_dict
 
     def get_next_cue(self):

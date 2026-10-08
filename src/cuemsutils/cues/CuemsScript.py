@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
 import json
 import json_fix
 
@@ -238,11 +241,21 @@ class CuemsScript(dict):
                 media_dict.update(
                     self.get_own_media(config=config, cuelist=cue)
                 )
-            elif isinstance(cue, MediaCue) and hasattr(cue.media, 'file_name'):
-                Logger.debug(f'get_own_media media cue at {pos}')
-                cue.localize_cue(config.node_conf['uuid'])
-                if cue._local:
-                    media_dict[str(cue.id)] = cue.media.file_name
+            elif isinstance(cue, MediaCue):
+                state, file_name = cue.media_status()
+                if state != 'ok':
+                    # Engine path, every node, every load: never raise here.
+                    # The project still loads and this cue fails at arm,
+                    # loudly and locally, as it always did for <Media/>.
+                    Logger.error(
+                        f"get_own_media: cue {cue.get('name')} ({cue.get('id')}) "
+                        f"has no media file ({state}); left out of the media list"
+                    )
+                else:
+                    Logger.debug(f'get_own_media media cue at {pos}')
+                    cue.localize_cue(config.node_conf['uuid'])
+                    if cue._local:
+                        media_dict[str(cue.id)] = file_name
             pos += 1
         return media_dict
 

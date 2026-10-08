@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0rc16 — 2026-10-08
+
+Media cues without a usable media block no longer crash the editor's save with a bare `KeyError 'file_name'`, and never make a project unloadable (ClickUp 869fej07m).
+
+### Fixed
+- `CueList.get_media` (editor path: update, new, duplicate, relink) guarded with `hasattr(cue.media, 'file_name')`, but `file_name` is a property that raises `KeyError`, which `hasattr` does not catch. A client that dropped a cue's media block (the UI does, when the file is not in its library list) produced an empty `Media` object and the save died inside the atomic block. Now: a media block without a file raises a named `ValueError` that says which cue — still no write, but readable. A cue with **no** media object (`None`, i.e. an empty `<Media/>` or a JSON `Media: null`) is logged at WARNING and skipped, so legacy projects stay listable and duplicable; refusing to *save* that shape is the editor's validator's job.
+- `CuemsScript.get_own_media` (engine path, every node, every load) had the same `hasattr` guard. It now classifies the media without raising: a cue without a usable media file is logged at ERROR and left out of the media list, the project still loads and that cue fails at arm, locally — exactly what an empty `<Media/>` did before, now visible in the journal. Raising here would have aborted the load on every node.
+
+### Added
+- `MediaCue.media_status()` → `('none' | 'invalid' | 'ok', file_name)`: the non-raising classifier both call sites use.
+
 ## 0.1.0rc11 — 2026-07-28
 
 Free-text fields are no longer type-coerced during parsing (closes ClickUp 869cqbpxa).
