@@ -1,3 +1,14 @@
+cuems-utils (0.1.0rc16+1) unstable; urgency=medium
+
+  * packaging: stop shipping /usr/lib/cuems/CACHEDIR.TAG. The 0.1.0rc16 build
+    picked it up from virtualenv, and cuems-editor 0.1.0rc1-5 and
+    cuems-engine 0.1.0rc4/rc5 ship the same path, so installing one over the
+    other failed with "trying to overwrite" unless forced. Nothing reads it
+    at runtime. Same fix as cuems-power-bridge 0.3.0-8.
+  * No code change from 0.1.0rc16 (cuemsutils 0.1.0rc16 on PyPI).
+
+ -- Ion Reguera <ion@stagelab.coop>  Fri, 09 Oct 2026 12:41:21 +0200
+
 cuems-utils (0.1.0rc16) unstable; urgency=medium
 
   * Merge main into debian/bookworm (0.1.0rc16, 869fej07m): media cues

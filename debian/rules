@@ -1,4 +1,7 @@
 #!/usr/bin/make -f
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
 export DH_VIRTUALENV_INSTALL_ROOT=/usr/lib
 export DH_VERBOSE = 1
 
@@ -13,3 +16,9 @@ export DH_VERBOSE = 1
 # host. Target hosts always have /usr/bin/python3 = 3.11 on bookworm.
 override_dh_virtualenv:
 	dh_virtualenv --python /usr/bin/python3 --install-suffix cuems --use-system-packages
+	# CACHEDIR.TAG marks the venv root as a cache directory. Newer virtualenv
+	# writes it, and cuems-engine 0.1.0rc4/rc5 and cuems-editor 0.1.0rc1-5 ship
+	# the same path, so dpkg refuses to install one over the other ("trying to
+	# overwrite"). Nothing reads it at runtime: no package ships it
+	# (same fix as cuems-power-bridge 0.3.0-8).
+	rm -f debian/cuems-utils/usr/lib/cuems/CACHEDIR.TAG
