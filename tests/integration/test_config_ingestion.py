@@ -326,7 +326,7 @@ def test_network_map_ingestion_refuses_the_retired_string_boolean(manager, conf_
 )
 def test_from_json_refuses_the_two_non_configuration_schemas(manager, conf_dir, schema, expected):
     """``script`` is ``CuemsScript.from_json``'s; ``hardware_outputs`` has no
-    model bindings until feature 015. The editor already refuses both with
+    model bindings yet (the capability layer's). The editor already refuses both with
     those reasons and this call does not widen them."""
     with pytest.raises(ValueError) as excinfo:
         manager.from_json(schema, {})

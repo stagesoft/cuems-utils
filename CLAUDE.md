@@ -257,11 +257,27 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   - Two commits landed on `feat/xml-refactor` before the branch was cut and are **preconditions,
     not this feature's diff**: `be3e86e` (strict `_Bool.decode`) and `84705b9` (`CTimecode`'s
     notice). Marked settled as S1/S2 in `tasks.md`.
-- **Feature numbering, 2026-10-02 — read this before `specs/012-*/` or `specs/013-*/`.** The
-  `xs:boolean` + media-pixel-elements gate (`specs/014-xs-boolean-and-media-elements/plan.md`)
-  takes the **014** slot, so `hardware_outputs becomes real` — specified but never implemented —
-  is now **015**. The coordinated `xml-refactor-merge-candidate` tag therefore comes after
-  **011–015**, with the gate landing alongside the others rather than after them.
+- **Feature numbering, renumbered twice — read this before any feature number in `specs/`.**
+  The `xs:boolean` + media-elements gate took the **014** slot on 2026-10-02, moving
+  `hardware_outputs becomes real` to **015**. On **2026-10-12** the maintainer moved it again:
+  `hardware_outputs` leaves the numbered sequence entirely for
+  `specs/planning/hardware-outputs-capability-layer.md` — **deferred, unnumbered, and re-owned**
+  — and the **015 slot now holds the consumer-gate closure**,
+  `specs/planning/upcoming-feature-requirements-2026-10-02.md` (its G1–G5 plus the §9 straggler
+  sweep). The coordinated `xml-refactor-merge-candidate` tag still comes after **011–015**; the
+  capability layer is **outside** it and may ride a later one.
+  - **`cuems-hardware-discovery` is not a repository and will not be one.** The probe role, the
+    `display.conf` transcription and any related machinery are **`cuems-nodeconf`'s**. The seam is
+    **`cuems-common` generates `display.conf`, `cuems-nodeconf` probes and transcribes,
+    `cuems-utils` describes and persists** — and the real gate is nodeconf accepting that, which it
+    has not recorded yet (zero mentions of `display.conf`/`hardware_outputs`/`hardware-discovery`
+    across its `specs/`, measured 2026-10-12).
+  - **The renumbering left eight code and test sites naming a feature number for that work**, one
+    of them a refusal message a consumer reads at runtime (`ConfigManager`'s `hardware_outputs is
+    reserved…until feature 015`). All are re-pointed. ⚠ The lesson: **a comment that names a
+    feature number for work in another document ages badly** — numbers get reassigned, comments do
+    not get swept. Name the document, or name the behaviour. Landed specs keep their stale numbers
+    by policy; code does not get that exemption.
   **Features 012 and 013 are landed and say "feature 014" for what is now 015.** They are frozen
   record and are *not* retroactively rewritten (see this file's policy on landed specs), so every
   such reference in `specs/012-uuid4-convergence/` and `specs/013-device-class-reshape/` — the

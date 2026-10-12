@@ -11,12 +11,20 @@ duplication-avoidance flags. **This one holds the state of the build** — what 
 tree, measured rather than asserted — and the sequence that turns the remainder into five
 speckit features, `011` through `015`.
 
-**Renumbered 2026-10-02.** `hardware_outputs becomes real` was feature **014** in every earlier
-reading of this document and is now **015**. The 014 slot went to the `xs:boolean` + media-elements
-gate (§6), which has to land before `hardware_outputs` moves anything, because it changes the
-boolean type in two schemas and the conversion that carries it. Features **012 and 013 are landed**
-and their documents still say "feature 014" for what is now 015 — they are frozen record and are
-**not** retroactively rewritten (`CLAUDE.md`'s policy); read them with this note.
+**Renumbered twice. Read this before any feature number in this document.**
+`hardware_outputs becomes real` was feature **014** until 2026-10-02 and feature **015** until
+2026-10-12. It is now **neither**: it moved out to
+[`hardware-outputs-capability-layer.md`](hardware-outputs-capability-layer.md) — deferred,
+unnumbered, and re-owned to `cuems-nodeconf` — and the **015 slot now holds the consumer-gate
+closure**, [`upcoming-feature-requirements-2026-10-02.md`](upcoming-feature-requirements-2026-10-02.md).
+The 014 slot went to the `xs:boolean` + media-elements gate (§6), which landed 2026-10-12.
+
+Consequences for reading older text: features **012 and 013 are landed** and their documents say
+"feature 014" for the capability layer; features **011–014**'s documents may say "feature 015" for
+the same thing. All are frozen record and are **not** retroactively rewritten (`CLAUDE.md`'s
+policy) — read them with this note. Eight code and test sites carried the same staleness and
+**were** corrected, because a comment is not a record; they are listed in §6 of the
+capability-layer document.
 
 **Written for** whoever picks the work up next: a contributor on a fresh checkout, or an agent
 session with no memory of how any of this got here. It is meant to be read *before* touching the
@@ -303,8 +311,15 @@ step 3  feature 011  /etc/cuems first install         SDD        LANDED 2026-09-
 step 4  feature 012  uuid4 convergence                SDD        LANDED 2026-09-30 (101/101)
 step 5  feature 013  device-class reshape (F6)        SDD        LANDED 2026-10-01
 step 6  feature 014  xs:boolean + media block + config ingestion   reduced   LANDED 2026-10-12 (45/46; T039 outward, open), specs/014-xs-boolean-and-media-elements/
-step 7  feature 015  hardware_outputs + inventory     SDD        (was 014 until 2026-10-02)
+step 7  feature 015  the consumer-gate closure (G1-G5) SDD       NEXT, specs/planning/upcoming-feature-requirements-2026-10-02.md
+step 8  (unnumbered) hardware_outputs capability layer  SDD       DEFERRED + re-owned, specs/planning/hardware-outputs-capability-layer.md
 ```
+
+**Steps 7 and 8 swapped on 2026-10-12**, by maintainer decision after a review that compared the
+two. The gates hold a sibling's work open, one of them is a defect, and all five are additive;
+`hardware_outputs` is the largest remaining breaking change with nothing waiting on it, and its one
+sibling obligation was unrepresented in that sibling. The review is §1 of the capability-layer
+document; the precedence argument is in the header of the 015 brief.
 
 **Two orderings are forced. Two are advice.**
 
@@ -312,12 +327,19 @@ step 7  feature 015  hardware_outputs + inventory     SDD        (was 014 until 
   node identity in the field with no tool able to repair them. That ships a brick.
 - **011 before everything** — it is the only step that makes a fresh node boot, and it is the
   base package the whole stack installs first.
-- **013 before 015** *(advice)* — reshaping device classes after moving the port inventory means
-  moving the inventory twice.
-- **014 before 015** *(advice, not force)* — nothing in `hardware_outputs` is boolean, so there is
-  no hard dependency either way. But both edit `settings.xsd` (014 deletes the dead `BoolType`
-  declaration; 015 retires `settings/outputs`) and so both must move `test_schema_scope`'s hashes,
-  which is a guaranteed conflict if they run in parallel rather than in sequence (§7.5).
+- **013 before the capability layer** *(advice, satisfied)* — reshaping device classes after moving
+  the port inventory means moving the inventory twice.
+- **014 before the capability layer** *(advice, not force, satisfied)* — nothing in
+  `hardware_outputs` is boolean, so there is no hard dependency either way. But both edit
+  `settings.xsd` (014 deleted the dead `BoolType` declaration; the capability layer retires
+  `settings/outputs`) and so both must move `test_schema_scope`'s hashes, which is a guaranteed
+  conflict if they run in parallel rather than in sequence (§7.5).
+- **015 before the capability layer** *(advice, 2026-10-12)* — 015 changes `conf_path`/`project_path`
+  and `_PROJECTABLE_SECTIONS`; the capability layer adds a public `ConfigManager` accessor and flips
+  the `HARDWARE_OUTPUTS` refusal. Same module. Gates first gives the layer a settled surface.
+- **`cuems-nodeconf` acquiring the probe/transcribe obligation before the capability layer** —
+  **hard, and it is the real gate.** Measured 2026-10-12: that repository's `specs/` carry zero
+  mentions of `display.conf`, `hardware_outputs` or `hardware-discovery`.
 
 Steps 3–7 each cross a repository boundary, change a file format, or add a public entry point.
 That is the line the numbered features have held in this repo, and it is why these five get a
@@ -533,29 +555,50 @@ descriptor stop reporting booleans as a two-value string enum, which is what a d
 form renders as a dropdown instead of a checkbox. Feature 010's T031a is committed to verifying
 those forms; without 014 it would verify the wrong widget as correct.
 
-### Feature 015 — `hardware_outputs` becomes real
+### Feature 015 — the consumer-gate closure (G1–G5)
 
-**Delivers**: the missing layer — node **hardware capability**, split from project **mappings**.
+**Delivers**: the five items that gate the coordinated `xml-refactor-merge-candidate` tag, plus the
+non-gate library gaps this folder had left stray.
 
-**Scope**: the structure pass (DMX section, `id`/`name`/`mapped_to`, measured
-`output_latency_ms`, transcribed geometry); registry bindings and model classes; a public
-`ConfigManager` accessor; the port inventory moves out of `project_mappings`;
-`default_mappings.xml` retires; `settings/outputs` retires (§4.2);
-`get_{video,audio}_output_id` gets a real backing document or goes.
+**This brief deliberately holds no detail.** It lives in
+[`upcoming-feature-requirements-2026-10-02.md`](upcoming-feature-requirements-2026-10-02.md) — §0a is
+the ranked work order, §9 is the straggler sweep — which is already the measurement and the consumer
+evidence for every item. Restating it here would create the second drifting copy this folder's
+deletion policy exists to prevent. What belongs *here* is only the sequencing:
 
 | | |
 |---|---|
-| **Depends on** | 013 (advice), 014 (advice — the `settings.xsd` hash, §5), and 011 for anything that has to ship |
-| **Repos** | this one, `cuems-nodeconf` (transcribes `display.conf`), `cuems-editor`/`cuems-frontend` (read the inventory from a new place), and **`cuems-hardware-discovery`, which has no checkout** |
+| **Scope** | **G1** `conf_path`/`project_path` tolerant write target (`cuems-editor` UR-6) · **G2** a public `project_settings` read projection (UR-7) · **G3** the descriptor's `instance` in `to_wire()` shape, and required fields with null defaults (`cuems-frontend` UR-1) · **G4** `NodeIndex.set_alias` (for `cuems-nodeconf`'s `node_set`) · **G5** 013's reshape defeats F3's `settings` 1 → 2 conversion — a **defect**. Plus §9.1's S1–S4 |
+| **Depends on** | 014 (landed). Nothing else hard |
+| **Blocks** | the coordinated tag — all five gates do, by §0a |
+| **Repos** | this one (owner); `cuems-editor` and `cuems-frontend` hold strict xfails that turn XPASS; `cuems-nodeconf` is **blocked** on G4 and says so in its own `12-node-set-alias.md` |
 
-**The seam that must be stated in the spec**, because it looks like two writers: discovery owns
-the probed port inventory; nodeconf owns the transcribed geometry. They never write the same
-element, so F1 holds at element granularity. `display.conf` keeps its videocomposer ownership at
-run time — nodeconf transcribes its *contents* and records the provenance rather than claiming
-authorship.
+**The one thing that makes this urgent rather than merely next**: three sibling repositories are
+holding tests red against it, and `cuems-nodeconf`'s brief states *"Order: the library first, then
+this repository"* with an unchecked prerequisite on `NodeIndex.set_alias`. A gate that blocks a
+sibling outranks new scope.
 
-**Also settle**: X15, the namespace typo in `../cuems-engine/dev/test_xml_files/outputs.xml` —
-the only instance outside this repo, and it declares `https://stagelab.coop/cuems` against a
+### Step 8 — `hardware_outputs` becomes real *(deferred, unnumbered, re-owned)*
+
+**Moved out of the 015 slot 2026-10-12.** It is now
+[`hardware-outputs-capability-layer.md`](hardware-outputs-capability-layer.md), which is the single
+home for the work: the scope with each item's measured state, the review that deferred it, the
+ownership decision, and the eight code sites that used to name it by number.
+
+Two things worth carrying in this document, because they change the *sequencing* rather than the
+design:
+
+- **`cuems-hardware-discovery` is not a repository.** Its role — the probe — together with the
+  `display.conf` transcriber and any related machinery, becomes **`cuems-nodeconf`'s**
+  responsibility (maintainer decision, 2026-10-12). `cuems-common` keeps generating
+  `display.conf`; `cuems-utils` keeps the schema, model and accessor. So: **common generates,
+  nodeconf probes and transcribes, this library describes and persists.**
+- **The real gate is `cuems-nodeconf` accepting that obligation**, which it has not yet recorded —
+  zero mentions of `display.conf`, `hardware_outputs` or `hardware-discovery` across its `specs/`,
+  measured 2026-10-12. Not schedulable before that conversation.
+
+**Also still open**: X15, the namespace typo in `../cuems-engine/dev/test_xml_files/outputs.xml` —
+the only instance outside this repo, declaring `https://stagelab.coop/cuems` against a
 `targetNamespace` of `https://stagelab.coop/cuems/`.
 
 ---
@@ -647,4 +690,9 @@ reported all six schemas as show-layer violations for that reason alone. See
   the method to repeat, not the result to copy.
 - **Do not ship anything from this branch alone.** D27: nothing in this ecosystem releases by
   itself. The coordinated merge is what the `xml-refactor-merge-candidate` tag marks, and the
-  tag comes after 011–015, not before.
+  tag comes after 011–015, not before — where **015 is the consumer-gate closure**, not
+  `hardware_outputs`. The capability layer (step 8) is **outside** this tag and may ride a later
+  one. Reconciled 2026-10-12; §9.4 of the 015 brief records the contradiction this resolved.
+- **Do not give the capability layer a feature number in passing.** Two renumberings already left
+  eight code and test sites naming a feature that had become something else — one of them a
+  refusal message a consumer reads at runtime. Name the document, or name the behaviour.

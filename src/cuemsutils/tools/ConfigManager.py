@@ -72,8 +72,8 @@ _FROM_JSON_REFUSED = {
         "model's decode-time validation and its own ingest refusals"
     ),
     SchemaName.HARDWARE_OUTPUTS: (
-        "hardware_outputs is reserved and has no model bindings until feature "
-        "015, so there is no object to build"
+        "hardware_outputs is reserved and has no model bindings yet, so "
+        "there is no object to build"
     ),
 }
 
@@ -664,7 +664,9 @@ class ConfigManager(ConfigBase):
                 string form too would reintroduce the surface the enum removes.
             ValueError: ``schema`` is ``script`` (that is
                 ``CuemsScript.from_json``'s) or ``hardware_outputs`` (no model
-                bindings until feature 015). The editor already refuses both
+                bindings yet -- see
+                ``specs/planning/hardware-outputs-capability-layer.md``). The
+                editor already refuses both
                 with those reasons and this does not widen them.
             IngestError: the payload is **not a document of that kind** —
                 malformed JSON, non-UTF-8 bytes, a non-mapping, or a mapping

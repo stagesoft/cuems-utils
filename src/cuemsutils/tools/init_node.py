@@ -511,7 +511,7 @@ def _run(args) -> int:
     else:
         documents["network_map.xml"] = map_new
 
-    # default_mappings.xml — retires with feature 014
+    # default_mappings.xml — retires with the hardware_outputs capability layer
     dm_new = computed["default_mappings.xml"]
     dm_old = existing.get("default_mappings.xml")
     if dm_old is not None:

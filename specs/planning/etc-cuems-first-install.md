@@ -671,9 +671,13 @@ that rule requires.
 
 **The third count outlived this item.** `videoplayer.outputs` is the same kind of fact and was
 re-measured as read by nothing on 2026-09-24, but F3's scope was this item's two fields. It is
-enumerated as debt in `tests/contract/test_duplication_flags.py` and retires with feature 015 —
-not before, because `hardware_outputs` has to be able to answer `len(video_outputs)` first. See
-`etc-cuems-first-install-execution.md` §4.2.
+enumerated as debt in `tests/contract/test_duplication_flags.py` and retires with the
+**`hardware_outputs` capability layer** — not before, because `hardware_outputs` has to be able to
+answer `len(video_outputs)` first. See
+[`hardware-outputs-capability-layer.md`](hardware-outputs-capability-layer.md) §4 and
+`etc-cuems-first-install-execution.md` §4.2. ⚠ **This said "feature 015" until 2026-10-12**, when
+that slot became the consumer-gate closure and the capability layer was deferred and left
+deliberately unnumbered.
 
 Note the contrast with `videoplayer.path`/`args`, which are *also* unread today but are
 **retained deliberately** (D15): they are scheduled to become the videocomposer systemd unit's
@@ -759,6 +763,15 @@ Its natural writer is already named in this library's own schema comments: **`cu
 (`settings.xsd:16`, `xml-rebuild-08` §444, `../cuems-common/docs/latency-tuning.md:15`), which
 has no checkout yet. `hardware_outputs.xml` is the document it was always going to write.
 
+⚠ **Superseded 2026-10-12 — there is no such repository, and there will not be one.** The probe
+role, the `display.conf` transcription and any related machinery all become **`cuems-nodeconf`'s**
+responsibility (maintainer decision). That collapses the two writers this section separated into the
+one per-node agent that already runs discovery, owns the node's map row and renders the identity
+record — which is the reason this section gave for assigning it the *transcription* in the first
+place. `cuems-common` keeps generating `display.conf`; this library keeps the schema, model and
+accessor. The three names above still identify the **role** correctly and no longer imply a
+repository. See [`hardware-outputs-capability-layer.md`](hardware-outputs-capability-layer.md) §3.
+
 ### 7.4 Done in rc16, and what is not
 
 **Done**: the file is `hardware_outputs.xsd`; the schema key moved with it (`schema_path()`
@@ -810,7 +823,9 @@ Three violations are live, all measured:
    discovered document, and already declared in `project_mappings`. §8.3's F2 catches this
    mechanically.
 
-**Violations 2 and 3 were fixed by F3/F4** (§8.5 item 3); violation 1 is feature 015's. All
+**Violations 2 and 3 were fixed by F3/F4** (§8.5 item 3); violation 1 belongs to the
+**`hardware_outputs` capability layer** ([that document](hardware-outputs-capability-layer.md) §4;
+*"feature 015"* here until 2026-10-12). All
 three are now *checked* as well as described — `tests/contract/test_duplication_flags.py` — so a
 fourth cannot arrive unannounced. That check also found a **third** stored derived fact the list
 above misses: `project_mappings`' `number_of_nodes`, which is `len(nodes/node)` restated at the

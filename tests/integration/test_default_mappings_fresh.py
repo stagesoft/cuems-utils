@@ -7,7 +7,7 @@ empty, and the node entry claims no hardware.
 **Measured, not assumed**: ``get_video_output_id('default')`` and
 ``get_audio_output_id('default')`` read ``node_conf['default_*_output']`` — keys
 ``settings.xsd`` has never declared — so they raise ``KeyError`` on *every*
-node today, fresh or not. They have zero callers; the fossil is feature 014's
+node today, fresh or not. They have zero callers; the fossil is the hardware_outputs capability layer's
 to back with a real document or delete. This file pins the measured behaviour
 rather than changing an accessor 011 does not own."""
 
@@ -35,7 +35,7 @@ def test_a_fresh_node_loads_with_empty_defaults(fresh):
 
 
 def test_the_fossil_accessors_raise_as_measured(fresh):
-    """Recorded, not repaired: feature 014's (research R12, plan)."""
+    """Recorded, not repaired: the capability layer's (research R12, plan)."""
     with pytest.raises(KeyError):
         fresh.get_video_output_id("default")
     with pytest.raises(KeyError):

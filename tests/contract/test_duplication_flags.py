@@ -118,7 +118,8 @@ KNOWN_STORED_DERIVED_FACTS = {
         "videoplayer/output_latency_ms. It survives rc16 solely because F3's "
         "scope was OPEN-6's two fields. Resolution: retire it exactly as they "
         "were, settings 2->3, once hardware_outputs can answer len(video_outputs) "
-        "-- i.e. with feature 014, not before, or the count goes away with "
+        "-- i.e. with the hardware_outputs capability layer, not before, or the "
+        "count goes away with "
         "nothing able to replace it."
     ),
     ("project_mappings", "number_of_nodes"): (

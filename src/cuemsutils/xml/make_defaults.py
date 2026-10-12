@@ -19,9 +19,10 @@ Three guarantees, each tested in ``tests/contract/test_make_defaults.py``:
   a seed entry naming no field, fails naming itself (FR-010).
 
 ``default_mappings.xml`` is generated here knowingly (spec FR-012): a node
-must boot long before feature 014 retires that document. Every piece of it —
+must boot long before the hardware_outputs capability layer retires that
+document. Every piece of it —
 the ``project_mappings`` tables in the seed file, ``_default_mappings`` below,
-and ``cuems-init-node``'s write path for it — **retires with feature 014**.
+and ``cuems-init-node``'s write path for it — **retires with the capability layer**.
 """
 
 from __future__ import annotations
@@ -62,7 +63,7 @@ def _network_map(tables: Tables, identity: dict):
 
 
 def _default_mappings(tables: Tables, identity: dict):
-    """Retires with feature 014 (FR-012). One node entry, no hardware.
+    """Retires with the hardware_outputs capability layer (FR-012). One node entry, no hardware.
 
     ``<defaults>`` is present and empty. Naming audio, video and dmx here
     would be the class list FR-010 forbids; a port appears when a document

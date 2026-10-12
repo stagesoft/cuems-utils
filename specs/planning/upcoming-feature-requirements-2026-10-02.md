@@ -3,16 +3,36 @@ SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-# What the next features in this repository must carry — measured 2026-10-02
+# Feature 015 — the consumer-gate closure. Scoping input, measured 2026-10-02 onward
 
-Inbound requirements for **feature 014** and for whichever feature **cuts the release**, collected
-after `cuems-editor`'s feature `001-cuems-utils-migration` landed on its `feat/xml-refactor`
-(`bf57d95`, 62 of 63 tasks). Everything here was measured against this repository at `6213b16` and
-that one at `bf57d95`; nothing is carried forward from an earlier reading.
+> **This is feature 015's brief, as of 2026-10-12.** The maintainer's decision: the gates collected
+> here **become feature 015**, and `hardware_outputs` — which held the 015 slot from 2026-10-02 —
+> moves out to [`hardware-outputs-capability-layer.md`](hardware-outputs-capability-layer.md),
+> deferred and coordinated with `cuems-nodeconf` and `cuems-common`.
+>
+> **015's contents are G1–G5 (§0a), plus §9's stragglers** — the non-gate library gaps that were
+> left stray across this folder and have no other home. §0a stays the ranked work order; §9 is new
+> and is the sweep.
+>
+> **Why this order**, recorded because it reverses the step sequence as written: the gates hold
+> another repository's work open (`cuems-nodeconf`'s `node_set` states *"the library first, then
+> this repository"*), one of them is a **defect** (G5), and all five are additive public-surface
+> changes. `hardware_outputs` is the arc's largest remaining breaking change, nothing is waiting on
+> it, and its own sibling obligation was unrepresented in the sibling. The full review is §1 of the
+> capability-layer document.
 
-**This is a planning document, not a spec.** Each item names the consumer evidence it comes from, so
-a later `/speckit.specify` pass can turn it into an FR without re-deriving the measurement. Delete
-it once every row below is either in a feature's `spec.md` or recorded as declined.
+Inbound requirements collected after `cuems-editor`'s feature `001-cuems-utils-migration` landed on
+its `feat/xml-refactor` (`bf57d95`, 62 of 63 tasks). Everything in §0–§8 was measured against this
+repository at `6213b16` / `67c89bd` and that one at `bf57d95`; nothing is carried forward from an
+earlier reading.
+
+**Still a planning document, not a spec.** Each item names the consumer evidence it comes from, so
+the `/speckit.specify` pass can turn it into an FR without re-deriving the measurement. Delete it
+once every row is either in 015's `spec.md` or recorded as declined.
+
+**Two things here are *not* 015's**, and are marked where they appear: §3 (migrated to the
+deprecated-surface document, and superseded again by the coordinated version bump) and §6's
+`hardware_outputs` row (now the capability layer's).
 
 ---
 
@@ -364,3 +384,68 @@ loosening. `conf_path`/`project_path` must keep refusing a missing file for ever
 **Carry it with the test fix.** Whichever feature takes this should also retire
 `test_config_manager_save_accessors.py`'s monkeypatch, because that workaround *is* the defect's
 in-repository footprint — leaving it would keep a passing test that documents a gap as permanent.
+
+---
+
+## 9. The straggler sweep — every library gap left stray in `specs/planning/`, and where it goes
+
+**Swept 2026-10-12**, every document in this folder, as part of making the gates feature 015. The
+maintainer's instruction was that 015 carries G1–G5 *"together with any missing development piece
+that may have been led stray or stale in any `specs/planning/*` document"*. This is that list, with
+a disposition for each — including the ones that are **not** 015's, because an unexplained omission
+reads as an oversight.
+
+### 9.1 In 015, beyond G1–G5
+
+These are measured library gaps with a consumer behind them, no gate status, and no other home.
+Each already has its statement of requirement in this document; §9 is only the assignment.
+
+| # | Item | Where | Why it joins 015 rather than waiting again |
+|---|---|---|---|
+| **S1** | **`cuems-editor` UR-4** — a duplicate node identity carries no structured identity, so a consumer parses `check_node_identities_unique`'s **prose** with an anchored regex | **§2** | It makes a sentence in `xml/validators.py` a load-bearing interface no test on either side declares. This library can reword it in a patch release and break a consumer's error reporting **with no failing test anywhere**. It is in the same module family as G2/G4 and is cheap beside them |
+| **S2** | **The descriptor flattens a union into a one-value enumeration** — `network_map`'s `NodeType/uuid` reports `enum_values=('00000000-…-000000000000',)`, so a descriptor-driven form renders a uuid field as a dropdown containing only the NOT PROVISIONED sentinel | **§5**, last row | Same family as the boolean finding 014 fixed, and **G3 is already opening `xml/descriptor.py`** for the `instance`-shape work. Doing unions in the same pass is the cheap moment; doing them later re-opens the same file |
+| **S3** | `save_document` writes **unindented** XML, so a UI save turns a hand-maintained 44-line `settings.xml` into one line | **§0a**, "not gates" | Recorded there as *"worth doing; does not gate"*. Operators hand-edit these files, and G1+G2 make UI saves of configuration documents routine for the first time — which turns a cosmetic annoyance into a predictable one |
+| **S4** | `to_wire()` projects a model default for an optional element the document omitted, and it is a **general** property of the projection rather than a fact about `opacity` | **§5**, first row | Documentation, not code: *"worth stating once in the public-API documentation rather than per field"*. It belongs with 015 because 015 is the feature that documents the configuration round trip |
+
+**S2's measured caveat, carried so it is not lost**: §0a ruled it *not* a gate because G4 removes
+`network_map` from the UI's write path, so the affected `uuid` is displayed and never edited. That
+remains true — S2 is in 015 on cost-of-adjacency grounds, not on urgency.
+
+### 9.2 Not 015's, with the reason
+
+| Item | Home | Reason |
+|---|---|---|
+| `hardware_outputs` — the structure pass, the inventory move, `default_mappings.xml`, `settings/outputs`, `number_of_nodes`, the `get_*_output_id` fossil, X15 | [`hardware-outputs-capability-layer.md`](hardware-outputs-capability-layer.md) | Deferred by decision 2026-10-12 and re-owned to `cuems-nodeconf`. **§6's row below is that document's now** |
+| The deprecated-surface removal — five modules, seven aliases, nine symbol sites, `XmlBuilder.py` | [`deprecated-surface-removal-v0-1-1.md`](deprecated-surface-removal-v0-1-1.md) | Gated on a release, not on a feature. Its release moved to **`v0.1.2`** by the coordinated version bump |
+| The version move and the five sibling re-bounds | [`coordinated-release-version-bump.md`](coordinated-release-version-bump.md) | A seven-repository release step, not library work. **§3 below is superseded by it** |
+| `TimeoutLoop`'s relocation out of the package root, and the `cuems-nodeconf` import that follows it | [`tools-external-consumers-and-timeoutloop-migration.md`](tools-external-consumers-and-timeoutloop-migration.md) | It is **R6** of the removal document and ships with that release. Landing the relocation in 015 while the old path survives to `v0.1.2` would mean two public paths for one class across a release boundary |
+| The Envelope feature | [`envelope-feature.md`](envelope-feature.md) | A `script.xsd` feature with an **open central decision** (§4 there: where expansion happens). Not scoped, and not a gap |
+| `cuems-nodeconf`'s ten-responsibility split | [`nodeconf-atomization.md`](nodeconf-atomization.md) | Another repository's feature basis. Now also the natural home for §3 of the capability layer |
+| Per-type XSD validation | [`xsd-type-resolution.md`](xsd-type-resolution.md) | The record of a **removed** mechanism, with its own note that no candidate is scheduled. Nothing to carry |
+| G5's defect | [`settings-reshape-defeats-f3-conversion-defect.md`](settings-reshape-defeats-f3-conversion-defect.md) | **Is** 015's, as G5 — listed here only so the sweep is complete in one place |
+
+### 9.3 Stale, and corrected rather than carried
+
+Found by the sweep; each is a statement that was true when written and is not now.
+
+| Where | Was | Now |
+|---|---|---|
+| **Eight code and test sites** naming *"feature 014"* / *"feature 015"* for the `hardware_outputs` work — including `ConfigManager.py:75`, a refusal message a consumer reads at runtime | a feature number | re-pointed at the capability-layer document. The full list is §6 there |
+| `etc-cuems-first-install-execution.md` §3.3, flag **F1** | *"011's T072/T073 … before it: five of six schemas contain zero `xs:annotation`"* | **landed** — all six schemas carry annotations, verified 2026-10-12 |
+| `etc-cuems-first-install-execution.md` §5 step 7, and §6's Feature 015 brief | `hardware_outputs` | feature 015 is this document; `hardware_outputs` is step 8, unnumbered |
+| `etc-cuems-first-install-execution.md` §8 and `CLAUDE.md` | *"the tag comes after 011–015"* | the tag's work order is **§0a's five gates**; see §9.4 |
+| One-shot prompts whose features have landed — `013-specify-prompt.md`, `editor-specify-prompt.md`, `editor-001-amend-after-013-prompt.md`, `feature-014-sibling-gate-prompt.md`, `nodeconf-uuid4-fixture-migration-prompt.md`, `media-pixel-dimensions-for-xml-refactor.md`, `stored-media-values-preimplementation.md` | live inputs | **deletable** under this folder's deletion policy, and deliberately **not** deleted in this pass — each is another feature's input record, and deleting seven documents is its own reviewable change, not a side effect of a sweep |
+
+### 9.4 The tag-scope contradiction this sweep had to resolve
+
+Two documents disagreed, and the disagreement was load-bearing:
+
+- `etc-cuems-first-install-execution.md` §8 and `CLAUDE.md`: *"the tag comes after **011–015**"*.
+- **§0a** (2026-10-08, newer): *"It is the work order for the coordinated tag"* — listing G1–G5 and
+  not mentioning 015 at all.
+
+**Resolved by the 2026-10-12 decision, and now consistent**: the coordinated
+`xml-refactor-merge-candidate` tag comes after **011–015**, where 015 **is this document's five
+gates**. `hardware_outputs` is outside the tag and may ride a later one. Both statements are now
+true at once, which they were not before — and that is the whole value of renumbering rather than
+re-scoping.

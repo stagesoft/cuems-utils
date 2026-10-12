@@ -95,7 +95,8 @@ name = "unprovisioned"
 ip = "0.0.0.0"
 node_role = "firstrun"
 
-# --- project_mappings.xsd (default_mappings.xml; retires with feature 014) -----
+# --- project_mappings.xsd (default_mappings.xml; retires with the
+# hardware_outputs capability layer) ------------------------------------------
 
 # A fresh, unconfigured node claims no hardware: every default is empty rather
 # than an invented output (research R12). A non-empty value is spelled
