@@ -114,7 +114,7 @@ curve values; nothing on disk is invalidated; no conversion exists because none 
       (`xml/documents.py:273-333`), landed as **010 T080**. The request is stale.
       ✅ Both measured; recorded in plan.md §10.7 as a table.
 
-- [ ] **T039** **The two obligations this feature pushes outward**, neither of which is
+- [X] **T039** **The two obligations this feature pushes outward**, neither of which is
       `cuems-utils` work and both of which would otherwise be owned by a sentence and no task:
       **(a) `cuems-editor` must `.lower()` a client md5 before assigning it.** This branch's setter
       raises on uppercase where rc15's lowercased (plan.md §10.6). Safe on both lines — `.lower()`
@@ -132,8 +132,16 @@ curve values; nothing on disk is invalidated; no conversion exists because none 
       from the xml-refactor line** and the two versions of `CuemsDBProject.py` are
       architecturally different (wire-dict walk vs object walk), so a textual merge regresses
       the strip **silently**: `_allowed_keys` matches `cue_type == 'AudioCue'`, which the 013
-      cue shape never produces. Stays **open**: it is not this repository's work, and it closes
-      when the editor confirms the six red tests in that document's §4.
+      cue shape never produces. ✅ **CLOSED 2026-10-12 by `cuems-editor` 002.** Its evidence is
+      `../cuems-editor/specs/002-config-round-trip/evidence/t039-absorbed.md` (its FR-047, T078):
+      all **six** red tests land in `tests/test_media_values.py`, each shown failing first
+      (`media-values-failing-first.txt`) and passing from `1502d64` *"US6 — media values ported
+      from 869fat84r 0b291d1 onto objects"* — the port this document specified, by cue identity and
+      through the setters. A **seventh** test the hand-off did not ask for goes further:
+      `test_no_item_assignment_on_stored_media_keys` greps `src/cuemseditor/` for any item
+      assignment, `del` or `pop` of a stored media key (its FR-040/SC-011), so the dict idiom cannot
+      come back. 002 is merged there (`1144a1d`) and that feature edited nothing in this repository.
+      The hand-off document is **deleted** with this closure, per the planning-doc deletion policy
 
 - [X] **T040** [P] Bind `Md5Type` to `_String()` in `ADAPTERS`. It resolves to `PASSTHROUGH` today
       and is correct **by consequence**, which is exactly what the table's own `NodeUuidType`

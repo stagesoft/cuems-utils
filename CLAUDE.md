@@ -175,10 +175,12 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 - **`014-xs-boolean-and-media-elements` LANDED** on its own branch 2026-10-12 (scaffolded 2026-10-03
   off `feat/xml-refactor` at `84705b9`); merges into `feat/xml-refactor`, and nothing ships until the
-  coordinated `xml-refactor-merge-candidate` tag after 011–015. **45 of 46 tasks**; the one open task
-  is **T039**, which is *outward* by construction — two obligations on other repositories
-  (`cuems-editor`'s `.lower()`, the unenforceable AudioCue pixel rule), carried into the sibling-gate
-  correspondence rather than this repository's work. Reduced SDD path — `plan.md` (twelve settled
+  coordinated `xml-refactor-merge-candidate` tag after 011–015. **46 of 46 tasks** — **T039 closed
+  2026-10-12 by `cuems-editor` 002**, the last one: its two outward obligations (`cuems-editor`'s
+  `.lower()`, the unenforceable AudioCue pixel rule) are pinned by **six** red tests in that
+  repository's `tests/test_media_values.py`, passing from `1502d64`, plus a **seventh** that greps
+  its own source so the dict idiom cannot return. Evidence:
+  `../cuems-editor/specs/002-config-round-trip/evidence/t039-absorbed.md`. Reduced SDD path — `plan.md` (twelve settled
   decisions, relocated from `specs/planning/`), `baseline.md`, `tasks.md` and the rule-4 release
   note; **no `spec.md` story pass and no `research.md`**, recorded as a tracked exception in that
   plan's §11.1 rather than quietly skipped. Four changes in one unreleased `script`/`network_map`
