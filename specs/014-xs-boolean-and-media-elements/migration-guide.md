@@ -123,7 +123,7 @@ an engine that ignores it is correct.
 |---|---|
 | `cuems-engine`, `cuems-nodeconf`, `cuems-power-bridge`, `cuems-common` | **no source change** — they hold objects, which were always real `bool`s. **Fixtures only**; the paths are in §4.1 |
 | `cuems-editor` | **no source change** for the boolean — it returns `to_wire()` and its own FR-012 forbids touching the dict. One payload-version bump. Fixtures per §4.1. **Its T059 does *not* close by re-run — see §3.1** |
-| `cuems-frontend` | **one line is hard-coupled and mutual**: `sequence.component.ts:997` writes `'True'`, which this feature makes a **refused** spelling, so saving fails without it — and this feature cannot ship without it. Its own `06-amendment-feature-014.md` is the authority; its 001 began its SDD path 2026-10-03 |
+| `cuems-frontend` | **one line was hard-coupled and mutual — and it is already done** (T034, `baseline.md` §8.7). The write that sent `'True'` is gone: `sequence.component.ts:1082` now sends the native boolean, landed as that repository's **T046** (`ff9dc3b`, 2026-10-06), ahead of this feature. Its reads stay deliberately tolerant of both spellings, so the two repositories can land in either order. ⚠ Do not re-cite `:997` — `plan.md` §6.2's coordinate is from `8a61780` and the file has moved. Its own `06-amendment-feature-014.md` remains the authority for the rest |
 
 ### 3.1 `cuems-editor`'s T059 needs an edit there after all *(T023 — correction)*
 
@@ -325,7 +325,7 @@ nothing outside these checkouts has ever been written at version 2.
 | 6 | `tests/golden/generated/example_script.xml` | re-cut | ✅ T015 |
 | 7 | `tests/data/corpus/cuems-utils/fade_showcase.xml` | **hand-rewritten** — authored, not generated | ✅ T015 |
 | 8 | `tests/data/corpus/cuems-utils/unicode_showcase.xml` | **hand-rewritten** | ✅ T015 |
-| 9 | `../cuems-engine/dev/test_xml_files/projects/complex_test_v2/script.xml` | **hand-rewritten** — the ninth, and it is **in a sibling** | ⚠ **outstanding** |
+| 9 | `../cuems-engine/dev/test_xml_files/projects/complex_test_v2/script.xml` | **hand-rewritten** — the ninth, and it is **in a sibling** | ✅ **closed by T028** (`baseline.md` §8.5), not by T015 |
 
 ⚠ **Item 9 is still old-form, verified 2026-10-05.** T015 claimed it and T015's completion note
 does not mention it, so it was missed rather than deferred. It is a *sibling* file and T028 is the
@@ -333,6 +333,12 @@ gate that was written to "verify the result in place" — so it is named here as
 than rewritten from this repository. **T028 must rewrite it, not merely check it.** A plain
 `cuems-convert-documents` pass will **not** fix it: the file is already `doc_version="2"`, which is
 exactly what §4.2 is about.
+
+✅ **Closed — T028 did rewrite it, not merely check it.** Verified 2026-10-12 on `cuems-engine`
+`origin/feat/xml-refactor`: the file now carries `<enabled>true</enabled>`. Recorded from the gate's
+side in [`baseline.md`](baseline.md) §8.5, which also notes it was one of **three** documents that
+needed hands rather than the tool. The paragraph above is kept as the 2026-10-05 record that made
+the gate look for it.
 
 **`tests/golden/outcomes.json` is not on this list and must not be touched.** It records
 *pre-refactor* verdicts and a test asserts the **difference** between it and live behaviour;

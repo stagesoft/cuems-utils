@@ -124,16 +124,93 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   Three new modules: `tools/{ids,library_reach,remint}.py`. Suite after landing:
   **3239 passed, 115 skipped, 2 xfailed, 52.90–53.57 s = 16.33–16.54 ms/test** (from 2800 /
   15.64–15.76 ms before).
+- **Feature 014 (`014-xs-boolean-and-media-elements`, landed on its branch 2026-10-12) adds no new
+  runtime dependency**, and it is the feature where booleans stop being this project's own
+  invention. `cms:BoolType` — an `xs:string` enum of `True`/`False`, declared three times — is
+  retyped to the standard **`xs:boolean`**, so element text is `true`/`false` and the JSON wire
+  carries real booleans. `MediaType` gains **four** optional elements (`pixel_width`,
+  `pixel_height`, `file_size`, `file_md5`), `FadeCurveType` gains `ease_in`/`ease_out`, and
+  **`ConfigManager.from_json(SchemaName, payload)`** is the first public way to build a
+  configuration document from JSON. All of it lands in the **existing, unreleased** `script` 1 → 2
+  and `network_map` 1 → 2 steps — **no version 3**. Suite after landing: **3565 passed, 113 skipped,
+  2 xfailed** (from 3432 at the branch point).
+  - **`_Bool` is a *swap*, not a deletion**, and this is the load-bearing implementation fact.
+    `to_wire` goes, a lowercase `to_lexical` map arrives, and `decode`'s literal table widens to the
+    four lexical forms XSD actually permits (`true`/`false`/`1`/`0`). It cannot simply be deleted
+    because **`Mapper._lexical` is the only producer of element text** on a stdlib-`ElementTree`
+    write path — `ElementTree` never encodes a value, so the inherited `str(obj)` would write
+    `"True"` and `save()` (which validates before writing) would fail on every document. Noted in
+    `xml/adapters.py` beside the class.
+  - **`doc_version="2"` is briefly ambiguous, and the version marker cannot resolve it** — it means
+    both the pre- and post-boolean shape, because the rewrite joined a version step already in
+    flight. That is feature 012's situation verbatim and the same answer applies: the step is
+    represented by the *absence* of a registry entry and the repair is out-of-band by design. The
+    trade was measured, not assumed: **51 documents convert free, nine need hands**, and six of the
+    nine were goldens already due for re-cutting. The ninth is in a sibling
+    (`cuems-engine` `complex_test_v2/script.xml`) and was closed by the T028 gate, not by the task
+    that claimed it. The window shuts when the coordinated tag ships, since nothing outside these
+    checkouts has ever been written at version 2.
+  - **`file_size` is unbounded by type, and `0` is invalid by design.** 100 GiB is
+    107,374,182,400 bytes, which overflows a 32-bit int; `xs:positiveInteger` has no upper bound and
+    decodes to an arbitrary-precision `int` (2⁶³ verified), so the requirement is met by the type
+    alone. Absent means *unknown* and a zero-byte file is not playable media. **`file_md5` is
+    `cms:Md5Type`, 32 lowercase hex**, matching `UuidType` facet for facet — uppercase **raises**
+    rather than being normalised, which diverges from the rc15 line deliberately and is why
+    `cuems-editor` must `.lower()` a client digest before assigning (a no-op against rc15).
+  - **The `get_schema` mitigation feature 013 identified and deliberately left is applied**, and it
+    is the largest single result: the `schema` setter built a fresh `XMLSchema11` per instance, so
+    the configuration path paid XSD *compilation* per load while `xml/schema.py`'s cached
+    `get_schema` sat unused by that one call site. `project_mappings` **18.292 → 3.690 ms (−80%)**,
+    `settings` **14.702 → 1.646 ms (−89%)**, suite **57.66 → 24.3 s (−58%)**. ⚠ It does **not** touch
+    the mechanism 013 named as dominant (`elementpath` rebuilding a node tree per `xs:alternative`
+    evaluation), and `script` is unmoved — `CuemsScript.load` does not go through that setter.
+  - **The budget shape is the finding, not the overruns.** Two of three budgets are recorded as
+    exceeded by 0.01–8.6% — and the same three paths measured on the pre-edit tree in the same
+    session are exceeded by the same margin, so there is nothing measured to mitigate. Run-to-run
+    spread on one unchanged tree is **±4–8%**, so **a 110%-of-baseline budget is below this
+    instrument's resolution**. Anything tighter measures the afternoon, not the code
+    (`specs/014-xs-boolean-and-media-elements/baseline.md` §6.1).
 
 ## Recent Changes
 
-- **`014-xs-boolean-and-media-elements` scaffolded** (2026-10-03, branch of the same name off
-  `feat/xml-refactor` at `84705b9`). Reduced SDD path — `plan.md` (twelve settled decisions,
-  relocated from `specs/planning/`), `baseline.md`, `tasks.md` and the rule-4 release note; **no
-  `spec.md` story pass and no `research.md`**, recorded as a tracked exception in that plan's §11.1
-  rather than quietly skipped. Four changes in one unreleased `script`/`network_map` 1 → 2 step:
-  `cms:BoolType` → **`xs:boolean`**, a **four**-element media block, `main`'s `ease_in`/`ease_out`,
-  and `ConfigManager.from_json` (which closes `cuems-editor`'s T059 by re-run alone).
+- **`014-xs-boolean-and-media-elements` LANDED** on its own branch 2026-10-12 (scaffolded 2026-10-03
+  off `feat/xml-refactor` at `84705b9`); merges into `feat/xml-refactor`, and nothing ships until the
+  coordinated `xml-refactor-merge-candidate` tag after 011–015. **45 of 46 tasks**; the one open task
+  is **T039**, which is *outward* by construction — two obligations on other repositories
+  (`cuems-editor`'s `.lower()`, the unenforceable AudioCue pixel rule), carried into the sibling-gate
+  correspondence rather than this repository's work. Reduced SDD path — `plan.md` (twelve settled
+  decisions, relocated from `specs/planning/`), `baseline.md`, `tasks.md` and the rule-4 release
+  note; **no `spec.md` story pass and no `research.md`**, recorded as a tracked exception in that
+  plan's §11.1 rather than quietly skipped. Four changes in one unreleased `script`/`network_map`
+  1 → 2 step: `cms:BoolType` → **`xs:boolean`**, a **four**-element media block, `main`'s
+  `ease_in`/`ease_out`, and `ConfigManager.from_json`.
+  - **All five sibling gates are green, and the number that matters is the ratio**: **eight test
+    failures across five repositories are attributable to 014, against 183 that were already
+    broken.** Without the control arm, `cuems-engine` and `cuems-power-bridge` would between them
+    have reported **151 failures against this feature, every one someone else's**. The
+    cross-cutting finding is that **013's device migration was never completed in three of the five
+    siblings**, so 014's gates paid that debt (11 `settings.xml` hand-rewritten, five documents
+    reshaped in `cuems-engine`) — **015 must close its own sibling fixtures in its own feature**, or
+    the next gate discovers them with its own signal buried underneath.
+  - **`cuems-editor`'s T059 did *not* close by re-run**, which this feature's own T023 had predicted
+    it would; the correction is in `migration-guide.md` §3.1. It closed in that repository the same
+    session (`365d57f`, `d6fa83b`), so **UR-5 is resolved** and its `xfail(strict=True)` is gone —
+    161 passed / 2 skipped. One new report came back from the same work: **`cuems-editor` UR-6**,
+    `conf_path`/`project_path` refuse the file a first save would create.
+  - **`cuems-frontend`'s hard coupling is discharged, and it landed *ahead* of this feature.**
+    `plan.md` §6.2 called `sequence.component.ts:997` mutually hard-coupled — *"014 cannot ship
+    without that one line"*. Measured 2026-10-12: that write is gone, `:1082` sends the native
+    boolean, landed as that repository's T046 (`ff9dc3b`, 2026-10-06). Every remaining
+    string-boolean there is a **read or a type union, never a write** — write native, read either —
+    so the two repositories can now land in either order. ⚠ Do not re-cite `:997`; the file moved
+    ~85 lines. That repository's 001 is also landed at `f5453a3` and **carries an
+    `xml-refactor-merge-candidate` tag**, which this file recorded as absent until now.
+  - **A process defect in the gate prompt itself, found by being used.** Its arm-A instruction had
+    every parallel session point the *shared* `../cuems-utils` checkout at the branch point — a race
+    by construction, since the gates are marked `[P]`. Caught by `cuems-nodeconf`'s session before
+    any number was trusted, corrected to a **per-session `git worktree`**, and confirmed working
+    mid-flight by the next gate. **The lesson that outlives it**: a prompt that tells N parallel
+    sessions to mutate one shared resource is a defect in the prompt, not in the sessions.
   - **The `get_schema` mitigation feature 013 identified and deliberately left is applied**, and it
     is the largest single result here: the `schema` setter built a fresh `XMLSchema11` per
     instance, so the configuration path paid XSD *compilation* per load while `xml/schema.py`'s

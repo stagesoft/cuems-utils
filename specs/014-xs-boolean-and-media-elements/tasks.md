@@ -124,6 +124,16 @@ curve values; nothing on disk is invalidated; no conversion exists because none 
       state it, but nothing enforces it. If it is worth enforcing, the place is the editor's fill,
       not this schema.
       Carry both into the sibling-gate correspondence rather than this repository's tasks.
+      📄 **Specified 2026-10-12** as [`../planning/t039-editor-media-obligations.md`](../planning/t039-editor-media-obligations.md),
+      measured read-only against `cuems-editor` (`0b291d1` / `22f9af4` / `a3309ab`). **Both
+      obligations are already implemented on the rc15 line** — `_md5` lowercases *and* drops an
+      unusable digest, `_allowed_keys` already strips pixels from an `AudioCue` — so neither is
+      the one-liner this task's text implies. The real work is that the media code is **absent
+      from the xml-refactor line** and the two versions of `CuemsDBProject.py` are
+      architecturally different (wire-dict walk vs object walk), so a textual merge regresses
+      the strip **silently**: `_allowed_keys` matches `cue_type == 'AudioCue'`, which the 013
+      cue shape never produces. Stays **open**: it is not this repository's work, and it closes
+      when the editor confirms the six red tests in that document's §4.
 
 - [X] **T040** [P] Bind `Md5Type` to `_String()` in `ADAPTERS`. It resolves to `PASSTHROUGH` today
       and is correct **by consequence**, which is exactly what the table's own `NodeUuidType`
@@ -513,7 +523,10 @@ budgets are measured against a same-session control arm — one met, two exceede
 exceeded with the mechanism identified. Suite **3565–3566 passed, 112–113 skipped, 2 xfailed in
 25.39–26.02 s**.
 
-The sibling gates T028–T036 are **not started** — they were outside this pass's scope.
+The sibling gates T028–T036 were **not started** at that checkpoint — they were outside that
+pass's scope. ✅ **All nine are now complete** (T028–T033 by 2026-10-05, T034–T036 on
+2026-10-12); the only task still open in this feature is **T039**, which is outward by
+construction.
 
 ### The sibling gates (E3)
 
@@ -651,15 +664,31 @@ finding for this feature and should come back here.
       as two `[P]` gates run at once. Now a per-session `git worktree` — **confirmed working
       mid-flight by T029**, which took arm A from a disposable worktree and reported it as the right
       practice for parallel sessions
-- [ ] **T034** Record the frontend hand-off: `cuems-frontend`'s 001 began its SDD path 2026-10-03,
+- [X] **T034** Record the frontend hand-off: `cuems-frontend`'s 001 began its SDD path 2026-10-03,
       and its `sequence.component.ts:997` is **mutually** hard-coupled to this feature (plan.md
       §6.2 item 2). 014 can be implemented and tested without it; it cannot **ship** without it.
       Update that repository's `06-amendment-feature-014.md` status line only if asked — it is
       their document now
-- [ ] **T035** Delete `../planning/booltype-silent-false-coercion-defect.md` once this feature
+      ✅ Recorded in [`baseline.md`](baseline.md) §8.7. **The coupling is already satisfied, and the
+      coordinate has moved**: the `'True'` write at `:997` (as of `8a61780`) is gone — `:1082` sends
+      the native boolean, landed as that repository's **T046** (`ff9dc3b`, 2026-10-06) *ahead* of
+      this feature, with its task text giving the same argument from the other side. So plan.md
+      §6.2's *"014 cannot ship without that one line"* is **discharged**. Its 001 is also well past
+      "began": landed at `f5453a3` (2026-10-07) and **carrying an `xml-refactor-merge-candidate`
+      tag** that `CLAUDE.md` records as absent. Every remaining string-boolean there is a *read* or a
+      type union, never a write — write native, read either — so the two repositories can now land in
+      either order. `migration-guide.md` §3's row corrected; their document not touched (T034's own
+      instruction)
+- [X] **T035** Delete `../planning/booltype-silent-false-coercion-defect.md` once this feature
       lands, on the `dmx-universe-channel-conversion-defect.md` → `specs/009-*/` precedent. **Not
       before**: it is the record of why the work exists until the work exists
-- [ ] **T036** **The closing documentation pass** (C3) — 013 had one and this list did not.
+      ✅ Deleted. Its resolution is captured by **S1** (`be3e86e`, the strict `_Bool.decode`) plus
+      this feature's retyping to `xs:boolean`, which is what the record was written to prompt. The
+      citations in `plan.md:23`, this file and `../planning/feature-014-sibling-gate-prompt.md:81`
+      are **left as they are** — each describes the task rather than depending on the file, and the
+      009 precedent left the same kind of reference standing in `spec.md`, `plan.md`, `tasks.md` and
+      a test docstring. Git history preserves the record
+- [X] **T036** **The closing documentation pass** (C3) — 013 had one and this list did not.
       `CLAUDE.md`'s "Active Technologies" and "Recent Changes", following the house shape: what
       landed, what was measured rather than assumed, and the load-bearing facts the next feature
       inherits. Specifically: the four media elements with `file_size`'s unbounded type and
@@ -670,6 +699,32 @@ finding for this feature and should come back here.
       mechanism. Also update `specs/planning/etc-cuems-first-install-execution.md` §5's step 6 from
       SCAFFOLDED to LANDED, and follow `specs/agreements/documentation-prompt.md` if a
       README/CHANGELOG pass is wanted
+      ✅ **Done 2026-10-12.** `CLAUDE.md` gains a **"Active Technologies"** entry carrying all five
+      enumerated facts — the four media elements with `file_size`'s unbounded type and `file_md5`'s
+      raising lowercase rule; `_Bool` as a **swap** with `Mapper._lexical` as the only producer of
+      element text on a stdlib-`ElementTree` write path (which is *why* it cannot be deleted); the
+      `doc_version="2"` ambiguity with 51 free / nine by hand; `ConfigManager.from_json`; and the
+      `get_schema` result **with** the note that it does not touch 013's dominant mechanism. Its
+      **"Recent Changes"** entry moves from *scaffolded* to **LANDED (45/46, T039 outward)** and adds
+      the four things only the gate round could supply: the **8-attributable-against-183-pre-existing
+      ratio**, 013's unfinished sibling migration as **015's** debt, the editor's T059 correction plus
+      UR-6, the frontend coupling **discharged ahead of this feature**, and the gate prompt's own
+      shared-checkout race. `../planning/etc-cuems-first-install-execution.md` step 6 is **LANDED**
+      and its §5 brief corrected from "three media pixel elements" to four.
+      **A sixth fact was added that T036 did not list**, because the closing pass is where it belongs:
+      `baseline.md` §6.1's finding that **a 110%-of-baseline budget is below this instrument's
+      resolution** (±4–8% run-to-run on one unchanged tree). It is the most reusable thing this
+      feature measured and the next feature will otherwise re-derive it.
+      ⚠ **No README/CHANGELOG pass, and that is a decision rather than an omission.** Measured:
+      `CHANGELOG.md` carries **no** entry for 011, 012 or 013 either, and `debian/changelog`'s pending
+      entry stops at **feature 011**. For this arc both changelogs are written **when the release is
+      prepared**, so adding 014 alone would create the inconsistency rather than remove it. That work
+      belongs to whichever feature cuts the release, together with 012's and 013's — see
+      `../planning/coordinated-release-version-bump.md` §11
+      **Two document corrections found by doing the pass**, both recorded rather than silently fixed:
+      `migration-guide.md` §4.2 item 9 said ⚠ outstanding and is **closed** (T028 rewrote the sibling
+      file; verified `<enabled>true</enabled>` on `cuems-engine` `origin/feat/xml-refactor`), and §3's
+      `cuems-frontend` row said the coupling was open
 
 ---
 

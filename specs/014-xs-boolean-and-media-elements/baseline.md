@@ -545,3 +545,53 @@ the shared checkout never moved under it.
 parallel sessions to mutate one shared resource is a defect in the prompt, not in the sessions. It
 cost one near-miss, caught only because the session verified its library resolution before trusting
 a number — which the prompt also told it to do. Two instructions, one of which saved the other.
+
+---
+
+### 8.7 `cuems-frontend` — T034, the hand-off, and the hard coupling is **already satisfied**
+
+Not a gate arm: this repository's share was unloaded into its own bundle on 2026-10-02
+(plan.md decision 9, §6.2), so there is nothing here to run. T034 records the hand-off and the one
+thing it was holding.
+
+**Its SDD path is well past "began".** `plan.md` §6.2 recorded that `cuems-frontend`'s feature
+`001-schema-descriptor-migration` started on 2026-10-03. Measured 2026-10-12 it has landed on that
+repository's `feat/xml-refactor` at **`f5453a3`** (2026-10-07) and **carries an
+`xml-refactor-merge-candidate` tag at that commit** — the tag `CLAUDE.md` still records as absent.
+Its candidate message cites this repository at `69acaef` (the 014 branch) and `cuems-editor` at
+`22093fd`, and declares editor ↔ UI payload version 1.
+
+**The hard coupling is closed, and the coordinate `plan.md` names has moved.** Both halves measured:
+
+| | `8a61780` — what `plan.md` measured | `f5453a3` — now |
+|---|---|---|
+| The write | `sequence.component.ts:997`, `newCue.enabled = cue.enabled ? 'True' : 'False';` | **gone.** `:1082` is `enabled: cue.enabled` — the native boolean — under a two-line comment naming `cuems-utils` 014 and the refusal |
+| The read | `:498` `cueData.enabled === true \|\| cueData.enabled === 'True'` | `:479`, **unchanged and deliberately tolerant** |
+
+Landed in that repository as its **T046** (`ff9dc3b`, 2026-10-06, *"projects save again — Cue +
+class on the wire, built from the schema descriptor"*), whose own task text gives the same reasoning
+this feature did from the other side: the native form is accepted by the current library **and**
+after the retyping, the string form only before it, *"so this lands now and is what unblocks that
+upstream feature"*.
+
+**So `plan.md` §6.2's "014 cannot ship without that one line" is discharged** — the line exists, on
+their side, ahead of this feature. Do **not** re-cite `:997`; the write is `:1082` and the file has
+moved ~85 lines.
+
+**Every remaining string-boolean in that repository is a read or a type, never a write**, verified
+by grep over `src/`:
+
+| Site | Shape |
+|---|---|
+| `sequence.component.ts:479` | tolerant read, `=== true \|\| === 'True'` |
+| `node-adoption.component.ts:201` | tolerant read, same shape, with a comment naming 014 |
+| `projects.service.ts:75-76` | the type union `boolean \| 'True' \| 'False'` on `adopted`/`online` |
+| `node-adoption.component.spec.ts`, `sequence.component.spec.ts` | tests pinning the dual read |
+
+That asymmetry is the correct end state and not an oversight: **write native, read either.** It is
+what lets their UI run against a pre-014 library and a post-014 one without a flag, and it is why
+the two repositories can land in either order now.
+
+**Their document stays theirs.** `06-amendment-feature-014.md`'s status line is not updated from
+here (T034's own instruction) — its item 2 is simply satisfied, and the evidence is above if they
+want to cite it.

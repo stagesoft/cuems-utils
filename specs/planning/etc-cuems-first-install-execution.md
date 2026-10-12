@@ -302,7 +302,7 @@ step 2  D15/D16/D17 values + generator   no SDD    DONE  e421e31
 step 3  feature 011  /etc/cuems first install         SDD        LANDED 2026-09-28 (82/82; nodeconf 003 gate CLOSED 2026-09-28)
 step 4  feature 012  uuid4 convergence                SDD        LANDED 2026-09-30 (101/101)
 step 5  feature 013  device-class reshape (F6)        SDD        LANDED 2026-10-01
-step 6  feature 014  xs:boolean + media block + config ingestion   reduced   SCAFFOLDED 2026-10-03, specs/014-xs-boolean-and-media-elements/
+step 6  feature 014  xs:boolean + media block + config ingestion   reduced   LANDED 2026-10-12 (45/46; T039 outward, open), specs/014-xs-boolean-and-media-elements/
 step 7  feature 015  hardware_outputs + inventory     SDD        (was 014 until 2026-10-02)
 ```
 
@@ -494,13 +494,14 @@ schemas and 4 repositories, including four cue-type unions in
 
 ### Feature 014 — `xs:boolean` + media pixel elements (the coordinated gate)
 
-**Delivers**: booleans stop being a bespoke `xs:string` enum; the three media pixel elements and
-the two fade-curve values land in the same version step.
+**Delivers**: booleans stop being a bespoke `xs:string` enum; **four** media elements (not three —
+the fourth, `file_md5`, arrived with the successor input document) and the two fade-curve values land
+in the same version step, plus `ConfigManager.from_json`.
 
 **This brief deliberately holds no design.** It lives in
 [`specs/014-xs-boolean-and-media-elements/plan.md`](../014-xs-boolean-and-media-elements/plan.md)
-— **scaffolded 2026-10-03** on branch `014-xs-boolean-and-media-elements`, with `baseline.md`,
-`tasks.md` and the rule-4 release note beside it —
+— **landed 2026-10-12** on branch `014-xs-boolean-and-media-elements` (scaffolded 2026-10-03), with
+`baseline.md`, `tasks.md` and the rule-4 release note beside it —
 which is already the research and the plan — measured, committed, and written to four settled
 maintainer decisions. Restating it here would create the second drifting copy this folder's
 deletion policy exists to prevent. What belongs *here* is only the sequencing:
