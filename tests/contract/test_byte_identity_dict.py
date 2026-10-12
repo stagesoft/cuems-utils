@@ -61,7 +61,7 @@ def test_generated_document_dict_is_byte_identical(tmp_path):
     written = tmp_path / "generated.xml"
     written.write_bytes(rt.write_bytes(doc, rt.build_generated_script()))
     produced = rt.normalize_uuids(rt.json_dumps(rt.read_dict(doc, source=written)).encode())
-    assert produced.decode() == rt.golden_json("generated/create_script.reader.json")
+    assert produced.decode() == rt.golden_json("generated/example_script.reader.json")
 
 
 @pytest.mark.parametrize("doc", READABLE, ids=[d.relpath for d in READABLE])

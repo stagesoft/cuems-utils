@@ -32,7 +32,22 @@ class Cue(CuemsDict):
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = REQ_ITEMS
-    
+
+    #: The nine non-persisted attributes every cue carries (FR-004a, T011).
+    #: ``CTimecode`` is the bare class, used as a **factory** — called fresh
+    #: per object, so two cues never share one instance.
+    RUNTIME_FIELDS = {
+        '_target_object': None,
+        '_conf': None,
+        '_armed_list': None,
+        '_start_mtc': CTimecode,
+        '_end_mtc': CTimecode,
+        '_end_reached': False,
+        '_go_thread': None,
+        '_stop_requested': False,
+        '_local': False,
+    }
+
     def __init__(self, init_dict = None):
         """Initialize a new Cue.
         
@@ -46,19 +61,6 @@ class Cue(CuemsDict):
         self._fill_declared_defaults()
 
         self._init_runtime()
-
-    def _init_runtime(self) -> None:
-        """The nine non-persisted attributes every cue carries (FR-004a)."""
-        super()._init_runtime()
-        self._target_object = None
-        self._conf = None
-        self._armed_list = None
-        self._start_mtc = CTimecode()
-        self._end_mtc = CTimecode()
-        self._end_reached = False
-        self._go_thread = None
-        self._stop_requested = False
-        self._local = False
 
     def get_id(self):
         """Get the unique identifier of the cue.
@@ -298,34 +300,29 @@ class Cue(CuemsDict):
 
     ui_properties = property(get_ui_properties, set_ui_properties)
     
-    def __eq__(self, other):
-        """Compare two cues by their id.
-        
-        Args:
-            other: The other cue to compare with.
-            
-        Returns:
-            bool: True if the cues have the same id, False otherwise.
-        """
-        if isinstance(other, Cue):
-            return self.id == other.id
-        return False
+    # ``__eq__`` is **deliberately absent** (T029, behaviour change 5).
+    #
+    # It used to compare by ``id`` alone, so two cues sharing an id and
+    # differing in every other field were equal — which made
+    # ``load(save(x)) == load(x)`` a claim about identifiers rather than about
+    # content. The declared-field comparison on ``CuemsDict`` replaces it, and
+    # is inherited: one definition for every model object rather than one for
+    # cues and dict semantics for everything else.
 
     def __hash__(self):
         """Hash the cue by its id.
-        
+
+        **Restated here on purpose, and it must stay.** ``CuemsDict`` defines
+        ``__eq__``, which sets ``__hash__`` to ``None`` on every subclass that
+        does not say otherwise — and an unhashable cue is a ``TypeError`` the
+        first time the engine puts one in a set. ``hash(self.id)`` stays
+        consistent with the wider equality because ``id`` is a declared field:
+        equal cues share an id, so they hash equal (FR-028d).
+
         Returns:
             int: The hash value of the cue's id.
         """
         return hash(self.id)
-
-    def __json__(self):
-        """Convert the cue to a JSON-compatible dictionary.
-        
-        Returns:
-            dict: A dictionary representation of the cue.
-        """
-        return {type(self).__name__: dict(self.items())}
 
     def target_object(self, target_object):
         """Set the target object for the cue.

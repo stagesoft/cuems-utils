@@ -155,7 +155,9 @@ def test_nullish_cue_name_no_longer_fails_validation(name):
 
 def test_parser_preserves_name_through_the_editor_save_path():
     """CuemsParser is what CuemsDBProject.update() runs on the frontend payload."""
-    parsed = CuemsParser({"AudioCue": {"name": "n", "description": "off"}}).parse()
+    parsed = CuemsParser(
+        {"Cue": {"class": "audio", "name": "n", "description": "off"}}
+    ).parse()
     assert parsed["name"] == "n"
     assert parsed["description"] == "off"
 
@@ -168,17 +170,37 @@ def test_parser_preserves_name_through_the_editor_save_path():
 def test_get_all_output_names_handles_numeric_output_name():
     """MediaCue.get_all_output_names slices output_name -- an int would raise
     TypeError: 'int' object is not subscriptable."""
+    # Wrapped in a cue list rather than handed in bare, because the class
+    # dispatch lives on the *field* (feature 013, axis D): a top-level ``Cue``
+    # key names ``CueType`` and resolves to ``Cue``, which has no outputs. It
+    # is ``CueListContentsType``'s ``Cue`` member that carries the
+    # alternatives, so the payload has to put the cue where a real one sits.
     parsed = CuemsParser({
-        "AudioCue": {
-            "name": "cue",
-            "outputs": {
-                "AudioCueOutput": [
-                    {"output_name": "1", "output_vol": "80", "channels": {}}
-                ]
-            },
+        "CuemsScript": {
+            "CueList": {
+                "id": "8726353c-5c8c-41fe-bab7-1b9d765ced77",
+                "contents": [{
+                    "Cue": {
+                        "class": "audio",
+                        "name": "cue",
+                        "outputs": {
+                            "CueOutput": [
+                                {
+                                    "class": "audio",
+                                    "output_name": "1",
+                                    "output_vol": "80",
+                                    "channels": {},
+                                }
+                            ]
+                        },
+                    }
+                }],
+            }
         }
     }).parse()
+    cue = parsed["CueList"]["contents"][0]
+    assert type(cue).__name__ == "AudioCue"
     # Returns (node_id, output_id) tuples split at the UUID boundary.
-    names = parsed.get_all_output_names()
+    names = cue.get_all_output_names()
     assert names == [("1", "")]
     assert all(isinstance(part, str) for pair in names for part in pair)

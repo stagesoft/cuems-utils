@@ -29,6 +29,7 @@ import warnings
 import pytest
 from hypothesis import given, settings, strategies as st
 
+from cuemsutils._deprecation import REMOVAL_RELEASE, deprecation_reason
 from cuemsutils.helpers import format_timecode
 from cuemsutils.tools.CTimecode import CTimecode, CTimecodeError
 
@@ -367,6 +368,42 @@ class TestPrecisionSplit:
         tc = CTimecode(framerate=25, frames=100)
         with pytest.warns(DeprecationWarning):
             assert tc.milliseconds == tc.milliseconds_rounded
+
+    def test_milliseconds_warning_uses_the_packages_one_message_format(self):
+        """FR-027/FR-027a — the same notice as every other retired surface.
+
+        This notice used to be hand-written at the call site and promised
+        removal *"at the first stable release"* — a different date from the one
+        every other deprecation in this package names, and one no consumer
+        could act on, since this library has never shipped a non-rc version.
+        It now goes through ``_deprecation.deprecated_symbol``, so the body is
+        ``deprecation_reason``'s and the release comes from one constant.
+
+        **This assertion fails against the old message**, which contained
+        neither ``REMOVAL_RELEASE`` nor the canonical body — that is the point
+        of pinning it rather than only pinning that *a* warning is emitted,
+        which the two tests above already do.
+        """
+        tc = CTimecode(framerate=25, frames=100)
+        with pytest.warns(DeprecationWarning) as records:
+            _ = tc.milliseconds
+
+        text = str(records[0].message)
+        assert deprecation_reason(".milliseconds_rounded") in text, text
+        assert REMOVAL_RELEASE in text, text
+        # The rounding caveat travels as the decorator's ``note``, not as prose
+        # rewritten at the site: one message format, one place to fix it.
+        assert "note: " in text, text
+        assert ".milliseconds_exact" in text, text
+
+    def test_milliseconds_removal_release_matches_the_retired_surface(self):
+        """It is scheduled with the rest, not on a date of its own.
+
+        ``specs/planning/deprecated-surface-removal-v0-1-1.md`` R8 item 5 is
+        this property. If ``REMOVAL_RELEASE`` ever moves, this test is what
+        says so here rather than leaving a second schedule in a docstring.
+        """
+        assert REMOVAL_RELEASE == "v0.1.1"
 
     def test_milliseconds_rounded_at_integer_framerates_matches_exact_int(self, framerate):
         # At all integer-or-ms framerates in the matrix, _exact is a whole

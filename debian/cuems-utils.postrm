@@ -1,0 +1,40 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# cuems-utils postrm — feature 011, D6.
+#
+# /etc/cuems is SHARED by at least five packages (cuems-common's conffiles, the
+# cluster identity, cuems-power-bridge's PRIVATE SSH KEY). This script removes,
+# on purge only, EXACTLY the paths this package placed — the three documents,
+# the six schemas, the tool's write record — and then the directories only if
+# they are empty. Never `rm -r`. `remove` touches nothing, so node identity
+# survives a package removal; purge destroys it by design.
+#
+# Contract: specs/011-etc-cuems-first-install/contracts/packaging.md;
+# inventory: data-model.md §8.
+
+#DEBHELPER#
+
+set +e
+
+CUEMS_ETC="${CUEMS_ETC:-/etc/cuems}"
+CUEMS_STATE="${CUEMS_STATE:-/var/lib/cuems-utils}"
+
+case "$1" in
+    purge)
+        for f in settings.xml network_map.xml default_mappings.xml \
+                 settings.xsd network_map.xsd project_mappings.xsd \
+                 project_settings.xsd script.xsd hardware_outputs.xsd; do
+            rm -f "$CUEMS_ETC/$f"
+        done
+        rm -f "$CUEMS_STATE/init-node/last-written.json"
+        rmdir --ignore-fail-on-non-empty "$CUEMS_STATE/init-node" 2>/dev/null
+        rmdir --ignore-fail-on-non-empty "$CUEMS_STATE" 2>/dev/null
+        rmdir --ignore-fail-on-non-empty "$CUEMS_ETC" 2>/dev/null
+        ;;
+    *)
+        ;;
+esac
+
+exit 0

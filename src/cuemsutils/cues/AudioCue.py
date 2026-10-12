@@ -6,10 +6,11 @@ from ..helpers import ensure_items
 from ..log import logged, Logger
 
 REQ_ITEMS = {
-    # Declared here rather than on MediaCue because script.xsd declares
-    # fade_profiles on AudioCueType and VideoCueType, not on MediaCueType
-    # (feature 004, T059).
-    'fade_profiles': None,
+    # The class value ``script.xsd``'s ``@class='audio'`` alternative selects
+    # this type on (feature 013, axis D). First because ``REQ_ITEMS`` keeps its
+    # second job, the alphabetical developer index (FR-018) — pinned by
+    # ``test_the_two_reordered_dicts_are_now_alphabetical``.
+    'class': 'audio',
     'master_vol': 100,  # Default to full volume — 0-100 percent scale (cms:PercentType)
 }
 
@@ -23,7 +24,13 @@ class AudioCue(MediaCue):
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = REQ_ITEMS
-    
+
+    #: T012.
+    RUNTIME_FIELDS = {
+        '_player': None,
+        '_osc_route': None,
+    }
+
     def __init__(self, init_dict = None):
         """Initialize an AudioCue.
         
@@ -36,11 +43,6 @@ class AudioCue(MediaCue):
         else:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
-
-    def _init_runtime(self) -> None:
-        super()._init_runtime()
-        self._player = None
-        self._osc_route = None
 
     def get_master_vol(self):
         """Get the master volume level.
@@ -147,29 +149,21 @@ class AudioCue(MediaCue):
         """
         return super().check_mappings()
 
-        if not settings.project_node_mappings:
-            return True
-
-        found = True
-        map_list = ['default']
-
-        Logger.debug(f'AudioCue check_mappings: {settings.project_node_mappings}')
-        if settings.project_node_mappings['audio'][0]['outputs']:
-            for elem in settings.project_node_mappings['audio'][0]['outputs']:
-                Logger.debug(f'AudioCue elem: {elem}')
-                elem = elem['output']
-                for map in elem['mappings']:
-                    Logger.debug(f'AudioCue map: {map}')
-                    map_list.append(map['mapped_to'])
-        
-        for output in self.outputs:
-            if output['output_name'][:36] == settings.node_conf['uuid']:
-                    self._local = True
-                    if output['output_name'][37:] not in map_list:
-                        found = False
-                        break
-            else:
-                self._local = False
-                found = True
-            
-        return found
+        # The ~18 lines that stood here were **unreachable** and are deleted
+        # rather than corrected (T054, FR-017). They sat below an
+        # unconditional ``return super().check_mappings()`` — added at some
+        # point to short-circuit the method — so no test and no consumer could
+        # reach them, and nothing would have noticed if they were wrong.
+        #
+        # They were wrong. This body indexed
+        # ``settings.project_node_mappings['audio'][0]['outputs']`` while
+        # ``ConfigManager``'s live walk indexed the same data as
+        # ``['audio']`` groups without the ``[0]``, and a third shape existed
+        # in ``ProjectMappings.process_network_mappings``. Three mutually
+        # incompatible readings of one document (F15), two of them fossilised.
+        #
+        # Preserving either fossil would mean choosing between them on **no
+        # evidence**: a shape assumption no test can reach is not a contract.
+        # The one live shape is ``ConfigManager``'s, and it is now the derived
+        # one — ``cuemsutils.config.mappings`` states it, so a fourth reading
+        # cannot be invented by accident.

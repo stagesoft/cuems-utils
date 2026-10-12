@@ -151,17 +151,20 @@ def test_get_all_output_names_returns_custom_suffix():
 _MAPPINGS_FIXTURE = """<?xml version='1.0' encoding='utf-8'?>
 <cms:CuemsProjectMappings xmlns:cms="https://stagelab.coop/cuems/">
     <number_of_nodes>1</number_of_nodes>
-    <default_audio_input />
-    <default_audio_output />
-    <default_video_input />
-    <default_video_output>{node}_0</default_video_output>
-    <default_dmx_input />
-    <default_dmx_output />
+    <defaults>
+        <default class="audio" direction="input" />
+        <default class="audio" direction="output" />
+        <default class="video" direction="input" />
+        <default class="video" direction="output">{node}_0</default>
+        <default class="dmx" direction="input" />
+        <default class="dmx" direction="output" />
+    </defaults>
     <nodes>
         <node>
             <uuid>{node}</uuid>
             <mac>2cf05d21cca3</mac>
-            <video>
+            <devices>
+            <device class="video">
                 <outputs>
                     <output>
                         <id>0</id>
@@ -184,7 +187,8 @@ _MAPPINGS_FIXTURE = """<?xml version='1.0' encoding='utf-8'?>
                         </mappings>
                     </output>
                 </outputs>
-            </video>
+            </device>
+            </devices>
         </node>
     </nodes>
     <new_nodes></new_nodes>
@@ -200,7 +204,7 @@ def test_mappings_non_trivial_float_survives_xmlschema_decode():
     fixture.write_text(_MAPPINGS_FIXTURE.format(node=NODE), encoding="utf-8")
 
     m = ProjectMappings(str(fixture))
-    outputs = m.processed["nodes"][0]["node"]["video"][0]["outputs"]
+    outputs = m.processed["nodes"][0]["node"]["video"]["outputs"][0]
     template = next(o for o in outputs if "canvas_region" in o["output"])
     r = template["output"]["canvas_region"]
     assert r["x"] == pytest.approx(0.333, rel=1e-6)

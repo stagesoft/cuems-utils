@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from cuemsutils.log import Logger
+from cuemsutils.errors import DmxChannelDecodeError
 from ..helpers import ensure_items
 from .Cue import Cue, CuemsDict
 from .CueOutput import DmxCueOutput
@@ -8,7 +9,11 @@ REQ_ITEMS = {
     'fadein_time': 0.0,
     'fadeout_time': 0.0,
     'outputs': None,
-    'DmxScene': None
+    'DmxScene': None,
+    # ``DmxCueType`` extends ``CueClassType`` directly: it carries no
+    # ``<Media>``, so it could never extend ``MediaCueType`` (feature 013,
+    # axis D).
+    'class': 'dmx',
 }
 
 SCENE_REQ_ITEMS = {
@@ -26,6 +31,14 @@ DMXCHANNEL_REQ_ITEMS = {
     'value': 0
 }
 
+#: The element name a decoded cue output arrives wrapped in. ``DmxCueType`` is
+#: in ``Mapper.OPAQUE_TYPES`` — a DMX cue is built in one step and never
+#: recursed into — so this class unwraps its own outputs, and the name it
+#: unwraps is the schema's. Feature 013 narrowed it from ``DmxCueOutput`` to
+#: ``CueOutput``: one element whose ``class`` attribute selects the type. An
+#: element name, not a device class; the class value travels inside the body.
+CUE_OUTPUT_ELEMENT = 'CueOutput'
+
 class DmxCue(Cue):
     """A cue for handling DMX lighting control.
     
@@ -36,10 +49,17 @@ class DmxCue(Cue):
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = REQ_ITEMS
-    
+
+    #: T014.
+    RUNTIME_FIELDS = {
+        '_player': None,
+        '_osc_route': None,
+        '_offset_route': '/offset',
+    }
+
     def __init__(self, init_dict = None):
         """Initialize a DmxCue.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to set initial properties.
@@ -49,12 +69,6 @@ class DmxCue(Cue):
         else:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
-
-    def _init_runtime(self) -> None:
-        super()._init_runtime()
-        self._player = None
-        self._osc_route = None
-        self._offset_route = '/offset'
 
     def get_fadein_time(self):
         """Get the fade-in time for the DMX cue.
@@ -106,7 +120,8 @@ class DmxCue(Cue):
         
         Args:
             outputs (list): The list of output configurations. Each item can be
-                a DmxCueOutput object or a dict that will be converted to DmxCueOutput.
+                a DmxCueOutput object, a bare dict, or a dict wrapped in the
+                schema's element name — see :data:`CUE_OUTPUT_ELEMENT`.
         """
         if outputs is None:
             super().__setitem__('outputs', None)
@@ -121,8 +136,8 @@ class DmxCue(Cue):
                 continue
             if not isinstance(output, DmxCueOutput):
                 if isinstance(output, dict):
-                    if 'DmxCueOutput' in output:
-                        inner = output['DmxCueOutput']
+                    if CUE_OUTPUT_ELEMENT in output:
+                        inner = output[CUE_OUTPUT_ELEMENT]
                         # XML converter may produce a list of dicts for the inner value
                         if isinstance(inner, list):
                             for item in inner:
@@ -369,31 +384,43 @@ class DmxUniverse(CuemsDict):
         return super().__getitem__('dmx_channels')
 
     def set_dmx_channels(self, channels):
-        """Set the output routing configuration.
-        
+        """Set the DMX channel list, converting raw entries to ``DmxChannel``.
+
         Args:
-            channels (list): The list of output configurations.
+            channels (list): The list of channel entries — already-``DmxChannel``
+                instances, raw ``{'DmxChannel': {...}}`` dicts, or ``None``
+                (skipped).
+
+        Raises:
+            DmxChannelDecodeError: an entry could not be converted (feature
+                009) — replaces the former swallow-and-log fallback that
+                stored the raw, unconverted input on any single entry's
+                failure.
         """
         Logger.info("DmxUniverse set_channels called with channels: {}".format(channels))
         if not isinstance(channels, list):
             channels = [channels]
-        channel_list = []
         Logger.debug(f'Channels to process: {channels} Type: {type(channels)}')
-        try:
-            for r in channels:
-                    if r is not None:
-                        Logger.debug(f'Processing channel: {r}')
-                        if not isinstance(r, DmxChannel):
-                            Logger.debug(f"Converting to DmxChannel: {r['DmxChannel']}")
-                            new_dmxchannel = DmxChannel(r['DmxChannel'])
-                            channel_list.append(new_dmxchannel)
-                            super().__setitem__('dmx_channels', channel_list)
-                        else:
-                            super().__setitem__('dmx_channels', channels)
-        except Exception as e:
-            Logger.error(f"Error converting channels to DmxChannel: {e}")
-            super().__setitem__('dmx_channels', channels)
-        
+        channel_list = []
+        for index, entry in enumerate(channels):
+            if entry is None:
+                continue
+            Logger.debug(f'Processing channel: {entry}')
+            if isinstance(entry, DmxChannel):
+                channel_list.append(entry)
+                continue
+            try:
+                Logger.debug(f"Converting to DmxChannel: {entry['DmxChannel']}")
+                converted = DmxChannel(entry['DmxChannel'])
+            except (KeyError, TypeError) as exc:
+                raise DmxChannelDecodeError(universe=self, index=index, entry=entry) from exc
+            channel_list.append(converted)
+        # Only touch the key if at least one entry survived — an empty or
+        # all-``None`` input must leave ``dmx_channels`` exactly as it was
+        # before this call (its declared default, on a fresh universe),
+        # never overwritten with ``[]`` (verified empirically, feature 009).
+        if channel_list:
+            super().__setitem__('dmx_channels', channel_list)
 
     dmx_channels = property(get_dmx_channels, set_dmx_channels)
 
@@ -480,11 +507,3 @@ class DmxChannel(CuemsDict):
         """
         super().__setitem__('value', value)
     value = property(get_value, set_value)
-
-    def __json__(self):
-        """Convert the region to a JSON-compatible dictionary.
-        
-        Returns:
-            dict: A dictionary representation of the region.
-        """
-        return {type(self).__name__: dict(self.items())}

@@ -62,7 +62,10 @@ def _payload(cue_fields: dict) -> dict:
         "CuemsScript": {
             "CueList": {
                 "id": "8726353c-5c8c-41fe-bab7-1b9d765ced77",
-                "contents": [{"AudioCue": {**cue_fields}}],
+                # One ``Cue`` element, the class selecting ``AudioCue``
+                # (feature 013, axis D). The wrapper key is the schema's
+                # element name; the class travels inside the body.
+                "contents": [{"Cue": {"class": "audio", **cue_fields}}],
             }
         }
     }
@@ -136,7 +139,9 @@ def test_every_single_digit_survives_as_a_cue_name(digit):
 
 @pytest.mark.parametrize("key,expected_type", sorted(COERCING.items()))
 def test_json_path_still_coerces_declared_types(key, expected_type):
-    raw = {"loop": "2", "master_vol": "80", "timecode": "True", "enabled": "False"}[key]
+    # 014: xs:boolean's lexical forms, not cms:BoolType's two. "True" is now
+    # refused outright, which test_adapters pins separately.
+    raw = {"loop": "2", "master_vol": "80", "timecode": "true", "enabled": "false"}[key]
     value = _json_cue({key: raw})[key]
     assert isinstance(value, expected_type), f"{key} -> {type(value).__name__}"
 
@@ -179,7 +184,7 @@ def test_xml_and_json_paths_agree_on_types(xml_cue):
     json_cue = _json_cue(
         {
             "loop": "1",
-            "enabled": "True",
+            "enabled": "true",
             "id": "8726353c-5c8c-41fe-bab7-1b9d765ced77",
             "offset": {"CTimecode": "00:00:00.000"},
         }

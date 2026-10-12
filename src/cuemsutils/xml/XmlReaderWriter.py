@@ -13,7 +13,7 @@ the *caller's* line.
 Nothing in this library imports from here. That is asserted by contract C8.
 """
 
-from ._deprecation import deprecated_alias, deprecated_symbol
+from .._deprecation import deprecated_alias, deprecated_symbol
 from .xml_reader_writer import CuemsXml as _CuemsXml
 from .xml_reader_writer import XmlReader as _XmlReader
 from .xml_reader_writer import XmlReaderWriter as _XmlReaderWriter

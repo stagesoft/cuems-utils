@@ -56,7 +56,7 @@ This is **X13** in the audit's deferred series. It is recorded, not fixed:
 - the fix is a one-attribute change (`minOccurs="0"`), but it changes what the library
   **accepts**, which is a behaviour change (FR-015);
 - it is scheduled under the schema-evolution convention adopted in feature 006 — see
-  `specs/planning/xml-rebuild-07-speckit-prompts.md` §5.1 and §9 rules 7–8, whose whole
+  `specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md` §5.1 and §9 rules 7–8, whose whole
   point is that a new required element is a breaking schema change and must be added
   optional-with-default instead.
 

@@ -42,6 +42,20 @@ dependencies = [
     "aiofiles==24.1.0",
 ]
 
+[project.scripts]
+# ITEM E, US6, FR-042/SC-019 — batch/offline/post-install document upgrade,
+# sharing the one conversion registry the load path also consults.
+cuems-convert-documents = "cuemsutils.xml.convert_documents:main"
+# Feature 011 (D12/D13, FR-023): node coherence — mints one uuid4 through
+# cuemsutils.tools.Uuid and writes settings.xml, network_map.xml and
+# default_mappings.xml as one atomic set; --check verifies the four identity
+# locations. Invoked by debian/cuems-utils.postinst by absolute path.
+cuems-init-node = "cuemsutils.tools.init_node:main"
+# Feature 013 (FR-022): one-shot rewrite of the pre-013 device shape. Axis A
+# in this commit; settings and scripts stay not applicable until their schemas
+# narrow. Does not move doc_version and does not call cuems-convert-documents.
+cuems-reshape-devices = "cuemsutils.xml.reshape_devices:main"
+
 [project.optional-dependencies]
 systemd = [
     "systemd-python==235",
@@ -60,7 +74,7 @@ Source = "https://github.com/stagesoft/cuems-utils"
 path = "src/cuemsutils/__init__.py"
 
 [tool.hatch.build]
-include = ["src/cuemsutils/xml/schemas"]
+include = ["src/cuemsutils/xml/schemas", "src/cuemsutils/defaults"]
 
 [tool.hatch.build.targets.sdist]
 packages = ["src/cuemsutils"]

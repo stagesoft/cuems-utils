@@ -49,6 +49,10 @@ Unset = _UnsetType()
 #: subclass would silently answer with its parent's field set.
 _DECLARED_DEFAULTS: dict[type, dict[str, Any]] = {}
 
+#: Accumulated ``RUNTIME_FIELDS`` declarations, keyed on the exact class — the
+#: same reasoning as ``_DECLARED_DEFAULTS`` (T010, data-model.md §4).
+_RUNTIME_FIELDS: dict[type, dict[str, Any]] = {}
+
 
 class CuemsDict(dict):
     """Custom dictionary class to handle cuemsutils specific items."""
@@ -73,6 +77,15 @@ class CuemsDict(dict):
     #: turn every cue's editor state into ``{"CuemsDict": {...}}`` in the
     #: payload. The six model classes that self-wrap say so explicitly.
     JSON_SELF_WRAPS: bool = False
+
+    #: This class's **own** non-persisted runtime attributes and their
+    #: defaults (T010, data-model.md §4). Subclasses declare only what they
+    #: add or override; :meth:`runtime_fields` accumulates the chain exactly
+    #: as :meth:`declared_defaults` does. A default that is *callable* is a
+    #: **factory**, called fresh per object — required for ``CTimecode``
+    #: defaults, so two cues never share one instance. Left empty on the
+    #: base: ``CuemsDict`` itself carries no runtime state.
+    RUNTIME_FIELDS: dict[str, Any] = {}
 
     def build(self, parent: Element):
         build_xml_dict(self, parent)
@@ -231,8 +244,10 @@ class CuemsDict(dict):
         *playback*, not at load, which is the worst possible place to find out
         (FR-004a, contract C12).
 
-        Overrides chain through ``super()._init_runtime()``. They set the same
-        attributes ``__init__`` sets today, with no additions.
+        **The single inherited implementation** (T010, SC-014): driven by
+        :attr:`RUNTIME_FIELDS`/:meth:`runtime_fields` rather than by a
+        per-class override. No subclass defines this method any more — it
+        sets exactly the attributes the declaration names, with no additions.
 
         **This hook must never touch ``_initialized``.** That flag is not an
         inert runtime attribute: it gates value-rejecting rules in three classes
@@ -244,8 +259,11 @@ class CuemsDict(dict):
         forbids, and the resulting failure is **arrival-order dependent** (a
         ``custom`` ``output_name`` arriving before ``canvas_region`` raises,
         the reverse order does not), so the corpus would catch it only by luck.
-        The flag stays owned by the three classes that use it.
+        The flag stays owned by the three classes that use it, and it is
+        deliberately absent from ``RUNTIME_FIELDS`` everywhere.
         """
+        for name, default in type(self).runtime_fields().items():
+            setattr(self, name, default() if callable(default) else default)
 
     @classmethod
     def declared_defaults(cls) -> dict[str, Any]:
@@ -284,6 +302,27 @@ class CuemsDict(dict):
         return cached
 
     @classmethod
+    def runtime_fields(cls) -> dict[str, Any]:
+        """This class's declared runtime attributes, accumulated across the
+        MRO exactly as :meth:`declared_defaults` accumulates document fields
+        (T010, data-model.md §4). Base-class fields first, each class's own
+        additions or overrides layered on top — so ``VideoCue`` can replace
+        ``Cue``'s plain ``CTimecode`` factory for ``_start_mtc``/``_end_mtc``
+        with a 25fps one, exactly as it does today.
+
+        The returned dict is the cached one. Do not mutate it.
+        """
+        cached = _RUNTIME_FIELDS.get(cls)
+        if cached is None:
+            merged: dict[str, Any] = {}
+            for klass in reversed(cls.__mro__):
+                own = klass.__dict__.get("RUNTIME_FIELDS")
+                if own:
+                    merged.update(own)
+            cached = _RUNTIME_FIELDS[cls] = merged
+        return cached
+
+    @classmethod
     def declared_fields(cls) -> tuple[str, ...]:
         """The names of this class's declared fields, in declaration order.
 
@@ -315,6 +354,175 @@ class CuemsDict(dict):
 
         return adapter_table(cls)
 
+
+    # -- projection (T026) -------------------------------------------------
+    #
+    # On the **base**, not on ``CuemsScript``, and that placement is the
+    # requirement rather than a convenience: "one projection implementation"
+    # (SC-017) is a claim about code, so the config models bind to this body in
+    # US3 rather than relocating or duplicating it. ``CuemsScript.to_wire()``
+    # and a config object's differ only in which ``Mapper`` they resolve.
+    #
+    # The counted consequence: **every** ``CuemsDict`` subclass — every cue
+    # class, not only ``CuemsScript`` — now exposes ``to_wire()``/``to_json()``
+    # publicly. Intended and free (a cue projecting itself is meaningful), and
+    # recorded in the enumerated API-surface diff rather than discovered when
+    # the golden fails.
+
+    def to_wire(self) -> dict:
+        """The schema-faithful projection of this object.
+
+        For a document body (``CuemsScript``) the result is wrapped in its own
+        element name — ``{"CuemsScript": {...}}`` — matching the shape
+        ``cuems-editor`` transmits verbatim to the UI on ``project_load``.
+        Everything else projects bare.
+
+        **It does not validate** (FR-005a). A projection is not a validation
+        gate; ``save()`` is the gate. Projecting a half-built or semantically
+        invalid object yields a **partial payload**, not an exception — a
+        caller wanting a guarantee calls ``validate()`` first. The reason is
+        measured rather than stylistic: running T1 here would cost roughly the
+        15.49 ms the direct projection exists to avoid, against a 5 ms budget
+        on the system's hottest path.
+
+        Returns:
+            dict: JSON-safe, ordered as the wire contract states.
+
+        Raises:
+            Nothing on a malformed or incomplete object — see above. Errors
+            from a genuinely broken registry binding propagate unchanged.
+        """
+        from .coercion import schema_for
+        from .xml.mapper import Mapper, encode_wildcard
+
+        schema_name = schema_for(type(self))
+        if schema_name is None:
+            # An unbound class: a bare ``CuemsDict``, which is what wildcard
+            # ``ui_properties`` content decodes to. Nothing about a wildcard's
+            # children is derivable, so it projects through the same untyped
+            # fallback the mapper applies when it meets one inside a document
+            # — rather than through a schema it has none of.
+            return encode_wildcard(self)
+        return Mapper(schema_name).encode_wire(self)
+
+    def to_json(self) -> str:
+        """``to_wire()``, serialized — with the form **pinned**, not defaulted.
+
+        Separators, ``ensure_ascii`` and key ordering each change the bytes,
+        and this output is compared for equality across a repository boundary,
+        so none of the three is left to a ``json.dumps`` default that a future
+        stdlib release could move (FR-005b):
+
+        ``separators=(", ", ": ")``
+            what consumers produce today; changing it would alter every
+            recorded payload.
+        ``ensure_ascii=False``
+            emits real UTF-8 rather than ``\\uXXXX`` escapes, so ``Cançó``
+            stays ``Cançó``. Both settings round-trip losslessly — this is a
+            readability and payload-size choice, on a transport (a WebSocket
+            text frame) that is UTF-8 by definition.
+        ``sort_keys=False``
+            key order comes from ``to_wire()`` and is part of the wire
+            contract. Sorting here would reorder the payload the UI receives.
+
+        Defined in terms of ``to_wire()`` so the two cannot diverge, and like
+        it, **does not validate**.
+
+        Returns:
+            str: UTF-8 JSON text.
+
+        Raises:
+            Nothing on a malformed or incomplete object — see ``to_wire()``.
+        """
+        import json
+
+        return json.dumps(
+            self.to_wire(),
+            separators=(", ", ": "),
+            ensure_ascii=False,
+            sort_keys=False,
+        )
+
+    def __json__(self):
+        """The ``json.dumps`` hook — **derived**, not hand-written (T035).
+
+        Eight classes carried a hand-written body before this feature, each
+        assembling the payload its own way, and the two the UI actually
+        receives disagreed on every boolean (F21). All eight are gone: seven
+        deleted outright and ``CuemsScript``'s reduced to unwrapping the
+        document body, which projects nothing itself.
+
+        Nothing below the top level consults this hook any more, and that is
+        the point: ``to_wire()`` returns plain dicts, lists and scalars all the
+        way down, so there is exactly one traversal of the object graph and
+        exactly one place that decides what a value looks like on the wire.
+
+        ``JSON_SELF_WRAPS`` still decides whether an object *dumped on its own*
+        names itself — ``{"AudioCue": {...}}`` — because that wrapper is how
+        the editor knows which cue type it is holding.
+        """
+        wire = self.to_wire()
+        return {type(self).__name__: wire} if self.JSON_SELF_WRAPS else wire
+
+    # -- identity (T029) ---------------------------------------------------
+
+    def __eq__(self, other) -> bool:
+        """Equality over **declared fields only** (FR-028b).
+
+        Two scripts that differ only in accumulated playback state are equal,
+        which is what makes ``load(save(x)) == load(x)`` hold. It **widens**
+        ``Cue.__eq__``, which compared by ``id`` alone — enumerated behaviour
+        change 5: two cues sharing an id and differing in every other field
+        used to compare equal.
+
+        A class with **no** declared field set falls through to ``dict``
+        equality unchanged. That is not a loophole: wildcard containers and
+        plain dicts have no declared fields, and comparing them by an empty set
+        would make every one of them equal to every other.
+        """
+        if not type(self).declared_fields():
+            return dict.__eq__(self, other)
+        if type(other) is not type(self):
+            return False
+        return dict(self.items()) == dict(other.items())
+
+    def __ne__(self, other) -> bool:
+        result = self.__eq__(other)
+        return result if result is NotImplemented else not result
+
+    #: ``dict`` is unhashable and so is a bare ``CuemsDict``; ``Cue`` restates
+    #: ``__hash__`` as ``hash(self.id)`` and **must keep doing so**. Defining
+    #: ``__eq__`` without restating ``__hash__`` sets it to ``None``, which is
+    #: invisible in review, produces no failure in any test that does not
+    #: itself hash a cue, and surfaces as a ``TypeError`` in a consumer
+    #: repository (FR-028d).
+    __hash__ = None  # type: ignore[assignment]
+
+    def __copy__(self):
+        """A shallow copy with **fresh** runtime state (FR-028c).
+
+        A copied cue that shares its parent's ``_go_thread`` is a cue that
+        stops the wrong playback. Declared fields are shared, as a shallow copy
+        means; runtime state never is.
+        """
+        clone = type(self).__new__(type(self))
+        dict.__init__(clone)
+        clone._init_runtime()
+        for key, value in dict.items(self):
+            dict.__setitem__(clone, key, value)
+        return clone
+
+    def __deepcopy__(self, memo):
+        """A deep copy with fresh runtime state — the same rule, deeper."""
+        from copy import deepcopy
+
+        clone = type(self).__new__(type(self))
+        memo[id(self)] = clone
+        dict.__init__(clone)
+        clone._init_runtime()
+        for key, value in dict.items(self):
+            dict.__setitem__(clone, key, deepcopy(value, memo))
+        return clone
 
     def setter(self, settings: dict):
         """Set the object properties from a dictionary.
@@ -439,7 +647,12 @@ def format_timecode(value):
         elif isinstance(value, str):
             return CTimecode(value)
         elif isinstance(value, dict):
-            dict_timecode = value.pop('CTimecode', None)
+            # ``.get``, not ``.pop`` — mutating the caller's dict is a latent
+            # defect a setter that validates-then-assigns (``enforce`` calling
+            # this same function, then the setter calling it again) turns into
+            # a real one: a second call on an already-popped dict would always
+            # see ``None`` (feature 008, found via ``Media.duration``).
+            dict_timecode = value.get('CTimecode', None)
             if dict_timecode is None:
                 return CTimecode()
             elif isinstance(dict_timecode, int):

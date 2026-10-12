@@ -23,7 +23,6 @@ from cuemsutils.cues.CueList import CueList
 from cuemsutils.cues.CueOutput import AudioCueOutput, DmxCueOutput, VideoCueOutput
 from cuemsutils.cues.DmxCue import DmxChannel, DmxCue, DmxScene, DmxUniverse
 from cuemsutils.cues.FadeCue import FadeCue
-from cuemsutils.cues.FadeProfile import FadeFunctionParameter, FadeProfile
 from cuemsutils.cues.MediaCue import Media, MediaCue, Region
 from cuemsutils.cues.VideoCue import VideoCue
 from cuemsutils.helpers import CuemsDict
@@ -50,8 +49,6 @@ BOUND_MODELS = [
     DmxScene,
     DmxUniverse,
     DmxChannel,
-    FadeProfile,
-    FadeFunctionParameter,
 ]
 
 
@@ -90,8 +87,8 @@ def test_sibling_subclasses_get_distinct_tables():
     assert audio is not video
 
     # Not merely distinct objects — distinct *content*, so the test fails on a
-    # cache that hands out equal-but-copied tables. The two share 16 of 17
-    # fields, which is what makes the MRO trap survivable long enough to ship:
+    # cache that hands out equal-but-copied tables. The two share all but one
+    # field, which is what makes the MRO trap survivable long enough to ship:
     # only ``master_vol`` and ``opacity`` would misresolve.
     assert "master_vol" in audio and "master_vol" not in video
     assert "opacity" in video and "opacity" not in audio
@@ -126,25 +123,22 @@ def test_the_script_root_resolves_through_its_path_binding():
     assert type(table["id"]).__name__ == "_UuidAdapter"
 
 
-def test_media_duration_is_not_coerced():
-    """FR-009b — ``MediaType.duration`` is a string, and stays one.
+def test_media_duration_is_coerced_like_every_other_timecode():
+    """Feature 008, FR-002/FR-004 — the exception is gone.
 
-    Two different fields share the name: ``FadeCueType.duration`` is a
-    ``CTimecodeType`` emitted as a wrapped child, while ``MediaType.duration``
-    is a ``TimecodeType`` — a restricted string — emitted as bare text, whose
-    getter contract is ``str`` (``test_media_duration.py``). Coercing it would
-    change the emitted element for every media document.
-
-    The schema-derived table gets this right with no special case, because
-    ``TimecodeType`` binds to a passthrough-decoding adapter. This test pins
-    that it stays that way.
+    ``MediaType.duration`` used to be the one time-carrying element typed
+    plain ``TimecodeType`` rather than ``CTimecodeType``, so it alone decoded
+    to a passthrough string. It is now ``CTimecodeType``, on the same
+    ``_CTimecodeAdapter`` as ``FadeCueType.duration`` and every other
+    time-carrying element — "one type and one machinery", not a pair that
+    happen to share a field name and diverge in behaviour.
     """
-    duration = Media.coercion_table()["duration"]
-    assert duration.decode("00:00:01.000") == "00:00:01.000"
-    assert isinstance(duration.decode("00:00:01.000"), str)
+    from cuemsutils.tools.CTimecode import CTimecode
 
+    media = Media.coercion_table()["duration"]
     fade = FadeCue.coercion_table()["duration"]
-    assert type(fade).__name__ == "_CTimecodeAdapter"
+    assert type(media).__name__ == type(fade).__name__ == "_CTimecodeAdapter"
+    assert isinstance(media.decode({"CTimecode": "00:00:01.000"}), CTimecode)
 
 
 def test_a_class_bound_in_two_registries_raises(monkeypatch):

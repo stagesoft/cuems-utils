@@ -85,12 +85,15 @@ def test_get_node_raises_for_unknown_uuid():
 # ---------------------------------------------------------------------------
 
 def _video_outputs(node):
-    """Dig through the decoded node dict to the list of {'output': {...}} entries."""
-    video = node.get("video") or []
+    """The ``{'output': {...}}`` wrappers on the node's video device."""
     outputs = []
-    for group in video:
-        for output_wrap in group.get("outputs") or []:
-            outputs.append(output_wrap)
+    for item in node.get("devices") or []:
+        device = item.get("device") if isinstance(item, dict) else None
+        if not isinstance(device, dict) or device.get("class") != "video":
+            continue
+        for group in device.get("outputs") or []:
+            ports = group if isinstance(group, list) else [group]
+            outputs.extend(ports)
     return outputs
 
 

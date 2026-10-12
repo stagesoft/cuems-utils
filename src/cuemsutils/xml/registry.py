@@ -17,11 +17,13 @@ Two rules make that unrepeatable:
    promoting one to a real handler would change the output, which this feature
    forbids. `generic-bindings.md` is the measured list.
 
-One registry per schema, mandatorily (research R4): ``script.xsd`` and
-``outputs.xsd`` both declare ``{https://stagelab.coop/cuems/}OutputsType`` with
-different content, so a shared registry would hand one schema the other's
-binding. There is no public registration API (D11 + Q14) — nothing external
-owns a model.
+One registry per schema (research R4). Until rc16 this was forced: ``script.xsd``
+and what is now ``hardware_outputs.xsd`` both declared
+``{https://stagelab.coop/cuems/}OutputsType`` with different content, so a shared
+registry would have handed one schema the other's binding. rc16 renamed the
+second to ``HardwareOutputsType``, ending the collision; the per-schema split
+stays, because every binding and cached derivation is built on it. There is no
+public registration API (D11 + Q14) — nothing external owns a model.
 """
 
 from __future__ import annotations
@@ -36,6 +38,22 @@ from .spec import TypeKey, TypeSpec, derive
 #: than by a model class. Explicit so that "no bespoke class" is a *decision*
 #: recorded in the table, not the absence of an entry.
 GENERIC = "GENERIC"
+
+#: The per-**field** adapter opt-ins, by schema (feature 012, FR-021b).
+#:
+#: ``settings`` names exactly one field: the node's own identity. A provisioned
+#: node's ``ConfigManager.node_uuid`` therefore answers with the identity type
+#: and an unprovisioned node's with the published sentinel constant, which is
+#: what makes **one** comparison enough to tell the two states apart (M-d) — and
+#: what stops the library handing consumers two types for one value.
+#:
+#: Declared here as a table rather than inline at the construction site so that
+#: "which fields are typed, and in which schema" is a question with an answer.
+#: Feature 007's schema-level flag is the precedent; this is the narrower
+#: instrument beside it, not a replacement for it.
+ADAPTER_FIELDS: dict[str, frozenset[tuple[str, str]]] = {
+    "settings": frozenset({("NodeConfType", "uuid")}),
+}
 
 
 @dataclass(frozen=True)
@@ -53,12 +71,35 @@ class Binding:
 class SchemaRegistry:
     """Bindings for one schema."""
 
-    def __init__(self, schema_name: str):
+    def __init__(self, schema_name: str, *, runs_adapter_table: bool = False,
+                 adapter_fields: frozenset[tuple[str, str]] = frozenset()):
         self.schema_name = schema_name
         self.root = SCHEMA_ROOTS[schema_name]
         self._by_type: dict[str, Binding] = {}
         self._by_path: dict[str, Binding] = {}
         self._model_specs: dict[type, TypeSpec] | None = None
+        #: research R1 — the per-schema opt-in for ``Mapper.decode_config`` to
+        #: run the adapter table on scalar fields. ``False`` for every
+        #: configuration schema except ``network_map``, so FR-011a-i's "the
+        #: other four schemas are untouched" is a property of *this* table,
+        #: not of code the day it happens to be called from.
+        self.runs_adapter_table = runs_adapter_table
+        #: feature 012 — the per-**field** opt-in (FR-021b, research R1).
+        #: ``(type name, field name)`` pairs whose declared adapter runs even
+        #: though this schema's table does not.
+        #:
+        #: It exists because the schema-level flag has the wrong blast radius
+        #: for the requirement. FR-021b asks for **one** field to change type:
+        #: the node's own identity in ``settings.xml``. Flipping
+        #: ``runs_adapter_table`` for ``settings`` would re-decode *every*
+        #: scalar in that document at once — ports to ``int``, unit floats to
+        #: ``float`` — which is a behaviour change across the whole
+        #: configuration surface, invisible in this feature's tests, and it
+        #: would silently retire the property feature 007 measured and pinned
+        #: (its SC-010a: four schemas decode every scalar as text).
+        #:
+        #: A mechanism should have the same blast radius as the requirement.
+        self.adapter_fields = frozenset(adapter_fields)
 
     def bind(self, type_name: str, model) -> SchemaRegistry:
         key = TypeKey(self.schema_name, type_name)
@@ -76,6 +117,18 @@ class SchemaRegistry:
         self._by_path[element_path] = Binding(key, model)
         return self
 
+    def runs_adapter_for(self, type_name: str | None, field_name: str) -> bool:
+        """Whether ``type_name``'s ``field_name`` runs its declared adapter.
+
+        ``True`` when this schema runs the whole table, or when the pair is
+        named in :attr:`adapter_fields`. Asked per field by
+        ``Mapper._decode_config_value``, so a schema that opts one field in
+        leaves every other scalar decoding exactly as it did.
+        """
+        if self.runs_adapter_table:
+            return True
+        return type_name is not None and (type_name, field_name) in self.adapter_fields
+
     def binding_for(self, type_name: str) -> Binding | None:
         return self._by_type.get(type_name)
 
@@ -89,6 +142,21 @@ class SchemaRegistry:
     @property
     def bound_type_names(self) -> frozenset[str]:
         return frozenset(self._by_type)
+
+    @property
+    def bound_path_names(self) -> frozenset[str]:
+        return frozenset(self._by_path)
+
+    def bindings(self) -> tuple[Binding, ...]:
+        """Every binding, named-type and path alike (ITEM D, T062).
+
+        The descriptor is the first caller needing *all* of a schema's
+        bindings at once — resolving a rule's class-name target to the XSD
+        types that class is bound to (data-model.md §3.1) has to search both
+        maps, since the root types are path-bound (R3) and everything else is
+        type-bound.
+        """
+        return tuple(self._by_type.values()) + tuple(self._by_path.values())
 
     def spec_for_model(self, model: type) -> TypeSpec | None:
         """The ``TypeSpec`` bound to a Python class, or ``None`` (T004a).
@@ -177,10 +245,14 @@ def _build_script_registry() -> SchemaRegistry:
     from ..cues.Cue import Cue, UI_properties
     from ..cues.CueList import CueList
     from ..cues.CuemsScript import CuemsScript
-    from ..cues.CueOutput import AudioCueOutput, DmxCueOutput, VideoCueOutput
+    from ..cues.CueOutput import (
+        AudioCueOutput,
+        CueOutput,
+        DmxCueOutput,
+        VideoCueOutput,
+    )
     from ..cues.DmxCue import DmxChannel, DmxCue, DmxScene, DmxUniverse
     from ..cues.FadeCue import FadeCue
-    from ..cues.FadeProfile import FadeFunctionParameter, FadeProfile
     from ..cues.MediaCue import Media, MediaCue, Region
     from ..cues.VideoCue import VideoCue
 
@@ -204,21 +276,23 @@ def _build_script_registry() -> SchemaRegistry:
     registry.bind("MediaType", Media)
     registry.bind("RegionType", Region)
 
-    # Outputs. ``OutputsType`` here is *script.xsd's* — a different type from
-    # the identically-named one in outputs.xsd, which is why registries are per
-    # schema (R4).
+    # Outputs. ``OutputsType`` here is *script.xsd's*, and since rc16 it is the
+    # only type carrying that name: ``hardware_outputs.xsd``'s counterpart was
+    # renamed ``HardwareOutputsType`` to end the collision (X14). Registries
+    # remain per schema (R4).
     registry.bind("AudioCueOutputsType", AudioCueOutput)
     registry.bind("VideoCueOutputsType", VideoCueOutput)
     registry.bind("DmxCueOutputsType", DmxCueOutput)
+    # The unconditional alternative of the single ``<CueOutput>`` element
+    # (feature 013, axis D). An unknown class decodes to the base class, the
+    # way an unknown device class decodes to ``DeviceType`` — which is why
+    # ``CueOutput`` stopped being an unbound abstract base with that feature.
+    registry.bind("CueOutputType", CueOutput)
 
     # DMX.
     registry.bind("DmxSceneType", DmxScene)
     registry.bind("DmxUniverseType", DmxUniverse)
     registry.bind("DmxChannelType", DmxChannel)
-
-    # Fades.
-    registry.bind("FadeProfileType", FadeProfile)
-    registry.bind("FadeParameterType", FadeFunctionParameter)
 
     # Wildcard content (R6). ``UI_properties`` exists as a class and is *never*
     # reached today: the tag→class lookup searches for ``ui_properties`` while
@@ -233,6 +307,16 @@ def _build_script_registry() -> SchemaRegistry:
     # bespoke class would change the output.
     for type_name in (
         "CommonPropertiesType",  # abstract base, never instantiated directly
+        # The two derivation roots feature 013 adds. Each is a declared
+        # element type that is never *selected*: the unconditional
+        # ``xs:alternative`` on the element names a different type
+        # (``MediaCueType`` and ``CueOutputType``), so nothing ever decodes as
+        # one. They exist because xmlschema requires every alternative type to
+        # derive from the element's declared type, and the alternatives share
+        # no narrower base — ``DmxCueType`` carries no ``<Media>``, and the
+        # three output types share no base at all.
+        "CueClassType",
+        "CueOutputClassType",
         "CueListContentsType",  # the repeated-choice wrapper
         "CTimecodeType",  # handled by an adapter, not a model class (R5)
         "RegionsType",
@@ -242,8 +326,6 @@ def _build_script_registry() -> SchemaRegistry:
         "CanvasRegionType",
         "Coordinates",
         "DmxUniverseContentsType",
-        "FadeParametersType",
-        "FadeProfilesWrapperType",
         "VideoCornersType",
         "VideoOutputGeometryType",
     ):
@@ -252,19 +334,113 @@ def _build_script_registry() -> SchemaRegistry:
     return registry
 
 
-def _build_config_registry(schema_name: str) -> SchemaRegistry:
-    """Bindings for the five configuration schemas.
+def _config_models(schema_name: str) -> tuple[dict[str, type], dict[str, type]]:
+    """``({type name: model}, {element path: model})`` for one config schema (T048).
 
-    **Every type is GENERIC**, and that is not laziness: configuration
-    documents have no model classes at all today — ``Settings`` and its
-    subclasses hand back raw dicts. Giving them classes is feature 006's job
-    (data-model §6). Binding them explicitly is what lets C7 assert totality
-    across all six schemas now rather than after that work lands.
+    Function-local imports for the same reason ``coercion._resolve``'s are:
+    ``cuemsutils.config`` imports ``helpers``, which the ``xml`` package
+    already depends on, and resolving the classes lazily keeps the import
+    direction one-way.
+
+    ``outputs`` is absent from this table deliberately. It is a *show* schema
+    used by the editor's output picker, not a configuration document read by
+    ``ConfigManager``, and it has no accessors to take off FR-014's raw-dict
+    list. Giving it model classes would be scope this feature does not claim.
     """
-    registry = SchemaRegistry(schema_name)
-    registry.bind_path(SCHEMA_ROOTS[schema_name], GENERIC)
+    from ..config import mappings as m
+    from ..config import network_map as nm
+    from ..config import settings as s
+
+    if schema_name == "settings":
+        return (
+            {
+                "NodeConfType": s.NodeConfType,
+                "PlayerType": s.PlayerType,
+                "PlayerClassType": s.PlayerClassType,
+                "PlayersType": s.PlayersType,
+                "VideoPlayerType": s.VideoPlayerType,
+                "AudioPlayerType": s.AudioPlayerType,
+                "AudioMixerType": s.AudioMixerType,
+                "DmxPlayerType": s.DmxPlayerType,
+            },
+            {
+                "CuemsSettings": s.CuemsSettingsType,
+                "CuemsSettings/Settings": s.SettingsType,
+            },
+        )
+
+    if schema_name == "project_settings":
+        return (
+            {"SettingType": s.SettingType},
+            {"CuemsProjectSettings": s.CuemsProjectSettingsType},
+        )
+
+    if schema_name == "project_mappings":
+        return (
+            {
+                "NewNodesType": m.NewNodesType,
+                "NodesType": m.NodesType,
+                "NodeMappingType": m.NodeMappingType,
+                "DeviceClassType": m.DeviceClassType,
+                "DevicesType": m.DevicesType,
+                "DefaultsType": m.DefaultsType,
+                "DefaultPortType": m.DefaultPortType,
+                "DeviceType": m.DeviceType,
+                "PutGroupType": m.PutGroupType,
+                "PutType": m.PutType,
+                "VideoDeviceType": m.VideoDeviceType,
+                "VideoPutGroupType": m.VideoPutGroupType,
+                "VideoPutType": m.VideoPutType,
+                "CanvasRegionType": m.CanvasRegionType,
+                "MappedToType": m.MappedToType,
+            },
+            {"CuemsProjectMappings": m.CuemsProjectMappingsType},
+        )
+
+    if schema_name == "network_map":
+        return (
+            {
+                "NodeDictType": nm.node_list,
+                "NodeType": nm.node,
+            },
+            {"CuemsNetworkMap": nm.CuemsNetworkMapType},
+        )
+
+    return {}, {}
+
+
+def _build_config_registry(schema_name: str) -> SchemaRegistry:
+    """Bindings for the configuration schemas (T048).
+
+    Every type used to be ``GENERIC``, and that was not laziness: configuration
+    documents had no model classes at all, so ``Settings`` and its subclasses
+    handed back raw dicts. Binding them explicitly to ``GENERIC`` was what let
+    C7 assert totality across all six schemas before the classes existed.
+
+    Feature 006 replaces those bindings with the ``cuemsutils.config`` models.
+    ``GENERIC`` remains for two things, and both are deliberate rather than
+    left over:
+
+    * the ``hardware_outputs`` schema, which is not a configuration document (see
+      ``_config_models``);
+    * anonymous inline types with no name to bind by — ``PutType.mappings``'s
+      wrapper is one — which stay generic and decode to plain dicts, exactly
+      as the corresponding ``script.xsd`` wrappers do.
+    """
+    registry = SchemaRegistry(
+        schema_name,
+        runs_adapter_table=schema_name == "network_map",
+        adapter_fields=ADAPTER_FIELDS.get(schema_name, frozenset()),
+    )
+    by_type, by_path = _config_models(schema_name)
+
+    registry.bind_path(SCHEMA_ROOTS[schema_name], by_path.get(SCHEMA_ROOTS[schema_name], GENERIC))
+    for element_path, model in by_path.items():
+        if element_path != SCHEMA_ROOTS[schema_name]:
+            registry.bind_path(element_path, model)
+
     for type_name in registry.complex_type_names():
-        registry.bind(type_name, GENERIC)
+        registry.bind(type_name, by_type.get(type_name, GENERIC))
     return registry
 
 

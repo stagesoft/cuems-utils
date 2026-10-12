@@ -6,17 +6,17 @@
 **Input**: Unify the object model onto a single construction path so that an object's internal types no longer depend on how it was created. Coercion moves out of property setters into the field specification; `CuemsScript` becomes a `CuemsDict` like every other model class; `items()`, defaulting and region typing get one definition each.
 
 **Planning context** (authoritative, read before planning):
-`specs/planning/xml-rebuild-01-audit.md` (findings F1–F23),
-`specs/planning/xml-rebuild-03-design-inputs.md`,
-`specs/planning/xml-rebuild-04-object-model.md` (**the measured evidence for this feature**),
-`specs/planning/xml-rebuild-05-ui-wire-contract.md`,
-`specs/planning/xml-rebuild-06-target-design.md` §7 (**the target design**),
-`specs/planning/xml-rebuild-07-speckit-prompts.md` §4 (this feature's place in the sequence).
+`specs/planning/xml-rebuild/xml-rebuild-01-audit.md` (findings F1–F23),
+`specs/planning/xml-rebuild/xml-rebuild-03-design-inputs.md`,
+`specs/planning/xml-rebuild/xml-rebuild-04-object-model.md` (**the measured evidence for this feature**),
+`specs/planning/xml-rebuild/xml-rebuild-05-ui-wire-contract.md`,
+`specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §7 (**the target design**),
+`specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md` §4 (this feature's place in the sequence).
 
 This is feature 2 of 5 in the XML rebuild. It covers phase 4 of the target design (§13) and
 is the **first feature with intentional behaviour change**. Feature 004 established one
 schema-derived engine with byte-identical output and deliberately parked every fix that
-would change behaviour; this feature lands that parked set. Features 006–008 follow and are
+would change behaviour; this feature lands that parked set. Features 006–009 follow and are
 out of scope here.
 
 **Settled decisions** (from the planning phase — not reopened by this spec): D1, D2, D3, D5,
@@ -31,7 +31,7 @@ D9, D11, D12, D13, D14, D15, Q11→(c), Q14→(i).
 - Q: Does 005 remove the DMX-scene swallow-and-continue compatibility (F4), or is it deferred again? → A: **Include it as behaviour change 7.** 004 recorded `REMOVAL_TARGET = "005"` in code and listed F4 as deferred to this feature; it is the last silent-data-loss path in the writer, and it ships with F17 as one "silent failure" story (US4).
 - Q: What performance budget applies to the load path, given coercion now runs where it previously did not? → A: **A stated one-time allowance plus an absolute ceiling** (option B). Decode may regress up to **2×**, and must stay under **75 ms** for the largest corpus document (measured today: 24 KB, 36.3 ms). Suite wall time and the write path keep the 10% rule. The allowance is one-time: feature 006 inherits the new measurement as its baseline, not the old one.
 - Q: What happens to a key the schema does not declare, once the root and the cues share one declared-field rule? → A: **Dropped, but logged** (option B). Same output as today's cue behaviour, extended to the root, plus one log record per dropped key naming the class and the key, within 004's logging budget. Silent loss is how data disappears without a trace; an error would break objects that construct fine today.
-- Q: When coercion moves to the field specification, do the property setters' value-rejecting rules start running on the load path? → A: **No — adapters coerce; setter rejections gain no new reach on the load path** (option A), expressed as outcome parity per document rather than as a blanket rule. Measured by AST sweep: **14 setters can reject a value**, not one, and three of their rules (`canvas_region` containment, fade-profile/template caps, media `duration`) are precisely the rules the target design assigns to feature 006's T2 tier. A second measurement refined the answer: the load path is **already mixed** — repeated members are built through the model constructor and so *do* run their setters, which is why two legacy corpus documents are rejected at decode today with that outcome pinned in the goldens. So parity, in both directions, is the requirement (FR-006/FR-006a), not "setters never fire on load". The inventory and the mixed-strategy evidence are carried into `specs/planning/xml-rebuild-06-target-design.md` §9.1, together with a **required decision stop** in 006 (§9.2) to re-analyse the load/write validation asymmetry against the engine and API structure that exist by then.
+- Q: When coercion moves to the field specification, do the property setters' value-rejecting rules start running on the load path? → A: **No — adapters coerce; setter rejections gain no new reach on the load path** (option A), expressed as outcome parity per document rather than as a blanket rule. Measured by AST sweep: **14 setters can reject a value**, not one, and three of their rules (`canvas_region` containment, fade-profile/template caps, media `duration`) are precisely the rules the target design assigns to feature 006's T2 tier. A second measurement refined the answer: the load path is **already mixed** — repeated members are built through the model constructor and so *do* run their setters, which is why two legacy corpus documents are rejected at decode today with that outcome pinned in the goldens. So parity, in both directions, is the requirement (FR-006/FR-006a), not "setters never fire on load". The inventory and the mixed-strategy evidence are carried into `specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §9.1, together with a **required decision stop** in 006 (§9.2) to re-analyse the load/write validation asymmetry against the engine and API structure that exist by then.
 
 ---
 
@@ -50,7 +50,7 @@ evidence, rather than left as an open marker.
   rules start running on the load path?** → **No — and none may stop running either.**
   Coercion is not validation, and the requirement is per-document outcome parity in both
   directions (FR-006, FR-006a). Measured by AST sweep on 2026-08-12: **14 setters can reject
-  a value** (listed in `specs/planning/xml-rebuild-06-target-design.md` §9.1). Three of their
+  a value** (listed in `specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §9.1). Three of their
   rules — `canvas_region` containment, fade-profile and template caps, media `duration` —
   are the exact seeds of feature 006's T2 tier, so widening them here would import that tier
   a release early without its structure. Two refinements came out of measurement rather than
@@ -61,7 +61,7 @@ evidence, rather than left as an open marker.
   against the code**: that rejection is raised by `VideoCueOutput.__init__`, which calls the
   module-level `_classify_output_name` (`src/cuemsutils/cues/CueOutput.py:154`) *before*
   `super().__init__` — not by `CueOutput.set_output_name`, as this spec and
-  `specs/planning/xml-rebuild-06-target-design.md` §9.1 previously stated. That setter exists
+  `specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §9.1 previously stated. That setter exists
   and also calls `_classify_output_name`, but its additional region-consistency rules are gated
   on `_initialized`, which `__init__` holds false during population. Preserving the pinned
   outcome therefore means preserving the *constructor call*, not setter invocation.
@@ -405,7 +405,7 @@ behaviour unless the spec states otherwise; these are the stated exceptions)*
 - **FR-027**: No public API signature changes, no `.xsd` edits, no `xml/` visibility changes,
   and no edits to consumer repositories in this feature.
 - **FR-UX-001**: Consumer-visible consequences of all seven changes MUST be written into the
-  migration notes carried by the rebuild, in the same form 004 established, so feature 008
+  migration notes carried by the rebuild, in the same form 004 established, so feature 009
   inherits a complete record. No user-facing wording or defaults change beyond the enumerated
   items.
 - **FR-PERF-001**: Construction is on the hot path for large scripts, so this feature MUST
@@ -489,7 +489,7 @@ behaviour unless the spec states otherwise; these are the stated exceptions)*
 5. `REQ_ITEMS` remains the hand-written declared-defaults source and developer index; this
    feature does not replace it with generated code.
 6. No consumer repository is edited. Consumers observe richer types on loaded objects; that
-   migration is feature 008, informed by the notes FR-UX-001 requires here.
+   migration is feature 009, informed by the notes FR-UX-001 requires here.
 7. The initial-template identifier change is acceptable to the Angular UI because three of the
    five cue identifiers in that template already arrive empty today — the change makes the
    remaining two consistent with the intent already expressed in the code.
@@ -509,12 +509,12 @@ behaviour unless the spec states otherwise; these are the stated exceptions)*
 Public API changes and the new `load`/`save`/`validate`/`from_json`/`to_wire` surface
 (feature 006); making `xml/` internal (006); the `initial_template`↔`project_load` encoding
 alignment and the `schemaLocation` changes (006); the node model migration (007); all
-consumer repository edits (008); `.xsd` edits (deferred under D3); the deferred schema items
+consumer repository edits (009); `.xsd` edits (deferred under D3); the deferred schema items
 X1–X13.
 
 **Explicitly not fixed here**: the setters' value-rejecting rules neither gain nor lose reach
 on the load path (FR-006, FR-006a, FR-006b). The asymmetry they create — the same value
 rejected or accepted depending on which decode strategy its type happens to reach — survives
 this feature deliberately, and is resolved by feature 006's recorded decision stop
-(`specs/planning/xml-rebuild-06-target-design.md` §9.2), together with the runtime-vs-persisted
+(`specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §9.2), together with the runtime-vs-persisted
 state question raised here and recorded as 006's second stop (§8.1).

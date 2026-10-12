@@ -12,6 +12,13 @@ is what happens to a field the hardcoded branch has never heard of — which is
 why ``test_a_field_declared_out_of_alphabetical_position_still_orders``
 exercises the general rule rather than the special case.
 
+``fade_profiles`` itself is gone (feature 008, FR-007a) — the pair this file
+originally used, ``master_vol``/``fade_profiles``, no longer exists.
+``outputs``/``master_vol`` demonstrates the identical property: ``outputs``
+precedes ``master_vol`` in ``AudioCueType``'s schema order but not
+alphabetically, so it still tells order-from-schema apart from
+order-from-sorting.
+
 **Fail-before-pass**: ``test_engine_contains_no_field_name_ordering_literals``
 fails against pre-refactor code, because that branch is precisely a field-name
 string comparison used to order output (plan §II).
@@ -43,7 +50,11 @@ ENGINE_MODULES = (
 )
 
 #: Field names that must never appear as ordering literals in engine source.
-ORDERING_SENTINELS = ("master_vol", "fade_profiles", "opacity")
+#: ``fade_profiles`` (feature 008, FR-007a) is no longer a field anywhere and
+#: dropped rather than replaced: a general field name like ``outputs`` is a
+#: legitimate literal elsewhere (a schema/element name), so this list stays
+#: the two names actually tied to the historical hack.
+ORDERING_SENTINELS = ("master_vol", "opacity")
 
 ENGINE_DIR = Path(spec_module.__file__).parent
 
@@ -55,19 +66,25 @@ def _existing_engine_sources():
             yield name, path.read_text(encoding="utf-8")
 
 
-def test_master_vol_precedes_fade_profiles():
-    """The ordering itself — necessary, and nowhere near sufficient."""
+def test_outputs_precedes_master_vol():
+    """The ordering itself — necessary, and nowhere near sufficient.
+
+    ``outputs`` precedes ``master_vol`` in ``AudioCueType``'s schema order,
+    the opposite of their alphabetical order — exactly the property
+    ``master_vol``/``fade_profiles`` used to demonstrate before ``fade_profiles``
+    was deleted (feature 008, FR-007a).
+    """
     spec = derive_named("script", "AudioCueType")
     names = list(spec.field_names)
-    assert names.index("master_vol") < names.index("fade_profiles")
+    assert names.index("outputs") < names.index("master_vol")
 
 
 def test_the_order_survives_a_shuffled_input():
     """The engine reorders; it does not merely preserve what it was handed."""
     spec = derive_named("script", "AudioCueType")
-    assert spec.order_keys(["fade_profiles", "master_vol"]) == [
+    assert spec.order_keys(["master_vol", "outputs"]) == [
+        "outputs",
         "master_vol",
-        "fade_profiles",
     ]
 
 

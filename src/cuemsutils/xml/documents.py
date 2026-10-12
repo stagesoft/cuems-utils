@@ -1,0 +1,342 @@
+"""Document-level read, validate and write (T024, T028) — internal.
+
+Split out of ``XmlReaderWriter`` so the public surface can delegate here.
+``XmlReaderWriter`` becomes a one-release deprecation shim over
+``CuemsScript.load``/``save`` in US4, and a shim that calls the class that
+calls it is a circle. Everything the shim needs lives here instead, and the
+import direction stays one-way: ``documents`` never imports
+``xml_reader_writer``.
+
+Nothing in this module validates *semantics*. T1 is the schema and lives here;
+T2 is ``validators.run_rules`` and is invoked from the public surface, so that
+"reading never becomes stricter" (standing rule 8) is a property of the call
+sites rather than of a flag threaded through here.
+"""
+
+from __future__ import annotations
+
+import os
+import stat
+import tempfile
+from os import PathLike
+from pathlib import Path
+from xml.etree.ElementTree import ElementTree, register_namespace
+
+from xmlschema import XMLSchema11
+
+from ..errors import SchemaError
+from ..log import Logger
+from .converter import CuemsConverter
+from .mapper import build_document
+
+#: The one namespace every CueMS document declares.
+NAMESPACE = {"cms": "https://stagelab.coop/cuems/"}
+
+#: Root element per schema. Previously a default argument on ``CuemsXml`` plus
+#: a table in the golden harness; one table, named once.
+XML_ROOT_TAG = {
+    "script": "CuemsProject",
+    "settings": "CuemsSettings",
+    "network_map": "CuemsNetworkMap",
+    "project_mappings": "CuemsProjectMappings",
+    "project_settings": "CuemsProjectSettings",
+    "hardware_outputs": "CuemsHardwareOutputs",
+}
+
+#: Reader configuration **A** (FR-013): what ``XmlReaderWriter.read`` uses, and
+#: what every ``*.reader.json`` golden was captured with. ``strip_namespaces``
+#: is ``False`` here and ``True`` in configuration B, and the difference is
+#: visible in the payload — it is why the leaked ``schemaLocation`` key carries
+#: its full namespace.
+DOCUMENT_READER_OPTIONS = {
+    "validation": "strict",
+    "strip_namespaces": False,
+}
+
+#: Built ``XMLSchema11`` objects, keyed on the resolved ``.xsd`` **path**.
+#:
+#: Keyed on the path rather than on the schema name so that a test relocating
+#: the schemas directory gets a fresh object rather than a stale one — which
+#: is exactly what the portability test (T078) does.
+_SCHEMA_CACHE: dict[str, XMLSchema11] = {}
+
+
+def get_pkg_schema(schema_name: str) -> str:
+    """The absolute path to a bundled ``.xsd``.
+
+    Accepts the bare name or the filename — consumers pass both spellings.
+    """
+    schemas_dir = os.path.join(os.path.dirname(__file__), "schemas")
+    if not schema_name.endswith(".xsd"):
+        schema_name = schema_name + ".xsd"
+    schema = os.path.join(schemas_dir, schema_name)
+    if not os.path.isfile(schema):
+        raise FileNotFoundError(f"Schema file {schema_name} not found")
+    return schema
+
+
+def schema_object(schema_name: str) -> XMLSchema11:
+    """The compiled schema, built once per process per ``.xsd`` path.
+
+    ``XmlReaderWriter`` compiles one per instance, which is the single largest
+    fixed cost on the read path. Caching it is safe because ``XMLSchema11`` is
+    read-only once built, and it is what keeps ``load()`` inside SC-PERF-001's
+    budget without the projection having to cut corners.
+    """
+    path = get_pkg_schema(schema_name)
+    cached = _SCHEMA_CACHE.get(path)
+    if cached is None:
+        cached = _SCHEMA_CACHE[path] = XMLSchema11(path, converter=CuemsConverter)
+    return cached
+
+
+def clear_cache() -> None:
+    """Drop every compiled schema. For tests that relocate the schemas dir."""
+    _SCHEMA_CACHE.clear()
+
+
+def read_document(schema_name: str, source: str | PathLike) -> dict:
+    """Decode a document under reader configuration A.
+
+    ``OSError``/``FileNotFoundError`` propagate unwrapped (FR-035); a
+    structurally invalid document raises ``xmlschema``'s validation error,
+    which the public surface translates to ``SchemaError``.
+
+    A thin wrapper over :func:`read_document_versioned` for callers that only
+    want the decoded dict — any version conversion still runs, it is just not
+    reported back.
+    """
+    decoded, _version, _steps = read_document_versioned(schema_name, source)
+    return decoded
+
+
+def read_document_versioned(schema_name: str, source: str | PathLike):
+    """As :func:`read_document`, but ITEM E's version-aware read (US6).
+
+    Probes the document's version marker **before** any schema decode is
+    attempted (research R2), applies any conversion the registry names for
+    its version, and only then decodes against the current schema — so the
+    strict T1 decode below always sees a document shaped like the current
+    schema, converted or not.
+
+    Returns ``(decoded, original_version, conversion_steps)``, exactly the
+    shape :func:`mapper.read_versioned_config_document` returns for the
+    configuration domains, so the public surface builds a ``LoadReport`` the
+    same way from either.
+
+    Raises:
+        FileNotFoundError: unwrapped (FR-035).
+        versioning.DocumentTooNewError: the document's marker exceeds this
+            schema's current version (FR-052). The public surface translates
+            this to a distinguishable ``ValidationError``.
+    """
+    from xml.etree.ElementTree import parse as _parse_tree
+
+    from .versioning import CURRENT_VERSION, DocumentTooNewError, convert, read_version
+
+    source = os.fspath(source)
+    # INFO is declared at the level of XML file access (FR-033): one record per
+    # file touched, never one per cue.
+    Logger.info(f"Reading {schema_name} document {source}")
+    if not os.path.exists(source):
+        raise FileNotFoundError(f"No such file: {source}")
+
+    tree = _parse_tree(source)
+    version = read_version(tree)
+    current = CURRENT_VERSION[schema_name]
+    if version > current:
+        raise DocumentTooNewError(schema_name, version, current)
+    steps = convert(schema_name, tree, version, current) if version < current else []
+    raise_if_old_device_shape(schema_name, source, tree)
+    decoded = schema_object(schema_name).to_dict(tree, **DOCUMENT_READER_OPTIONS)
+    return decoded, version, tuple(steps)
+
+
+#: Children the current ``project_mappings`` root and node declare. Anything
+#: else is the pre-013 shape. These are element names from the schema, not a
+#: device-class vocabulary (FR-010).
+_CURRENT_ROOT_CHILDREN = frozenset({
+    "number_of_nodes", "defaults", "nodes", "new_nodes",
+})
+_CURRENT_NODE_CHILDREN = frozenset({"uuid", "mac", "devices"})
+#: Old settings element names. Not device-class words, so the class-list
+#: ratchet does not see them; they are spellings being deleted.
+_OLD_PLAYER_ELEMENTS = frozenset({"videoplayer", "audioplayer", "dmxplayer"})
+#: Old script element names, same status: spellings being deleted, not a
+#: vocabulary. ``ActionCue``, ``FadeCue`` and ``CueList`` are **not** here —
+#: they are cue kinds and keep their own elements (FR-050a).
+_OLD_CUE_ELEMENTS = frozenset({"AudioCue", "VideoCue", "DmxCue"})
+_OLD_CUE_OUTPUT_ELEMENTS = frozenset(
+    {"AudioCueOutput", "VideoCueOutput", "DmxCueOutput"}
+)
+
+
+def _local(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def raise_if_old_device_shape(schema_name: str, source: str, tree: ElementTree) -> None:
+    """Name the migration when a document is still in the pre-013 shape.
+
+    After the version probe and before schema decode. A bare ``xs:sequence``
+    complaint is the X13 failure this exists to prevent (FR-027).
+
+    One function, one branch per reshaped schema. ``script`` reaches it through
+    ``CuemsScript.load_with_report``, which calls
+    :func:`read_document_versioned` like every other load path, so the show
+    document needs no second copy of the message in ``cues/CuemsScript.py``.
+    """
+    root = tree.getroot()
+    if schema_name == "project_mappings":
+        root_names = {_local(child.tag) for child in list(root)}
+        old = bool(root_names - _CURRENT_ROOT_CHILDREN)
+        if not old:
+            for node in root.iter():
+                if _local(node.tag) != "node":
+                    continue
+                names = {_local(child.tag) for child in list(node)}
+                if names - _CURRENT_NODE_CHILDREN:
+                    old = True
+                    break
+        if not old:
+            return
+        raise SchemaError(
+            f"project_mappings document {source} is in the pre-013 device shape "
+            "(<audio>/<video>/<dmx> on <node>). Run `cuems-reshape-devices` to migrate it."
+        )
+    if schema_name == "settings":
+        for node in root.iter():
+            if _local(node.tag) != "node":
+                continue
+            names = {_local(child.tag) for child in list(node)}
+            if names & _OLD_PLAYER_ELEMENTS:
+                raise SchemaError(
+                    f"settings document {source} is in the pre-013 device shape "
+                    "(<videoplayer>/<audioplayer>/<dmxplayer> on <node>). "
+                    "Run `cuems-reshape-devices` to migrate it."
+                )
+    if schema_name == "script":
+        for element in root.iter():
+            local = _local(element.tag)
+            if local in _OLD_CUE_ELEMENTS or local in _OLD_CUE_OUTPUT_ELEMENTS:
+                raise SchemaError(
+                    f"script document {source} is in the pre-013 device shape "
+                    "(<AudioCue>/<VideoCue>/<DmxCue> and "
+                    "<AudioCueOutput>/<VideoCueOutput>/<DmxCueOutput>). "
+                    "Run `cuems-reshape-devices` to migrate it."
+                )
+
+
+def build_tree(obj, schema_name: str) -> ElementTree:
+    """Serialize a model object to an element tree — no file, no validation."""
+    return build_document(
+        obj,
+        schema_name=schema_name,
+        namespace=NAMESPACE,
+        xsd_path=get_pkg_schema(schema_name),
+        xml_root_tag=XML_ROOT_TAG[schema_name],
+    )
+
+
+def iter_schema_errors(schema_name: str, tree: ElementTree):
+    """Every T1 violation in ``tree``, in document order.
+
+    ``iter_errors`` rather than ``validate`` because ``validate()`` collects
+    (FR-004) and ``save()`` stops at the first — one generator serves both, so
+    the two cannot report a document differently.
+    """
+    return schema_object(schema_name).iter_errors(tree)
+
+
+#: What a document should be created as when there is no target to copy from —
+#: before the umask narrows it. ``0666`` and not ``0777``: a serialized document
+#: is data, and nothing in this package should ever write an executable file.
+_NEW_DOCUMENT_MODE = 0o666
+
+
+def _current_umask() -> int:
+    """This process's umask, read without widening it even momentarily.
+
+    ``os.umask`` only *returns* the old value by setting a new one, so reading
+    it is unavoidably a write. The probe value is therefore ``0o077`` rather
+    than the conventional ``0``: if another thread creates a file inside the
+    (microseconds-long) window, it comes out **more** restrictive than it asked
+    for, never world-writable. This package runs inside threaded daemons —
+    ``cuems-nodeconf``'s resident worker loop among them — so "the window is
+    short" is not on its own a reason to fail open in it.
+    """
+    probe = os.umask(0o077)
+    os.umask(probe)
+    return probe
+
+
+def _mode_for(target: Path) -> int:
+    """The mode the written document should end up with.
+
+    An existing target keeps its own: whoever set it — the operator, or
+    ``cuems-common``'s ``debian/install`` — made a decision this package does
+    not get to overrule by rewriting the file. Only when there is nothing to
+    copy from does it fall back to the umask-narrowed default.
+    """
+    try:
+        return stat.S_IMODE(os.stat(target).st_mode)
+    except OSError:
+        # Absent (the ordinary first-write case), or vanished between the stat
+        # and now. Either way there is no prior decision to honour.
+        return _NEW_DOCUMENT_MODE & ~_current_umask()
+
+
+def write_tree(tree: ElementTree, target: str | PathLike) -> None:
+    """Write ``tree`` to ``target`` atomically (FR-003, FR-036a).
+
+    A temporary file in the **same directory** followed by ``os.replace``: same
+    filesystem, so the rename is atomic, and a reader either sees the previous
+    document or the new one and never a truncated one. On any failure the
+    temporary is removed and the target is left exactly as it was — including
+    *not existing*, when it did not.
+
+    ``encoding="utf-8"`` and ``xml_declaration=True`` are passed explicitly and
+    are not optional. The previous writer passed both; this is the one place an
+    atomic rewrite could silently introduce the package's first
+    locale-dependent path, and the failure would be invisible on a UTF-8
+    developer machine and fatal on a node booted with ``LANG=C`` (C6).
+
+    The target's **mode is preserved** across the replace (feature 010, T080).
+    ``os.replace`` carries the *temporary's* permissions onto the target, and
+    ``mkstemp`` creates ``0600`` by construction, so without this every save
+    silently narrowed the document to its author. That is an outage, not an
+    untidiness: ``cuems-nodeconf`` writes ``network_map.xml`` as **root** while
+    the engines read it as ``User=cuems``, and ``cuems-common`` ships the file
+    ``0644`` exactly so they can. Reported from ``cuems-nodeconf``'s feature 001
+    after measuring ``0644`` in and ``0600`` out.
+
+    **The ``cms`` prefix is registered here**, not left to whoever ran first.
+    ``ElementTree.parse`` discards prefix declarations and keeps only the URI,
+    so serializing a parsed tree emits a generated ``ns0:`` unless the prefix is
+    registered — and ``register_namespace`` writes to a module-level table in
+    ``ElementTree``, so until feature 013 the prefix happened to survive only
+    because ``mapper.build_document`` had usually registered it earlier in the
+    same process. ``cuems-reshape-devices`` and ``cuems-convert-documents``
+    rewrite a *parsed* tree without ever building one, so for them it had not.
+    The symptom is a document that still validates and still loads with every
+    ``cms:`` turned into ``ns0:`` — found by ``test_roundtrip_stability.py``'s
+    canonical-document assertion, because the library's own writer would then no
+    longer reproduce the file byte for byte.
+    """
+    register_namespace(next(iter(NAMESPACE)), next(iter(NAMESPACE.values())))
+    target = Path(os.fspath(target))
+    handle, temporary = tempfile.mkstemp(
+        dir=str(target.parent), prefix=f".{target.name}.", suffix=".tmp"
+    )
+    os.close(handle)
+    try:
+        os.chmod(temporary, _mode_for(target))
+        tree.write(temporary, encoding="utf-8", xml_declaration=True)
+        os.replace(temporary, target)
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except OSError:  # pragma: no cover - the replace already consumed it
+            pass
+        raise
+    Logger.info(f"Wrote document {target}")

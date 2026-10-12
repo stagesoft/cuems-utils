@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
+
 from enum import Enum
 
 from ..helpers import ensure_items, format_timecode
@@ -8,12 +12,22 @@ _ZERO_TC = CTimecode('00:00:00.000')
 
 
 class FadeCurveType(Enum):
-    """Enumeration of supported fade curve shapes."""
+    """Enumeration of supported fade curve shapes.
+
+    ``linear``, ``sigmoid``, ``ease_in`` and ``ease_out`` are the shapes
+    gradient-motiond's CurveFactory implements; the editor UI submits these.
+    ``exponential`` and ``logarithmic`` are legacy names kept so projects
+    authored by older editors still load — CurveFactory does NOT implement
+    them, and the frontend maps them onto ``ease_in``/``ease_out`` (the same
+    accelerating/decelerating shapes) on load, healing them on next save.
+    """
 
     linear = 'linear'
     exponential = 'exponential'
     logarithmic = 'logarithmic'
     sigmoid = 'sigmoid'
+    ease_in = 'ease_in'
+    ease_out = 'ease_out'
 
     def __str__(self):
         return self.value
@@ -97,10 +111,11 @@ class FadeCue(ActionCue):
             ValueError: If action_type is not 'fade_action' and the object is
                 fully initialised (post-construction assignment).
         """
-        if getattr(self, '_initialized', False) and action_type != 'fade_action':
-            raise ValueError(
-                f"action_type must be 'fade_action' for FadeCue, got '{action_type}'"
-            )
+        from ..xml.validators import enforce
+
+        # The gate stays; only the rule body moved (T073).
+        if getattr(self, '_initialized', False):
+            enforce('fade_action_type', action_type, self)
         super().set_action_type(action_type)
 
     action_type = property(get_action_type, set_action_type)
@@ -129,21 +144,21 @@ class FadeCue(ActionCue):
 
         Args:
             curve_type (FadeCurveType | str): A FadeCurveType member or its
-                string value ('linear', 'exponential', 'logarithmic', 'sigmoid').
+                string value ('linear', 'sigmoid', 'ease_in', 'ease_out', or
+                the legacy 'exponential'/'logarithmic').
 
         Raises:
             ValueError: If curve_type is not a recognised value.
         """
-        if isinstance(curve_type, FadeCurveType):
-            super(ActionCue, self).__setitem__('curve_type', curve_type)
-            return
-        try:
-            super(ActionCue, self).__setitem__('curve_type', FadeCurveType(curve_type))
-        except ValueError:
-            valid = [e.value for e in FadeCurveType]
-            raise ValueError(
-                f"curve_type must be one of {valid}, got '{curve_type}'"
-            )
+        from ..xml.validators import enforce
+
+        enforce('fade_curve_type', curve_type, self)
+        super(ActionCue, self).__setitem__(
+            'curve_type',
+            curve_type
+            if isinstance(curve_type, FadeCurveType)
+            else FadeCurveType(curve_type),
+        )
 
     curve_type = property(get_curve_type, set_curve_type)
 
@@ -172,13 +187,13 @@ class FadeCue(ActionCue):
         Raises:
             ValueError: If duration is a non-None value that is zero or negative.
         """
+        from ..xml.validators import enforce
+
+        enforce('fade_duration_positive', duration, self)
         if duration is None:
             super(ActionCue, self).__setitem__('duration', None)
             return
-        result = format_timecode(duration)
-        if result <= _ZERO_TC:
-            raise ValueError('duration must be positive and non-zero')
-        super(ActionCue, self).__setitem__('duration', result)
+        super(ActionCue, self).__setitem__('duration', format_timecode(duration))
 
     duration = property(get_duration, set_duration)
 
@@ -203,12 +218,10 @@ class FadeCue(ActionCue):
         Raises:
             ValueError: If target_value is outside [0, 100].
         """
-        value = int(target_value)
-        if not (0 <= value <= 100):
-            raise ValueError(
-                f'target_value must be between 0 and 100, got {value}'
-            )
-        super(ActionCue, self).__setitem__('target_value', value)
+        from ..xml.validators import enforce
+
+        enforce('fade_target_value_range', target_value, self)
+        super(ActionCue, self).__setitem__('target_value', int(target_value))
 
     target_value = property(get_target_value, set_target_value)
 

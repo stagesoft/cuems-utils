@@ -110,7 +110,7 @@ remaining technical unknowns.
   names and file paths from log files.
 - Deprecation warnings are a new user-facing surface. One mechanism, one message format,
   each naming symbol, replacement and removal release (FR-027) — they are the migration
-  documentation for feature 008.
+  documentation for feature 009.
 - **One declared breaking change (FR-026d)**, which the constitution permits only with a
   documented migration plan: it is named in the spec, recorded in the migration map,
   flagged in `CHANGELOG.md`, and asserted by test (SC-017) — all of it in this repository.
@@ -333,7 +333,7 @@ All four are now carried by tasks; kept here for traceability.
 1. Enumerate the ~13 script types that reach a generic today, by instrumentation over the
    corpus, and write them as explicit bindings. → **T041, T042**
 2. Produce the shim → replacement → consumer call-site table (FR-028), the input to
-   feature 008. → **T031**, with the FR-026d break declared at **T031a/T031b** and
+   feature 009. → **T031**, with the FR-026d break declared at **T031a/T031b** and
    asserted at **T049a**; its fix is scheduled into feature 007
 3. Confirm corpus coverage of all six schemas before P8. → **T008**
 4. Deferred schema items for the audit's X-series: `outputs.xsd`'s colliding `OutputsType`

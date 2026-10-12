@@ -10,4 +10,5 @@
 ::: cuemsutils.tools.HubServices
 ::: cuemsutils.tools.SignalEngine
 ::: cuemsutils.tools.StringSanitizer
+::: cuemsutils.tools.TimeoutLoop
 ::: cuemsutils.tools.Uuid

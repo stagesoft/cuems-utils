@@ -27,17 +27,17 @@ that vanishes without the count changing takes its coverage with it.
 
 | Directory | Documents |
 |---|---|
-| `cuems-utils/` | **5** |
+| `cuems-utils/` | **7** |
 | `cuems-engine/` | **16** |
 | `cuems-editor/` | **1** |
 | `cuems-common/` | **1** |
 | `legacy/` | **2** |
 | `negative/` | **3** |
-| **Total** | **28** |
+| **Total** | **30** |
 
-Generated documents from `src/cuemsutils/create_script.py` are **not** counted here: they
-are produced by the harness at capture time rather than vendored, and their goldens live
-under `tests/golden/generated/` (T012).
+Generated documents from `cuemsutils.xml.descriptor`'s example-script generator (feature
+008, T070) are **not** counted here: they are produced by the harness at capture time
+rather than vendored, and their goldens live under `tests/golden/generated/` (T012).
 
 ---
 
@@ -53,9 +53,58 @@ where the existing suite expects them.
 | `project_mappings.xml` | `99e60090` | `5ac1d46` | 2026-04-21 |
 | `default_mappings.xml` | `ad253162` | `5ac1d46` | 2026-04-21 |
 | `outputs.xml` | `cd178d84` | **derived — see below** | 2026-08-11 |
+| `fade_showcase.xml` | **authored — see below** | `006-public-object-api` T003c | 2026-08-19 |
+| `unicode_showcase.xml` | **authored — see below** | `006-public-object-api` T003b | 2026-08-19 |
 
 `settings_bad_dmx_auto.xml` is vendored under `negative/` instead, since its whole purpose
 is to be rejected.
+
+### `cuems-utils/fade_showcase.xml` — authored for feature 006, T003c
+
+No vendored document anywhere in the four repositories contains a `FadeCue` or a
+`fade_profiles` block (`corpus-sweep.md` confirms this by grep). Eight of the fifteen
+value-rejecting setter rules — `FadeCue.set_action_type`, `set_curve_type`, `set_duration`,
+`set_target_value`, `FadeProfile.set_type`, `set_mode`, `set_parameters`,
+`FadeProfile.set_parameter_value` (via `MediaCue.set_fade_profiles`'s `fade_profile_caps`
+check) — therefore have zero corpus coverage (R05–R12 in `corpus-sweep.md`).
+
+This document is hand-authored, not vendored: one `AudioCue` carrying both an `in` (preset)
+and an `out` (parametric, one parameter) `fade_profiles` entry, and one `FadeCue` targeting
+that `AudioCue`. It loads, decodes to objects and writes back under the pre-feature code
+(verified directly against `XmlReaderWriter` before this feature's goldens were captured),
+so it enters the corpus the same way `outputs.xml` did — as a document this library itself
+is proven to accept today, not as a claim about any other repository's fixtures.
+
+### `cuems-utils/unicode_showcase.xml` — authored for feature 006, T003b
+
+The corpus contained **zero non-ASCII bytes** before this feature (measured 2026-08-18), so
+no existing test could catch a UTF-8 or locale-encoding regression (FR-036d). This document
+is hand-authored: accented vowels, `ç`, `ñ` and an apostrophe appear in the show name, in
+cue names, in a cue description and inside `ui_properties` wildcard content. It loads,
+decodes to objects and writes back under the pre-feature code, verified the same way as
+`fade_showcase.xml` above.
+
+### Why feature 014's media-block fixture is **not** here
+
+`tests/data/media_block/media_block_showcase.xml` exercises the four `MediaType` elements
+feature 014 adds (`pixel_width`, `pixel_height`, `file_size`, `file_md5`). It is deliberately
+**outside** this corpus, and the reason is this directory's own membership rule rather than
+convenience.
+
+Every entry here is a document *"this library itself is proven to accept today"* — that is the
+sentence `fade_showcase.xml` and `outputs.xml` were admitted under — and `outcomes.json` records
+each one's **pre-refactor verdict**, which `test_accept_reject_parity` then asserts has not
+changed.
+
+A document carrying the media block **cannot have a pre-refactor verdict.** Before 014 the four
+elements are not declared, so the pre-feature library *rejects* it. Giving it an `outcomes.json`
+entry would mean inventing a verdict for a document that did not exist when those verdicts were
+taken — precisely what the "edit it surgically or not at all" rule exists to prevent.
+
+So it lives beside its tests. This is a correction to feature 014's T001, which said to put it
+here; the task was written before the membership rule was read. A document that only becomes
+valid *because of* the feature under test belongs with that feature's tests, not in the corpus
+that proves the feature changed nothing it should not have.
 
 ### `cuems-utils/outputs.xml` is derived, not vendored — and why it had to be
 
@@ -68,21 +117,21 @@ engine:  xmlns:cms="https://stagelab.coop/cuems"      <- no trailing slash
 schema:  targetNamespace="https://stagelab.coop/cuems/"
 ```
 
-The engine's `outputs.xml` — the only `outputs.xsd` instance that exists anywhere across
+The engine's `outputs.xml` — the only `hardware_outputs.xsd` instance that exists anywhere across
 the four repositories — therefore **does not load**:
 
 ```
 XMLSchemaKeyError: "the namespace 'https://stagelab.coop/cuems' is not loaded"
 ```
 
-Without a corrected copy, `outputs.xsd` would have **zero** loadable instances and SC-009
+Without a corrected copy, `hardware_outputs.xsd` would have **zero** loadable instances and SC-009
 ("at least one real instance document for each of the six schemas") would be unmeetable —
 byte-identity for the outputs path would be asserted against nothing. The original stays
 vendored, unmodified, with its rejection pinned by T018; this copy is what gives the sixth
 schema an accepted document.
 
 **New finding, recorded for T066.** This is not the `OutputsType` collision of research R4
-— that one explains why `outputs.xsd` is never *loaded alongside* `script.xsd`. This is a
+— that one explains why `hardware_outputs.xsd` is never *loaded alongside* `script.xsd`. This is a
 second, independent reason nothing has ever validated against it: the only instance in
 existence has a namespace typo. Both point the same way — the outputs path has never run.
 

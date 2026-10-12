@@ -1,7 +1,25 @@
-"""XML serialization for the CueMS object model.
+"""XML serialization for the CueMS object model — **internal machinery**.
 
-The public surface is the five names in ``__all__``. Everything else in this
-package is internal machinery (Q14).
+``__all__`` is empty (FR-019). This package exports nothing, and everything in
+it is machinery behind two public entry points:
+
+``cuemsutils.cues.CuemsScript.CuemsScript``
+    show data — ``load``, ``save``, ``validate``, ``from_json``, ``to_json``,
+    ``to_wire``.
+``cuemsutils.tools.ConfigManager.ConfigManager``
+    configuration.
+
+**Dotted access still works this release, and is unsupported** (FR-019a).
+``from cuemsutils.xml import XmlReaderWriter`` resolves and warns; it is gone in
+``v0.1.1``. Keeping it functional is not an oversight — the deprecation shims
+below *resolve through it*, so emptying ``__all__`` and making the names
+unreachable are different changes. Genuine lockdown is feature 009's, together
+with the consumer migration the shims exist to buy time for.
+
+This docstring used to open *"The public surface is the five names in
+``__all__``"*. That sentence and the ``__all__`` below would now contradict each
+other, and a module whose docstring disagrees with its own exports is the first
+thing a maintainer reads.
 """
 
 # Import the deprecated-path shims FIRST, and do not remove these two lines.
@@ -17,18 +35,94 @@ package is internal machinery (Q14).
 # Importing them here forces that attribute assignment to happen before the
 # class bindings, so the classes win permanently — Python sets the parent
 # attribute only on a submodule's initial import. The old import paths keep
-# working, and the package root keeps exporting classes.
+# working, and the package root keeps binding classes.
 #
 # Neither import emits a warning: the shims warn on use, never on import.
+from .._deprecation import deprecated_alias
 from . import Settings as _settings_shim  # noqa: F401
 from . import XmlReaderWriter as _xml_reader_writer_shim  # noqa: F401
-from .settings import NetworkMap, ProjectMappings, ProjectSettings, Settings
-from .xml_reader_writer import XmlReaderWriter
+from .Parsers import CuemsParser as _CuemsParser
+from .settings import NetworkMap as _NetworkMap
+from .settings import ProjectMappings as _ProjectMappings
+from .settings import ProjectSettings as _ProjectSettings
+from .settings import Settings as _Settings
+from .xml_reader_writer import XmlReaderWriter as _XmlReaderWriter
 
-__all__ = [
-    'NetworkMap',
-    'ProjectMappings',
-    'ProjectSettings',
-    'Settings',
-    'XmlReaderWriter',
-]
+#: Where each retired entry point's traffic goes (T061, D2's migration map).
+_SCRIPT = "cuemsutils.cues.CuemsScript.CuemsScript"
+_CONFIG = "cuemsutils.tools.ConfigManager.ConfigManager"
+
+#: The one per-method note in the whole feature (D2a).
+#:
+#: ``read()`` returns the reader dict; its replacement returns the projection,
+#: and the two differ by the ``schemaLocation`` key — an XML artifact with no
+#: meaning to a consumer. A caller told only "use ``to_wire`` instead" would
+#: find that out by diffing payloads in production.
+_READ_NOTE = "the returned dict no longer contains the schemaLocation key"
+
+#: The five methods that do **not** keep their name (D2's migration map).
+#:
+#: Without these the message is composed as ``f"{replacement}.{name}"`` and
+#: reports *"use CuemsScript.read"* — a method that does not exist. A warning
+#: naming a nonexistent replacement is worse than one naming none.
+_READER_WRITER_METHODS = {
+    "read": f"{_SCRIPT}.to_wire",
+    "read_to_objects": f"{_SCRIPT}.load",
+    "write_from_object": f"{_SCRIPT}.save",
+    "write_from_dict": f"{_SCRIPT}.from_json",
+    "validate_object": f"{_SCRIPT}.validate",
+}
+
+#: The public configuration validator (feature 013, FR-036, T059).
+_CONFIG_VALIDATOR = "cuemsutils.tools.validate_config_document"
+
+#: Schemas whose documents ``CuemsScript.validate`` **cannot** validate.
+#:
+#: ``hardware_outputs`` is deliberately absent: it is a *show* schema used by
+#: the editor's output picker, not a configuration document ``ConfigManager``
+#: reads, and it has no configuration accessor to be sent at.
+_CONFIG_SCHEMA_NAMES = frozenset(
+    {"settings", "network_map", "project_mappings", "project_settings"}
+)
+
+
+def _validate_advice_for(schema_name: str) -> str:
+    """Where a ``validate_object`` caller should actually go, per schema.
+
+    The advice used to be one string for every schema, pointing every caller at
+    ``CuemsScript.validate`` — which builds a *show* document and so cannot
+    validate a ``settings.xml`` at all. A consumer following it was sent
+    somewhere that could not work, with no reason to doubt it, which is worse
+    than no advice (UR-5, FR-036).
+
+    It has to be decided here, at the call, rather than by a second alias:
+    ``XmlReaderWriter`` is **one** class for all six schemas, and the schema is
+    not known until an instance exists.
+    """
+    if schema_name in _CONFIG_SCHEMA_NAMES:
+        return _CONFIG_VALIDATOR
+    return f"{_SCRIPT}.validate"
+
+# The six supported entry points this feature retires (contract C3). Five were
+# in ``__all__``; ``CuemsParser`` never was, and is the sixth because feature
+# 004 made it a supported path deliberately — it is `cuems-editor`'s primary
+# JSON -> object route. The library stopped calling it in T061a, which is what
+# lets it carry a warning without tripping contract C8 on itself.
+XmlReaderWriter = deprecated_alias(
+    _XmlReaderWriter,
+    _SCRIPT,
+    notes={"read": _READ_NOTE},
+    replacements=_READER_WRITER_METHODS,
+    per_instance={"validate_object": _validate_advice_for},
+)
+CuemsParser = deprecated_alias(_CuemsParser, f"{_SCRIPT}.from_json")
+Settings = deprecated_alias(_Settings, _CONFIG)
+NetworkMap = deprecated_alias(_NetworkMap, _CONFIG)
+ProjectMappings = deprecated_alias(_ProjectMappings, _CONFIG)
+ProjectSettings = deprecated_alias(_ProjectSettings, _CONFIG)
+
+#: Empty, and that is the surface statement (FR-019, SC-005).
+#:
+#: ``from cuemsutils.xml import *`` binds nothing. The names above remain
+#: reachable by dotted access for one release and warn on use.
+__all__: list[str] = []

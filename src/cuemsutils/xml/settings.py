@@ -2,14 +2,13 @@
  """
 
 import os
-import xml.etree.ElementTree as ET
 from typing import Any
 
+from .._deprecation import deprecated_symbol
 from ..helpers import strtobool
 from ..log import Logger
-from ..tools.CTimecode import CTimecode
-from .mapper import read_config_document
-from .validators import validate_custom_templates
+from .mapper import Mapper, read_versioned_config_document
+from .validators import validate_custom_templates, validate_node_identities
 from .xml_reader_writer import XmlReaderWriter
 
 
@@ -30,6 +29,12 @@ class Settings(XmlReaderWriter):
       self.xml_dict = {}
       self.processed = {}
       self.loaded = False
+      #: The document's declared version (1 if absent, FR-050) and the
+      #: conversion steps :meth:`read` applied, if any (feature 008, US6).
+      #: Set here so both are defined even when ``self.schema``/``self.xmlfile``
+      #: are ``None`` and :meth:`read` never runs.
+      self.document_version = 1
+      self.document_conversions = ()
 
       if self.schema is not None and self.xmlfile is not None:
           self.read()
@@ -64,54 +69,75 @@ class Settings(XmlReaderWriter):
 
         Decoding runs on the same engine as the show-document path: the schema
         comes from the shared cache and the converter is ``CuemsConverter``,
-        inherited from ``CuemsXml``. What these classes do **not** yet have is
-        a model layer — the four of them hand back raw dicts, which is why
-        their registry bindings are all ``GENERIC``. Giving configuration
-        documents real objects is feature 006.
+        inherited from ``CuemsXml``.
+
+        **The result is now objects** (T049, FR-014). These four classes handed
+        back raw nested dicts for as long as their registry bindings were all
+        ``GENERIC``; feature 006 binds the twenty-two config types to
+        ``cuemsutils.config`` models and routes the decoded dict through
+        ``Mapper.decode_config``, which substitutes classes and changes nothing
+        else — no coercion, no reshaping. See that method's docstring for why
+        both of those are the config domain stating a fact about itself rather
+        than the engine acquiring a mode.
+
+        **Version-aware as of feature 008** (ITEM E, US6): the document's
+        ``doc_version`` marker is probed **before** any schema decode is
+        attempted (research R2), and any conversion this schema's registry
+        names for that version runs first. Every configuration schema stays at
+        version 1 in this feature (FR-048b) — the marker is plumbed through
+        uniformly, but nothing here actually converts anything yet, and
+        ``versioning.CURRENT_VERSION`` is what makes that a measured fact
+        rather than an assumption (T099a).
         """
-        self.xml_dict = read_config_document(
-            self.schema_object,
-            self.xmlfile,
+        # A missing file raises ``FileNotFoundError`` rather than
+        # ``urllib.error.URLError``. Without the check ``xmlschema`` treats the
+        # path as a URL, and the resulting error — an ``OSError`` subclass that
+        # ``except FileNotFoundError`` does **not** catch, with a message about
+        # "urlopen error" — is the wrong answer to "is there a config file?".
+        #
+        # A **schema** failure is deliberately *not* wrapped here. This class
+        # is internal machinery (US4 makes it a deprecation shim), and its raw
+        # verdicts are what ``tests/golden/outcomes.json`` pins document by
+        # document. FR-014b's ``SchemaError`` belongs on the **accessor** — see
+        # ``ConfigBase.load_base_settings`` and ``ConfigManager`` — which is
+        # where contract C2 places it and where a consumer meets it.
+        if not os.path.exists(self.xmlfile):
+            raise FileNotFoundError(f'No such file: {self.xmlfile}')
+
+        raw, self.document_version, self.document_conversions = read_versioned_config_document(
+            self.schema_object, self.schema_name, self.xmlfile
         )
+        self.xml_dict = Mapper(self.schema_name, document=self.xmlfile).decode_config(raw)
         if (hasattr(self, 'process_xml_dict')):
             self.process_xml_dict() # type: ignore[attr-defined]
         self.loaded = True
 
-    def data2xml(self, obj):
-        xml_tree = ET.Element(self.main_key)
-        self.xmldata = self.buildxml(xml_tree, obj)
+    # ``data2xml`` / ``buildxml`` **deleted** (T056, D3).
+    #
+    # A ~35-line generic dict→ElementTree builder, on a class that has never
+    # had a working write path: building XML from a settings dict raised
+    # ``AttributeError`` inside the legacy ``XmlBuilder``, which is why the
+    # config classes' byte-identity contract has always been the read dict
+    # (C2) and never the written bytes. Nothing in this repository, in
+    # cuems-engine, in cuems-editor or in cuems-nodeconf called either method.
+    #
+    # It is deleted rather than fixed because the replacement already exists
+    # and is derived: ``Mapper.encode_xml`` builds from the schema, and the
+    # config types are registry-bound model classes as of this feature. A
+    # second, shape-guessing builder beside it is precisely the duplication
+    # 004 and 006 exist to remove.
 
-    def buildxml(self, xml_tree, d): #TODO: clean variable names, simplify¿
-        if isinstance(d, dict):
-            for k, v in d.items():
-                if isinstance(k, str):
-                    s = ET.SubElement(xml_tree, k)
+def _as_bool(val: Any) -> bool:
+    """``val`` as itself if already ``bool``, else through ``strtobool`` (R7).
 
-                elif isinstance(k, (dict)):
-                    s = ET.SubElement(xml_tree, type(k).__name__)
-                    s.text = str(k)
-                elif isinstance(k, (int, float)):
-                    s = ET.SubElement(xml_tree, type(v).__name__, id=str(k))
-                    if not isinstance(v, dict):
-                        s.text =str(v)
-                else:
-                    s = ET.SubElement(xml_tree, type(k).__name__)
+    ``get_nodes_by_adoption`` predates ``network_map`` running the adapter
+    table and was written against the ``"True"``/``"False"`` strings
+    ``cms:BoolType`` decodes to. It stays callable with either shape rather
+    than only the new one, because Assumption 8 keeps this method available
+    until feature 009 migrates its caller.
+    """
+    return val if isinstance(val, bool) else strtobool(val)
 
-                if isinstance(v, (type(None), CTimecode, dict, list, tuple, int, float, str)): #TODO: filter without using explicit classes (like CTimecode)
-                    self.buildxml(s, v)
-        elif isinstance(d, tuple) or isinstance(d, list):
-            for v in d:
-                s = ET.SubElement(xml_tree, type(v).__name__)
-                self.buildxml(s, v)
-        elif isinstance(d, str):
-            xml_tree.text = d
-        elif isinstance(d, (float, int)):
-      #  elif type(d) is int:
-            xml_tree.text = str(d)
-        else:
-            s = ET.SubElement(xml_tree, type(d).__name__)
-            self.buildxml(s, str(d))
-        return xml_tree
 
 class NetworkMap(Settings):
     """
@@ -127,10 +153,48 @@ class NetworkMap(Settings):
             **kwargs
         )
 
+    def process_xml_dict(self):
+        """Run the map's one T2 rule on read (feature 012, FR-019a).
+
+        Mirrors ``ProjectMappings.process_xml_dict``, which is this project's
+        established shape for a configuration document that carries a semantic
+        rule: the rule lives in :mod:`cuemsutils.xml.validators`, the reader
+        calls it, and ``ConfigBase.load_config_document`` translates the
+        ``ValueError`` it raises into a ``ValidationError`` by matching the
+        rule's own wording (feature 008, FR-037).
+
+        **This is the feature's only change that turns a successful read into
+        an exception.** A map with two rows sharing one identity loads today —
+        ``NodeIndex.merge`` collapses the duplicate silently (M-l) — and raises
+        for every reader afterwards. It reaches every repository that reads the
+        map, not only the two that read the own-identity accessor, which is why
+        FR-032a makes the census's second column blocking.
+        """
+        validate_node_identities(self.get_dict())
+
     def get_node(self, uuid):
+        """This map's node carrying ``uuid``.
+
+        Raises:
+            ValueError: no node in the map carries it — **including** when the
+                map lists no nodes at all, which is the case
+                ``ConfigManager.node_network_map`` documents and the one
+                ``cuems-nodeconf``'s fresh-node path catches.
+        """
         out = None
         network_dict = self.get_dict()
-        nodes_list = network_dict.get('node_list')
+        # ``node_list`` is minOccurs="0", and an empty ``<node_list/>`` decodes
+        # to a key that is *present* with value ``None`` — so a
+        # ``.get('node_list', [])`` default never fires. That is why the
+        # neighbouring code at :187 and :236 is safe by its ``if not
+        # node_list:`` check rather than by its default, and why this is an
+        # ``or []`` (feature 010, T086; reported by cuems-nodeconf against the
+        # empty map cuems-common ships to every node).
+        #
+        # "No nodes at all" is the same answer as "no node with this uuid":
+        # ValueError, below, with its message unchanged — consumers log it and
+        # a consumer test pins it (FR-2).
+        nodes_list = network_dict.get('node_list') or []
         for node_item in nodes_list:
             node = node_item.get('node')
             if node.get('uuid') == uuid:
@@ -141,7 +205,18 @@ class NetworkMap(Settings):
         return out
 
     @staticmethod
+    @deprecated_symbol(
+        f"{__name__}.NetworkMap.partition_by_adoption",
+        note=(
+            "the replacement returns node objects, not {'node': ...}-wrapped "
+            "dicts, and does not mutate its argument"
+        ),
+    )
     def get_nodes_by_adoption(network_map_dict: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Deprecated (T083) — mutates its argument in place (FR-015's
+        opposite), kept working until feature 009 migrates its
+        ``cuems-engine`` caller (Assumption 8). See
+        :meth:`partition_by_adoption` for the non-mutating replacement."""
         nodes = []
         new_nodes = []
 
@@ -152,9 +227,13 @@ class NetworkMap(Settings):
             raise ValueError('No node list found in network map dictionary')
         for node_item in node_list:
             if 'node' in node_item:
-                # Convert boolean strings directly in the node_item structure
-                node_item['node']['online'] = strtobool(node_item['node'].get('online', 'False'))
-                node_item['node']['adopted'] = strtobool(node_item['node'].get('adopted', 'False'))
+                # ``network_map``'s adapter table (this feature, R1) now
+                # decodes ``adopted``/``online`` as ``bool`` — so a caller may
+                # hand this method either the pre-typing strings or the typed
+                # values directly. ``strtobool`` only accepts ``str`` (research
+                # R7); a ``bool`` is already the answer.
+                node_item['node']['online'] = _as_bool(node_item['node'].get('online', 'False'))
+                node_item['node']['adopted'] = _as_bool(node_item['node'].get('adopted', 'False'))
 
                 # Append the node_item directly (it already has the wrapper structure)
                 if node_item['node']['adopted']:
@@ -163,6 +242,49 @@ class NetworkMap(Settings):
                     new_nodes.append(node_item)
 
         return nodes, new_nodes
+
+    @staticmethod
+    def partition_by_adoption(network_map) -> tuple[tuple, tuple]:
+        """Split a network map's nodes into ``(adopted, unadopted)`` (research R7, contract C6).
+
+        The non-mutating replacement for :meth:`get_nodes_by_adoption`
+        (Assumption 8 keeps that one available until feature 009 migrates its
+        caller). Every node value in ``network_map`` is unchanged, field by
+        field, before and after this call — it only reads ``adopted``,
+        through the same tolerant :func:`_as_bool` conversion (a caller may
+        still hold the pre-typing string shape), and never writes back.
+
+        Args:
+            network_map: a ``CuemsNetworkMapType`` (or a plain dict of the
+                same shape) — whatever :attr:`ConfigManager.network_map`
+                or :meth:`get_dict` returns.
+
+        Returns:
+            tuple[tuple[node, ...], tuple[node, ...]]: adopted nodes, then
+            unadopted — bare node objects, not ``{"node": ...}`` wrappers
+            (unlike the deprecated method, whose shape this does not carry
+            across).
+
+        Raises:
+            ValueError: no network map, or no node list, exactly as
+                :meth:`get_nodes_by_adoption`.
+        """
+        if not network_map:
+            raise ValueError('No network map dictionary found')
+        node_list = network_map.get('node_list', [])
+        if not node_list:
+            raise ValueError('No node list found in network map dictionary')
+
+        adopted = []
+        unadopted = []
+        for node_item in node_list:
+            candidate = node_item.get('node')
+            if candidate is None:
+                continue
+            is_adopted = _as_bool(candidate.get('adopted', False))
+            (adopted if is_adopted else unadopted).append(candidate)
+
+        return tuple(adopted), tuple(unadopted)
 
 class ProjectMappings(Settings):
     """
@@ -212,36 +334,17 @@ class ProjectMappings(Settings):
         """
         validate_custom_templates(self.processed)
 
-    def process_network_mappings(self, mappings):
-        '''Temporary process instead of reviewing xml read and convert to objects'''
-        # By now we need to correct the data structure from the xml
-        # the converter is not getting what we really intended but we'll
-        # correct it here by the moment
-        temp_nodes = []
-
-        # FR-033: identifiers only, never field values. This used to log the
-        # entire mappings dict at INFO — every node's uuid, name, ip and output
-        # routing, into the system log, once per project load.
-        Logger.debug(f'Processing network mappings for {len(mappings.get("nodes", []))} node(s)')
-
-        for node in mappings['nodes']:
-            temp_node = {}
-            for section, contents in node['node'].items():
-                if not isinstance(contents, list):
-                    temp_node[section] = contents
-                else:
-                    temp_node[section] = {}
-                    for item in contents:
-                        for key, values in item.items():
-                            temp_node[section][key] = []
-                            if values:
-                                for elem in values:
-                                    for subkey, subvalue in elem.items():
-                                        temp_node[section][key].append(subvalue)
-            temp_nodes.append(temp_node)
-
-        mappings['nodes'] = temp_nodes
-        return mappings
+    # ``process_network_mappings`` **deleted** (T056, D3).
+    #
+    # Its own docstring said what it was: *"Temporary process instead of
+    # reviewing xml read and convert to objects"* — a hand-written reshaping of
+    # the mappings dict, kept until the read path produced objects. It does
+    # now (T049), and nothing called this method.
+    #
+    # It was also F15's **third** incompatible reading of the node mappings,
+    # alongside the two unreachable ``check_mappings`` bodies deleted from
+    # ``VideoCue`` and ``AudioCue``. All three are gone; the one live shape is
+    # ``ConfigManager``'s, and ``cuemsutils.config.mappings`` states it.
 
 class ProjectSettings(Settings):
     """

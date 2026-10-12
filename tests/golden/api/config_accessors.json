@@ -1,0 +1,214 @@
+{
+  "ConfigBase": {
+    "conf_path": {
+      "kind": "method",
+      "signature": "(self, file_name: str) -> str"
+    },
+    "config_dir": {
+      "kind": "property",
+      "return": "str"
+    },
+    "controller_interfaces_template": {
+      "kind": "property",
+      "return": "str"
+    },
+    "controller_lock_file": {
+      "kind": "property",
+      "return": "str"
+    },
+    "controller_url": {
+      "kind": "property",
+      "return": "str"
+    },
+    "database_name": {
+      "kind": "property",
+      "return": "str"
+    },
+    "editor_url": {
+      "kind": "property",
+      "return": "str"
+    },
+    "host_name": {
+      "kind": "property",
+      "return": "str"
+    },
+    "library_path": {
+      "kind": "property",
+      "return": "str"
+    },
+    "load_base_settings": {
+      "kind": "method",
+      "signature": "(self, base_dir: str)"
+    },
+    "node_conf": {
+      "kind": "property",
+      "return": "dict"
+    },
+    "node_interfaces_template": {
+      "kind": "property",
+      "return": "str"
+    },
+    "node_url": {
+      "kind": "property",
+      "return": "str"
+    },
+    "node_uuid": {
+      "kind": "property",
+      "return": "str"
+    },
+    "osc_initial_port": {
+      "kind": "property",
+      "return": "int"
+    },
+    "set_dir_hierarchy": {
+      "kind": "method",
+      "signature": "(self) -> None"
+    },
+    "show_lock_file": {
+      "kind": "property",
+      "return": "str"
+    },
+    "templates_path": {
+      "kind": "property",
+      "return": "str"
+    },
+    "tmp_path": {
+      "kind": "property",
+      "return": "str"
+    }
+  },
+  "ConfigManager": {
+    "check_project_mappings": {
+      "kind": "method",
+      "signature": "(self) -> bool"
+    },
+    "conf_path": {
+      "kind": "method",
+      "signature": "(self, file_name: str) -> str"
+    },
+    "config_dir": {
+      "kind": "property",
+      "return": "str"
+    },
+    "controller_interfaces_template": {
+      "kind": "property",
+      "return": "str"
+    },
+    "controller_lock_file": {
+      "kind": "property",
+      "return": "str"
+    },
+    "controller_url": {
+      "kind": "property",
+      "return": "str"
+    },
+    "database_name": {
+      "kind": "property",
+      "return": "str"
+    },
+    "editor_url": {
+      "kind": "property",
+      "return": "str"
+    },
+    "get_audio_output_id": {
+      "kind": "method",
+      "signature": "(self, mapping_name: str)"
+    },
+    "get_video_output_id": {
+      "kind": "method",
+      "signature": "(self, mapping_name: str)"
+    },
+    "host_name": {
+      "kind": "property",
+      "return": "str"
+    },
+    "library_path": {
+      "kind": "property",
+      "return": "str"
+    },
+    "load_base_settings": {
+      "kind": "method",
+      "signature": "(self, base_dir: str)"
+    },
+    "load_config": {
+      "kind": "method",
+      "signature": "(self) -> None"
+    },
+    "load_net_and_node_mappings": {
+      "kind": "method",
+      "signature": "(self)"
+    },
+    "load_network_map": {
+      "kind": "method",
+      "signature": "(self)"
+    },
+    "load_project_config": {
+      "kind": "method",
+      "signature": "(self, project_uname: str) -> None"
+    },
+    "load_project_mappings": {
+      "kind": "method",
+      "signature": "(self, project_uname: str)"
+    },
+    "load_project_settings": {
+      "kind": "method",
+      "signature": "(self, project_uname: str)"
+    },
+    "mappings": {
+      "kind": "property",
+      "return": "dict"
+    },
+    "network_map": {
+      "kind": "property",
+      "return": "dict"
+    },
+    "node_conf": {
+      "kind": "property",
+      "return": "dict"
+    },
+    "node_interfaces_template": {
+      "kind": "property",
+      "return": "str"
+    },
+    "node_mappings": {
+      "kind": "property",
+      "return": "dict"
+    },
+    "node_network_map": {
+      "kind": "property",
+      "return": "dict"
+    },
+    "node_url": {
+      "kind": "property",
+      "return": "str"
+    },
+    "node_uuid": {
+      "kind": "property",
+      "return": "str"
+    },
+    "osc_initial_port": {
+      "kind": "property",
+      "return": "int"
+    },
+    "project_path": {
+      "kind": "method",
+      "signature": "(self, project_uname: str, file_name: str) -> str"
+    },
+    "set_dir_hierarchy": {
+      "kind": "method",
+      "signature": "(self) -> None"
+    },
+    "show_lock_file": {
+      "kind": "property",
+      "return": "str"
+    },
+    "templates_path": {
+      "kind": "property",
+      "return": "str"
+    },
+    "tmp_path": {
+      "kind": "property",
+      "return": "str"
+    }
+  }
+}

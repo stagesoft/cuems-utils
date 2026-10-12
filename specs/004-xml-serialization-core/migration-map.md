@@ -1,7 +1,7 @@
 # Migration map: shim → replacement → consumer call site
 
 **Feature**: `004-xml-serialization-core` | **Tasks**: T031, T031a | **Date**: 2026-08-11
-**Requirement**: FR-028 | **Input to**: feature 008 (consumer migration), feature 007
+**Requirement**: FR-028 | **Input to**: feature 009 (consumer migration), feature 007
 (the `cuems-nodeconf` fix)
 
 Every symbol this feature deprecates, what replaces it, and which consumer code reaches it.
@@ -49,7 +49,7 @@ Not replaced symbol-for-symbol: they are the four duplicated mapping implementat
 feature collapses into one engine. Their replacement is the engine, which is **internal in
 004** (Q14) and becomes public API in feature 006. Consumers reaching them directly have no
 supported target until then, which is why removal is `v0.1.1` and the migration is feature
-008's job rather than a same-release expectation.
+009's job rather than a same-release expectation.
 
 | Deprecated symbol | Replacement | Consumer call sites |
 |---|---|---|

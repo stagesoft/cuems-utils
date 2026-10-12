@@ -92,6 +92,20 @@ class CueOutput(CuemsDict):
     #: Self-wrapping JSON projection: ``{"CueOutput": {...}}`` (T018).
     JSON_SELF_WRAPS = True
 
+    #: Declared fields, in ``CueOutputType``'s schema order (feature 013,
+    #: axis D). This class stopped being an un-bound abstract base with that
+    #: feature: ``CueOutputType`` is the unconditional alternative the single
+    #: ``<CueOutput>`` element falls back to, so an unknown class decodes to
+    #: *this* class rather than failing (A2, FR-002), and the two fields below
+    #: are the content every class shares.
+    #:
+    #: ``class`` is ``Unset`` on the base for the same reason it is on
+    #: ``MediaCue``: the fallback's class is whatever the document carried.
+    DECLARED_DEFAULTS = {
+        'output_name': Unset,
+        'class': Unset,
+    }
+
     def __init__(self, init_dict=None):
         """Initialize a CueOutput.
 
@@ -101,14 +115,20 @@ class CueOutput(CuemsDict):
         """
         if init_dict:
             super().__init__(init_dict)
-
-    def __json__(self):
-        """Convert the output configuration to a JSON-compatible dictionary.
-
-        Returns:
-            dict: A dictionary representation of the output configuration.
-        """
-        return {type(self).__name__: dict(self.items())}
+        # The one defaulting protocol (FR-017), which these classes were never
+        # wired into: feature 005 left all three ``CueOutput`` subclasses
+        # declaring every field ``Unset``, so bare construction returned an
+        # empty object and there was nothing for this call to do. Feature 013
+        # gives each of them a ``class`` with a real default, which is what
+        # makes ``AudioCueOutput({...}).save()`` produce a valid document — and
+        # ``test_bare_construction_yields_the_declared_defaults`` is the
+        # authority that ``cls()`` then carries it.
+        #
+        # Outside the ``if`` deliberately: the protocol is not conditional on
+        # how the object was constructed. Every other declared field here is
+        # still ``Unset`` and so still materialises nothing, which is what
+        # keeps this from emitting elements the documents never contained.
+        self._fill_declared_defaults()
 
 
 class AudioCueOutput(CueOutput):
@@ -124,6 +144,8 @@ class AudioCueOutput(CueOutput):
         'output_name': Unset,
         'output_vol': Unset,
         'channels': Unset,
+        #: The class ``@class='audio'`` selects ``AudioCueOutputsType`` on.
+        'class': 'audio',
     }
 
 
@@ -162,6 +184,8 @@ class VideoCueOutput(CueOutput):
         'output_name': Unset,
         'output_geometry': Unset,
         'canvas_region': Unset,
+        #: The class ``@class='video'`` selects ``VideoCueOutputsType`` on.
+        'class': 'video',
     }
 
     def __init__(self, init_dict=None):
@@ -202,6 +226,9 @@ class VideoCueOutput(CueOutput):
         return super().__getitem__('output_name')
 
     def set_output_name(self, output_name: str) -> None:
+        from ..xml.validators import enforce
+
+        enforce('output_name_shape', output_name, self)
         kind = _classify_output_name(output_name)
         if getattr(self, '_initialized', False):
             has_region = 'canvas_region' in self
@@ -223,6 +250,22 @@ class VideoCueOutput(CueOutput):
         return super().__getitem__('canvas_region') if 'canvas_region' in self else None
 
     def set_canvas_region(self, canvas_region) -> None:
+        """Set or clear the region, keeping the alias/custom modes consistent.
+
+        **The shared definition is ``_validate_canvas_region``**, and that is
+        how T073's "one definition, two call sites" is met here: this setter
+        calls it, and so does the ``canvas_region_containment`` rule in
+        ``xml/validators.py``. Neither reimplements the shape or the
+        containment arithmetic.
+
+        What is *not* shared is the wording, and deliberately. A setter is
+        asked about a **transition** — "can I clear this?", "can I set this?" —
+        while the tier is asked about a **state**. ``canvas_region cannot be
+        cleared on custom output`` is the right thing to tell someone who just
+        tried to clear it and meaningless in a validation report, where the
+        object is simply missing a required region. Forcing one string would
+        make one of the two call sites worse (T071 keeps the setter's).
+        """
         if canvas_region is None:
             if getattr(self, '_initialized', False):
                 output_name = super().__getitem__('output_name')
@@ -254,4 +297,4 @@ class DmxCueOutput(CueOutput):
     """
 
     #: Declared fields, in ``DmxCueOutputsType``'s schema order (T027).
-    DECLARED_DEFAULTS = {'output_name': Unset}
+    DECLARED_DEFAULTS = {'output_name': Unset, 'class': 'dmx'}

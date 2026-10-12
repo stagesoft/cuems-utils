@@ -89,6 +89,37 @@ def test_only_configuration_a_carries_the_namespaced_schema_location(doc):
     assert "schemaLocation" in _config(doc)
 
 
+def _as_configuration_a_shape(value):
+    """Configuration B's value, as Configuration A would have decoded it.
+
+    **Now an identity, and kept as one deliberately (feature 014, X1).**
+
+    This used to bridge one real divergence on ``network_map`` (feature 007,
+    research R1). Configuration A never runs the adapter table, so its
+    ``cms:BoolType`` fields arrived as the capitalised strings that type
+    spelled, while Configuration B's adapter decoded them to Python ``bool``
+    — and the bridge was ``str(value)``, in that direction, because A's
+    spelling was the one on the wire.
+
+    X1 retyped those fields to the built-in ``xs:boolean``, which ``xmlschema``
+    decodes to a real ``bool`` **without** any adapter. Both configurations now
+    produce the same Python value, so there is nothing left to bridge: the
+    ``str(value)`` branch would now *introduce* the divergence it was written
+    to absorb.
+
+    It stays as a named identity rather than being deleted, because the
+    normalisation is the thing the test below is claiming it does not need.
+    A future typed-versus-untyped divergence on this schema belongs here, and
+    the reasoning above is what tells the next reader which direction to
+    bridge in.
+    """
+    if isinstance(value, dict):
+        return {k: _as_configuration_a_shape(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_as_configuration_a_shape(v) for v in value]
+    return value
+
+
 @pytest.mark.parametrize("doc", BOTH_CONFIGS, ids=IDS)
 def test_content_agrees_where_namespaces_are_not_involved(doc):
     """The difference is confined to namespace handling, and nothing else.
@@ -98,22 +129,38 @@ def test_content_agrees_where_namespaces_are_not_involved(doc):
     """
     reader = {k: v for k, v in _reader(doc).items() if not k.startswith("{")}
     config = {k: v for k, v in _config(doc).items() if k != "schemaLocation"}
-    assert reader == config
+    assert reader == _as_configuration_a_shape(config)
 
 
 @pytest.mark.parametrize("doc", BOTH_CONFIGS, ids=IDS)
 def test_configuration_b_uses_plain_containers(doc):
     """``dict_class=dict``, ``list_class=list`` — asserted structurally.
 
-    The config classes pass plain builtins explicitly. A converter returning
-    its own mapping subclass would still compare equal and would still
-    serialize the same, and would break ``isinstance(x, dict)`` checks in
-    consumer code.
+    The config classes pass plain builtins explicitly, and the point of the
+    assertion is stated in the requirement rather than in the type name: a
+    container that is not a ``dict`` **breaks ``isinstance(x, dict)`` checks in
+    consumer code**. That is what is checked.
+
+    Feature 006 changed what a described container *is*: ``Settings`` and its
+    three subclasses now return ``cuemsutils.config`` model objects instead of
+    raw nested dicts (FR-014). Those are ``CuemsDict`` subclasses, so every
+    ``isinstance`` check in ``cuems-engine`` and ``cuems-editor`` still passes
+    — which is the whole reason the object layer could be introduced without
+    editing a consumer repository.
+
+    So the assertion is now two-sided: a mapping is either a **plain** ``dict``
+    (undescribed content — the anonymous ``mappings`` wrapper) or a
+    ``ConfigDict``, and never a third thing. Loosening it to bare
+    ``isinstance`` would have accepted any mapping subclass at all, which is
+    what this test exists to prevent.
     """
+    from cuemsutils.config import ConfigDict
 
     def check(node):
         if isinstance(node, dict):
-            assert type(node) is dict
+            assert type(node) is dict or isinstance(node, ConfigDict), (
+                f"unexpected mapping type {type(node).__name__}"
+            )
             for value in node.values():
                 check(value)
         elif isinstance(node, list):

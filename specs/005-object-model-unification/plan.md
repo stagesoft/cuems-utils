@@ -3,8 +3,8 @@
 **Branch**: `005-object-model-unification` | **Date**: 2026-08-12 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/005-object-model-unification/spec.md`
 
-**Design source**: `specs/planning/xml-rebuild-06-target-design.md` §7 (authoritative) and
-`specs/planning/xml-rebuild-04-object-model.md` (measured evidence, `CuemsScript`-as-`CuemsDict`
+**Design source**: `specs/planning/xml-rebuild/xml-rebuild-06-target-design.md` §7 (authoritative) and
+`specs/planning/xml-rebuild/xml-rebuild-04-object-model.md` (measured evidence, `CuemsScript`-as-`CuemsDict`
 analysis). Settled decisions D1–D15, Q11(c), Q14(i) are inputs, not topics.
 
 ## Summary
@@ -59,7 +59,7 @@ clarification session and recorded in the spec.
   unmodified throughout; they are the evidence the refactor did not leak.
 - **III UX Consistency**: no user-facing surface changes. Consumers receive richer types on
   loaded objects — recorded in `migration-map.md` with a before/after for each of the seven
-  changes, feeding feature 008. Error messages introduced by C8 and C11 name the class, field
+  changes, feeding feature 009. Error messages introduced by C8 and C11 name the class, field
   or scene, per the constitution's actionable-errors standard.
 - **IV Performance**: budgets fixed *before* implementation (C13, SC-PERF-001/002/003), with
   the pre-005 decode number captured before the first behaviour change lands — otherwise the

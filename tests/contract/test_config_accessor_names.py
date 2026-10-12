@@ -1,0 +1,192 @@
+"""Contract C2 (T040) — every accessor name survives (FR-018).
+
+*Every name that exists today is present after and means the same thing.* The
+claim is asserted against the **recorded inventory**
+(``tests/golden/api/config_accessors.json``, captured by introspection before
+any US3 change landed) rather than against a list retyped into this file.
+
+That distinction is the whole point of T040a. A retyped list asserts its own
+contents: it is written *after* the change, by the same person making it, and
+would happily omit an accessor that had just been dropped. A golden captured
+beforehand cannot.
+
+Three things are checked, and "means the same thing" is split into the two
+halves that fail independently:
+
+* the **name** is still there;
+* its **kind** has not changed — a property that became a method is still
+  "present" and breaks every call site;
+* a method's **signature** has not changed.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from tests.support.config_inventory import load_golden, snapshot
+
+GOLDEN = load_golden()
+LIVE = snapshot()
+
+NAMES = [
+    (class_name, name)
+    for class_name, entries in sorted(GOLDEN.items())
+    for name in sorted(entries)
+]
+IDS = [f"{c}.{n}" for c, n in NAMES]
+
+
+def test_the_inventory_covers_both_classes():
+    assert set(GOLDEN) == {"ConfigBase", "ConfigManager"}
+    assert len(GOLDEN["ConfigManager"]) >= 30, len(GOLDEN["ConfigManager"])
+
+
+@pytest.mark.parametrize("class_name,name", NAMES, ids=IDS)
+def test_the_name_is_still_present(class_name, name):
+    assert name in LIVE[class_name], (
+        f"{class_name}.{name} existed before this feature and does not now "
+        f"(FR-018)"
+    )
+
+
+@pytest.mark.parametrize("class_name,name", NAMES, ids=IDS)
+def test_the_kind_has_not_changed(class_name, name):
+    before = GOLDEN[class_name][name]["kind"]
+    after = LIVE[class_name][name]["kind"]
+    assert before == after, (
+        f"{class_name}.{name} was a {before} and is now a {after}; the name "
+        f"survives but every call site breaks"
+    )
+
+
+@pytest.mark.parametrize("class_name,name", NAMES, ids=IDS)
+def test_method_signatures_have_not_changed(class_name, name):
+    before = GOLDEN[class_name][name]
+    if before["kind"] != "method":
+        pytest.skip("not a method")
+    assert before["signature"] == LIVE[class_name][name]["signature"]
+
+
+#: Feature 012's **one** scalar accessor whose return type moves, and the type
+#: it moves to (FR-021b).
+#:
+#: Recorded rather than allowed generically, and named here rather than folded
+#: into the structural set, because it is the exact class of change
+#: ``test_no_scalar_accessor_moved`` exists to forbid — a scalar accessor that
+#: starts returning an object. It is permitted only as a decision with evidence
+#: behind it: FR-032 makes the consumer census a **blocking precondition**, and
+#: that census is ``specs/012-uuid4-convergence/consumer-census.md``, which
+#: records per repository what every reading site does with the new type (all of
+#: them equality, f-string, set membership or hashing, all supported).
+#:
+#: ``node_uuid`` returns ``Uuid`` on a provisioned node and the published
+#: sentinel constant — a plain ``str`` — on one that was never provisioned. The
+#: golden was captured against a provisioned corpus node, so ``Uuid`` is what it
+#: sees.
+#:
+#: This is a **one-entry allowlist, not a relaxation**: any other scalar
+#: accessor that moves still fails below.
+SCALAR_ACCESSORS_THAT_MOVED = {
+    "ConfigBase.node_uuid": "Uuid",
+    "ConfigManager.node_uuid": "Uuid",
+}
+
+
+def test_only_the_structural_accessors_changed_return_type():
+    """The enumerated half of FR-018: *only* return types change, and only
+    where the value is a structure rather than a scalar — plus feature 012's
+    one recorded exception (:data:`SCALAR_ACCESSORS_THAT_MOVED`).
+
+    A scalar accessor that started returning an object would satisfy every
+    assertion above and still be a breaking change.
+    """
+    moved = {
+        f"{class_name}.{name}"
+        for class_name, entries in GOLDEN.items()
+        for name, entry in entries.items()
+        if entry["kind"] in ("property", "attribute")
+        and entry.get("return") != LIVE[class_name][name].get("return")
+    }
+
+    # Every accessor whose recorded return type was ``dict`` — those are the
+    # ones FR-014 requires to become objects. Nothing else may move.
+    expected = {
+        f"{class_name}.{name}"
+        for class_name, entries in GOLDEN.items()
+        for name, entry in entries.items()
+        if entry.get("return") == "dict"
+    } | set(SCALAR_ACCESSORS_THAT_MOVED)
+
+    assert moved == expected, (
+        "return types moved outside the structural set:\n"
+        f"  unexpected: {sorted(moved - expected)}\n"
+        f"  expected but unchanged: {sorted(expected - moved)}"
+    )
+
+
+def test_no_scalar_accessor_moved():
+    """Stated separately and positively, because it is the promise consumers
+    actually rely on: ``library_path`` still returns a path string.
+
+    Feature 012's one exception is checked **by value**, not skipped: the
+    accessor must return exactly the type recorded for it in
+    :data:`SCALAR_ACCESSORS_THAT_MOVED`, so "allowed to move" does not become
+    "allowed to keep moving".
+    """
+    for class_name, entries in GOLDEN.items():
+        for name, entry in entries.items():
+            if entry.get("return") not in ("str", "int", "float", "bool"):
+                continue
+            key = f"{class_name}.{name}"
+            expected = SCALAR_ACCESSORS_THAT_MOVED.get(key, entry["return"])
+            assert LIVE[class_name][name].get("return") == expected, (
+                f"{class_name}.{name} was a {entry['return']} and is now a "
+                f"{LIVE[class_name][name].get('return')}"
+                + (f" (recorded as moving to {expected})" if key in SCALAR_ACCESSORS_THAT_MOVED else "")
+            )
+
+
+def test_the_moved_accessor_has_a_recorded_consumer_census():
+    """FR-032 makes the census a **blocking precondition** of the type change,
+    not a follow-up. The type change has landed, so the artifact must exist —
+    and it must carry the second column FR-032a requires, which research R4 did
+    not measure."""
+    from tests.support.corpus import REPO_ROOT
+
+    census = REPO_ROOT / "specs" / "012-uuid4-convergence" / "consumer-census.md"
+    assert census.is_file(), (
+        "the own-identity accessor's return type changed with no recorded "
+        "consumer census (FR-032)."
+    )
+    text = census.read_text()
+    for repository in ("cuems-engine", "cuems-power-bridge", "cuems-nodeconf",
+                       "cuems-editor", "cuems-common", "cuems-frontend"):
+        assert repository in text, f"the census does not name {repository}"
+    assert "network_map" in text, (
+        "the census carries no second column: FR-032a requires what each "
+        "repository does when a map read raises, which is the failure mode R4 "
+        "did not measure."
+    )
+
+
+def test_the_new_public_descriptor_accessor_is_named_as_decided():
+    """T010 / FR-028 — the name is part of the deliverable, so it is pinned.
+
+    Asserted **beside** the golden rather than by regenerating it. The golden was
+    captured before any US3 change precisely so it could not be edited to match
+    what the code now does; re-cutting it to include this accessor would destroy
+    the only property that makes it evidence. An addition is not a violation of
+    contract C2 — "every name that exists today is present after" — so the
+    golden stays as it was and this assertion carries the new name.
+
+    ``get_schema_descriptor`` follows ``ConfigManager``'s existing split:
+    bare-noun properties for held state (``network_map``, ``mappings``),
+    ``get_*`` for parameterised lookups (``get_video_output_id``,
+    ``get_audio_output_id``). A descriptor lookup takes an argument.
+    """
+    from cuemsutils.tools.ConfigManager import ConfigManager
+
+    assert hasattr(ConfigManager, "get_schema_descriptor")
+    assert "get_schema_descriptor" not in GOLDEN.get("ConfigManager", {}), (
+        "the golden predates this accessor and must not be re-cut to include it"
+    )

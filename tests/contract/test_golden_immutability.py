@@ -1,0 +1,147 @@
+"""Golden-immutability guard (T002).
+
+Standing rule 1 (tasks.md): no existing golden is ever regenerated to make a
+test pass. Exactly two tasks in **this file's original feature** (T065, T080)
+**modify** a recorded golden, and each does so with a recorded justification;
+every other change under ``tests/golden/`` must be an **addition**.
+
+**Feature 008 (ITEM E) updates the manifest a third time, deliberately**
+(FR-010's three recorded golden events — ITEM A's cut, ITEM D's generator
+replacement, and this one, T102a). Emitting the ``doc_version`` marker from
+``mapper.build_document`` (FR-053) changes every document this library
+writes, so the manifest entries for the goldens under ``ITEMs A/D`` and the
+two hand-authored corpus documents that gained the marker in place
+(``tests/data/corpus/cuems-utils/{fade_showcase,unicode_showcase}.xml``) were
+re-hashed here, once, with the reason recorded at this call site rather than
+left for a diff to explain on its own.
+
+**Feature 011 re-hashes ``api/public_api.json`` once, deliberately** (FR-023,
+research R11): the snapshot gains a ``"scripts"`` key listing the console-script
+entry points, because ``cuems-init-node`` is a new public entry point and a
+renamed or dropped script must be a surface change the snapshot sees. The
+golden was *extended*, never regenerated — every prior key is byte-identical.
+
+**Feature 009 re-hashes ``api/public_api.json`` once, deliberately.** FR-006
+adds ``DmxChannelDecodeError`` to ``cuemsutils.errors.__all__`` (a new,
+public, catchable error type — see ``specs/009-fix-dmx-channel-conversion/``).
+This is an **addition** to the public surface, not a signature change to an
+existing class, but it lands inside a single JSON snapshot file covering the
+whole ``errors`` module, so that file's hash necessarily changes to record
+the new entry. ``tests/contract/test_public_api_surface.py``'s
+``PUBLIC_ERRORS`` tuple gained the one new name in the same commit.
+
+**Feature 013 re-hashes the eight project-mappings dict goldens once,
+deliberately** (T024, FR-055). ``project_mappings``' device and default
+elements changed shape, so the four corpus documents and both of each
+document's recorded dicts (``*.reader.json``, ``*.config.json``) moved with
+the schema. ``api/public_api.json`` is re-hashed once more in the tool's
+commit (T035): its ``scripts`` array gains ``cuems-reshape-devices`` and no
+other key moves. The four settings dict goldens move with axis C (T042):
+``videoplayer`` / ``audioplayer`` / ``dmxplayer`` became ``players``.
+
+**Axis D re-hashes eleven more, once** (T050, FR-054, FR-055). Named rather
+than swept, because "the goldens moved" is not a reason:
+
+* ``xml/cuems-editor__script_minimal.xml``,
+  ``xml/cuems-engine__projects__complex_test__script.xml``,
+  ``xml/cuems-utils__fade_showcase.xml``,
+  ``xml/cuems-utils__unicode_showcase.xml`` and
+  ``generated/example_script.xml`` — written documents, whose cue and
+  cue-output elements are now ``<Cue class="…">`` and ``<CueOutput class="…">``.
+* the five matching ``dict/*.reader.json`` plus
+  ``generated/example_script.reader.json`` — the same rename on the decoded
+  side, plus the ``class`` key.
+* ``dict/cuems-utils__outputs.reader.json`` — ``hardware_outputs``' two flat
+  lists became ``output_groups`` / ``outputs class="…"`` (T048).
+
+**Axis D's publishing phase re-hashes ``api/public_api.json`` once more**
+(T061, SC-016), and this is the third time this feature touches that one file —
+counted here because "the API golden moved again" is only acceptable when each
+move is a named event:
+
+1. T035, the console script ``cuems-reshape-devices`` joining ``"scripts"``;
+2. T061, a new top-level ``"functions"`` key carrying the two names feature 013
+   publishes, each with the signature ``inspect.signature`` returns:
+   ``partition_by_adoption(network_map) -> tuple[tuple, tuple]`` (FR-035) and
+   ``validate_config_document(path: 'str | PathLike') -> 'LoadReport'`` (FR-036).
+
+The key is new rather than an extension of ``"symbols"`` because ``_members``
+records only the methods *of a class*: a function lands there as
+``{"kind": "function", "bases": []}`` with no signature, which would pin that
+the name exists and nothing about what it takes. Every pre-existing key in the
+snapshot is byte-identical.
+
+``outcomes.json`` is **not** regenerated (T050, stated as a prohibition rather
+than left implicit). It records, per document, whether reading and writing
+succeed and with which error — the accept/reject parity ledger — and a capture
+run does move it: four configuration documents' *write* failures change their
+error **type** (``AttributeError`` from a raw-dict write path to
+``XMLSchemaChildrenValidationError``). That is a real change in how a failure
+surfaces and it belongs to the config-write path, not to axis D; regenerating
+it here would record it without anyone having decided it.
+
+
+``MANIFEST.sha256`` pins the hash of every file under this directory at the
+moment T002 ran (after T003b/T003c added the two new corpus documents' goldens,
+so their addition is captured as a baseline rather than as a violation). A
+file whose hash no longer matches was regenerated; a file with no entry at all
+was added since, which is allowed and expected — this test does not require
+the manifest to be exhaustive going forward, only that entries it does have
+still hold.
+"""
+
+from __future__ import annotations
+
+import hashlib
+
+from tests.support.corpus import GOLDEN_ROOT
+
+MANIFEST_PATH = GOLDEN_ROOT / "MANIFEST.sha256"
+
+
+def _load_manifest() -> dict[str, str]:
+    entries: dict[str, str] = {}
+    for line in MANIFEST_PATH.read_text().splitlines():
+        if not line.strip():
+            continue
+        digest, relpath = line.split("  ", 1)
+        entries[relpath] = digest
+    return entries
+
+
+def test_manifest_exists_and_is_non_empty():
+    assert MANIFEST_PATH.is_file()
+    assert _load_manifest()
+
+
+def test_every_manifested_golden_is_unchanged():
+    manifest = _load_manifest()
+    changed = []
+    missing = []
+    for relpath, expected in manifest.items():
+        path = GOLDEN_ROOT / relpath
+        if not path.is_file():
+            missing.append(relpath)
+            continue
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        if actual != expected:
+            changed.append(relpath)
+
+    assert not missing, (
+        "golden(s) removed since the manifest was recorded: " + ", ".join(missing)
+    )
+    assert not changed, (
+        "golden(s) regenerated since the manifest was recorded (forbidden "
+        "except T065/T080, each with a recorded justification): "
+        + ", ".join(changed)
+    )
+
+
+def test_manifest_entries_are_relative_and_sorted():
+    """Reviewable as a diff: stable order, no absolute paths, no ``./`` noise."""
+    lines = [
+        line for line in MANIFEST_PATH.read_text().splitlines() if line.strip()
+    ]
+    relpaths = [line.split("  ", 1)[1] for line in lines]
+    assert relpaths == sorted(relpaths)
+    assert all(not p.startswith(("/", "./")) for p in relpaths)

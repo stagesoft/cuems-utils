@@ -44,7 +44,7 @@ print('regions[0]:   ', type(cue['Media']['regions'][0]).__name__)  # now Region
 2. `data-model.md` §1 — the base protocol and the two construction modes.
 3. `contracts/README.md` — C1–C4 are what you must not break; C5–C12 are what you must make
    pass.
-4. `specs/planning/xml-rebuild-04-object-model.md` — the original measured evidence.
+4. `specs/planning/xml-rebuild/xml-rebuild-04-object-model.md` — the original measured evidence.
 
 ## The fail-then-pass recipe
 

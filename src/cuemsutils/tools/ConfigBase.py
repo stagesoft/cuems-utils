@@ -1,8 +1,108 @@
 from os import environ, path
 
+from ..errors import (
+    SchemaError,
+    ValidationError,
+    network_map_node_type_message,
+    network_map_role_enum_message,
+    node_identity_collision_message,
+    node_identity_shape_message,
+    project_mappings_semantic_message,
+)
 from ..log import Logger, logged
-from ..xml import Settings
+# The concrete module, not the package root: ``cuemsutils.xml.Settings``
+# is a deprecation shim as of T061, and contract C8 forbids the library
+# calling one of its own deprecated names.
+from ..xml.settings import Settings
+from ..xml.versioning import DocumentTooNewError
 from ..helpers import mkdir_recursive
+
+
+def load_config_document(cls, xmlfile: str, schema_name: str):
+    """Open one configuration document with the **accessor's** error posture.
+
+    One function, every call site (FR-014b, contract C2). The failure kinds a
+    consumer must tell apart are kept apart here rather than at each of the
+    six places a configuration file is opened:
+
+    * ``OSError``/``FileNotFoundError`` propagate **unwrapped** — every
+      consumer already handles them, and wrapping would force callers to
+      unwrap to find out what actually happened (FR-035);
+    * a document version newer than this library becomes ``ValidationError``,
+      distinguishably (feature 008, FR-052);
+    * ``project_mappings``' one T2 (semantic) rule violation — the only
+      registered rule any configuration schema carries (FR-039) — becomes
+      ``ValidationError`` rather than the generic ``SchemaError`` every other
+      failure gets, so a caller can tell a structural failure from a semantic
+      one the same way it can for a show document (feature 008, FR-037);
+    * anything else is a structural (T1) schema failure and becomes
+      ``SchemaError``, carrying the original reason so the offending element
+      is still named.
+
+    The internal reader (``xml/settings.py``) deliberately does **not** wrap:
+    its raw verdicts are what ``tests/golden/outcomes.json`` pins document by
+    document, and the accessor is where contract C2 places the posture.
+
+    **``network_map``'s two known failure modes name the migration** (feature
+    007, FR-011c, contract C8): a document still carrying the retired
+    ``<node_type>`` element, and a ``<node_role>`` value outside the
+    enumeration, each get a message naming the node, the offending value, the
+    accepted values and the remedy — rather than the generic wrap below,
+    which is what every other schema failure still gets.
+    """
+    try:
+        return cls(xmlfile)
+    except OSError:
+        raise
+    except SchemaError:
+        raise
+    except ValidationError:
+        raise
+    except DocumentTooNewError as exc:
+        Logger.error(str(exc))
+        raise ValidationError(str(exc)) from exc
+    except Exception as exc:
+        # ``project_mappings``' one T2 rule violation checked **first**, and
+        # matched on exact wording rather than by exception type: it raises a
+        # plain ``ValueError``, and so does ``xmlschema``'s own
+        # ``XMLSchemaValidationError`` (it subclasses ``ValueError``) for a
+        # genuine T1 structural failure — ``isinstance`` cannot tell them
+        # apart, which is why ``project_mappings_semantic_message`` matches
+        # the rule's own wording instead (feature 008, FR-037).
+        if schema_name == 'project_mappings':
+            semantic_message = project_mappings_semantic_message(exc)
+            if semantic_message is not None:
+                Logger.error(semantic_message)
+                raise ValidationError(semantic_message) from exc
+        # Feature 012's semantic rule, checked before the structural ones for
+        # the same reason project_mappings' is: it raises a plain ValueError
+        # and so does xmlschema, so only the wording tells them apart.
+        if schema_name == 'network_map':
+            collision = node_identity_collision_message(xmlfile, exc)
+            if collision is not None:
+                Logger.error(collision)
+                raise ValidationError(collision) from exc
+
+        # A non-converged node identity is a **structural** (T1) failure — the
+        # narrowed NodeUuidType refuses it — so it stays a SchemaError. What
+        # changes is that the message names the out-of-band repair, which is
+        # the one thing a generic schema error cannot say (FR-024).
+        if schema_name in ('network_map', 'project_mappings', 'settings'):
+            shape = node_identity_shape_message(xmlfile, exc)
+            if shape is not None:
+                Logger.error(shape)
+                raise SchemaError(shape) from exc
+
+        if schema_name == 'network_map':
+            for diagnose in (network_map_node_type_message, network_map_role_enum_message):
+                specific_message = diagnose(xmlfile, exc)
+                if specific_message is not None:
+                    Logger.error(specific_message)
+                    raise SchemaError(specific_message) from exc
+        message = f'{xmlfile} is not a valid {schema_name} document: {exc}'
+        Logger.error(message)
+        raise SchemaError(message) from exc
+
 
 class ConfigBase():
     def __init__(self, config_dir: str):
@@ -10,18 +110,38 @@ class ConfigBase():
 
     @logged
     def load_base_settings(self, base_dir: str):
+        """Read ``settings.xml`` from the resolved configuration directory.
+
+        Raises:
+            OSError: **unwrapped** — ``FileNotFoundError`` when the directory
+                or the file is absent, ``PermissionError`` when it cannot be
+                read. Identical to ``CuemsScript.load`` (FR-035), and
+                deliberately distinct from the next entry: *a node with no
+                config and a node with a corrupt one are different operational
+                problems* (FR-014b).
+            SchemaError: the file exists and does not match ``settings.xsd``,
+                naming the offending element. The measured case is **X13** —
+                ``gradient_osc_port`` was added to the schema as required,
+                which invalidated every settings file written before it,
+                including two this project shipped. That is *reported* here and
+                *fixed* under the schema evolution convention, not in this
+                feature; no ``.xsd`` is edited (FR-033).
+        """
         try:
             dir = environ['CUEMS_CONF_PATH']
         except KeyError:
             dir = base_dir
         self.config_dir = dir
 
-        try:
-            settings = Settings(self.conf_path('settings.xml'))
-            self.settings = settings.get_dict()
-        except Exception as e:
-            Logger.exception(f'Exception catched while loading settings: {e}')
-            raise e
+        settings_doc = load_config_document(
+            Settings, self.conf_path('settings.xml'), 'settings'
+        )
+        self.settings = settings_doc.get_dict()
+        # The root object, kept alongside its unwrapped ``Settings`` content
+        # (T035, feature 008) — ``self.settings`` is ``CuemsSettingsType``'s
+        # ``Settings`` field, not the document root, and only the root has
+        # ``.save()``.
+        self._settings_document = settings_doc.xml_dict
 
     # HELPER FUNCTIONS #
     def conf_path(self, file_name: str) -> str:
@@ -115,17 +235,78 @@ class ConfigBase():
     def controller_lock_file(self):
         return self.settings['controller_lock_file']
 
+    # -- what the accessors return (T055, FR-014, FR-018) -------------------
+    #
+    # **Every name above and below is frozen**, and so is what it means. Only
+    # return *types* change, and only where the value is a structure rather
+    # than a scalar: the fourteen accessors that answer with a path, a URL or a
+    # filename still answer with a ``str``, and ``osc_initial_port`` still
+    # answers with an ``int``. The recorded inventory in
+    # ``tests/golden/api/config_accessors.json`` is the arbiter — it was
+    # captured by introspection *before* any of this landed, which is what
+    # makes "every name that exists today" verifiable rather than merely
+    # assertable.
+    #
+    # The structural ones — ``node_conf`` here, and ``network_map``,
+    # ``node_network_map``, ``mappings``, ``node_mappings`` and the project
+    # accessors on ``ConfigManager`` — now answer with declared-field objects
+    # from ``cuemsutils.config`` instead of raw nested dicts. Those objects are
+    # ``dict`` subclasses, so ``isinstance(x, dict)``, ``x['key']``,
+    # ``x.get(...)`` and iteration all behave exactly as before. That is what
+    # allowed the object layer to land without editing a consumer repository.
+
     @property
     def node_conf(self):
+        """The ``<node>`` section of ``settings.xml``.
+
+        Returns:
+            cuemsutils.config.settings.NodeConfType: a declared-field object,
+            not a raw nested dict (FR-014). Its ``videoplayer`` /
+            ``audioplayer`` / ``audiomixer`` / ``dmxplayer`` sections are
+            objects too, each of the type its schema declares.
+
+        Raises:
+            KeyError: if the settings document carries no ``<node>`` element.
+                ``settings.xsd`` requires one, so a document that reaches here
+                without it did not come through :meth:`load_base_settings`.
+        """
         return self.settings['node']
 
     @property
     def node_uuid(self):
+        """This node's own identity.
+
+        Returns:
+            cuemsutils.tools.Uuid.Uuid | str: the identity type on a
+            **provisioned** node; the published sentinel constant
+            (``cuemsutils.tools.SENTINEL``), a plain ``str``, on one that was
+            never provisioned (feature 012, FR-021b, FR-028).
+
+        The type varies **only** between those two states, and identically from
+        every accessor — the one documented exception in FR-028, and the reason a
+        consumer needs exactly one check rather than a conversion at every site
+        (M-d). Both forms compare equal to the equivalent string and hash the
+        same, so ``==``, f-strings, set membership and dict keys are unaffected;
+        what changed is that the value is no longer a ``str`` **subclass**, so
+        string methods are not available on it. Convert with ``str()`` where a
+        string is genuinely wanted — see :attr:`host_name` just below, which is
+        this library's own instance of exactly that.
+        """
         return self.node_conf['uuid']
 
     @property
     def host_name(self):
-        return f"{self.node_uuid.split('-')[-1]}.local"
+        """``<last uuid group>.local`` — the node's mDNS name.
+
+        ``str()`` around the identity is **load-bearing** as of feature 012, not
+        defensive: ``node_uuid`` answers with the identity type on a provisioned
+        node, and that type deliberately does not define ``split`` (data-model
+        §6.2 — string operations would invite treating an identity as text in
+        ways the compound ``<identity>_<output>`` parsing already handles
+        elsewhere). This accessor's own return type is unchanged: still a
+        ``str``, still the same value.
+        """
+        return f"{str(self.node_uuid).split('-')[-1]}.local"
 
     @property
     def node_url(self):

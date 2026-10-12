@@ -14,6 +14,7 @@ Three things this engine does **not** do, each deliberately:
 
 from __future__ import annotations
 
+import os.path
 from enum import Enum
 from xml.etree.ElementTree import (
     Element,
@@ -27,7 +28,7 @@ from ..log import Logger
 from ..tools.Uuid import Uuid
 from .adapters import PASSTHROUGH, adapter_for
 from .registry import get_registry
-from .spec import FieldKind, TypeSpec, derive, derive_path
+from .spec import FieldKind, TypeKey, TypeSpec, derive, derive_path
 
 #: Values written straight to element text rather than recursed into.
 #:
@@ -37,12 +38,35 @@ from .spec import FieldKind, TypeSpec, derive, derive_path
 SCALARS = (str, bool, int, float, Enum, Uuid)
 
 
+def encode_wildcard(value):
+    """Wildcard (``ui_properties``) content — scalars become **strings**.
+
+    The mirror of ``as_cuemsdict`` (decode's wildcard fallback, FR-009):
+    nothing about a wildcard's children is derivable, so nothing here is typed
+    either. A value built programmatically as a real Python type (``0``,
+    ``None``) is stringified to match what decode would have produced from the
+    equivalent XML text node.
+
+    Module-level rather than a method because it needs no schema — which is
+    precisely why ``CuemsDict.to_wire()`` can fall back to it for a class the
+    registry binds nowhere.
+    """
+    if isinstance(value, dict):
+        return {k: encode_wildcard(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [encode_wildcard(v) for v in value]
+    return str(value)
+
+
 class Mapper:
     """Encodes model objects to XML, driven by the derived specification."""
 
-    def __init__(self, schema_name: str):
+    def __init__(self, schema_name: str, *, document: str | None = None):
         self.schema_name = schema_name
         self.registry = get_registry(schema_name)
+        #: The file being decoded, when there is one. The unknown-class line
+        #: names it; a decode with no file says so instead of omitting it.
+        self.document = document
 
     # -- decode ------------------------------------------------------------
 
@@ -64,9 +88,9 @@ class Mapper:
 
         body_tag = next(iter(source))
         spec = _body_spec(self.schema_name, body_tag)
-        return self.decode(source[body_tag], spec)
+        return self.decode(source[body_tag], spec, path=(body_tag,))
 
-    def decode(self, value, spec: TypeSpec | None):
+    def decode(self, value, spec: TypeSpec | None, path=()):
         """Decode one value against its type specification."""
         if value is None or spec is None:
             return value
@@ -75,7 +99,7 @@ class Mapper:
 
         decoded = {}
         for key, raw in value.items():
-            decoded[key] = self._decode_field(key, raw, spec)
+            decoded[key] = self._decode_field(key, raw, spec, path)
 
         model = self._model_for_spec(spec)
         if model is None:
@@ -122,7 +146,7 @@ class Mapper:
     #: unreachable all along.
     RAW_TYPES = frozenset({"AudioChannelsType"})
 
-    def _decode_field(self, key: str, raw, spec: TypeSpec):
+    def _decode_field(self, key: str, raw, spec: TypeSpec, path=()):
         field = spec.field(key)
 
         if field is None:
@@ -149,7 +173,7 @@ class Mapper:
         child_spec = derive(field.child)
 
         if isinstance(raw, list):
-            return self._decode_repeated(raw, child_spec)
+            return self._decode_repeated(raw, child_spec, (*path, key))
 
         if child_spec.wildcard:
             # Wildcard content — ``ui_properties`` is the only one. Its
@@ -165,11 +189,11 @@ class Mapper:
             return as_cuemsdict(raw) if isinstance(raw, dict) else raw
 
         if self._is_wrapper(child_spec):
-            return self._decode_wrapper(raw, child_spec)
+            return self._decode_wrapper(raw, child_spec, (*path, key))
 
-        return self.decode(raw, child_spec)
+        return self.decode(raw, child_spec, (*path, key))
 
-    def _decode_repeated(self, items: list, child_spec: TypeSpec):
+    def _decode_repeated(self, items: list, child_spec: TypeSpec, path=()):
         """A repeated block: ``[{Tag: {...}}, ...]`` in document order.
 
         Each wrapper key names the element, which is how an ``xs:choice`` of
@@ -186,29 +210,62 @@ class Mapper:
             if member is None or member.child is None:
                 out.append(item)
                 continue
-            out.append(self._decode_member(body, member))
+            out.append(self._decode_member(body, member, path))
         return out
 
-    def _decode_member(self, body, member):
+    def _alternative_for(self, body, member, path=()):
+        """The type key for this member.
+
+        A class that matches an alternative selects that type. An unknown
+        class and a missing class both fall back to ``member.child``. Only
+        the unknown class is reported: a missing class is a different
+        document, and a match is the ordinary case.
+        """
+        chosen = member.child
+        if not getattr(member, "alternatives", ()) or not isinstance(body, dict):
+            return chosen
+        class_value = body.get("class")
+        if class_value is None:
+            return chosen
+        for value, key in member.alternatives:
+            if value == class_value:
+                return key
+        self._log_unknown_class(member, class_value, path)
+        return chosen
+
+    def _log_unknown_class(self, member, class_value, path) -> None:
+        parts = (*path, member.name)
+        element_path = "/" + "/".join(parts) + f"[@class='{class_value}']"
+        document = self.document if self.document else "(no file path)"
+        type_name = member.child.name if member.child is not None else "the declared type"
+        Logger.info(
+            f"{self.schema_name} {document}: {element_path} has no conditional type; "
+            f"decoded as {type_name}. Check the spelling — an unknown class is valid, "
+            "and this line is the only report."
+        )
+
+    def _decode_member(self, body, member, path=()):
         """Decode one member of a repeated block, honouring ``OPAQUE_TYPES``."""
-        if member.child.name in self.OPAQUE_TYPES:
-            model = self._model_for_spec(derive(member.child))
+        chosen = self._alternative_for(body, member, path)
+        if chosen is None:
+            return body
+        if chosen.name in self.OPAQUE_TYPES:
+            model = self._model_for_spec(derive(chosen))
             return model(body) if model is not None else body
-        return self.decode(body, derive(member.child))
+        return self.decode(body, derive(chosen), (*path, member.name))
 
     @staticmethod
     def _is_wrapper(child_spec: TypeSpec) -> bool:
         """A type whose only job is to hold repeated children.
 
-        ``RegionsType`` holds ``Region``, ``FadeProfilesWrapperType`` holds
-        ``fade_profile``, ``OutputsType`` holds the three output types. The
-        wrapper element exists in the XML but not in the object model, where
-        the field holds the list directly.
+        ``RegionsType`` holds ``Region``, ``OutputsType`` holds the three
+        output types. The wrapper element exists in the XML but not in the
+        object model, where the field holds the list directly.
         """
         elements = [f for f in child_spec.fields if f.kind is FieldKind.ELEMENT]
         return bool(elements) and all(f.repeated for f in elements)
 
-    def _decode_wrapper(self, raw, child_spec: TypeSpec):
+    def _decode_wrapper(self, raw, child_spec: TypeSpec, path=()):
         if not isinstance(raw, dict):
             return raw
         out = []
@@ -219,7 +276,7 @@ class Mapper:
                 continue
             items = body if isinstance(body, list) else [body]
             for item in items:
-                out.append(self._decode_member(item, member))
+                out.append(self._decode_member(item, member, path))
         return out
 
     def _model_for_spec(self, spec: TypeSpec):
@@ -232,7 +289,386 @@ class Mapper:
             return None
         return binding.model
 
-    # -- encode ------------------------------------------------------------
+    # -- decode: configuration ---------------------------------------------
+
+    def decode_config(self, raw):
+        """Decode a configuration document — **class substitution only** (T049).
+
+        Same registry, same specs, same walk shape as :meth:`decode`. Two
+        differences, both of which are the config domain stating a fact about
+        itself rather than the engine acquiring a mode:
+
+        **No adapters run — except where a schema has opted in.** A config
+        object has one construction path (decode), unlike a cue's two (built
+        and decoded, which feature 005 makes agree) — so there is normally
+        nothing for coercion to reconcile, and running it anyway would
+        *change* values rather than unify anything. That was true of every
+        config schema without qualification until feature 007: ``network_map``
+        now runs the table (``registry.runs_adapter_table``, research R1),
+        because its ``node_role``, ``adopted``, ``online`` and ``uuid`` are
+        typed values on the public node object (FR-011a) — while ``settings``,
+        ``project_mappings`` and ``project_settings`` still decode every
+        scalar untouched. The measured case that makes this collide rather
+        than compose freely: ``adopted``/``online`` are ``cms:BoolType`` in
+        *every* config schema, but only ``network_map``'s decode to Python
+        ``bool`` now — ``NetworkMap.get_nodes_by_adoption`` accepts either
+        shape (research R7), and ``cuems-engine`` still reads the string form
+        from the schemas that do not opt in. FR-018 freezes accessor meaning
+        *per schema*; the opt-in is what keeps that freeze from being "all
+        four, forever". See ``config/base.py``.
+
+        **Repeated wrappers are preserved.** ``decode`` collapses
+        ``[{"AudioCue": {...}}, ...]`` into a list of cue objects, because the
+        show model's ``CueList.contents`` is a list of cues. Config keeps
+        ``[{"node": {...}}, ...]``, because ``cuems-engine`` and
+        ``cuems-editor`` iterate it in that shape and this feature does not
+        edit consumer repositories (FR-UX-001). Feature 009 executes the
+        migration guide; until then the shape is a contract, and the
+        five-level walk T051 deletes is deleted because the *types* are named,
+        not because the nesting went away.
+
+        The projection is unaffected either way: ``encode_wire`` emits
+        ``[{tag: body}, ...]`` for repeated content whether it was given
+        objects or wrappers, which is what keeps the config ``to_wire()``
+        equal to its recorded ``*.config.json`` golden (T043a, W8).
+        """
+        return self._decode_config_value(raw, root_spec(self.schema_name))
+
+    def _decode_config_value(self, value, spec: TypeSpec | None, path=()):
+        if spec is None or not isinstance(value, dict):
+            return value
+
+        decoded = {}
+        for key, raw in value.items():
+            field = spec.field(key)
+            if field is None:
+                # Undescribed — the leaked ``schemaLocation``. Kept exactly as
+                # ``read_config_document`` produced it.
+                decoded[key] = raw
+                continue
+
+            child = field.child
+            if child is None:
+                child = self._anonymous_child(spec, field, key)
+            if child is None:
+                # A scalar, or content the schema does not name. Unchanged —
+                # unless this schema opted into the adapter table (research
+                # R1, registry.runs_adapter_table), or this **field** did
+                # (feature 012, registry.adapter_fields). ``network_map`` is
+                # still the only schema that runs the whole table; ``settings``
+                # names one field, its node's own identity. Every other scalar
+                # in every other config schema takes the branch below
+                # unconditionally, so FR-011a-i's "untouched" holds by
+                # construction rather than by convention — and the per-field
+                # opt-in is what keeps it holding while one field changes.
+                if self.registry.runs_adapter_for(
+                        None if spec.key.is_path else spec.key.name, key):
+                    adapter = adapter_for(field.xsd_type)
+                    if adapter is not PASSTHROUGH:
+                        decoded[key] = adapter.decode(raw)
+                        continue
+                decoded[key] = raw
+                continue
+            decoded[key] = self._decode_config_child(raw, derive(child), (*path, key))
+
+        # Attributes arrive before elements (the converter's upstream shape
+        # when a repeated child collapses the rebuild). The projection emits
+        # schema order. Store that order so the two recorded dicts agree.
+        if spec.attributes or any(field.name == "&" for field in spec.fields):
+            decoded = {
+                key: decoded[key]
+                for key in spec.order_keys(list(decoded))
+                if key in decoded
+            }
+
+        model = self._model_for_spec(spec)
+        if model is None:
+            return decoded
+        return model.from_decoded(decoded)
+
+    @staticmethod
+    def _anonymous_child(spec: TypeSpec, field, key: str) -> TypeKey | None:
+        """A child type reachable only by **element path** (research R3).
+
+        ``FieldSpec.child`` is ``None`` for an anonymous complex type, because
+        there is no qname to key it by — ``settings.xsd``'s ``<Settings>``
+        element declares its type inline, exactly as ``script.xsd``'s
+        ``<CuemsScript>`` does. The show path handles the one case it has with
+        ``_body_spec``; the config path meets it wherever a *root* element
+        wraps its content, so it is resolved generally.
+
+        Two guards, and both are load-bearing:
+
+        * ``field.xsd_type is None`` — the element's type is genuinely
+          **anonymous**. Without it, a simple-typed element (``<id>`` is a
+          ``cms:UuidType``) resolves to a fieldless ``TypeSpec`` and every
+          scalar on the script root would start being treated as a complex
+          child.
+        * ``spec.key.is_path`` — the enclosing spec is itself reachable by
+          path, which is what makes the path well-defined. This leaves inline
+          types nested inside a *named* one (``PutType.mappings``) raw, which
+          is what the recorded config goldens carry.
+        """
+        if field.xsd_type is not None or not spec.key.is_path:
+            return None
+        candidate = TypeKey(spec.key.schema, f"{spec.key.name}/{key}", is_path=True)
+        try:
+            derive(candidate)
+        except (KeyError, StopIteration, AttributeError):
+            return None
+        return candidate
+
+    def _decode_config_child(self, value, child_spec: TypeSpec, path=()):
+        if child_spec.wildcard:
+            return value
+        if isinstance(value, list):
+            return [self._decode_config_item(item, child_spec, path) for item in value]
+        return self._decode_config_value(value, child_spec, path)
+
+    def _decode_config_item(self, item, child_spec: TypeSpec, path=()):
+        """One member of a repeated block, **keeping** its single-key wrapper.
+
+        A collapsed group arrives as a list (the converter's rule for a type
+        whose content is one repeated child). Walk it; do not return it raw.
+        """
+        if isinstance(item, list):
+            return [self._decode_config_item(member, child_spec, path) for member in item]
+        if isinstance(item, dict) and len(item) == 1:
+            tag, body = next(iter(item.items()))
+            member = child_spec.field(tag)
+            if member is not None and member.child is not None:
+                chosen = self._alternative_for(body, member, path)
+                return {tag: self._decode_config_child(body, derive(chosen), (*path, tag))}
+            if self._names_this_type(tag, child_spec):
+                # The **type-name** wrapper ``encode_wire`` produces for a
+                # repeated member that decoded *bare* (feature 014, T022).
+                #
+                # The two directions were asymmetric here, and nothing could
+                # see it until a configuration wire form was fed back in.
+                # ``decode_config`` preserves an element wrapper
+                # (``{"node": …}``) where the raw document had one, and
+                # ``_encode_wrapped_item`` re-encodes it in place. But
+                # ``project_settings``' ``<setting>`` repeats *directly*, so
+                # its members decode to bare ``SettingType`` objects — and
+                # ``_tag_for_item`` then falls back to the class name, emitting
+                # ``{"SettingType": {…}}`` on the wire. Fed back in, that key
+                # named no declared child, so the body was stored verbatim as
+                # undescribed content and the document would not save.
+                #
+                # Unwrapping it here rather than in ``ConfigManager.from_json``
+                # keeps one decoder: the ingestion decodes through exactly the
+                # call ``load_*`` uses (plan.md §9.3). And it cannot move any
+                # recorded golden — ``xmlschema`` never emits a *type* name as
+                # a key, so no document decode has ever reached this branch.
+                return self._decode_config_value(body, child_spec, path)
+        return self._decode_config_value(item, child_spec, path)
+
+    def _names_this_type(self, tag: str, child_spec: TypeSpec) -> bool:
+        """``tag`` is ``child_spec``'s own type name, or its model's class name.
+
+        Deliberately narrow: the tag must name *this* type, not merely be
+        undeclared. Anything else stays undescribed content, which is what the
+        leaked ``schemaLocation`` relies on.
+        """
+        if tag == child_spec.key.name:
+            return True
+        model = self._model_for_spec(child_spec)
+        return model is not None and model.__name__ == tag
+
+    # -- encode: wire ---------------------------------------------------
+
+    def encode_wire(self, obj, spec: TypeSpec | None = None) -> dict:
+        """Encode ``obj`` to a wire dict — a **direct** object walk (T008).
+
+        The signature is pinned in data-model.md §6: the schema is bound at
+        construction, and ``spec`` is an optional recursion parameter naming
+        the type to project *within* that schema. Every call site in this
+        feature omits it, so it is resolved from ``obj``'s class through the
+        registry.
+
+        Mirrors ``decode``/``_decode_field``, reusing the **same** ``Adapter``
+        instances via ``Adapter.to_wire`` (rather than ``.decode``) so encode
+        and decode cannot disagree by construction. The result matches
+        ``schema.to_dict(build_document(obj))`` (the round-trip oracle, T004)
+        without paying for the tree build or the re-decode.
+
+        **The document body wraps; everything else is bare.** When ``spec``
+        is omitted and ``obj``'s class is bound as the schema's document body
+        (an anonymous root child, bound by *path* one level below the
+        registry root — ``CuemsScript`` is script.xsd's), the result is
+        ``{ClassName: {...fields}}``, matching ``read()``'s shape exactly
+        (W1). A recursive call always passes an explicit ``spec`` and is
+        never wrapped, matching ``decode``'s own field-level shape.
+        """
+        if spec is None:
+            body_tag = self._body_tag_for(obj)
+            spec = self._spec_for_model(type(obj))
+            if spec is None:
+                return obj
+            value = self._encode_wire_value(obj, spec)
+            return {body_tag: value} if body_tag is not None else value
+        return self._encode_wire_value(obj, spec)
+
+    def _body_tag_for(self, obj) -> str | None:
+        """``obj``'s class name, if it is bound as this schema's document body.
+
+        The document body is bound by *path*, one level below the registry
+        root (``CuemsProject/CuemsScript`` for script.xsd) — the encode-side
+        counterpart of ``_body_spec``'s ``body_tag`` extraction on decode.
+        Every other binding (by qname, or nested deeper) is not a document
+        body and stays bare.
+        """
+        class_name = type(obj).__name__
+        binding = self.registry.binding_for_path(f"{self.registry.root}/{class_name}")
+        if binding is not None and binding.model is type(obj):
+            return class_name
+        return None
+
+    def _encode_wire_value(self, obj, spec: TypeSpec) -> dict:
+        """The dict for one value against its type spec — mirrors ``decode``.
+
+        A key whose field is **optional and empty** is left out entirely
+        (matching the XML path's ``_omit`` and, empirically, what the
+        converter's own dict never carries for an absent element) rather
+        than emitted as ``null`` — reusing the same ``_omit`` the XML writer
+        uses, so the two paths cannot disagree on which fields vanish.
+        """
+        # The field's child is the unconditional alternative. A narrower
+        # runtime type (a video player, a video device) keeps its own order.
+        if hasattr(obj, "keys") and not isinstance(obj, (list, tuple)):
+            model_spec = self._spec_for_model(type(obj))
+            if model_spec is not None and model_spec.key != spec.key:
+                spec = model_spec
+        keys = self._selected_keys(obj)
+        ordered = spec.order_keys(keys)
+        omits_empty = getattr(obj, "OMIT_EMPTY_OPTIONAL", True)
+        result = {}
+        for key in ordered:
+            value = obj[key]
+            field = spec.field(key)
+            if omits_empty and self._omit(field, value):
+                continue
+            result[key] = self._encode_wire_field(key, value, spec)
+        return result
+
+    def _encode_wire_field(self, key: str, value, spec: TypeSpec):
+        """Mirrors ``_decode_field``, in the encode direction."""
+        field = spec.field(key)
+
+        if field is None:
+            # Undescribed: wildcard content, or a leaked attribute. Passed
+            # through untouched, matching decode's own passthrough (FR-009).
+            return value
+
+        adapter = adapter_for(field.xsd_type)
+        if adapter is not PASSTHROUGH:
+            return adapter.to_wire(value)
+
+        child = field.child
+        if child is None:
+            child = self._anonymous_child(spec, field, key)
+        if child is None:
+            return value
+
+        if value is None:
+            # A required-but-empty complex field — ``<description />``,
+            # ``<outputs />``. Every adapter already returns ``None`` for
+            # ``None``; this is the passthrough types' equivalent, and it
+            # must come before RAW_TYPES/list/wildcard, none of which is
+            # meaningful on ``None``.
+            return None
+
+        if child.name in self.RAW_TYPES:
+            # Never decoded into objects (T045/decode docstring); still raw.
+            return value
+
+        child_spec = derive(child)
+
+        if isinstance(value, list):
+            return self._encode_wire_repeated(value, child_spec)
+
+        if child_spec.wildcard:
+            return self._encode_wildcard_value(value)
+
+        return self.encode_wire(value, child_spec)
+
+    def _encode_wire_repeated(self, items: list, child_spec: TypeSpec) -> list:
+        """A repeated block: object list -> ``[{Tag: {...}}, ...]`` (T009).
+
+        The **only** repeated-content shape on the wire (verified against
+        every corpus document's goldens): same-tag repetition (``Region``,
+        ``fade_profile``, ``VideoCueOutput``) and mixed-tag choice (cue list
+        contents) both decode — and therefore both re-encode — to a flat list
+        of single-key ``{Tag: body}`` dicts. There is no second, wrapper-dict
+        shape to reproduce on this side: decode's ``_decode_wrapper`` exists
+        for a raw shape this converter's output never actually takes for the
+        types it names, which is why encode has no corresponding branch.
+        """
+        out = []
+        for item in items:
+            if isinstance(item, SCALARS) or not hasattr(item, "keys"):
+                out.append(item)
+                continue
+            wrapped = self._encode_wrapped_item(item, child_spec)
+            if wrapped is not None:
+                out.append(wrapped)
+                continue
+            tag = self._tag_for_item(item, child_spec)
+            member = child_spec.field(tag)
+            item_spec = (
+                derive(member.child)
+                if member is not None and member.child
+                else self._spec_for_model(type(item))
+            )
+            body = (
+                self._encode_wire_value(item, item_spec)
+                if item_spec is not None
+                else dict(item.items())
+            )
+            out.append({tag: body})
+        return out
+
+    def _encode_wrapped_item(self, item, child_spec: TypeSpec) -> dict | None:
+        """A repeated member that is **already** a single-key wrapper.
+
+        The config layer preserves ``{"node": {...}}`` rather than collapsing it
+        (``decode_config``), so on the way back out the wrapper is re-encoded in
+        place instead of being re-derived from the member's class. Returns
+        ``None`` when ``item`` is not such a wrapper, so the show path — where
+        a member *is* the object — falls through unchanged.
+
+        The discrimination is ``type(item) is dict``: a show-side member is a
+        ``CuemsDict`` subclass, a preserved wrapper is a plain ``dict`` built by
+        the decoder. The key must also name a declared child element, so an
+        object that merely happens to have one key is not mistaken for one.
+        """
+        if type(item) is not dict or len(item) != 1:
+            return None
+
+        tag, body = next(iter(item.items()))
+        member = child_spec.field(tag)
+        if member is None:
+            return None
+
+        if member.child is None:
+            # A repeated element of *simple* type — ``mapped_to``. Its adapter
+            # (usually the passthrough) is the whole encoding.
+            adapter = adapter_for(member.xsd_type)
+            return {tag: adapter.to_wire(body) if adapter is not PASSTHROUGH else body}
+
+        member_spec = derive(member.child)
+        if isinstance(body, list):
+            return {tag: self._encode_wire_repeated(body, member_spec)}
+        if body is None or not hasattr(body, "keys"):
+            return {tag: body}
+        return {tag: self._encode_wire_value(body, member_spec)}
+
+    @staticmethod
+    def _encode_wildcard_value(value):
+        """Wildcard (``ui_properties``) content — see ``encode_wildcard``."""
+        return encode_wildcard(value)
+
+    # -- encode: xml ------------------------------------------------------
 
     def encode_xml(self, obj, spec: TypeSpec | None, parent: Element, tag: str) -> Element:
         """Emit ``obj`` as ``<tag>`` under ``parent``.
@@ -264,6 +700,12 @@ class Mapper:
             SubElement(element, type(obj).__name__).text = str(obj)
             return
 
+        # The field's child is the unconditional alternative. A video device is
+        # a narrower type; its spec is what puts ``canvas_region`` in schema
+        # order. Same type: no change.
+        model_spec = self._spec_for_model(type(obj))
+        if model_spec is not None and spec is not None and model_spec.key != spec.key:
+            spec = model_spec
         keys = self._selected_keys(obj)
         ordered = spec.order_keys(keys) if spec is not None else keys
 
@@ -370,22 +812,25 @@ class Mapper:
         )
         self.encode_xml(item, child_spec, element, tag)
 
-    @staticmethod
-    def _tag_for_item(item, spec: TypeSpec | None) -> str:
+    def _tag_for_item(self, item, spec: TypeSpec | None) -> str:
         """The element name for a list member — **from the schema**.
 
         The Python class name is only a fallback, and using it unconditionally
-        is wrong: ``FadeProfile`` objects live in elements the schema calls
-        ``fade_profile``, and ``FadeFunctionParameter`` objects in ones it calls
-        ``parameter``. The legacy builder got this right by hardcoding both
-        names in ``FadeProfileXmlBuilder``; here the names come from the
-        content model, so a third such type needs no new code.
+        is wrong: a ``Region`` object lives in an element the schema calls
+        ``Region``, matching its class name, but a member whose class name
+        differs from its element tag needs the schema consulted instead of
+        assumed. The names come from the content model, so a type in that
+        position needs no new code.
 
-        Two cases, in order:
+        Three cases, in order:
 
         * the class name **is** one of the declared children — cue types in a
           cue list, output types in ``outputs`` — so use it, which is what
           picks the right branch of an ``xs:choice``;
+        * the field carries alternatives and this object's model is the
+          field's fallback or one of those alternatives — the declared element
+          name wins (``AudioCue`` is written as ``Cue``). ``class`` itself is
+          a declared attribute, so the existing attribute path writes it;
         * the content model declares exactly **one** child element, so there is
           nothing to choose and the declared name wins over the class name.
         """
@@ -393,14 +838,63 @@ class Mapper:
         if spec is None:
             return class_name
 
-        candidates = [f.name for f in spec.fields if f.kind is FieldKind.ELEMENT]
-        if class_name in candidates:
+        candidates = [f for f in spec.fields if f.kind is FieldKind.ELEMENT]
+        names = [f.name for f in candidates]
+        if class_name in names:
             return class_name
+        item_spec = self._spec_for_model(type(item))
+        if item_spec is not None:
+            for field in candidates:
+                if not field.alternatives or field.child is None:
+                    continue
+                accepted = {field.child.name, *(key.name for _value, key in field.alternatives)}
+                if item_spec.key.name in accepted:
+                    return field.name
         if len(candidates) == 1:
-            return candidates[0]
+            return candidates[0].name
         return class_name
 
+    def _child_spec_for(self, spec: TypeSpec | None, key: str, field) -> TypeSpec | None:
+        """The child's spec, resolving an **anonymous** nested element too.
+
+        ``field.child`` is ``None`` for a locally-declared element with no
+        named type — ``settings.xsd``'s ``<Settings>`` inside ``<CuemsSettings>``
+        is the case that surfaced this (feature 008, ITEM B): anonymous the
+        same way the schema root types are (research R3), but one level
+        deeper than the root-only path resolution ``build_document`` already
+        does. Without this, every field nested inside such an element resolves
+        with ``spec=None`` — harmless for a value that happens to already be a
+        string (passthrough stringifies it back unchanged), but wrong for a
+        genuinely empty one: ``None`` renders as the *text* ``"None"`` rather
+        than an empty element, because the code cannot tell "undescribed
+        wildcard content" from "described, but the child spec was never
+        derived" without this resolution.
+
+        Extending the path only works when ``spec`` is itself path-bound —
+        true for a root's immediate anonymous child, not in general for an
+        anonymous element nested inside a *named* type reached some other way
+        (``project_mappings.xsd``'s ``PutType.mappings`` is such a case, and
+        is not reached by this: its values are plain scalars/wrapped dicts
+        that pass through the ``spec=None`` fallback correctly today, so
+        widening this beyond the path-bound case is deferred rather than
+        guessed at).
+        """
+        if field is None:
+            return None
+        if field.child is not None:
+            return derive(field.child)
+        if field.xsd_type is None and spec is not None and spec.key.is_path:
+            return derive_path(self.schema_name, f"{spec.key.name}/{key}")
+        return None
+
     def _emit_field(self, element: Element, key: str, value, spec: TypeSpec | None) -> None:
+        # The converter's text key. Simple content (a default port's text)
+        # arrives and leaves under this name; it is not an element.
+        if key == "&":
+            if value is not None:
+                element.text = "" if value == "" else self._lexical(value, None)
+            return
+
         field = spec.field(key) if spec is not None else None
 
         if field is not None and field.kind is FieldKind.ATTRIBUTE:
@@ -442,8 +936,23 @@ class Mapper:
             )
             return
 
+        child_spec = self._child_spec_for(spec, key, field)
+
+        if field is not None and field.repeated and isinstance(value, (list, tuple)):
+            # ``key`` **is** the repeated element (feature 008) — e.g.
+            # ``project_settings.xsd``'s ``setting``, declared directly on the
+            # root with ``maxOccurs="unbounded"`` and no wrapper complex type.
+            # There is no ``<setting>`` *wrapper* to create: each list member
+            # is its own sibling ``<setting>`` element. Every other repeated
+            # field in the six schemas sits one level down, inside a wrapper
+            # type reached through a single-occurrence field (``contents``,
+            # ``outputs``, ``node_list``) — those still take the branch below,
+            # unaffected, because *that* field's own ``repeated`` is ``False``.
+            for item in value:
+                self.encode_xml(item, child_spec, element, str(key))
+            return
+
         child = SubElement(element, str(key))
-        child_spec = derive(field.child) if field is not None and field.child else None
 
         if isinstance(value, (list, tuple)):
             for item in value:
@@ -589,6 +1098,52 @@ def read_config_document(schema_object, xmlfile):
     return schema_object.to_dict(xmlfile, **CONFIG_READER_OPTIONS)
 
 
+def read_versioned_config_document(schema_object, schema_name: str, xmlfile: str):
+    """As :func:`read_config_document`, but ITEM E's version-aware read (US6).
+
+    Probes the document's version marker **before** any schema decode is
+    attempted (research R2 — an old document does not validate against the
+    current schema by definition), applies any conversion the registry names
+    for its version, and only then decodes — so the decode below always sees
+    a document shaped like the current schema, converted or not.
+
+    Returns ``(raw, original_version, conversion_steps)``: ``raw`` is exactly
+    what :func:`read_config_document` would have produced (config's decode
+    posture — no adapters except where a schema opts in — is unaffected by
+    this); ``original_version`` is what the document declared, or 1 if it
+    declared none (FR-050); ``conversion_steps`` is what
+    ``versioning.convert`` applied, empty when the document was already
+    current.
+
+    Raises:
+        FileNotFoundError: unwrapped, exactly as :func:`read_config_document`
+            (via the underlying decode) — this adds an explicit check so the
+            message names the file before any parsing is attempted.
+        versioning.DocumentTooNewError: the document's marker exceeds this
+            schema's current version (FR-052). Callers translate this to a
+            distinguishable ``ValidationError``.
+    """
+    import os as _os
+    from xml.etree.ElementTree import parse as _parse_tree
+
+    from .versioning import CURRENT_VERSION, DocumentTooNewError, convert, read_version
+
+    Logger.info(f"Reading configuration document {xmlfile}")  # file access (FR-033)
+    if not _os.path.exists(xmlfile):
+        raise FileNotFoundError(f"No such file: {xmlfile}")
+    tree = _parse_tree(xmlfile)
+    version = read_version(tree)
+    current = CURRENT_VERSION[schema_name]
+    if version > current:
+        raise DocumentTooNewError(schema_name, version, current)
+    steps = convert(schema_name, tree, version, current) if version < current else []
+    # Function-level: documents imports this module at load.
+    from .documents import raise_if_old_device_shape
+    raise_if_old_device_shape(schema_name, xmlfile, tree)
+    raw = schema_object.to_dict(tree, **CONFIG_READER_OPTIONS)
+    return raw, version, tuple(steps)
+
+
 def build_document(
     project_object,
     *,
@@ -599,25 +1154,65 @@ def build_document(
 ) -> ElementTree:
     """Build a complete document tree from a model object.
 
-    The write path's single entry point, replacing ``XmlBuilder.build``. The
-    root element, its namespace registration and the ``xsi:schemaLocation``
-    attribute are reproduced exactly — including the fact that ``xsd_path`` is
-    the writing machine's **absolute** path, which is a defect (F24) whose fix
-    is deferred to feature 006 because changing it changes every document's
-    root.
+    The write path's single entry point, replacing ``XmlBuilder.build``.
+
+    **``xsi:schemaLocation`` carries the bare schema filename** (T037, F24's
+    fix). It used to carry ``xsd_path`` — the *writing machine's* absolute path
+    to the bundled ``.xsd`` — so every show file recorded the local filesystem
+    layout of whichever node last saved it. Documents were therefore neither
+    portable nor reproducible, and the golden harness had to normalise the
+    attribute out before it could compare bytes at all.
+
+    Nothing resolves the value: validation always uses the explicitly loaded
+    schema object, never the hint in the document. Files already on disk are
+    unaffected in either direction — ``test_legacy_compatibility`` pins all
+    three forms (absolute, relative, absent) as loadable, and one pointing at a
+    path that does not exist still loads.
+
+    ``xsd_path`` stays in the signature because it is where the filename comes
+    from; only the part written into the document narrows.
+
+    **Two document shapes, and which one a schema has is read off the
+    registry rather than assumed** (feature 007, first exercised by
+    ``network_map``). ``script.xsd``'s root (``CuemsProject``) is bound to
+    ``GENERIC`` — the object that matters (``CuemsScript``) is a **named
+    child** of it, so ``encode_xml`` creates that child as its own
+    ``<CuemsScript>`` element. ``network_map.xsd``'s root
+    (``CuemsNetworkMap``) has no such nested body element at all —
+    ``<node_list>`` is a **direct** child of the root — and its registry
+    binding says so: the root path is bound to ``CuemsNetworkMapType``
+    itself, not to ``GENERIC``. Wrapping ``project_object`` in a synthetic
+    ``<CuemsNetworkMapType>`` child (what the ``script`` logic would do,
+    unmodified) would emit an element the schema does not declare. When the
+    root is bound to the object's own class, the object *is* the root's
+    content, so it is filled directly into ``root`` instead.
     """
+    from .versioning import CURRENT_VERSION, DOC_VERSION_ATTR
+
     namespace_uri = next(iter(namespace.values()))
     register_namespace(next(iter(namespace)), namespace_uri)
 
     root = Element(f"{{{namespace_uri}}}{xml_root_tag}")
     root.attrib = {
-        f"{{{SCHEMA_INSTANCE_URI}}}schemaLocation": f"{namespace_uri} {xsd_path}"
+        f"{{{SCHEMA_INSTANCE_URI}}}schemaLocation": (
+            f"{namespace_uri} {os.path.basename(xsd_path)}"
+        ),
+        # The document-version marker (feature 008, ITEM E, FR-053): every
+        # document this library writes carries it from here on, because this
+        # is the one funnel every writer goes through. Excluded from
+        # ``spec._derive_attributes`` and every wire projection (research R1)
+        # — it is a document property, not a domain field.
+        DOC_VERSION_ATTR: str(CURRENT_VERSION[schema_name]),
     }
 
     mapper = Mapper(schema_name)
-    body_tag = type(project_object).__name__
-    spec = _body_spec(schema_name, body_tag)
-    mapper.encode_xml(project_object, spec, root, body_tag)
+    root_binding = mapper.registry.binding_for_path(mapper.registry.root)
+    if root_binding is not None and root_binding.model is type(project_object):
+        mapper._fill(root, project_object, derive(root_binding.key))
+    else:
+        body_tag = type(project_object).__name__
+        spec = _body_spec(schema_name, body_tag)
+        mapper.encode_xml(project_object, spec, root, body_tag)
 
     # Element construction and per-cue work stay below INFO (FR-033): this is
     # one record per document built, not one per cue.

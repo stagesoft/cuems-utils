@@ -14,7 +14,7 @@ consumer code does. The collision is why the implementation moved to
 ``settings.py``.
 """
 
-from ._deprecation import deprecated_alias
+from .._deprecation import deprecated_alias
 from .settings import NetworkMap as _NetworkMap
 from .settings import ProjectMappings as _ProjectMappings
 from .settings import ProjectSettings as _ProjectSettings

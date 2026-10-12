@@ -1,6 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
+
 """Unit and integration tests for FadeCue."""
 
 from os import path
+
+import sys
 
 import pytest
 
@@ -45,11 +51,11 @@ def test_fade_cue_explicit_construction():
     assert fc.target_value == 75
 
 
-def _make_script_with_fade_cue():
+def _make_script_with_fade_cue(curve_type=FadeCurveType.linear):
     """Helper: build a minimal CuemsScript containing one FadeCue."""
     fc = FadeCue({
         'action_target': TARGET_UUID,
-        'curve_type': FadeCurveType.linear,
+        'curve_type': curve_type,
         'duration': '00:00:05.000',
         'target_value': 50,
     })
@@ -128,6 +134,36 @@ def test_invalid_curve_type_raises():
         fc.curve_type = 'triangle'
 
 
+@pytest.mark.parametrize('curve', ['linear', 'sigmoid', 'ease_in', 'ease_out'])
+def test_engine_native_curve_type_round_trip(curve):
+    """Every curve name the editor UI submits survives the XML round-trip.
+
+    The frontend sends gradient-motiond's own CurveFactory names (its
+    "exponential"/"logarithmic" labels submit ease_in/ease_out), so both the
+    Python enum and the script.xsd enumeration must accept all four.
+    """
+    script, _ = _make_script_with_fade_cue(FadeCurveType(curve))
+    writer = XmlReaderWriter(schema_name='script', xmlfile=TMP_FILE)
+    writer.write_from_object(script)
+    assert writer.validate() is None
+
+    reader = XmlReaderWriter(schema_name='script', xmlfile=TMP_FILE)
+    loaded_fc = reader.read_to_objects().cuelist.contents[0]
+    assert loaded_fc.curve_type == FadeCurveType(curve)
+
+
+@pytest.mark.parametrize('curve', ['exponential', 'logarithmic'])
+def test_legacy_curve_type_still_accepted(curve):
+    """Legacy curve names keep loading so old projects don't break.
+
+    gradient-motiond never implemented these; the frontend heals them to
+    ease_in/ease_out on load, but utils must keep accepting them until then.
+    """
+    fc = FadeCue()
+    fc.curve_type = curve
+    assert fc.curve_type == FadeCurveType(curve)
+
+
 def test_zero_duration_raises():
     """T019: Setting duration to zero raises ValueError."""
     fc = FadeCue()
@@ -163,6 +199,33 @@ def test_boundary_target_value_100_accepted():
     assert fc.target_value == 100
 
 
+def _coverage_is_measuring() -> bool:
+    """Whether a coverage collector is **active**, not merely importable.
+
+    ``"coverage" in sys.modules`` is the wrong signal: ``pytest-cov`` is an
+    installed dependency, so the module is present on every run and the guard
+    would skip this test permanently — silently retiring it instead of
+    protecting it.
+    """
+    try:
+        import coverage
+
+        return coverage.Coverage.current() is not None
+    except Exception:  # noqa: BLE001 - absence or any API drift means "not measuring"
+        return False
+
+
+@pytest.mark.skipif(
+    _coverage_is_measuring(),
+    reason=(
+        "wall-clock budget, and coverage instrumentation invalidates it: "
+        "measured 2.217s against a 2.0s limit under --cover, ~1.4s without. "
+        "A clock measures the machine; instrumenting the machine measures the "
+        "instrument. Skipped rather than loosened, because raising the limit "
+        "to accommodate a traced interpreter would stop it detecting the "
+        "regression it exists for."
+    ),
+)
 def test_fade_cue_construction_performance():
     """T036: Constructing 10 000 FadeCue instances completes in under 2 seconds (FR-PERF-001)."""
     import time
@@ -183,38 +246,37 @@ def test_fade_cue_inherits_none_target_guard():
 
 
 # ---------------------------------------------------------------------------
-# Phase 5 — User Story 3: create_script integration
+# Phase 5 — User Story 3: descriptor-generated example script integration
+# (feature 008, T070/T074 — ported from the retired script-template function)
 # ---------------------------------------------------------------------------
 
-def test_create_script_contains_fade_cue():
-    """T026: create_script() produces a script that contains at least one FadeCue."""
-    from cuemsutils.create_script import create_script
+def test_generated_example_contains_fade_cue():
+    """T026: the descriptor-generated example script contains a FadeCue."""
+    from cuemsutils.xml.descriptor import generate_script_example
 
-    script = create_script()
+    script = generate_script_example()
     fade_cues = [c for c in script.cuelist.contents if isinstance(c, FadeCue)]
-    assert len(fade_cues) >= 1, "Expected at least one FadeCue in create_script() output"
+    assert len(fade_cues) >= 1, "Expected at least one FadeCue in the generated example"
 
 
-def test_create_script_validates_with_fade_cue():
-    """T027: create_script() internally validates its output with FadeCue and returns.
+def test_generated_example_validates_with_fade_cue():
+    """T027: the generated example, FadeCue included, is schema-valid as returned.
 
-    create_script() calls validate_template() before returning.  If schema
-    validation had failed the error would be logged and the script returned
-    would still contain the FadeCue (the function does not raise).  This test
-    verifies the function completes successfully and the FadeCue is present,
-    confirming no regression was introduced by adding FadeCue to the template.
+    Unlike the retired hand-written script-template function, the generator
+    does not validate and then mutate its result on the way out (FR-033) —
+    so this asserts the returned object validates directly, rather than
+    trusting an internal call that no longer exists.
     """
-    from cuemsutils.create_script import create_script
+    from cuemsutils.xml.descriptor import generate_script_example
 
-    # create_script() runs validate_template internally — if it raised the test fails
-    script = create_script()
+    script = generate_script_example()
+    assert not script.validate(), script.validate()
 
     fade_cues = [c for c in script.cuelist.contents if isinstance(c, FadeCue)]
     assert len(fade_cues) >= 1, (
-        "create_script() must return a script containing at least one FadeCue; "
-        "check that the internal validate_template() call did not eliminate it"
+        "the generated example must contain a FadeCue"
     )
-    # Verify the FadeCue properties are intact after the function returns
+    # Verify the FadeCue properties are intact
     fc = fade_cues[0]
     assert fc.action_type == 'fade_action'
     assert isinstance(fc.curve_type, FadeCurveType)

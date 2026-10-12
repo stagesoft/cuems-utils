@@ -40,22 +40,28 @@ def test_sequence_type_reports_declaration_order():
     spec = derive_named("script", "AudioCueType")
     assert spec.ordered
     assert spec.field_names[:3] == ("autoload", "description", "enabled")
-    assert spec.field_names[-2:] == ("master_vol", "fade_profiles")
+    # ``class`` sorts last because attributes are derived after elements
+    # (``_derive_attributes``' ``start`` offset), not because of its name. The
+    # element tail is still the schema's: ``master_vol`` after ``outputs``,
+    # which is what the next test turns into the derived-vs-alphabetical claim.
+    assert spec.field_names[-3:] == ("outputs", "master_vol", "class")
 
 
 def test_order_keys_sorts_by_declaration_not_by_name():
     """The assertion that separates "derived" from "alphabetical".
 
-    ``master_vol`` sorts *after* ``fade_profiles`` alphabetically and *before*
-    it in the schema. Any implementation that sorted by name would fail here,
-    which is the whole point of choosing this pair.
+    ``master_vol`` sorts *before* ``outputs`` alphabetically and *after* it in
+    the schema (feature 008, FR-007a — ``fade_profiles`` is deleted, and
+    ``outputs``/``master_vol`` is the pair that now demonstrates the same
+    property). Any implementation that sorted by name would fail here, which
+    is the whole point of choosing this pair.
     """
     spec = derive_named("script", "AudioCueType")
-    assert spec.order_keys(["fade_profiles", "master_vol"]) == [
+    assert spec.order_keys(["master_vol", "outputs"]) == [
+        "outputs",
         "master_vol",
-        "fade_profiles",
     ]
-    assert sorted(["fade_profiles", "master_vol"]) == ["fade_profiles", "master_vol"]
+    assert sorted(["master_vol", "outputs"]) == ["master_vol", "outputs"]
 
 
 def test_order_keys_is_stable_regardless_of_input_order():
@@ -122,7 +128,7 @@ def test_order_free_ordering_is_not_reachable_for_ordered_types():
     unchanged, dict iteration order would be deciding the output.
     """
     spec = derive_named("script", "AudioCueType")
-    shuffled = ["fade_profiles", "master_vol", "autoload"]
+    shuffled = ["outputs", "master_vol", "autoload"]
     assert spec.order_keys(shuffled) != shuffled
 
 
@@ -160,9 +166,14 @@ def test_anonymous_root_types_are_keyed_by_element_path():
 
 
 def test_cardinality_comes_from_the_schema():
-    spec = derive_named("script", "AudioCueType")
-    assert spec.field("fade_profiles").required is False
-    assert spec.field("master_vol").required is True
+    audio = derive_named("script", "AudioCueType")
+    assert audio.field("master_vol").required is True
+
+    # ``AudioCueType``'s only optional field was ``fade_profiles``, deleted
+    # by FR-007a (feature 008) — every remaining field on it is required.
+    # ``VideoCueType.opacity`` is the schema's example of an optional field.
+    video = derive_named("script", "VideoCueType")
+    assert video.field("opacity").required is False
 
 
 def test_repeated_elements_are_marked():
@@ -273,7 +284,7 @@ def test_derivation_count_is_bounded_by_distinct_types_not_calls():
 
 @pytest.mark.parametrize(
     "schema",
-    ["settings", "network_map", "project_mappings", "project_settings", "outputs"],
+    ["settings", "network_map", "project_mappings", "project_settings", "hardware_outputs"],
 )
 def test_every_schema_root_derives(schema):
     spec = derive_root(schema)
@@ -281,13 +292,20 @@ def test_every_schema_root_derives(schema):
 
 
 def test_outputs_type_differs_between_schemas():
-    """R4 — the collision that makes per-schema isolation mandatory.
+    """R4/X14 — the collision that made per-schema isolation mandatory, and its
+    resolution.
 
-    Both schemas declare ``OutputsType`` in the same namespace with different
-    content. Deriving them through one shared object would silently give one
-    schema the other's fields.
+    Both schemas used to declare ``OutputsType`` in the same namespace with
+    different content, so deriving them through one shared object would silently
+    have given one schema the other's fields. rc16 renamed the second to
+    ``HardwareOutputsType``; the two shapes still differ, and now so do the two
+    names.
     """
     script_outputs = derive_named("script", "OutputsType")
-    outputs_outputs = derive_named("outputs", "OutputsType")
-    assert script_outputs.field_names != outputs_outputs.field_names
-    assert outputs_outputs.field_names == ("output",)
+    hardware_outputs = derive_named("hardware_outputs", "HardwareOutputsType")
+    assert script_outputs.field_names != hardware_outputs.field_names
+    # Feature 013 gave both of them a ``class`` discriminator and they still
+    # differ: script's holds repeated ``CueOutput`` elements, hardware's holds
+    # repeated ``output`` strings.
+    assert hardware_outputs.field_names == ("output", "class")
+    assert script_outputs.field_names == ("CueOutput",)

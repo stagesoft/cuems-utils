@@ -190,7 +190,35 @@ def test_XmlReader(caplog):
     assert type(readed.cuelist.contents[1]) == VideoCue
     assert type(readed.cuelist.contents[2]) == AudioCue
     assert type(readed.cuelist.contents[3]) == VideoCue
-    assert reloaded_script == readed
+
+    # ``assert reloaded_script == readed`` until feature 006.
+    #
+    # That assertion passed because ``Cue.__eq__`` compared by ``id`` alone, so
+    # a cue list compared cue-by-cue by identifier and the one real difference
+    # between the written script and the one read back was invisible. Equality
+    # now compares every declared field (behaviour change 5), which makes the
+    # difference visible — so it is stated here rather than absorbed by a
+    # comparison too coarse to see it.
+    #
+    # The difference is *not* new and is not a regression: wildcard
+    # ``ui_properties`` content has no declared type anywhere (that is what a
+    # wildcard is), so an integer written as ``<warning>0</warning>`` has
+    # nothing to decode back to and returns as the string ``'0'``. Recorded as
+    # F19 and unchanged by this feature.
+    assert readed.id == reloaded_script.id
+    assert readed.cuelist.id == reloaded_script.cuelist.id
+    for before, after in zip(reloaded_script.cuelist.contents, readed.cuelist.contents):
+        if before.ui_properties:
+            continue  # the wildcard case, asserted explicitly below
+        assert after == before
+
+    assert readed.cuelist.contents[0].ui_properties == {
+        'icon': 'icon.png',
+        'color': '#ffffff',
+        'timeline_position': {'x': '0', 'y': '0'},
+        'warning': '0',
+    }
+    assert reloaded_script.cuelist.contents[0].ui_properties['warning'] == 0
 
 TEST_JSON_FILE = path.dirname(__file__) + '/data/sample_script.json'
 TMP_JSON_FILE = path.dirname(__file__) + '/tmp/test_json_script.xml'
@@ -233,9 +261,9 @@ def test_jsonload(caplog):
 
 def test_json_dump():
     import json
-    from cuemsutils.create_script import create_script
+    from cuemsutils.xml.descriptor import generate_script_example
 
-    script = create_script()
+    script = generate_script_example()
     audio_cue = script.cuelist.contents[0]
     json_string = json.dumps(script)
     json_string = '{"CuemsScript": ' + json_string + '}'
@@ -288,7 +316,82 @@ def test_json_readwrite(caplog):
         assert tmp_data['action'] == 'project_save'
         json_parsed = tmp_data['value']
 
-    assert json_script == json_parsed
+    # ``assert json_script == json_parsed`` until feature 006.
+    #
+    # ``sample_script.json`` is a captured ``project_save`` payload from
+    # ``cuems-editor``, and it carries JSON booleans (``"autoload": false``).
+    # The library used to echo them back unchanged, because ``__json__`` dumped
+    # the object's own Python values — which is exactly the inconsistency F21
+    # names: the *other* payload the same editor receives, ``project_load``,
+    # carried ``"False"`` as a **string**, because ``cms:BoolType`` was an
+    # ``xs:string`` enum in the schema. Feature 006 unified the two on one
+    # projection, which meant answering in the schema's form on both.
+    #
+    # **Feature 014 (X1) removed the cause rather than the symptom.** The three
+    # booleans are the built-in ``xs:boolean`` now, so the schema's form *is*
+    # the JSON form, and difference (a) below — this comment's whole reason for
+    # existing — is closed. The retirement is recorded rather than deleted:
+    # (a) is now the assertion that the payload matches, with the old
+    # expectation stated so a reader meeting a pre-014 editor payload knows
+    # which side changed.
+    #
+    # The round trip is still asserted where it is meaningful — **stability**,
+    # which is the property a consumer actually depends on — and the remaining
+    # differences are named rather than tolerated in silence.
+
+    # 1. Stability: the projection is a fixed point. Feed its own output back
+    #    in and nothing moves. An unstable payload is the real hazard here,
+    #    because it drifts a little on every save.
+    reparsed = CuemsParser(json_parsed).parse()
+    assert json.loads(json.dumps({'CuemsScript': reparsed})) == json_parsed
+
+    # 2. Content survives: identifiers, names, timecodes and numbers are
+    #    carried through untouched. This is the part of the old assertion that
+    #    was about the data rather than about its encoding.
+    before = json_script['CuemsScript']
+    after = json_parsed['CuemsScript']
+    for key in ('id', 'name', 'description', 'created', 'modified'):
+        assert after[key] == before[key]
+    assert after['CueList']['id'] == before['CueList']['id']
+    # One ``Cue`` key, the class inside the body (feature 013, axis D).
+    audio_before = before['CueList']['contents'][0]['Cue']
+    audio_after = after['CueList']['contents'][0]['Cue']
+    assert audio_after['class'] == audio_before['class'] == 'audio'
+    assert audio_after['master_vol'] == audio_before['master_vol'] == 80
+    # ``Media.duration`` reshapes (enumerated as difference (d) below); every
+    # other ``Media`` field passes through untouched.
+    media_before = dict(audio_before['Media'])
+    media_after = dict(audio_after['Media'])
+    del media_before['duration'], media_after['duration']
+    assert media_after == media_before
+    assert audio_after['prewait'] == {'CTimecode': '00:00:05.000'}
+
+    # 3. The enumerated differences, each stated once.
+    #    a. **Closed by feature 014 (X1).** This read
+    #       ``after[...]['autoload'] == 'False'``: the editor sent a JSON
+    #       boolean and got back the capitalised string ``cms:BoolType``
+    #       spelled. With ``xs:boolean`` the value survives as itself, so what
+    #       was a difference is now the round trip holding. ``is False`` on both
+    #       sides, because ``"False"`` is truthy and ``== False`` would pass for
+    #       ``0`` too.
+    assert before['CueList']['autoload'] is False
+    assert after['CueList']['autoload'] is False
+    #    b. Wildcard ``ui_properties`` content has no declared type, so its
+    #       scalars render as strings (X10's documented fallback).
+    assert before['ui_properties']['warning'] == 0
+    assert after['ui_properties']['warning'] == '0'
+    #    c. An optional field with no value is **absent**, not present-and-null
+    #       — the same rule the XML writer applies, now applied here too.
+    #       ``AudioCueType`` had no optional field to demonstrate this with
+    #       once ``fade_profiles`` was deleted (feature 008, FR-007a); the
+    #       property itself is still covered elsewhere, on
+    #       ``VideoCueOutput.canvas_region``.
+    #    d. ``Media.duration`` reshapes from a bare string to the same
+    #       ``{"CTimecode": "..."}`` wrapper every other timecode field
+    #       carries (feature 008, FR-002/FR-003) — the one sanctioned change
+    #       to this payload's shape.
+    assert audio_before['Media']['duration'] == '00:03:01.000'
+    assert audio_after['Media']['duration'] == {'CTimecode': '00:03:01.000'}
 
 def test_settings():
     from cuemsutils.xml import Settings
@@ -370,7 +473,7 @@ def test_networkmap():
     assert isinstance(network_dict, dict)
     assert 'node_list' in network_dict
     assert isinstance(network_dict['node_list'], list)
-    assert network_dict['node_list'][0]['node']['online'] == 'True'
+    assert network_dict['node_list'][0]['node']['online'] is True
 
 def test_projectmappings():
     from cuemsutils.xml import ProjectMappings

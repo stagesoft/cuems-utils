@@ -1,0 +1,94 @@
+"""Every enumeration's facets agree with T004a's recorded verdict table (T059; FR-029b, SC-012a).
+
+This test asserts **agreement with the audit artifact**
+(``specs/008-rebuild-extension/enum-audit.md``) — it does not itself decide
+what the system honours, which is a judgment over three consumer
+repositories, not a testable predicate. The ``RETAIN`` set below is
+transcribed from that document's summary table; if the two drift apart,
+either the schema changed without an audit update or the audit's evidence
+needs re-checking — both are failures this test exists to surface, not
+resolve.
+"""
+
+from __future__ import annotations
+
+from cuemsutils.xml.schema import SCHEMA_NAMES, get_schema
+
+#: (schema, named simple type) -> the RETAIN set, transcribed from
+#: enum-audit.md's summary table. ``FadeTypeType``/``FadeModeType`` are
+#: absent by design — ITEM A already deleted both whole (enum-audit.md's
+#: "REMOVE — whole type deleted" rows).
+RETAINED = {
+    ("script", "ActionType"): {
+        "play", "pause", "stop", "load", "unload", "enable", "disable",
+        "fade_action", "wait", "go_to", "pause_project", "resume_project",
+    },
+    # ``ease_in``/``ease_out`` joined on feature 014's cherry-pick of ``main``'s
+    # ``9c17418``: the engine dispatches those two names natively, so a project
+    # saved by a ``main``-line editor failed T1 on this branch until they were
+    # here. Additive, rule 1 — no document is invalidated by their arrival.
+    ("script", "FadeCurveType"): {
+        "linear", "exponential", "logarithmic", "sigmoid", "ease_in", "ease_out",
+    },
+    ("script", "PostGoType"): {"pause", "go", "go_at_end"},
+    # The three ``BoolType`` rows left this table in feature 014. X1 retyped
+    # the five elements to the built-in ``xs:boolean`` and deleted every
+    # declaration, so there is no enumeration to audit: a boolean stopped being
+    # a two-value string enum, which is the finding that decided the retype —
+    # the descriptor could not tell it from ``PostGoType`` above.
+    ("settings", "AutoOrIntLatencyMsType"): {"auto"},
+    ("network_map", "NodeRoleType"): {"controller", "node", "firstrun"},
+    # feature 012, uuid4 convergence. ``NotProvisionedUuidType`` is an
+    # enumeration of exactly **one** value on purpose (FR-021, assumption 1):
+    # the sentinel is admitted by *union*, not by loosening a pattern, so no
+    # other nil-like value becomes valid. ``NodeUuidType`` is that union and
+    # inherits the same single facet through its member types, which is why the
+    # resolver above reports it too.
+    #
+    # Retained rather than audited-and-removed: this is the one value a freshly
+    # installed node carries in all three documents, and the package's own
+    # build-time generation emits it (M-f). Deleting it would make every new
+    # node unloadable.
+    ("network_map", "NotProvisionedUuidType"): {"00000000-0000-0000-0000-000000000000"},
+    ("network_map", "NodeUuidType"): {"00000000-0000-0000-0000-000000000000"},
+    ("project_mappings", "PortDirectionType"): {"input", "output"},
+    ("project_mappings", "NotProvisionedUuidType"): {"00000000-0000-0000-0000-000000000000"},
+    ("project_mappings", "NodeUuidType"): {"00000000-0000-0000-0000-000000000000"},
+    ("settings", "NotProvisionedUuidType"): {"00000000-0000-0000-0000-000000000000"},
+    ("settings", "NodeUuidType"): {"00000000-0000-0000-0000-000000000000"},
+}
+
+
+def _enumerated_types():
+    """``(schema, type_name) -> facet values``, for every named enum type,
+    across all six schemas, resolving union member facets (settings'
+    ``AutoOrIntLatencyMsType``) the same way the descriptor does."""
+    found: dict[tuple[str, str], set[str]] = {}
+    for schema_name in SCHEMA_NAMES:
+        schema = get_schema(schema_name)
+        for type_name, xsd_type in schema.types.items():
+            if not xsd_type.is_simple():
+                continue
+            values = xsd_type.enumeration
+            if not values:
+                member_types = getattr(xsd_type, "member_types", None) or ()
+                merged: set[str] = set()
+                for member in member_types:
+                    merged.update(getattr(member, "enumeration", None) or ())
+                values = merged
+            if values:
+                found[(schema_name, type_name)] = set(values)
+    return found
+
+
+def test_every_facet_value_in_the_schemas_has_a_recorded_verdict():
+    found = _enumerated_types()
+    unaudited = sorted(set(found) - set(RETAINED))
+    assert unaudited == [], f"enumerations with no recorded verdict: {unaudited}"
+
+
+def test_the_schemas_carry_no_more_and_no_fewer_than_the_retained_set():
+    found = _enumerated_types()
+    for key, expected in RETAINED.items():
+        assert key in found, f"{key} is recorded as retained but not in any schema"
+        assert found[key] == expected, (key, found[key], expected)

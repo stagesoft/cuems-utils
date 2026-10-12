@@ -1,0 +1,8 @@
+#!/bin/sh
+# Test stub for cuems-init-node (feature 011, T004). Records its argv, then
+# exits with CUEMS_STUB_EXIT (default 0) after CUEMS_STUB_SLEEP seconds.
+if [ -n "${CUEMS_STUB_MARKER:-}" ]; then
+    printf '%s\n' "$@" > "$CUEMS_STUB_MARKER"
+fi
+[ -n "${CUEMS_STUB_SLEEP:-}" ] && sleep "$CUEMS_STUB_SLEEP"
+exit "${CUEMS_STUB_EXIT:-0}"

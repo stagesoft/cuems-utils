@@ -1,10 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <xs:schema targetNamespace="https://stagelab.coop/cuems/" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:cms="https://stagelab.coop/cuems/">
     <xs:element name="CuemsNetworkMap">
+            <xs:annotation>
+                <xs:documentation xml:lang="en">Cluster topology, discovered. Two writers at element granularity (F1, feature 011): cuems-nodeconf owns every other node's row and the adopted/online flags; cuems-init-node seeds this node's own row by plain insert at provisioning.</xs:documentation>
+                <xs:appinfo>
+                    <cms:writer scope="topology">cuems-nodeconf</cms:writer>
+                    <cms:writer scope="self-entry">cuems-init-node</cms:writer>
+                </xs:appinfo>
+            </xs:annotation>
         <xs:complexType>
             <xs:sequence>
                 <xs:element name="node_list" minOccurs="0" maxOccurs="1" type="cms:NodeDictType" />
             </xs:sequence>
+            <!-- Document-property version marker (feature 008, ITEM E, FR-048a).
+                 Not a domain field: excluded from spec._derive_attributes and
+                 every wire projection (research R1). Absent means version 1
+                 (FR-050); this schema stays at version 1 (FR-048b). -->
+            <xs:attribute name="doc_version" type="xs:positiveInteger" use="optional" />
         </xs:complexType>
     </xs:element>
 
@@ -16,13 +28,13 @@
 
     <xs:complexType name="NodeType">
         <xs:sequence>
-            <xs:element name="uuid" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
+            <xs:element name="uuid" minOccurs="1" maxOccurs="1" type="cms:NodeUuidType"/>
             <xs:element name="mac" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
             <xs:element name="name" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
-            <xs:element name="node_type" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
+            <xs:element name="node_role" minOccurs="1" maxOccurs="1" type="cms:NodeRoleType"/>
             <xs:element name="ip" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"/>
-            <xs:element name="adopted" minOccurs="0" maxOccurs="1" type="cms:BoolType"/>
-            <xs:element name="online" minOccurs="0" maxOccurs="1" type="cms:BoolType"/>
+            <xs:element name="adopted" minOccurs="0" maxOccurs="1" type="xs:boolean"/>
+            <xs:element name="online" minOccurs="0" maxOccurs="1" type="xs:boolean"/>
             <!-- Optional identity fields (feat/node-identity). nodeconf assigns
                  role_id during adoption; alias is operator-defined; hostname
                  is transitional (only set for legacy nodes whose OS hostname
@@ -33,19 +45,6 @@
         </xs:sequence>
     </xs:complexType>
 
-    <xs:complexType name="PutType">
-        <xs:sequence>
-            <xs:element name="name" minOccurs="1" maxOccurs="1" type="cms:NonEmptyString"></xs:element>
-            <xs:element name="mappings">
-                <xs:complexType>
-                    <xs:sequence>
-                        <xs:element name="mapped_to" minOccurs="1" maxOccurs="unbounded" type="xs:string"></xs:element>
-                    </xs:sequence>
-                </xs:complexType>
-            </xs:element>
-        </xs:sequence>
-    </xs:complexType>
-
     <xs:simpleType name="NonEmptyString">
         <xs:restriction base="xs:string">
             <xs:minLength value="1" />
@@ -53,10 +52,56 @@
         </xs:restriction>
     </xs:simpleType>
 
-    <xs:simpleType name="BoolType">
+
+    <!-- feature 007: node_type (free text) -> node_role (real enumeration).
+         controller/node/firstrun replace master/slave/firstrun. -->
+    <xs:simpleType name="NodeRoleType">
         <xs:restriction base="xs:string">
-            <xs:enumeration value="True" />
-            <xs:enumeration value="False" />
+            <xs:enumeration value="controller" />
+            <xs:enumeration value="node" />
+            <xs:enumeration value="firstrun" />
         </xs:restriction>
+    </xs:simpleType>
+
+    <!-- feature 012: uuid4 convergence (FR-020, FR-021c, data-model §1.2).
+         THREE declarations, deliberately, not one widened pattern: the
+         converged shape, the not-provisioned sentinel, and the union of them
+         that every node-identity element names. The two halves exist to be
+         nameable, testable and removable on their own; only the union is
+         referenced.
+
+         "Converged" means uuid4 lowercase and ONLY that. The sentinel is
+         ADMITTED and never converged — feature 011 established it as the
+         coherent state of a freshly installed node, and the package's own
+         build-time generation emits it, so a pattern that refused it would make
+         every new node unloadable (M-f).
+
+         Admitted by UNION, not by loosening: the sentinel is an enumeration of
+         exactly one string, so no other nil-like value becomes valid.
+
+         Declared here in all three narrowed schemas because none of the six
+         includes or imports another — they share a target namespace and nothing
+         else (research R13). NonEmptyString, declared identically in four
+         schemas, is the precedent. The anti-drift guarantee is therefore a
+         TEST, not a schema mechanism: the three names are recorded in
+         tests/contract/test_schema_name_overlap.py's KNOWN_IDENTICAL_DUPLICATES
+         (FR-021d), whose drift test fails the moment one copy gains a facet the
+         others lack. -->
+    <xs:simpleType name="ConvergedUuidType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}" />
+            <xs:minLength value="36" />
+            <xs:maxLength value="36" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NotProvisionedUuidType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="00000000-0000-0000-0000-000000000000" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NodeUuidType">
+        <xs:union memberTypes="cms:ConvergedUuidType cms:NotProvisionedUuidType" />
     </xs:simpleType>
 </xs:schema>

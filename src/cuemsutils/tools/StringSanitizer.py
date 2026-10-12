@@ -2,15 +2,15 @@ class StringSanitizer():
     """Ensure that the string is sanitized and safe for use in the system"""
     @staticmethod
     def sanitize_text_size(_string):
-        
+
         if _string and (len(_string) > 65535):
-            _string = _string[0:65534] # return frist 255 characters
+            _string = _string[0:65535] # return first 65535 characters
         return _string
 
     @staticmethod
     def sanitize_name(_string): #TODO: scape characters?
         if len(_string) > 255 :
-            _string = _string[0:254] # return frist 255 characters
+            _string = _string[0:255] # return first 255 characters
         return _string
     
     @staticmethod

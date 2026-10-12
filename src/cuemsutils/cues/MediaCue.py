@@ -1,12 +1,24 @@
+import re
 from typing import Tuple
 
 from .Cue import Cue
-from .FadeProfile import FadeProfile
+
 from ..helpers import CuemsDict, ensure_items, format_timecode, Unset
 from ..tools.CTimecode import CTimecode
 
 REQ_ITEMS = {
     'Media': None,
+    # The device-class discriminator (feature 013, axis D). Declared on this
+    # class and on ``DmxCue`` because ``MediaCueType`` and ``DmxCueType`` are
+    # the two types that extend ``CueClassType``; ``Cue``, ``CueList``,
+    # ``ActionCue`` and ``FadeCue`` extend ``CueType`` and carry none
+    # (FR-050a).
+    #
+    # ``Unset`` on the *base*: ``MediaCue`` is the unconditional alternative,
+    # the type an unknown class validates as, so its class is whatever the
+    # document carried. Each concrete subclass declares its own literal, which
+    # is what makes ``AudioCue({...}).save()`` produce a valid document.
+    'class': Unset,
     'outputs': None,
 }
 # ``fade_profiles`` moved to AudioCue and VideoCue (feature 004, T059).
@@ -64,6 +76,11 @@ def _as_region(item) -> "Region":
             f"{list(Region.declared_fields())}: {sorted(item)}"
         )
     return Region(item)
+
+
+#: ``cms:Md5Type``'s pattern, mirrored. Lowercase only, 32 characters —
+#: the same shape and the same case rule as ``UuidType``.
+_MD5_RE = re.compile(r"[a-f0-9]{32}")
 
 
 class Region(CuemsDict):
@@ -166,14 +183,6 @@ class Region(CuemsDict):
 
     out_time = property(get_out_time, set_out_time)
 
-    def __json__(self):
-        """Convert the region to a JSON-compatible dictionary.
-        
-        Returns:
-            dict: A dictionary representation of the region.
-        """
-        return {type(self).__name__: dict(self.items())}
-
 class Media(CuemsDict):
     """A class representing a media file with associated regions."""
 
@@ -185,16 +194,28 @@ class Media(CuemsDict):
     #: All four are required by the schema, so each takes ``Unset``: a ``Media``
     #: built bare must not start emitting four empty elements.
     #:
-    #: ``duration`` is a ``TimecodeType`` — a restricted **string** — not the
-    #: ``CTimecodeType`` that ``FadeCue.duration`` uses. It is out of scope for
-    #: every coercion change in this feature (FR-009b); the schema-derived
-    #: adapter table already resolves it to a passthrough, so this needs no
-    #: special case, only the discipline not to add one.
+    #: ``duration`` is ``cms:CTimecodeType`` (feature 008, FR-002/FR-003) — the
+    #: same type and the same ``format_timecode`` machinery every other
+    #: time-carrying element uses. It used to be the plain-string
+    #: ``TimecodeType``, the last of seven time values with its own storage
+    #: exception; that exception is gone, and so is the three-branch dispatch
+    #: it needed.
     DECLARED_DEFAULTS = {
         'file_name': Unset,
         'id': Unset,
         'duration': Unset,
         'regions': Unset,
+        # Feature 014's media block. ``Unset`` for the same reason the four
+        # above use it, and **not** for the reason that comment gives: those
+        # four are required by the schema, these are ``minOccurs="0"``, and
+        # ``Unset`` is what "declared but emits nothing when absent" *means*
+        # (``helpers.py``'s ``Unset`` docstring, with ``canvas_region`` as the
+        # precedent). Defaulting them to ``None`` would start emitting four
+        # empty elements, which ``xs:positiveInteger`` rejects.
+        'pixel_width': Unset,
+        'pixel_height': Unset,
+        'file_size': Unset,
+        'file_md5': Unset,
     }
     
     def __init__(self, init_dict = None):
@@ -245,47 +266,39 @@ class Media(CuemsDict):
 
     def get_duration(self):
         """Get the duration of the media file.
-        
+
         Returns:
-            str: The duration of the media file.
+            CTimecode | None: The duration of the media file.
         """
         return super().__getitem__('duration')
-    
+
     def set_duration(self, duration):
         """Set the duration of the media file, validating on write.
 
-        The stored value is always a canonical ``HH:MM:SS.mmm`` string (or
-        ``None``). This guards against the historical class of duration
-        corruption at the object boundary: a malformed value is rejected
-        rather than silently persisted. The getter contract stays ``str`` so
-        existing consumers — e.g. the engine's ``CTimecode(cue.media.duration)``
-        — are unchanged.
+        Collapsed to the same one-branch shape every other ``CTimecodeType``
+        setter uses (feature 008, FR-004) — ``FadeCue.duration``'s pattern,
+        now that ``Media.duration`` carries the same schema type. The stored
+        value is a ``CTimecode`` object, not a string: the getter's contract
+        changes accordingly (FR-002), which is the point of retyping the
+        field rather than a side effect of it.
 
         Args:
-            duration (str | CTimecode | None): timecode string, ``CTimecode``,
-                or ``None``.
+            duration (str | CTimecode | int | float | dict | None):
+                anything :func:`~cuemsutils.helpers.format_timecode` accepts.
 
         Raises:
-            ValueError: If a string cannot be parsed as a timecode.
-            TypeError: If *duration* is not a str, CTimecode, or None.
+            ValueError: If *duration* cannot be parsed as a timecode.
         """
+        from ..xml.validators import enforce
+
+        # The rule, by name (T073) — parses via the same ``format_timecode``
+        # this setter then uses to store, so a value that fails here would
+        # fail identically below (FR-005).
+        enforce('media_duration', duration, self)
         if duration is None:
             super().__setitem__('duration', None)
             return
-        if isinstance(duration, CTimecode):
-            super().__setitem__('duration', str(duration))
-            return
-        if isinstance(duration, str):
-            try:
-                canonical = str(CTimecode(duration))
-            except Exception as e:
-                raise ValueError(f"Invalid media duration {duration!r}: {e}")
-            super().__setitem__('duration', canonical)
-            return
-        raise TypeError(
-            f"Media duration must be str, CTimecode, or None, "
-            f"not {type(duration).__name__}"
-        )
+        super().__setitem__('duration', format_timecode(duration))
 
     duration = property(get_duration, set_duration)
 
@@ -342,6 +355,134 @@ class Media(CuemsDict):
 
     regions: list[Region] = property(get_regions, set_regions)
 
+    # --- the media block (feature 014) ----------------------------------
+    #
+    # Four optional elements, measured once by whoever probes the file and read
+    # thereafter, so the engine does not run ffprobe while holding the command
+    # lock. Each needs **both** a ``DECLARED_DEFAULTS`` entry and a
+    # ``set_<name>`` accessor: ``CuemsDict.setter`` resolves
+    # ``getattr(self, f"set_{k}")`` and ``continue``s on ``AttributeError``, so
+    # a field with one and not the other is dropped **in silence**.
+    #
+    # ``None`` removes the key rather than storing it. Absent means *unknown*,
+    # and that is the only way to say so: the schema has no empty form, and 0
+    # is not a value.
+
+    def _set_positive_int(self, key, value):
+        """Store a positive integer, or remove the key when *value* is ``None``.
+
+        Shared by the three integers because the rule is one rule. Accepts an
+        ``int`` or a string of digits and stores an ``int``; **no upper bound**,
+        deliberately — ``file_size`` must hold a file past 100 GB, which is
+        107,374,182,400 bytes and overflows a 32-bit int. Python's ``int`` is
+        arbitrary-precision and ``xs:positiveInteger`` is unbounded, so the
+        range is a property of the types rather than something to check.
+
+        Raises:
+            ValueError: *value* is not a positive integer. Raising here rather
+                than letting the schema refuse it at save names the field and
+                fails at the assignment that caused it.
+        """
+        if value is None:
+            super().pop(key, None)
+            return
+        if isinstance(value, bool):
+            # ``bool`` is an ``int`` subclass, so this would otherwise store
+            # ``True`` as 1 — a plausible-looking pixel width.
+            raise ValueError(f"{key} must be a positive integer, got a bool")
+        if isinstance(value, int):
+            coerced = value
+        elif isinstance(value, str) and value.isdigit():
+            coerced = int(value)
+        else:
+            # Deliberately **not** ``int(value)`` on anything else: that
+            # truncates, so ``1.5`` would store 1 — a wrong value that looks
+            # right, which is the defect class this whole feature exists to
+            # remove (see ``_Bool.decode``, which used to make ``False`` out of
+            # any string). A fractional pixel count or byte count is nonsense;
+            # refusing it names the field at the assignment.
+            raise ValueError(
+                f"{key} must be a positive integer or a string of digits, "
+                f"got {value!r}"
+            )
+        if coerced < 1:
+            raise ValueError(
+                f"{key} must be positive; absent means unknown and 0 is not a "
+                f"value, so pass None to clear it rather than {coerced}"
+            )
+        super().__setitem__(key, coerced)
+
+    def get_pixel_width(self):
+        """The media's original width in pixels, or ``None`` if unknown.
+
+        The media's **own** size as ``ffprobe`` reports it — not the layer's
+        size on screen, which is ``CanvasRegionType``'s ``width``/``height`` as
+        unit floats.
+        """
+        return super().get('pixel_width')
+
+    def set_pixel_width(self, value):
+        self._set_positive_int('pixel_width', value)
+
+    pixel_width = property(get_pixel_width, set_pixel_width)
+
+    def get_pixel_height(self):
+        """The media's original height in pixels, or ``None`` if unknown."""
+        return super().get('pixel_height')
+
+    def set_pixel_height(self, value):
+        self._set_positive_int('pixel_height', value)
+
+    pixel_height = property(get_pixel_height, set_pixel_height)
+
+    def get_file_size(self):
+        """The file's size in bytes when it was measured, or ``None``."""
+        return super().get('file_size')
+
+    def set_file_size(self, value):
+        self._set_positive_int('file_size', value)
+
+    file_size = property(get_file_size, set_file_size)
+
+    def get_file_md5(self):
+        """The file's md5 when it was measured, or ``None`` if unknown."""
+        return super().get('file_md5')
+
+    def set_file_md5(self, value):
+        """Store a 32-character lowercase md5, or remove the key for ``None``.
+
+        **Nothing is normalised.** An uppercase digest raises rather than being
+        lowercased, because the schema refuses it and silently "fixing" a value
+        here would mean the object and the document disagree about what is
+        valid. ``md5sum``, ``hashlib`` and ``ffmpeg`` all emit lowercase, so
+        the strict form costs a caller nothing it was not already doing.
+
+        The house precedent is what settles it rather than taste:
+        :class:`~cuemsutils.tools.Uuid.Uuid` **raises** on an uppercase uuid
+        instead of lowercasing it, and ``Md5Type`` was written to match
+        ``UuidType`` facet for facet. The rc15 line's setter normalises instead
+        (*"accepts 32 hex digits in any case, and stores them lowercase"*), so
+        a caller that relied on the library lowercasing for it — the editor,
+        which stores the md5 its client sent — must ``.lower()`` before
+        assigning here. See
+        ``specs/planning/stored-media-values-preimplementation.md``.
+
+        Raises:
+            ValueError: *value* is not 32 lowercase hexadecimal characters.
+        """
+        if value is None:
+            super().pop('file_md5', None)
+            return
+        if not isinstance(value, str) or not _MD5_RE.fullmatch(value):
+            raise ValueError(
+                f"file_md5 must be 32 lowercase hexadecimal characters "
+                f"(cms:Md5Type), got {value!r}"
+            )
+        super().__setitem__('file_md5', value)
+
+    file_md5 = property(get_file_md5, set_file_md5)
+
+
 class MediaCue(Cue):
     """Base class for media-related cues (audio and video).
     
@@ -365,21 +506,6 @@ class MediaCue(Cue):
         else:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
-
-    def __setitem__(self, key, value):
-        if key == 'fade_profile':
-            self.set_fade_profiles(value)
-            return
-        if key == 'fade_profiles':
-            if isinstance(value, dict) and 'fade_profile' in value:
-                inner = value['fade_profile']
-                self.set_fade_profiles(
-                    inner if isinstance(inner, list) else [inner]
-                )
-                return
-            self.set_fade_profiles(value)
-            return
-        super().__setitem__(key, value)
 
     def get_Media(self):
         """Get the media object associated with this cue.
@@ -418,56 +544,6 @@ class MediaCue(Cue):
         super().__setitem__('outputs', outputs)
 
     outputs = property(get_outputs, set_outputs)
-
-    def get_fade_profiles(self):
-        return super().__getitem__('fade_profiles')
-
-    def set_fade_profiles(self, value):
-        if value is None:
-            super().__setitem__('fade_profiles', None)
-            return
-        if isinstance(value, FadeProfile):
-            value = [value]
-        elif not isinstance(value, list):
-            value = [value]
-        if len(value) == 0:
-            super().__setitem__('fade_profiles', None)
-            return
-        seen_types: set[str] = set()
-        result: list[FadeProfile] = []
-        for item in value:
-            fp = item if isinstance(item, FadeProfile) else FadeProfile(item)
-            t = fp.type
-            if t in seen_types:
-                raise ValueError(f"Duplicate fade profile type {t!r}")
-            seen_types.add(t)
-            if not str(fp.function_id or '').strip():
-                raise ValueError("function_id must be non-empty")
-            if fp.mode == 'parametric':
-                params = fp.parameters
-                if not params:
-                    raise ValueError(
-                        "parametric fade profile requires non-empty parameters"
-                    )
-            result.append(fp)
-        super().__setitem__('fade_profiles', result)
-
-    fade_profiles = property(get_fade_profiles, set_fade_profiles)
-
-    def get_fade_profile(self, direction: str):
-        """Return the fade profile for ``in``/``out`` (or ``fade_in``/``fade_out``)."""
-        norm = {'fade_in': 'in', 'fade_out': 'out'}.get(direction, direction)
-        if norm not in ('in', 'out'):
-            raise ValueError(
-                f"direction must be 'in', 'out', 'fade_in', or 'fade_out', got {direction!r}"
-            )
-        fps = self.get_fade_profiles()
-        if not fps:
-            return None
-        for fp in fps:
-            if fp.type == norm:
-                return fp
-        return None
 
     def get_all_output_names(self) -> list[Tuple[str, str]]:
         """Get all output names splitted into node and output ids for the media cue.

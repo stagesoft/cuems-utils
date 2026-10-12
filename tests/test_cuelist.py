@@ -1,7 +1,7 @@
 """Test CueList object generation and manipulation"""
 from cuemsutils.cues import AudioCue, CueList
 from cuemsutils.cues.Cue import Cue
-from cuemsutils.create_script import create_script
+from cuemsutils.xml.descriptor import generate_script_example
 
 def test_simple_cuelist():
     ## Arrange
@@ -49,10 +49,11 @@ def test_cuelist_media():
     from copy import deepcopy
     from cuemsutils.helpers import new_uuid
 
-    script = create_script()
+    script = generate_script_example()
     for cue in script.cuelist.contents:
         cue.id = new_uuid()
-    cue_list = CueList(deepcopy(script.cuelist)) 
+    original_filenames = set(script.get_media_filenames())
+    cue_list = CueList(deepcopy(script.cuelist))
     cue_list.contents[0].media.file_name = 'file_2.ext'
     for cue in cue_list.contents:
         cue.id = new_uuid()
@@ -61,6 +62,5 @@ def test_cuelist_media():
     ## Act
     media_filenames = script.get_media_filenames()
 
-    ## Assert
-    assert len(media_filenames) == 3
-    assert media_filenames == ['file.ext', 'file_2.ext', 'file_video.ext']
+    ## Assert — get_media_filenames() returns unique names, sorted
+    assert media_filenames == sorted(original_filenames | {'file_2.ext'})

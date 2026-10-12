@@ -1,27 +1,21 @@
 """ For the moment it works with pip3 install xmlschema==1.2.2
  """
-from os import path
 from xml.etree.ElementTree import ElementTree
 
 from deprecated import deprecated
-from xmlschema import XMLSchema11
 
+from .._deprecation import deprecated_symbol
 from ..log import Logger, logged
 from .converter import CuemsConverter
-from .mapper import build_document
-from .Parsers import CuemsParser
+from .documents import get_pkg_schema as _get_pkg_schema
+from .mapper import Mapper, build_document
+from .schema import get_schema
 
-
-@logged
-def get_pkg_schema(schema_name: str):
-    """Get the schema file from package resources"""
-    schemas_dir = path.join(path.dirname(__file__), 'schemas')
-    if not schema_name[len(schema_name)-4:] == '.xsd':
-        schema_name = schema_name + '.xsd'
-    schema = path.join(schemas_dir, schema_name)
-    if not path.isfile(schema):
-        raise FileNotFoundError(f"Schema file {schema_name} not found")
-    return schema
+# Resolved in ``documents`` now, so that module can stay the one place the
+# schema path is computed while ``XmlReaderWriter`` becomes a shim over it
+# (US4). Re-exported under its old name because consumers — and
+# ``xml/XmlReaderWriter.py``'s deprecated path — import it from here.
+get_pkg_schema = logged(_get_pkg_schema)
 
 class CuemsXml():
     def __init__(self, schema_name, xmlfile, namespace={'cms':'https://stagelab.coop/cuems/'}, xml_root_tag='CuemsProject'):
@@ -42,11 +36,29 @@ class CuemsXml():
 
     @schema.setter
     def schema(self, name):
+        """Resolve the ``.xsd`` path and take the **cached** compiled schema.
+
+        ``get_schema`` is keyed on ``(name, converter)`` and is what makes
+        "schema load once per process" an implementation fact rather than an
+        aspiration. This setter used to call ``XMLSchema11(...)`` directly, so
+        every instance recompiled the XSD — and because the configuration path
+        constructs one of these per call, that cost was paid per load rather
+        than per process. Feature 013 identified it while profiling
+        SC-PERF-001 and deliberately left it; feature 014 applies it, because
+        014 edits the schemas and so has to measure them anyway.
+
+        The converter is part of the cache key on purpose: ``XMLSchema11``
+        stores it, and the two reader configurations need different ones, so a
+        single-key cache would hand one configuration the other's converter.
+
+        ``self._schema`` stays the absolute path — ``read()`` passes it as
+        ``xsd_path`` and the engine keys its derivation on the bare name.
+        """
         self._schema = get_pkg_schema(name)
-        self.schema_object = XMLSchema11(
-            self.schema,
-            converter = self.converter
-        )
+        # Keyed on *this call's* name, not on ``self.schema_name``: nothing
+        # reassigns this property today, but reading the attribute would hand a
+        # reassignment the previous schema's compiled object, silently.
+        self.schema_object = get_schema(name.removesuffix('.xsd'), self.converter)
 
     @property
     def xmlfile(self):
@@ -75,8 +87,18 @@ class XmlReaderWriter(CuemsXml):
         )
 
     def write_from_dict(self, project_dict):
-        project_object = CuemsParser(project_dict).parse()
-        self.write_from_object(project_object)
+        """Decode a payload and write it.
+
+        Calls ``Mapper.decode_document`` directly (T061a). It used to go
+        through ``CuemsParser``, which delegates to exactly this — so the
+        result is unchanged and the hop is gone.
+
+        The hop had to go **before** ``CuemsParser`` could be deprecated:
+        contract C8 asserts that no internal caller invokes a deprecated
+        symbol, so a library that both deprecates a name and calls it fails its
+        own test. C8 is satisfied here, not amended.
+        """
+        self._write_object(Mapper(self.schema_name).decode_document(project_dict))
 
     def build_xml_from_object(self, project_object):
         """Build XML data from a project object, via the schema-derived engine.
@@ -95,17 +117,25 @@ class XmlReaderWriter(CuemsXml):
             xml_root_tag=self.xml_root_tag,
         )
 
-    def write_from_object(self, project_object):
-        """Write a project object to an XML file"""
-        xml_data = self.build_xml_from_object(project_object)
-        self.write(xml_data)
+    # --- the private cores (feature 014) --------------------------------
+    #
+    # The four public methods below are deprecated, and two of them used to
+    # call the other two. Contract C8 says no internal caller invokes a
+    # deprecated symbol, so a library that both deprecates a name and calls it
+    # fails its own test — the same reasoning that moved the ``CuemsParser``
+    # hop out of ``write_from_dict`` in feature 004. The bodies move here and
+    # every caller, deprecated or not, goes through these.
 
-    def validate_object(self, project_object):
-        """Validate a project object against the schema"""
-        xml_data = self.build_xml_from_object(project_object)
-        return self.schema_object.validate(xml_data)
+    def _raw_decode(self, **kwargs):
+        """The document as ``xmlschema`` decodes it: **no version conversion**.
 
-    def read(self, **kwargs):
+        This is what ``read()`` always did and the reason it is now deprecated.
+        A document is decoded against the *current* schema with no step
+        applied, so one written for an older version reaches a strict decode
+        that refuses it. The public path (:meth:`CuemsScript.load_with_report`,
+        :func:`ConfigBase.load_config_document`) converts in memory first;
+        this does not.
+        """
         Logger.info(f"Reading {self.schema_name} document {self.xmlfile}")
         return self.schema_object.to_dict(
             self.xmlfile,
@@ -114,9 +144,88 @@ class XmlReaderWriter(CuemsXml):
             **kwargs
         )
 
+    def _write_object(self, project_object):
+        self.write(self.build_xml_from_object(project_object))
+
+    # --- the deprecated surface (feature 014, X1) -----------------------
+
+    @deprecated_symbol(
+        "cuemsutils.cues.CuemsScript.CuemsScript.save",
+        note=(
+            "this path writes without applying a version conversion; the "
+            "public save validates and reports"
+        ),
+    )
+    def write_from_object(self, project_object):
+        """Write a project object to an XML file"""
+        self._write_object(project_object)
+
+    def validate_object(self, project_object):
+        """Validate a project object against the schema.
+
+        **Deliberately NOT decorated here**, unlike its three neighbours above,
+        and the first attempt at feature 014 got this wrong: a blanket
+        ``deprecated_symbol`` pointing at ``CuemsScript.validate`` **regressed
+        feature 013's FR-036**, which made this method's advice *per schema*
+        because ``CuemsScript.validate`` builds a **show** document and so
+        cannot validate a ``settings.xml`` at all. A consumer following that
+        advice is sent somewhere that cannot work, with no reason to doubt it —
+        013's UR-5 finding, and worse than no advice.
+
+        The replacement depends on the **instance**, so it is decided at the
+        call by ``_deprecation._per_instance_deprecated`` and wired in
+        ``cuemsutils.xml.__init__``'s ``per_instance``. Decorating the method
+        here would shadow that with a single wrong string.
+        """
+        return self.schema_object.validate(self.build_xml_from_object(project_object))
+
+    @deprecated_symbol(
+        "cuemsutils.cues.CuemsScript.CuemsScript.to_wire",
+        note=(
+            "the returned dict no longer contains the schemaLocation key, and "
+            "this path applies **no version conversion** — a document written "
+            "for an older schema version is refused here and converted in "
+            "memory by the public load"
+        ),
+    )
+    def read(self, **kwargs):
+        """DEPRECATED — a raw schema decode, with no version conversion.
+
+        **Deprecated by feature 014**, and the trigger is X1: retyping
+        ``cms:BoolType`` to ``xs:boolean`` means a document carrying the old
+        ``True``/``False`` text is refused by the current schema. The
+        registered 1 -> 2 conversion rewrites it, but only on the **public**
+        read path — this method has never applied a conversion, which was
+        invisible while every schema change happened to be additive.
+
+        So the narrowing is not new behaviour; it is an existing property that
+        X1 made observable. Deprecating the method rather than teaching it to
+        convert is the honest answer: 008 put conversion in the public path on
+        purpose (D19/D21's three load outcomes are reported, which a raw decode
+        cannot do), and this surface is removed at ``v0.1.1`` regardless.
+
+        Use :meth:`cuemsutils.cues.CuemsScript.CuemsScript.to_wire` for a show
+        document, or the ``ConfigManager`` accessors for a configuration one.
+        """
+        return self._raw_decode(**kwargs)
+
+    @deprecated_symbol(
+        "cuemsutils.cues.CuemsScript.CuemsScript.load",
+        note=(
+            "this path applies no version conversion; the public load converts "
+            "in memory and returns a LoadReport saying what it did"
+        ),
+    )
     def read_to_objects(self):
-        xml_dict = self.read()
-        return CuemsParser(xml_dict).parse()
+        """DEPRECATED — read and decode, with no version conversion.
+
+        Same narrowing as :meth:`read`, for the same reason: it decodes what
+        ``_raw_decode`` returns, so a document written for an older schema
+        version never reaches the mapper.
+        """
+        return Mapper(
+            self.schema_name, document=self.xmlfile
+        ).decode_document(self._raw_decode())
 
 @deprecated(
     reason="Use XmlReaderWriter instead",

@@ -57,7 +57,7 @@ XML_ROOT_TAG = {
     "network_map": "CuemsNetworkMap",
     "project_mappings": "CuemsProjectMappings",
     "project_settings": "CuemsProjectSettings",
-    "outputs": "CuemsOutputs",
+    "hardware_outputs": "CuemsHardwareOutputs",
 }
 
 
@@ -93,6 +93,13 @@ def _outcome(exc: BaseException | None) -> dict:
     }
 
 
+def _decode_to_objects(reader, schema: str):
+    """``read_to_objects``'s body, without the deprecated public name (C8)."""
+    from cuemsutils.xml.mapper import Mapper
+
+    return Mapper(schema, document=reader.xmlfile).decode_document(reader._raw_decode())
+
+
 def _reader(doc: CorpusDoc, xmlfile: str | None = None):
     from cuemsutils.xml.xml_reader_writer import XmlReaderWriter
 
@@ -106,7 +113,10 @@ def _reader(doc: CorpusDoc, xmlfile: str | None = None):
 def capture_read_dict(doc: CorpusDoc):
     """``XmlReaderWriter.read`` — ``strip_namespaces=False`` (FR-013, config A)."""
     try:
-        return _reader(doc).read(), None
+        # The private cores throughout this harness: C8 — it measures the
+        # library and must not itself invoke the surface feature 014
+        # deprecated (see tests/support/roundtrip.py's read_dict).
+        return _reader(doc)._raw_decode(), None
     except Exception as exc:  # noqa: BLE001 - the failure is the data
         return None, exc
 
@@ -144,12 +154,12 @@ def capture_written_xml(doc: CorpusDoc):
     captured as an outcome rather than worked around.
     """
     try:
-        obj = _reader(doc).read_to_objects()
+        obj = _decode_to_objects(_reader(doc), doc.schema)
     except Exception as exc:  # noqa: BLE001
         return None, exc, None
     out = Path(tempfile.mkdtemp()) / "written.xml"
     try:
-        _reader(doc, xmlfile=str(out)).write_from_object(obj)
+        _reader(doc, xmlfile=str(out))._write_object(obj)
     except Exception as exc:  # noqa: BLE001
         return None, None, exc
     return normalize_schema_location(out.read_bytes()), None, None
@@ -183,13 +193,30 @@ class GoldenWriter:
 
 
 def _json_bytes(value) -> bytes:
-    """Exactly ``json.dumps(value)``, which is what C2 compares.
+    """Exactly what C2 compares — :func:`tests.support.roundtrip.json_dumps`.
 
     Not pretty-printed and with no trailing newline: the golden **is** the
     artifact under contract, and ``json.dumps`` is order-sensitive, so key
     insertion order is preserved on disk (FR-011a).
+
+    **Delegates rather than reimplements** (fixed 2026-09-23). This used to be
+    a bare ``json.dumps(value)``, which silently diverged from the comparison
+    the contract tests actually perform: ``roundtrip.json_dumps`` normalises
+    through ``as_plain`` and renders an ``Enum`` as its ``.value`` — added for
+    feature 006's object accessors and 007's ``network_map`` adapter table.
+    The goldens moved with those features; this writer did not, so it produced
+    ``"adopted": "True"`` where every golden and every test says ``true``.
+
+    The result was nine ``*.config.json`` goldens permanently reported as
+    conflicts by ``--force``-less capture, while the suite stayed green — a
+    harness that could no longer regenerate the artifacts it exists to
+    regenerate, and whose ``--force`` would have *overwritten correct goldens
+    with stale output*. One definition, both call sites, is the only thing that
+    keeps a captured artifact and its assertion from drifting apart again.
     """
-    return json.dumps(value).encode("utf-8")
+    from tests.support.roundtrip import json_dumps
+
+    return json_dumps(value).encode("utf-8")
 
 
 def capture(force: bool = False) -> GoldenWriter:
@@ -221,15 +248,31 @@ def capture(force: bool = False) -> GoldenWriter:
         outcomes[doc.relpath] = record
 
     outcomes.update(_capture_generated(writer))
+
+    # ``outcomes.json`` IS NOT A REGENERATION TARGET, and ``--force`` on it is
+    # destructive (learned the hard way, 2026-09-23).
+    #
+    # It records the **pre-refactor** verdict for every corpus document, and at
+    # least one contract asserts the *difference* between that record and what
+    # the library does now:
+    # ``test_accept_reject_parity.test_config_documents_fail_to_write_with_a_
+    # changed_exception_class`` reads ``AttributeError`` out of this file and
+    # asserts the live path raises ``XMLSchemaChildrenValidationError`` instead.
+    # Regenerating flattens both sides to the current value and the comparison
+    # silently becomes a tautology.
+    #
+    # So it will conflict **permanently and correctly**. A genuine update — a
+    # schema renamed, a document added — is applied surgically, to the keys that
+    # actually moved, never by capturing over the whole file.
     writer.put("outcomes.json", json.dumps(outcomes, indent=2, sort_keys=True).encode())
     return writer
 
 
-#: Fixed timestamps for the generated document. ``create_script`` deliberately
-#: returns its template with ``created``/``modified`` set to ``None`` — it is
-#: sent to the editor empty — but ``script.xsd`` carries
-#: ``<xs:assert test="modified >= created"/>``, which an empty string cannot
-#: satisfy. Stamping both is what makes the template writable at all.
+#: Fixed timestamps for the generated document (T070/T072). The generator
+#: (``descriptor.generate_script_example``) stamps live ``created``/
+#: ``modified`` values, which would make the captured golden different on
+#: every run; these two are substituted in afterward purely for byte
+#: reproducibility, the same reason ``normalize_uuids`` exists below.
 GENERATED_CREATED = "2026-01-01T00:00:00"
 GENERATED_MODIFIED = "2026-01-01T00:00:00"
 
@@ -242,14 +285,14 @@ _UUID_RE = re.compile(
 def normalize_uuids(raw: bytes) -> bytes:
     """Rewrite uuid4 values to a stable sequence, in first-appearance order.
 
-    Applied **only** to the generated document. ``create_script`` mints a fresh
-    uuid for the script, the cue list, each of the five cues and each media
+    Applied **only** to the generated document. ``generate_script_example``
+    mints a fresh uuid for the script, the cue list, each cue and each media
     item, so its bytes differ on every call and cannot be a golden as they
     stand.
 
     Normalizing the output is deliberately preferred over seeding the generator.
     Seeding was tried first and does not hold: the number of uuids minted before
-    ``create_script`` reaches its own depends on import order and on lazily
+    the generator reaches its own depends on import order and on lazily
     constructed, cached object defaults, so a patched counter lands on different
     values in a fresh process than in one that has already walked the corpus —
     reproducible *most* of the time, which is the worst property a golden can
@@ -275,52 +318,34 @@ def normalize_uuids(raw: bytes) -> bytes:
     return _UUID_RE.sub(replace, raw)
 
 
-def _make_template_writable(script) -> None:
-    """Undo the blanking ``create_script`` does on its way out.
-
-    ``create_script`` validates a fully-populated script and *then* clears every
-    id and both timestamps, because what it returns is a blank template for the
-    editor to fill in. That template cannot be written back: ``script.xsd``
-    requires ids to match a uuid4 pattern and asserts ``modified >= created``,
-    and the empty string satisfies neither.
-
-    So the fields are restamped here with values from the same deterministic
-    sequence. This is not working around a defect — it is reproducing the state
-    ``create_script`` itself validated three lines before returning.
-    """
-    from cuemsutils.helpers import new_uuid
-
-    script.created = GENERATED_CREATED
-    script.modified = GENERATED_MODIFIED
-    script["id"] = new_uuid()
-    script["CueList"]["id"] = new_uuid()
-    for cue in script.cuelist["contents"]:
-        cue["id"] = new_uuid()
-
-
 def build_generated_script():
-    """The deterministic ``create_script`` document (T012).
+    """The deterministic example-script document (T012, T070).
 
     The single implementation, shared by the capture script and by every test
     that needs the document — two copies of this would drift, and the drift
     would look like a byte-identity regression.
 
-    The uuids it contains are random and are *not* stabilised here — see
-    ``normalize_uuids``, which is applied to the serialized bytes instead.
+    Unlike the retired hand-written script-template function, ``generate_script_example()`` returns an
+    already-populated, already-valid object with nothing left to restamp:
+    there is no blanking step to undo (FR-033) — only the two timestamps are
+    overridden, for byte reproducibility across runs. The uuids it contains
+    are random and are *not* stabilised here — see ``normalize_uuids``, which
+    is applied to the serialized bytes instead.
     """
-    from cuemsutils.create_script import create_script
+    from cuemsutils.xml.descriptor import generate_script_example
 
-    script = create_script()
-    _make_template_writable(script)
+    script = generate_script_example()
+    script.created = GENERATED_CREATED
+    script.modified = GENERATED_MODIFIED
     return script
 
 
 def _capture_generated(writer: GoldenWriter) -> dict:
-    """Goldens for documents built by ``create_script.py`` (T012).
+    """Goldens for the descriptor-generated example script (T012, T070).
 
     This is where the corpus gets its breadth. The vendored tree has exactly
     **three** documents the write path accepts, and none of them exercises every
-    cue type; ``create_script`` emits one that covers audio, video, dmx, action
+    cue type; the generator emits one that covers audio, video, dmx, action
     and fade cues together. Without it, C1 — byte-identical *written* XML —
     would be measured on almost nothing.
     """
@@ -328,23 +353,23 @@ def _capture_generated(writer: GoldenWriter) -> dict:
 
     script = build_generated_script()
     out = Path(tempfile.mkdtemp()) / "generated.xml"
-    XmlReaderWriter(schema_name="script", xmlfile=str(out)).write_from_object(script)
+    XmlReaderWriter(schema_name="script", xmlfile=str(out))._write_object(script)
     writer.put(
-        "generated/create_script.xml",
+        "generated/example_script.xml",
         normalize_uuids(normalize_schema_location(out.read_bytes())),
     )
     # Both normalizations apply to the dict too. Unlike the vendored documents —
     # whose ``schemaLocation`` is whatever their author wrote, and relative —
     # this one was written by us moments ago, so it carries *this machine's*
     # absolute path to the ``.xsd`` straight into the golden (F24).
-    read_back = XmlReaderWriter(schema_name="script", xmlfile=str(out)).read()
+    read_back = XmlReaderWriter(schema_name="script", xmlfile=str(out))._raw_decode()
     writer.put(
-        "generated/create_script.reader.json",
+        "generated/example_script.reader.json",
         normalize_uuids(normalize_schema_location(_json_bytes(read_back))),
     )
 
     return {
-        "<generated>/create_script": {
+        "<generated>/example_script": {
             "schema": "script",
             "category": "generated",
             "read": {"ok": True},

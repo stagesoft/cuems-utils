@@ -16,37 +16,148 @@ from cuemsutils.xml.adapters import ADAPTERS, PASSTHROUGH, adapter_for
 
 UUID_STR = "8726353c-5c8c-41fe-bab7-1b9d765ced77"
 
-
-# --- booleans: the UI contract -------------------------------------------
-
-
-@pytest.mark.parametrize("raw,expected", [("True", True), ("False", False)])
-def test_bool_decodes_from_the_capitalised_strings(raw, expected):
-    assert adapter_for("BoolType").decode(raw) is expected
+#: Feature 014 retyped ``cms:BoolType`` to the built-in, and ``xmlschema``
+#: reports a built-in's ``type.name`` **qualified**. There is no ``BoolType``
+#: left to ask for, which is the point — the name is gone from all three
+#: schemas, not merely unused.
+BOOLEAN_TYPE = "{http://www.w3.org/2001/XMLSchema}boolean"
 
 
-@pytest.mark.parametrize("value,expected", [(True, "True"), (False, "False")])
-def test_bool_round_trips_to_strings_in_both_output_directions(value, expected):
-    """C5 — ``to_wire`` emits a **string**, not a JSON boolean.
+# --- booleans: the UI contract, as feature 014 left it ---------------------
+#
+# This section used to pin the **opposite** contract, and the change is
+# deliberate rather than a drift. Before feature 014, ``cms:BoolType`` was an
+# ``xs:string`` enum of ``"True"``/``"False"``, so ``decode`` carried the
+# asymmetry and both output directions emitted the capitalised strings. X1
+# retyped it to the standard ``xs:boolean``: the XML now carries lowercase and
+# the wire carries a real JSON boolean.
+#
+# What is **retired** here, named rather than quietly deleted:
+#
+# * ``test_bool_decodes_from_the_capitalised_strings`` — ``"True"`` is now a
+#   *refused* spelling, so the assertion inverts (see
+#   ``test_bool_refuses_the_retired_capitalised_spelling``).
+# * ``test_bool_round_trips_to_strings_in_both_output_directions`` — its whole
+#   premise was that ``to_wire`` must **not** return a ``bool``. It now must.
+#
+# What **survives unchanged** is the thing that matters most: ``decode`` is
+# strict, because ``from_json`` has no document to validate against and this
+# adapter is that path's structural check. ``be3e86e`` established that and 014
+# widens the accepted set rather than loosening the posture.
 
-    ``cms:BoolType`` is an ``xs:string`` enum (X1). The Angular UI reads
-    ``"True"``/``"False"``; emitting real booleans would break it without a
-    line of frontend code changing.
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [("true", True), ("false", False), ("1", True), ("0", False),
+     (True, True), (False, False)],
+)
+def test_bool_decodes_xs_booleans_whole_lexical_space(raw, expected):
+    """``true|false|1|0`` plus a real ``bool`` from a JSON payload."""
+    assert adapter_for(BOOLEAN_TYPE).decode(raw) is expected
+
+
+@pytest.mark.parametrize("value,expected", [(True, "true"), (False, "false")])
+def test_bool_writes_the_canonical_lowercase_form(value, expected):
+    """``str(True)`` is ``'True'``, which ``xs:boolean`` rejects.
+
+    So ``to_lexical`` is overridden, and it is the one thing standing between
+    the object model and an unwritable document: ``Mapper._lexical`` is the only
+    producer of element text on a stdlib-``ElementTree`` write path, and
+    ``save`` validates before writing.
     """
-    adapter = adapter_for("BoolType")
-    assert adapter.to_lexical(value) == expected
-    assert adapter.to_wire(value) == expected
-    assert not isinstance(adapter.to_wire(value), bool)
+    assert adapter_for(BOOLEAN_TYPE).to_lexical(value) == expected
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_bool_wire_form_is_a_real_boolean(value):
+    """``to_wire`` is deleted; ``_Passthrough``'s is inherited.
+
+    The replacement for ``test_bool_round_trips_to_strings_in_both_output_directions``,
+    whose premise X1 retires. Both halves are asserted — ``is value`` **and**
+    ``not isinstance(..., str)`` — because ``"True" == True`` is ``False`` while
+    ``bool("False")`` is ``True``, and a test checking only truthiness would
+    pass on either encoding.
+    """
+    adapter = adapter_for(BOOLEAN_TYPE)
+    assert adapter.to_wire(value) is value
+    assert not isinstance(adapter.to_wire(value), str)
 
 
 def test_bool_none_stays_none():
-    adapter = adapter_for("BoolType")
+    adapter = adapter_for(BOOLEAN_TYPE)
     assert adapter.decode(None) is None
     assert adapter.to_lexical(None) is None
+    assert adapter.to_wire(None) is None
 
 
-# --- the defect class str_to_value created --------------------------------
+#: Everything a boolean field must **refuse** on ingestion.
+#:
+#: The first ten are the strings
+#: :func:`test_free_text_is_never_coerced_to_a_boolean` pins against
+#: ``NameStringType``, restated here against the *boolean* side of the same
+#: seam — ``be3e86e``'s point, which 014 keeps.
+#:
+#: ``"True"``/``"False"`` lead the list because they are what **changed**: they
+#: were the only accepted spellings and are now refused. That is the one place
+#: this feature is not purely additive for a client, and the reason
+#: ``cuems-frontend``'s ``sequence.component.ts:997`` is hard-coupled to it.
+REFUSED_BOOLS = [
+    "True", "False", "TRUE", "FALSE",
+    "n", "y", "t", "f", "N", "Y", "on", "off", "no", "yes",
+    "True ", " true", "", "banana", "None", "2", "-1", "1.0",
+]
 
+
+@pytest.mark.parametrize("raw", REFUSED_BOOLS)
+def test_bool_refuses_anything_outside_xs_booleans_lexical_space(raw):
+    """A value that is not in the space is an **error**, never a guess.
+
+    ``decode`` used to be ``raw == "True"``, so every other string became
+    ``False``: a payload carrying ``"true"`` disabled a cue, the document was
+    schema-valid, and nothing reported it (``be3e86e``). The posture is
+    unchanged here; only the accepted set moved.
+    """
+    with pytest.raises(ValueError, match="xs:boolean"):
+        adapter_for(BOOLEAN_TYPE).decode(raw)
+
+
+def test_bool_refuses_the_retired_capitalised_spelling():
+    """Stated on its own, because it is the migration-visible change.
+
+    A client still sending ``"True"`` gets a ``SchemaError`` out of
+    ``from_json`` rather than a silently wrong value — which is the whole
+    reason this is a coordinated ecosystem step and not a tidy-up.
+    """
+    with pytest.raises(ValueError, match="xs:boolean"):
+        adapter_for(BOOLEAN_TYPE).decode("True")
+
+
+@pytest.mark.parametrize("raw", [2, -1, 1.0, [], {}, object()])
+def test_bool_refuses_non_bool_non_string_values(raw):
+    """``int``/``float`` are refused even though ``1`` and ``0`` are accepted
+    **as text**. ``xs:boolean``'s lexical space is strings; a numeric ``1`` is
+    a caller's type confusion, not a lexical form.
+    """
+    with pytest.raises(ValueError, match="xs:boolean"):
+        adapter_for(BOOLEAN_TYPE).decode(raw)
+
+
+def test_bool_round_trip_is_the_identity_on_values():
+    """``decode(to_lexical(x)) is x`` — the half-applied-change detector.
+
+    A change that updates the writer and not the reader passes both
+    one-directional tests and fails this one.
+
+    Note it is **not** the identity on *text*: ``decode("1")`` is ``True`` and
+    ``to_lexical(True)`` is ``"true"``. ``<enabled>1</enabled>`` is valid
+    ``xs:boolean``, so a hand-edited document can carry a form our writer never
+    emits. That is a property to know, not a defect.
+    """
+    adapter = adapter_for(BOOLEAN_TYPE)
+    for value in (True, False):
+        assert adapter.decode(adapter.to_lexical(value)) is value
+    assert adapter.decode("1") is True
+    assert adapter.to_lexical(True) == "true"
 
 @pytest.mark.parametrize("text", ["n", "y", "t", "f", "N", "Y", "on", "off", "no", "yes"])
 def test_free_text_is_never_coerced_to_a_boolean(text):
@@ -81,6 +192,33 @@ def test_keys_that_should_coerce_still_do():
     assert adapter_for("LoopType").decode("1") == 1
     assert adapter_for("PercentType").decode("42") == 42
     assert adapter_for("UnitFloat").decode("0.5") == 0.5
+
+
+def test_md5_is_bound_explicitly_and_never_coerced():
+    """Feature 014 T040 — bound rather than correct by consequence.
+
+    ``Md5Type`` restricts ``xs:string``, so it would decode correctly through
+    ``PASSTHROUGH`` too. It is bound anyway for the reason the table's own
+    ``NodeUuidType`` comment gives: a type that is right by *consequence* goes
+    wrong silently the day something changes around it.
+
+    The value being pinned is the one the input document warns about
+    (``specs/planning/stored-media-values-preimplementation.md`` §5): an md5 of
+    all digits — about one in a million — which an older parser coerced to an
+    ``int``, so that the next save failed the schema.
+    """
+    assert "Md5Type" in ADAPTERS, "bound by name, not reached by fallthrough"
+    assert adapter_for("Md5Type") is not PASSTHROUGH
+
+    all_digits = "1" * 32
+    assert adapter_for("Md5Type").decode(all_digits) == all_digits
+    assert isinstance(adapter_for("Md5Type").decode(all_digits), str)
+
+    # The "digits with one e" half of that warning — a valid md5 that Python
+    # would read as a float in exponent notation.
+    exponent = "1" * 31 + "e"
+    assert adapter_for("Md5Type").decode(exponent) == exponent
+    assert isinstance(adapter_for("Md5Type").decode("1e9" + "0" * 29), str)
 
 
 # --- identifiers ----------------------------------------------------------
@@ -205,3 +343,4 @@ def test_every_adapter_implements_all_three_directions(type_name):
     assert callable(adapter.to_wire)
     assert adapter.decode(None) is None
     assert adapter.to_lexical(None) is None
+

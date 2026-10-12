@@ -1,0 +1,133 @@
+cuems-utils — notes for whoever maintains this packaging
+========================================================
+
+Where debian/ lives
+-------------------
+
+On the working branch, beside the source it packages.
+
+It used to live on a separate `debian/bookworm` branch, whose workflow was
+"merge main in, add a changelog entry, build". That works only as long as
+somebody performs the merge. Between 0.1.0rc14 (2026-08-03) and 0.1.0rc16 the
+merge did not happen, so the packaging branch sat seven weeks and 132 commits
+behind the source, and two release candidates went out of the source tree with
+no changelog entry at all. Both entries were written retrospectively; they are
+the ones marked NOT BUILT / NOT YET BUILT.
+
+The old branch is preserved and tagged `packaging-rc14`. It is the exact tree
+every .deb up to rc14 was built from, including the build artifacts it tracked
+as if they were source. Nothing new lands on it.
+
+This also matches what the sibling repositories already do: cuems-common,
+cuems-power-bridge and cuems-nodeconf all keep debian/ on their working branch.
+cuems-utils was the outlier.
+
+Building
+--------
+
+    dpkg-buildpackage -us -uc -b        # artifacts land in the parent directory
+
+Before shipping any build, check the venv interpreter:
+
+    dpkg-deb --fsys-tarfile <deb> | tar -xO ./usr/lib/cuems/pyvenv.cfg | grep '^home'
+    # must be:  home = /usr/bin      (and bin/python -> ../../../bin/python3)
+
+debian/rules pins `dh_virtualenv --python /usr/bin/python3` BY ABSOLUTE PATH on
+purpose. `--python python3` resolves through PATH, so a build on a machine with
+pyenv active bakes the builder's private interpreter into the package. On every
+target host that symlink is broken, /usr/lib/cuems/bin/python does not exist,
+and *nothing in the shared venv can start* — every CUEMS Python component at
+once. There is no build-time error; it surfaces after `dpkg -i`, and even then
+the running process survives until the next restart.
+
+Two further constraints, both of which have bitten:
+
+  * /etc/cuems is shared by at least five packages, including a private SSH key
+    belonging to cuems-power-bridge. Nothing here may remove a file this package
+    did not place.
+  * The shared venv /usr/lib/cuems is populated by several packages. A .deb must
+    not bundle anything another package already ships, or `dpkg -i` aborts on a
+    file-overwrite conflict.
+
+Planned, not yet done
+---------------------
+
+  * Trixie. Packaging currently targets bookworm only. The intention is to
+    extend it to trixie and to keep both supported, rather than to migrate. The
+    distribution-specific parts are expected to stay small — the venv
+    interpreter path and the python3 version bounds in debian/control are the
+    two known ones — so the likely shape is one debian/ directory carrying both,
+    with the distribution selected at build time, rather than a branch per
+    release. A branch per release is what produced the drift described above.
+
+  * CI/CD. Builds are manual today. They should be produced by a pipeline, for
+    every Debian flavour the system is expected to run on, so that a package
+    exists for each supported distribution from the same commit and none of them
+    depends on which machine a developer happened to build from. The pyvenv.cfg
+    check above is the first thing that pipeline should assert, because it is
+    the failure a human reviewer cannot see in the diff.
+
+/etc/cuems first install (feature 011) — landed
+------------------------------------------------
+
+This package ships the six XSD files to /usr/share/cuems/schemas and copies
+them to /etc/cuems on every configure (never a conffile: the schema always
+matches the installed library, and no conffile prompt can park a stale copy).
+The three documents a node needs — settings.xml, network_map.xml,
+default_mappings.xml — are GENERATED AT BUILD by debian/rules through the
+just-built venv's bin/python (`cuemsutils.xml.make_defaults`, deterministic,
+sentinel identity) into /usr/share/cuems/defaults, and postinst creates them in
+/etc/cuems only where absent, running cuems-init-node under a 60 s timeout to
+mint one uuid4. An existing file is never modified; purge removes exactly the
+nine paths this package placed plus the tool's write record, then rmdir
+--ignore-fail-on-non-empty. Contract and inventory:
+specs/011-etc-cuems-first-install/contracts/packaging.md, data-model.md §8.
+
+Two rules a maintainer must keep, both tested:
+
+  * postinst ends with `exit 0` and begins its custom block with `set +e`,
+    because dh-virtualenv's injected autoscript starts with `set -e`
+    (tests/packaging/test_postinst.py simulates that stanza).
+  * No new path under debian/ embeds an interpreter version; the generator is
+    reached through the venv's bin/python (tests/packaging/test_built_package.py).
+
+The lifecycle (install, upgrade, --reinstall, remove, purge, the cuems-common
+custody transfer in both unpack orders) is exercised in an unprivileged
+bookworm chroot: `mmdebstrap --mode=unshare`, entered with `unshare --map-auto
+--map-root-user … chroot`; see specs/011-etc-cuems-first-install/quickstart.md.
+
+Historical note
+---------------
+
+The 2025-era tail of debian/changelog was one entry that had swallowed four
+others. Four version headers (0.0.7-31, 0.0.7-3, 0.0.7-2, 0.0.6-0) carried no
+maintainer trailer, so dpkg parsed lines 201-232 as a single 0.1.0rc5 stanza and
+read those headers as change text. It had grown that way: the file originally
+had exactly ONE trailer, at the very bottom, terminating everything above it.
+
+Repaired 2026-09-24 by adding the four missing trailers. THE DATES WERE NOT
+INVENTED -- each is the author date of the commit that introduced the entry the
+trailer closes, recovered from the debian/bookworm history (908359b, 038295c,
+ab6b1ac, 79804fd) and mapping one-to-one. Adding them completes the record
+rather than rewriting it, which is the distinction that made the repair
+acceptable: dpkg-parsechangelog goes from four warnings to zero, and the
+headers and trailers now balance at 14 each.
+
+Builds were never affected -- dpkg-buildpackage reads only the top entry -- so
+this had survived a year unnoticed. It was fixed now because the CI/CD work
+above will run lintian and parse the whole file, and this would surface as a
+pipeline failure at the least convenient moment.
+
+Deliberately NOT changed, and left as known-outstanding:
+
+  * The distribution field on the older entries still reads UNRELEASED, on
+    versions that were plainly released. Correcting that would be rewriting
+    history rather than completing it.
+
+  * One change block is filed under the wrong year. "[ ion ] Fix circular
+    import in daemon.py causing AttributeError" is dated Wed, 14 Jan 2026 and
+    sits inside the 0.0.6-0 entry, which is from May 2025. It arrived that way
+    in dfc132b, appended to the single terminating trailer the file then had.
+    Placing it correctly needs someone to establish which release actually
+    carried the daemon.py fix; one change under the wrong year is better than a
+    second one under a guessed one.

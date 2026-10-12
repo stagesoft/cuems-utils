@@ -1,13 +1,10 @@
 from .MediaCue import MediaCue
 from ..tools.CTimecode import CTimecode
 from ..helpers import ensure_items
-from ..log import Logger
 
 REQ_ITEMS = {
-    # Declared here rather than on MediaCue because script.xsd declares
-    # fade_profiles on AudioCueType and VideoCueType, not on MediaCueType
-    # (feature 004, T059).
-    'fade_profiles': None,
+    # Alphabetical, for the reason recorded in ``AudioCue.REQ_ITEMS``.
+    'class': 'video',
     'opacity': 100,  # Default to fully opaque — 0-100 percent scale (cms:PercentType)
 }
 
@@ -23,6 +20,17 @@ class VideoCue(MediaCue):
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = REQ_ITEMS
 
+    #: T013. Overrides ``Cue``'s plain ``CTimecode`` factory for the two
+    #: timecode marks with a 25fps one.
+    # TODO: Adjust framerates for universal use, by now 25 fps for video
+    RUNTIME_FIELDS = {
+        '_player': None,
+        '_osc_route': None,
+        '_go_thread': None,
+        '_start_mtc': lambda: CTimecode(framerate=25),
+        '_end_mtc': lambda: CTimecode(framerate=25),
+    }
+
     def __init__(self, init_dict = None):
         """Initialize a VideoCue.
 
@@ -35,16 +43,6 @@ class VideoCue(MediaCue):
         else:
             init_dict = ensure_items(init_dict, REQ_ITEMS)
         super().__init__(init_dict)
-
-    def _init_runtime(self) -> None:
-        super()._init_runtime()
-        self._player = None
-        self._osc_route = None
-        self._go_thread = None
-
-        # TODO: Adjust framerates for universal use, by now 25 fps for video
-        self._start_mtc = CTimecode(framerate=25)
-        self._end_mtc = CTimecode(framerate=25)
 
     def get_opacity(self):
         """Get the cue's configured opacity level.
@@ -99,30 +97,21 @@ class VideoCue(MediaCue):
         """
         return super().check_mappings()
 
-        if not settings.project_node_mappings:
-            return True
-
-        found = True
-        map_list = ['default']
-
-        # DEV: List first index is an artifact of the way the mappings are parsed
-        Logger.debug(f'VideoCue check_mappings: {settings.project_node_mappings}')
-        if settings.project_node_mappings['video'][0]['outputs']:
-            for elem in settings.project_node_mappings['video'][0]['outputs']:
-                elem = elem['output']
-                Logger.debug(f'VideoCue elem: {elem}')
-                for map in elem['mappings']:
-                    Logger.debug(f'VideoCue map: {map}')
-                    map_list.append(map['mapped_to'])
-
-        for output in self.outputs:
-            if output['output_name'][:36] == settings.node_conf['uuid']:
-                self._local = True
-                if output['output_name'][37:] not in map_list:
-                    found = False
-                    break
-            else:
-                self._local = False
-                found = True
-            
-        return found
+        # The ~18 lines that stood here were **unreachable** and are deleted
+        # rather than corrected (T053, FR-017). They sat below an
+        # unconditional ``return super().check_mappings()`` — added at some
+        # point to short-circuit the method — so no test and no consumer could
+        # reach them, and nothing would have noticed if they were wrong.
+        #
+        # They were wrong. This body indexed
+        # ``settings.project_node_mappings['video'][0]['outputs']`` while
+        # ``ConfigManager``'s live walk indexed the same data as
+        # ``['video']`` groups without the ``[0]``, and a third shape existed
+        # in ``ProjectMappings.process_network_mappings``. Three mutually
+        # incompatible readings of one document (F15), two of them fossilised.
+        #
+        # Preserving either fossil would mean choosing between them on **no
+        # evidence**: a shape assumption no test can reach is not a contract.
+        # The one live shape is ``ConfigManager``'s, and it is now the derived
+        # one — ``cuemsutils.config.mappings`` states it, so a fourth reading
+        # cannot be invented by accident.

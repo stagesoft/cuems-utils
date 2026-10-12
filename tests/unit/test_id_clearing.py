@@ -3,7 +3,7 @@
 **Must FAIL on pre-005 code**: ``Uuid.__init__`` mints a fresh uuid4 whenever
 its argument is falsy, so ``script.id = None`` assigns a **new random id**
 instead of emptying the field. The initial template ships two random ids that
-the code plainly intends to clear — ``create_script`` sets them to ``None`` and
+the code plainly intends to clear — the retired script-template function set them to ``None`` and
 they come back populated.
 
 This is a coercion-location fix, not a setter special case (research R7).
@@ -15,7 +15,7 @@ assignment time.
 
 from __future__ import annotations
 
-from cuemsutils.create_script import create_script
+from cuemsutils.xml.descriptor import generate_script_example
 from cuemsutils.cues.ActionCue import ActionCue
 from cuemsutils.cues.AudioCue import AudioCue
 from cuemsutils.cues.CuemsScript import CuemsScript
@@ -79,26 +79,122 @@ def test_generation_still_happens_at_defaulting_time():
     assert isinstance(AudioCue({"name": "probe"})["id"], Uuid)
 
 
-# --- the consumer-visible change (FR-022) ---------------------------------
+# --- the generated example (feature 008, T074) -----------------------------
 
 
-def test_the_initial_template_ships_without_identifiers():
-    """The delta the editor sees, asserted as the fields FR-022 enumerates.
+def test_the_generated_example_carries_populated_identifiers():
+    """The retired script-template function's id-blanking step is not
+    carried forward (FR-033):
 
-    ``create_script`` clears the script and cue-list identifiers at the end;
-    three of the five cue identifiers already arrive empty, and these two came
-    back random. This is the behaviour change consumers observe.
+    it existed only to produce a "blank template for the editor to fill in",
+    and validating a populated script and then clearing ids on the way out is
+    exactly the ordering defect FR-033 names. ``generate_script_example()``
+    has nothing to undo that defect *for* — every identifier it sets stays
+    set.
     """
-    template = create_script()
-    assert template["id"] is None, f"script id is {template['id']!r}"
-    assert template["CueList"]["id"] is None, (
-        f"cue-list id is {template['CueList']['id']!r}"
-    )
+    example = generate_script_example()
+    assert example["id"] is not None
+    assert example["CueList"]["id"] is not None
 
 
-def test_the_initial_template_still_carries_its_content():
-    """Clearing ids must not clear anything else."""
-    template = create_script()
-    assert template["name"]
-    assert template["CueList"]["contents"]
-    assert len(template["CueList"]["contents"]) == 5
+def test_the_generated_example_carries_its_content():
+    example = generate_script_example()
+    assert example["name"]
+    assert example["CueList"]["contents"]
+
+
+# --- feature 006 addition (T070, FR-024a) ----------------------------------
+
+
+def test_the_uuid_shape_check_is_not_in_the_t2_registry():
+    """The fifteenth rule, and the one that stayed out.
+
+    The corpus sweep measured every rule against the values the load path
+    actually produces. Fourteen would reject nothing. The uuid4 shape check
+    would reject **live editor traffic** — three nil ``Media.id`` values in one
+    ordinary payload — so it is not a validation rule here at all. It stays a
+    *coercion* concern: ``_UuidAdapter`` keeps an unparseable identifier as its
+    raw string.
+
+    Asserted as an absence because that is what it is. A registry that acquired
+    this rule would be correct-looking and would break the editor on first use.
+
+    **Asserted behaviourally as of feature 012.** This used to read "no rule
+    name contains 'uuid'", which was a proxy for the property and stopped being
+    one the moment a rule about identity *uniqueness* was registered
+    (``node_uuid_unique``, FR-019a). Uniqueness and shape are different
+    questions with different answers — the map's rows must not collide, and a
+    nil ``Media.id`` is fine — so the name-substring check was rejecting the
+    right thing for the wrong reason. It now runs the rules against the values
+    the proxy existed to protect.
+    """
+    from cuemsutils.xml.validators import RULES, enforce
+
+    nil = "00000000-0000-0000-0000-000000000000"
+    for value in (nil, "not-a-uuid", "0367F391-EBF4-11B2-9F26-000000000001"):
+        for name, rule in RULES.items():
+            for _cls, field in rule.applies_to:
+                if field not in ("id", "uuid", "action_target", "target"):
+                    continue
+                if name == "node_uuid_unique":
+                    # Uniqueness, not shape: it is about a whole document's
+                    # rows and passes on any single value, which is exactly the
+                    # distinction this test now makes rather than assumes.
+                    continue
+                try:
+                    enforce(name, value)
+                except (ValueError, TypeError) as exc:  # pragma: no cover - the failure
+                    raise AssertionError(
+                        f"rule {name!r} rejects the identifier {value!r}. The uuid4 "
+                        "shape check is a coercion concern, not a T2 rule: a registry "
+                        "that acquired it would break the editor on first use."
+                    ) from exc
+
+
+def test_an_unparseable_identifier_is_preserved_as_its_raw_string():
+    from cuemsutils.xml.adapters import adapter_for
+
+    nil = "00000000-0000-0000-0000-000000000000"
+    for type_name in ("UuidType", "TargetType"):
+        decoded = adapter_for(type_name).decode(nil)
+        assert decoded == nil
+        assert isinstance(decoded, str)
+
+
+def test_the_nil_uuid_survives_the_public_ingestion_path():
+    """Through ``from_json``, which is the editor's actual route (FR-002)."""
+    import json
+    from pathlib import Path
+
+    from cuemsutils.cues.CuemsScript import CuemsScript
+
+    payload = json.loads(Path("tests/data/sample_script.json").read_text())
+    script = CuemsScript.from_json(payload["value"])
+
+    media_ids = [
+        cue["Media"]["id"]
+        for cue in script.cuelist.contents
+        if isinstance(cue, dict) and cue.get("Media")
+    ]
+    assert "00000000-0000-0000-0000-000000000000" in [str(i) for i in media_ids]
+
+
+def test_validate_does_not_object_to_the_nil_uuid():
+    """The rule is absent from the tier, so ``validate()`` says nothing.
+
+    If the uuid check ever joined the registry, this would start reporting
+    violations for a payload the editor sends every day — which is the failure
+    the sweep exists to have prevented.
+    """
+    import json
+    from pathlib import Path
+
+    from cuemsutils.cues.CuemsScript import CuemsScript
+
+    payload = json.loads(Path("tests/data/sample_script.json").read_text())
+    script = CuemsScript.from_json(payload["value"])
+
+    offenders = [
+        v for v in script.validate() if "uuid" in v.message.lower()
+    ]
+    assert not offenders, offenders

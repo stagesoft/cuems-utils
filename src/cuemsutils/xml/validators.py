@@ -18,6 +18,9 @@ express, and anything XSD *can* express does not belong here.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Iterator
+
 #: Absorbs float round-trip noise. Mirrors ``cues.CueOutput._CONTAINMENT_EPS``:
 #: a region written as ``0.5`` and read back as ``0.5000000000000001`` must not
 #: fail a ``<= 1`` check it passed on the way out.
@@ -84,36 +87,861 @@ def validate_custom_templates(processed: dict) -> None:
             node = node_wrapper.get("node") if isinstance(node_wrapper, dict) else None
             if not node:
                 continue
-            video = node.get("video")
-            if not video:
-                continue
-
             node_uuid = node.get("uuid", "<unknown>")
             template_count = 0
-            for video_group in video:
-                if not isinstance(video_group, dict):
+            for output in _video_outputs(node):
+                region = output.get("canvas_region")
+                if region is None:
                     continue
-                for output_wrapper in video_group.get("outputs", []) or []:
-                    output = (
-                        output_wrapper.get("output")
-                        if isinstance(output_wrapper, dict)
-                        else None
-                    )
-                    if not output:
-                        continue
-                    region = output.get("canvas_region")
-                    if region is None:
-                        continue
-                    check_canvas_region_containment(region, node_uuid)
-                    template_count += 1
+                check_canvas_region_containment(region, node_uuid)
+                template_count += 1
 
             check_one_custom_template_per_node(template_count, node_uuid)
 
 
+def _video_outputs(node):
+    """Video-port bodies, reached by ``class``, not by an element name."""
+    devices = node.get("devices") if isinstance(node, dict) else None
+    if not isinstance(devices, list):
+        return
+    for item in devices:
+        if not isinstance(item, dict):
+            continue
+        device = item.get("device")
+        if not isinstance(device, dict) or device.get("class") != "video":
+            continue
+        for group in device.get("outputs") or []:
+            ports = group if isinstance(group, list) else [group]
+            for wrapper in ports:
+                output = (
+                    wrapper.get("output")
+                    if isinstance(wrapper, dict)
+                    else None
+                )
+                if output:
+                    yield output
+
+
+# --- the named-rule registry (T072) ----------------------------------------
+#
+# One definition per rule, registered by name and bound to the ``(type, field)``
+# pairs it applies to, invoked from **two** call sites: the property setter
+# (immediate, programmatic) and the write/validate tier.
+#
+# Before this, each rule existed once inside the setter that happened to need
+# it. That is not a second copy — it is *no* name at all, which is why the tier
+# could only be enumerated by reading fourteen setters and hoping none had been
+# missed. Naming them is what makes "which rules are there?" a question with an
+# answer.
+#
+# ``applies_to`` is keyed on **class-name strings**, not classes. Importing
+# ``cues/`` at this module's scope would close the import cycle the whole
+# package is arranged to keep open, and a rule that has to wait for its class
+# to exist cannot be registered at import time. Matching walks the object's MRO
+# names, so a rule bound to ``VideoCueOutput`` does not fire on an
+# ``AudioCueOutput`` and one bound to a base does fire on its subclasses.
+
+
+@dataclass(frozen=True)
+class Rule:
+    """One semantic rule: a name, what it applies to, and the check itself."""
+
+    name: str
+
+    #: ``(class name, field name)`` pairs. A rule may apply to more than one —
+    #: ``canvas_region_containment`` governs both a per-cue video output and a
+    #: project-mappings video port.
+    applies_to: tuple[tuple[str, str], ...]
+
+    #: ``check(value, obj) -> None``. Raises ``ValueError`` with the message
+    #: the user sees. Messages are **preserved unchanged** from the setters
+    #: they came from: the rule names are new, the wording is not.
+    check: object
+
+    #: Whether substituting the field's descriptor default silences this
+    #: rule's violation without changing what the document means (ITEM D,
+    #: research R8). Declared per rule, not inferred, because "does a default
+    #: exist" and "would using it be honest" are different questions — a field
+    #: can have a default that is itself invalid (``action_target_required``'s
+    #: is ``None``, the exact value the rule rejects).
+    repairable: bool
+
+    #: Whether the check needs the **whole document**, not just the field and
+    #: its enclosing object. Almost no rule does: a T2 rule is about a value,
+    #: and a value is usually decidable where it sits. A *reference* is the
+    #: exception — "does this id resolve" cannot be answered by the cue holding
+    #: it, because a cue cannot see its siblings.
+    #:
+    #: A document-scoped rule receives a third argument carrying that context.
+    #: It must tolerate ``None`` there: :func:`enforce` (the setter call site)
+    #: has no document, and a rule that cannot decide must pass rather than
+    #: guess.
+    document_scoped: bool = False
+
+    def fields_for(self, class_names: frozenset[str]) -> tuple[str, ...]:
+        return tuple(
+            field for cls, field in self.applies_to if cls in class_names
+        )
+
+
+@dataclass(frozen=True)
+class _DocumentContext:
+    """What a document-scoped rule needs that its enclosing object cannot give.
+
+    It is a type rather than a bare set precisely so that a second kind of
+    document-wide fact can be added without changing every rule's signature.
+    Feature 012 is that second kind, and adding it changed no rule but its own.
+    """
+
+    cue_ids: frozenset[str]
+
+    #: ``(identity, mac)`` for every node row in the document, in document
+    #: order and **with duplicates kept** — a uniqueness rule that received a
+    #: set could not detect the thing it exists to detect. The MAC travels with
+    #: the identity because it is the only thing that tells two colliding rows
+    #: apart, and an abort message that could not name it would leave an
+    #: operator no way to act (data-model §4).
+    node_rows: tuple[tuple[str, str], ...] = ()
+
+
+#: Every registered rule, by name. **The tier's inventory**, and the only one.
+RULES: dict[str, Rule] = {}
+
+
+def register(name: str, applies_to, *, repairable: bool, document_scoped: bool = False):
+    """Register a rule under ``name``, bound to ``(type, field)`` pairs.
+
+    Returns the undecorated function, so the setter that used to hold the body
+    can call it directly and the registry and the setter cannot drift — which
+    is the whole content of FR-024c. Two call sites, one function object.
+
+    ``repairable`` is **required and keyword-only, with no default** (research
+    R8, FR-031b): a rule that does not declare it is a defect, and a required
+    keyword makes that a ``TypeError`` at import time rather than a silent
+    "permissive by omission".
+    """
+
+    def decorator(fn):
+        if name in RULES:
+            raise ValueError(f"rule {name!r} is already registered")
+        RULES[name] = Rule(name, tuple(applies_to), fn, repairable, document_scoped)
+        return fn
+
+    return decorator
+
+
+def enforce(name: str, value, obj=None) -> None:
+    """Run one rule by name — **the setter's call site**.
+
+    Raises whatever the rule raises, which is a ``ValueError`` carrying the
+    message that setter has always produced. Programmatic assignment therefore
+    still fails immediately and with the same words (FR-024c, T071).
+    """
+    RULES[name].check(value, obj)
+
+
 #: The closed list. ``test_config_parity`` and the coherence test read this to
 #: assert the tier has not grown silently.
-SEMANTIC_RULES = (
-    "canvas_region containment",
-    "at most one custom template per node",
-    "media duration",
+#:
+#: **Derived from ``RULES``, not maintained beside it** (T072a). It used to be a
+#: hand-written tuple of three prose names — ``"canvas_region containment"``,
+#: ``"at most one custom template per node"``, ``"media duration"``. Once the
+#: registry existed, keeping both would have been two inventories of one thing:
+#: FR-024c's prohibition one level up, and precisely the mechanism behind F15's
+#: three incompatible shapes.
+#:
+#: The name **form** changed with it — prose with spaces became identifiers —
+#: and its two readers were updated. Rule *messages*, which are what users see,
+#: are unchanged.
+def _semantic_rules() -> tuple[str, ...]:
+    return tuple(sorted(RULES))
+
+
+# --- what validation *reports* (T023) --------------------------------------
+#
+# ``Violation`` and ``ValidationReport`` are what ``validate()`` returns, not
+# names a consumer imports: a caller inspects the report it is handed and never
+# constructs one. So they stay **internal** — no entry in ``__all__``, no entry
+# in the API golden — and live here, beside the ``run_rules`` that produces
+# them. ``CuemsScript.validate()``'s docstring is where their shape is
+# published, because an internal type gets no documentation page of its own.
+
+
+@dataclass(frozen=True)
+class Violation:
+    """One thing wrong with a document, in a form a caller can act on.
+
+    ``frozen`` so a report can be compared, hashed and de-duplicated — and so
+    the violation ``save()`` carries on its exception is the same value
+    ``validate()`` reports rather than a look-alike (FR-034b).
+    """
+
+    #: ``"T1"`` structural or ``"T2"`` semantic — so the two tiers are
+    #: distinguishable and neither absorbs the other.
+    tier: str
+
+    #: The registered rule name for T2; the schema constraint for T1.
+    rule: str
+
+    #: ``(cue_id, field)`` for a cue-scoped rule, ``(None, field)`` for a
+    #: document-scoped one. A **pair**, deliberately, so a caller can address
+    #: either half without parsing a string.
+    location: tuple[str | None, str | None]
+
+    #: The rule's own message, preserved where it is already actionable.
+    message: str
+
+    def __str__(self) -> str:
+        cue_id, field = self.location
+        where = "/".join(str(p) for p in (cue_id, field) if p is not None)
+        return f"[{self.tier}] {self.rule}" + (f" at {where}" if where else "") + \
+            f": {self.message}"
+
+
+class ValidationReport:
+    """Every violation found, or none — what ``validate()`` returns.
+
+    Falsy when empty, so ``if script.validate():`` reads as *"there are
+    violations"*. Iterates its violations and reports ``len()``.
+    """
+
+    __slots__ = ("_violations",)
+
+    def __init__(self, violations=()):
+        self._violations: tuple[Violation, ...] = tuple(violations)
+
+    @property
+    def violations(self) -> tuple[Violation, ...]:
+        return self._violations
+
+    def __bool__(self) -> bool:
+        return bool(self._violations)
+
+    def __len__(self) -> int:
+        return len(self._violations)
+
+    def __iter__(self) -> Iterator[Violation]:
+        return iter(self._violations)
+
+    def __repr__(self) -> str:
+        if not self._violations:
+            return "<ValidationReport: valid>"
+        return "<ValidationReport: {} violation(s)>\n  {}".format(
+            len(self._violations), "\n  ".join(str(v) for v in self._violations)
+        )
+
+
+def violation_from_schema_error(error) -> Violation:
+    """One ``xmlschema`` validation error, as a T1 ``Violation``.
+
+    The rule name is the schema construct that rejected the value — the XSD
+    type where there is one, the validator's own name otherwise — because
+    "the schema constraint for T1" is what a caller needs to look up. The
+    element name is the ``field`` half of the location; the cue is not
+    recoverable from an ``xmlschema`` error without re-walking the tree, so
+    the ``cue_id`` half stays ``None`` and the message carries the path.
+    """
+    element = getattr(error, "elem", None)
+    field = getattr(element, "tag", None)
+    if isinstance(field, str) and field.startswith("{"):
+        field = field.rsplit("}", 1)[-1]
+
+    validator = getattr(error, "validator", None)
+    rule = getattr(validator, "name", None) or getattr(
+        validator, "local_name", None
+    )
+    if rule is None:
+        rule = type(validator).__name__ if validator is not None else "schema"
+
+    path = getattr(error, "path", None)
+    reason = getattr(error, "reason", None) or str(error).strip().splitlines()[0]
+    message = f"{reason}" + (f" (at {path})" if path else "")
+    return Violation("T1", str(rule), (None, field), message)
+
+
+# --- the T2 seam (T023b) ---------------------------------------------------
+
+
+def _cue_id(cue) -> str | None:
+    identifier = cue.get("id") if hasattr(cue, "get") else None
+    return None if identifier is None else str(identifier)
+
+
+def _walk(obj, cue_type: type, cue_id: str | None = None):
+    """Every model object below ``obj``, paired with its **enclosing cue** id.
+
+    A plain recursive walk rather than a schema-driven one: T2 rules are about
+    *values*, and the tier must not acquire a second opinion about structure —
+    that is T1's, derived, and total.
+
+    The id is taken only when the node is a cue. Taking it from any node
+    carrying an ``id`` would relabel a violation on ``Media.duration`` with the
+    *media's* id, and a caller told to look at ``(media_id, "duration")`` has
+    nowhere to look: the editor addresses cues.
+    """
+    if hasattr(obj, "keys"):
+        if isinstance(obj, cue_type):
+            cue_id = _cue_id(obj) or cue_id
+        yield cue_id, obj
+        for value in obj.values():
+            yield from _walk(value, cue_type, cue_id)
+    elif isinstance(obj, (list, tuple)):
+        for item in obj:
+            yield from _walk(item, cue_type, cue_id)
+
+
+def _looks_like_a_node_row(node) -> bool:
+    """Whether ``node`` is a network-map row, for the uniqueness context.
+
+    Keyed on the **class name**, the way rule targets already are, rather than
+    on "has a uuid key" — a project-mappings node entry and a ``mapped_to``
+    both carry one, and folding those into the map's uniqueness context would
+    make a perfectly ordinary mappings document look like a collision.
+    """
+    return type(node).__name__ == "node" and "uuid" in node
+
+
+def _iter_t2_findings(obj):
+    """Every T2 violation below ``obj``, paired with **where it happened**.
+
+    Yields ``(Violation, node, field, Rule)`` — the same walk :func:`run_rules`
+    exposes as bare ``Violation``s, plus the object and field a caller would
+    need to *act* on the finding rather than only report it. Introduced for
+    :func:`repair` (ITEM E, US7): substituting a field's descriptor default
+    needs the node the violation is on, which a bare ``Violation`` does not
+    carry (FR-045).
+
+    The walk asks the **registry**, not a list of special cases: for every
+    object below ``obj``, every rule bound to one of its MRO names and to a
+    field it actually carries is run, and a ``ValueError``/``TypeError``
+    becomes a finding. Rules run in **registration order** so a document with
+    several violations reports them in a stable order rather than a
+    dict-iteration one.
+    """
+    from ..cues.Cue import Cue
+
+    # Collected once, before the walk that reports. A document-scoped rule
+    # (``Rule.document_scoped``) needs every cue id in the document, and
+    # gathering them per node would be quadratic on a real show file.
+    nodes = [n for _cue_id, n in _walk(obj, Cue) if _looks_like_a_node_row(n)]
+    context = _DocumentContext(
+        cue_ids=frozenset(
+            cue_id for cue_id, _node in _walk(obj, Cue) if cue_id is not None
+        ),
+        node_rows=tuple(
+            (str(n.get("uuid")), str(n.get("mac", "<no mac>"))) for n in nodes
+        ),
+    )
+
+    for cue_id, node in _walk(obj, Cue):
+        class_names = frozenset(cls.__name__ for cls in type(node).__mro__)
+        for rule in RULES.values():
+            for field in rule.fields_for(class_names):
+                if field not in node:
+                    continue
+                try:
+                    if rule.document_scoped:
+                        rule.check(node[field], node, context)
+                    else:
+                        rule.check(node[field], node)
+                except (ValueError, TypeError) as exc:
+                    # ``TypeError`` is here for one rule: ``media_duration``
+                    # rejects a wrong *type* with a ``TypeError`` because that
+                    # is what its setter has always raised, and T071 keeps the
+                    # setter's behaviour. A finding is a finding either way.
+                    yield (
+                        Violation("T2", rule.name, (cue_id, field), str(exc)),
+                        node,
+                        field,
+                        rule,
+                    )
+
+
+def run_rules(obj) -> list[Violation]:
+    """Every T2 violation in ``obj`` — **the seam, now filled** (T072).
+
+    ``save()`` and ``validate()`` bound to this signature two phases before the
+    registry existed (T023b). Building the seam first is what kept US1 from
+    calling a function no task created, and what lets this task *fill* it
+    rather than introduce it — so the signature the public surface depends on
+    never changed.
+
+    Built on :func:`_iter_t2_findings`, discarding the node/field/rule a
+    caller would need to *act* on a finding — ``run_rules`` only ever reports.
+    """
+    return [violation for violation, _node, _field, _rule in _iter_t2_findings(obj)]
+
+
+def repair(obj) -> list:
+    """Repair every repairable T2 violation in ``obj``, **in place** (ITEM E,
+    US7, data-model.md §3.1).
+
+    For each violation found: a field with **no** model-layer default is
+    unrepairable regardless of what the rule declares (data-model.md §3.1's
+    rule 2 outranks rule 1 — there is nothing to recover it to); otherwise the
+    rule's own ``repairable`` declaration decides. A repairable field is set to
+    its default (the default **is** the repair — every ``repairable=True``
+    rule accepts its field's own default, by construction of the rule table),
+    and a :class:`~cuemsutils.errors.RepairRecord` is appended. The first
+    unrepairable violation raises :class:`~cuemsutils.errors.ValidationError`
+    immediately (FR-044), naming the same ``Violation`` :meth:`validate` would
+    report (FR-034b) — nothing repaired so far is undone, matching ``save()``'s
+    early-stop posture rather than ``validate()``'s collect-everything one.
+
+    Setting ``node[field]`` uses plain ``dict`` assignment: no ``CuemsDict``
+    subclass overrides ``__setitem__``, so this neither re-triggers a property
+    setter's own validation nor mutates anything but the one field (FR-045).
+
+    Returns:
+        list[RepairRecord]: one per field repaired, in the order
+        :func:`_iter_t2_findings` found them. Empty for a clean object.
+
+    Raises:
+        ValidationError: the first violation found in a field the descriptor
+            (via the rule's own declaration, joined with default-presence)
+            classifies unrepairable.
+    """
+    from ..errors import RepairRecord, ValidationError
+    from ..helpers import Unset
+
+    repairs: list[RepairRecord] = []
+    for violation, node, field, rule in _iter_t2_findings(obj):
+        default = type(node).declared_defaults().get(field, Unset)
+        if default is Unset or not rule.repairable:
+            raise ValidationError(str(violation), violation=violation)
+
+        previous = node[field]
+        substituted = default() if callable(default) else default
+        node[field] = substituted
+
+        cue_id, _ = violation.location
+        field_path = "/".join(str(part) for part in (cue_id, field) if part is not None)
+        repairs.append(
+            RepairRecord(
+                field_path=field_path,
+                previous_value=previous,
+                substituted_value=substituted,
+                rule_name=rule.name,
+            )
+        )
+    return repairs
+
+
+# --- the rules themselves (T073) -------------------------------------------
+#
+# Each body came from the property setter that used to hold it, and each
+# **message is preserved verbatim** — the rule names are new, the words a user
+# reads are not (T072a).
+#
+# Every one takes ``(value, obj)``. Most ignore ``obj``; the three that do not
+# need the object to answer at all — a canvas region's legality depends on the
+# output's ``output_name``, and a fade profile's on its siblings.
+
+
+@register(
+    "action_target_required",
+    [("ActionCue", "action_target")],
+    # ``ActionCue.REQ_ITEMS['action_target']`` is ``None`` — the exact value
+    # this rule rejects. Substituting the field's own default would not
+    # repair the violation, it would restate it.
+    repairable=False,
 )
+def _action_target_required(value, obj=None) -> None:
+    """An action cue must name what it acts on."""
+    if value is None:
+        raise ValueError("action_target is required")
+
+
+@register(
+    "target_resolves",
+    [("Cue", "target")],
+    # ``Cue.REQ_ITEMS['target']`` is ``None``, and no rule forbids ``None``
+    # there — an unset target is a legitimate state for a cue. So clearing a
+    # dangling one *is* the repair, and it reproduces what
+    # ``CuemsDBProject._nullify_dangling_refs`` has been doing in the editor.
+    repairable=True,
+    document_scoped=True,
+)
+def _target_resolves(value, obj=None, context=None) -> None:
+    """A cue's ``target`` must name a cue present in the same document.
+
+    Moved in from ``cuems-editor``, where it ran as a raw-dict walk *before*
+    parsing (FR-043a). The correction needs nothing but the document, so under
+    FR-043's responsibility test it is the library's: a repair the document
+    alone determines belongs where repair lives.
+
+    ``context is None`` means the caller had no document to check against —
+    :func:`enforce`, the setter call site, is the case. A rule that cannot
+    decide passes rather than guessing, which keeps programmatic assignment
+    working exactly as it did.
+    """
+    if value is None or context is None:
+        return
+    if value not in context.cue_ids:
+        raise ValueError(
+            f"target {value} does not resolve to a cue in this document"
+        )
+
+
+@register(
+    "action_target_resolves",
+    [("ActionCue", "action_target")],
+    # UNREPAIRABLE, and not for want of trying. Repair means *substitute the
+    # field's declared default*, and ``ActionCue.REQ_ITEMS['action_target']`` is
+    # ``None`` — which ``action_target_required`` rejects. Repairing would
+    # produce a document violating the very rule that fired, so the flag is a
+    # statement about the repair *model*, not a gap in it: a **required
+    # reference has no valid default by construction**. Fabricating a uuid would
+    # be worse than the dangling one, because it would look resolvable.
+    #
+    # ``cuems-editor`` cleared these to ``None`` before parsing, which is why it
+    # never saw the contradiction: it produced documents that this tier rejects
+    # and that would have failed at show time anyway.
+    repairable=False,
+    document_scoped=True,
+)
+def _action_target_resolves(value, obj=None, context=None) -> None:
+    """An action cue's ``action_target`` must name a cue in the same document.
+
+    **New detection, not a stricter reading of an old rule.** Measured
+    2026-09-04: a dangling *non-``None``* ``action_target`` was accepted —
+    ``action_target_required`` only rejects ``None``, so an ActionCue pointing at
+    a deleted cue passed. The editor's raw-dict walk was the only thing catching
+    it, and it is being deleted (FR-043a).
+
+    Sits **beside** ``action_target_required`` rather than replacing it: one
+    says *there must be a reference*, this says *the reference must resolve*.
+    Both can fire, and they fail for different reasons an operator needs told
+    apart.
+    """
+    if value is None or context is None:
+        # ``None`` is ``action_target_required``'s business, not this rule's —
+        # two rules reporting one fault would double-count it. A ``None``
+        # context means the caller had no document (``enforce``), and a rule
+        # that cannot decide passes rather than guessing.
+        return
+    if value not in context.cue_ids:
+        raise ValueError(
+            f"action_target {value} does not resolve to a cue in this document"
+        )
+
+
+@register(
+    "fade_action_type",
+    [("FadeCue", "action_type")],
+    # ``FadeCue.REQ_ITEMS['action_type']`` is ``'fade_action'`` — the one
+    # value this rule accepts. The default *is* the repair.
+    repairable=True,
+)
+def _fade_action_type(value, obj=None) -> None:
+    if value != "fade_action":
+        raise ValueError(
+            f"action_type must be 'fade_action' for FadeCue, got '{value}'"
+        )
+
+
+@register(
+    "fade_curve_type",
+    [("FadeCue", "curve_type")],
+    # ``FadeCue.REQ_ITEMS['curve_type']`` is ``FadeCurveType.linear`` — a
+    # valid member of the same enumeration this rule checks.
+    repairable=True,
+)
+def _fade_curve_type(value, obj=None) -> None:
+    from ..cues.FadeCue import FadeCurveType
+
+    if isinstance(value, FadeCurveType):
+        return
+    try:
+        FadeCurveType(value)
+    except ValueError:
+        valid = [member.value for member in FadeCurveType]
+        raise ValueError(f"curve_type must be one of {valid}, got '{value}'")
+
+
+@register(
+    "fade_duration_positive",
+    [("FadeCue", "duration")],
+    # ``FadeCue.REQ_ITEMS['duration']`` is ``None``, which this rule accepts
+    # as "not set yet" — but ``duration`` is a required schema element, so
+    # substituting ``None`` would trade a T2 violation for a T1 one, not
+    # repair the document. No value both satisfies "positive and non-zero"
+    # and carries no meaning of its own.
+    repairable=False,
+)
+def _fade_duration_positive(value, obj=None) -> None:
+    """``None`` is accepted — it means "not set yet", not "zero"."""
+    from ..cues.FadeCue import _ZERO_TC
+    from ..helpers import format_timecode
+
+    if value is None:
+        return
+    if format_timecode(value) <= _ZERO_TC:
+        raise ValueError("duration must be positive and non-zero")
+
+
+@register(
+    "fade_target_value_range",
+    [("FadeCue", "target_value")],
+    # ``FadeCue.REQ_ITEMS['target_value']`` is ``0`` — a boundary value this
+    # rule accepts.
+    repairable=True,
+)
+def _fade_target_value_range(value, obj=None) -> None:
+    number = int(value)
+    if not (0 <= number <= 100):
+        raise ValueError(f"target_value must be between 0 and 100, got {number}")
+
+
+@register(
+    "output_name_shape",
+    [("VideoCueOutput", "output_name")],
+    # No default (``VideoCueOutput.DECLARED_DEFAULTS['output_name']`` is
+    # ``Unset``) — this is an identity field an output is addressed by, and
+    # nothing generic stands in for it.
+    repairable=False,
+)
+def _output_name_shape(value, obj=None) -> None:
+    """A video output name is an alias or a custom slot, and nothing else."""
+    from ..cues.CueOutput import _classify_output_name
+
+    _classify_output_name(value)
+
+
+@register(
+    "canvas_region_containment",
+    [("VideoCueOutput", "canvas_region")],
+    # No default (``Unset``) — a placement region has no generic stand-in
+    # that would not silently relocate the output.
+    repairable=False,
+)
+def _canvas_region_containment(value, obj=None) -> None:
+    """The region fits the canvas, **and** matches the output's mode.
+
+    Two clauses, one rule, because they are the same question asked of the same
+    field: an alias output must not carry a region, a custom one must, and a
+    region that is present must fit. Splitting them would put the mode check
+    somewhere a caller reading "canvas_region" would not look.
+    """
+    from ..cues.CueOutput import _classify_output_name, _validate_canvas_region
+
+    output_name = obj.get("output_name") if obj is not None else None
+    kind = None
+    if isinstance(output_name, str):
+        try:
+            kind = _classify_output_name(output_name)
+        except ValueError:
+            kind = None  # reported by ``output_name_shape``, not twice here
+
+    if value is None:
+        if kind == "custom":
+            raise ValueError(
+                f"canvas_region is required for custom output_name {output_name!r}"
+            )
+        return
+
+    if kind == "alias":
+        raise ValueError(
+            f"canvas_region must be absent for alias output_name {output_name!r}"
+        )
+    _validate_canvas_region(value)
+
+
+@register(
+    "media_duration",
+    [("Media", "duration")],
+    # No default (``Media.DECLARED_DEFAULTS['duration']`` is ``Unset``) — a
+    # media file's length is intrinsic to the file, not a value a generic
+    # substitute could stand in for.
+    repairable=False,
+)
+def _media_duration(value, obj=None) -> None:
+    """``Media.duration`` parses as a timecode (feature 008, FR-005).
+
+    ``Media.duration`` is now ``cms:CTimecodeType`` — the same type and the
+    same ``format_timecode`` machinery every other time-carrying element
+    uses, so this rule delegates to it exactly as ``fade_duration_positive``
+    does for ``FadeCue.duration``. The ``str`` branch this rule used to carry
+    (parsing a value already known to be ``str``, with its own ``TypeError``
+    for anything else) is gone: it existed because the field used to *store*
+    a string, and a T2 rule only ever sees a stored value. It now stores a
+    ``CTimecode`` exactly as every other such field does, so that branch is
+    unreachable rather than merely redundant.
+    """
+    from ..helpers import format_timecode
+
+    if value is None:
+        return
+    format_timecode(value)
+
+
+@register(
+    "cuelist_shape",
+    [("CuemsScript", "CueList")],
+    # ``CuemsScript.REQ_ITEMS['CueList']`` is the ``CueList`` class itself —
+    # a factory for a fresh, empty cue list (helpers.py's callable-default
+    # convention). Substituting it would silently discard whatever cues the
+    # malformed value held, which is too large a meaning change to call a
+    # repair.
+    repairable=False,
+)
+def _cuelist_shape(value, obj=None) -> None:
+    from ..cues.CueList import CueList
+
+    if isinstance(value, CueList):
+        return
+    try:
+        CueList(value)
+    except Exception as exc:  # noqa: BLE001 - the constructor is the check
+        raise ValueError(
+            f"CueList {value} is not a CueList object or a valid dict"
+        ) from exc
+
+
+@register(
+    "one_custom_template_per_node",
+    [("NodeMappingType", "devices")],
+    # No default (``Unset``), and a count violation has no single substitute
+    # value that would decide which duplicate template to keep.
+    repairable=False,
+)
+def _one_custom_template_per_node(value, obj=None) -> None:
+    """At most one custom template — an entry carrying a ``canvas_region``.
+
+    A **V1 product constraint**, not a structural one, and document-scoped over
+    *project mappings* rather than over a script. Registered against the
+    mappings ``NodeMappingType`` so ``run_rules`` reaches it if a config object is
+    ever validated; the live call site remains ``validate_custom_templates``,
+    which ``ProjectMappings`` runs on read. The body keeps only ``class``
+    ``video``; the field is ``devices`` because ``video`` is no longer one.
+    """
+    if not value:
+        return
+    node_uuid = obj.get("uuid", "<unknown>") if obj is not None else "<unknown>"
+    count = 0
+    items = value if isinstance(value, list) else [value]
+    for item in items:
+        if not hasattr(item, "get"):
+            continue
+        device = item.get("device", item)
+        if not hasattr(device, "get") or device.get("class") != "video":
+            continue
+        for group in device.get("outputs") or []:
+            ports = group if isinstance(group, list) else [group]
+            for wrapper in ports:
+                output = _unwrap_single(wrapper)
+                if output is None:
+                    continue
+                region = output.get("canvas_region")
+                if region is None:
+                    continue
+                check_canvas_region_containment(region, node_uuid)
+                count += 1
+    check_one_custom_template_per_node(count, node_uuid)
+
+
+def _unwrap_single(wrapper):
+    if hasattr(wrapper, "keys") and len(wrapper) == 1:
+        only = next(iter(wrapper.values()))
+        if hasattr(only, "keys"):
+            return only
+    return wrapper if hasattr(wrapper, "keys") else None
+
+
+# --- feature 012: node-identity uniqueness (FR-019a, research R2) ----------
+
+
+#: The repair an operator runs, named in every message this rule produces
+#: (FR-024). A rejection that does not say what to do about it costs the
+#: operator the time it takes to find someone who knows.
+REMINT_COMMAND = "cuems-init-node --remint"
+
+
+def check_node_identities_unique(rows) -> None:
+    """No two rows of a network map may carry one identity.
+
+    Args:
+        rows: ``(identity, mac)`` per row, **in document order and with
+            duplicates kept**.
+
+    Raises:
+        ValueError: two or more rows share an identity. The message names the
+            identity and every MAC carrying it, because the MAC is the only
+            thing that tells the rows apart.
+
+    **Why the library refuses rather than repairing.** It cannot know which of
+    two colliding rows is the real node, so there is no defensible default to
+    repair *to*. Splitting them is safe in the configuration documents, where
+    the MAC discriminates, and unsafe in the project library, where the
+    compound ``<identity>_<output>`` prefix is the only record of which node an
+    output belongs to — no discriminator exists there, so a split would
+    silently reassign one node's entire output set (data-model §4.2).
+    """
+    seen: dict[str, list[str]] = {}
+    for identity, mac in rows:
+        seen.setdefault(identity, []).append(mac)
+    collisions = {i: m for i, m in seen.items() if len(m) > 1}
+    if not collisions:
+        return
+    detail = "; ".join(
+        f"{identity} is carried by {len(macs)} rows (" + ", ".join(f"mac={m}" for m in macs) + ")"
+        for identity, macs in sorted(collisions.items())
+    )
+    raise ValueError(
+        f"node identities are not unique: {detail}. The library cannot know "
+        "which row is the real node, so it will not choose. Decide from the "
+        "two rows' hardware addresses and the scripts naming the shared token "
+        "which node the outputs belong to, treat the other as never "
+        f"provisioned, and re-mint it — see the migration guide, then run "
+        f"{REMINT_COMMAND}."
+    )
+
+
+def validate_node_identities(processed: dict) -> None:
+    """Both halves of the map's identity contract, over a decoded network map.
+
+    The live call site, mirroring ``validate_custom_templates``'s place in
+    ``ProjectMappings``: ``NetworkMap.process_xml_dict`` runs this on read.
+    The registered rule below is the same check reached through ``run_rules``.
+    """
+    rows = []
+    for wrapper in processed.get("node_list") or []:
+        node = wrapper.get("node") if hasattr(wrapper, "get") else None
+        if node is None:
+            continue
+        rows.append((str(node.get("uuid")), str(node.get("mac", "<no mac>"))))
+    check_node_identities_unique(rows)
+
+
+@register(
+    "node_uuid_unique",
+    [("node", "uuid")],
+    # UNREPAIRABLE, and forced by the domain rather than chosen for
+    # convenience. Repair means *substitute the field's declared default*, and
+    # there is no value that would decide which of two colliding rows is the
+    # real node. Fabricating one would be worse than refusing, because it would
+    # look resolved. Modelled on ``action_target_resolves``, the closest
+    # precedent in both scope and repairability (research R2).
+    repairable=False,
+    document_scoped=True,
+)
+def _node_uuid_unique(value, obj=None, context=None) -> None:
+    """A node identity must be unique across the network map.
+
+    Document-scoped because a row cannot see its siblings, and uniqueness is a
+    question about all of them at once. A ``None`` context means the caller had
+    no document (``enforce``), and a rule that cannot decide passes rather than
+    guessing — the same posture ``action_target_resolves`` takes.
+
+    Fires once per row, so a colliding map reports the collision as many times
+    as there are rows in it. That is the tier's normal behaviour for a
+    document-scoped rule and is not worth special-casing: the first violation
+    is what raises.
+    """
+    if context is None or not context.node_rows:
+        return
+    check_node_identities_unique(context.node_rows)
+
+
+#: Derived, never hand-maintained — see ``_semantic_rules``.
+SEMANTIC_RULES = _semantic_rules()

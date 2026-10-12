@@ -1,159 +1,162 @@
-"""Contract C11 (T049a) — the one declared breaking change, pinned.
+"""Contract C7 (T049a, repaired by feature 007) — the declared break, closed.
 
-Every other contract in this feature asserts that something did **not** change.
-This one asserts that something **did**, and that it changed exactly as
-declared (FR-026d, SC-017).
-
-``cuems-nodeconf`` registers its node handlers by writing into this library's
-private module namespaces (`NodeXmlBuilders.py:105-111`)::
+**What this file asserted through feature 006.** ``cuems-nodeconf`` registered
+its node handlers by writing into this library's private module namespaces
+(``NodeXmlBuilders.py:105-111``)::
 
     XmlBuilderModule.nodeXmlBuilder = nodeXmlBuilder
     ParsersModule.nodeParser        = nodeParser
 
 ``CuemsParser.get_parser_class`` and ``XmlBuilder.get_builder_class`` resolved
 handlers through ``globals()`` of their own module, so an injected name was
-found. Every path now routes through the explicit registry, and an injected
-name is never consulted.
+found. Feature 004's engine routes every path through the explicit registry
+instead, so an injected name is never consulted — a **silent** break: the
+imports still resolve, the assignments still execute, nothing raises. Feature
+004 declared it (FR-026d) rather than pretending it away.
 
-**Why this needs a test rather than a release note.** Nothing raises. The
-imports still resolve, the assignments still execute, and the node simply
-serializes through a generic instead of through ``nodeXmlBuilder``. A break
-that is loud gets noticed; this one is silent, which is exactly why it is
-asserted.
+**What repairs it, and what stays broken by design.** Two halves, from
+research R11:
 
-No shim can preserve it: honouring an injected name means keeping the implicit
-lookup FR-007 exists to delete. **The `cuems-nodeconf` fix is carried by
-feature 007** — see `specs/004-xml-serialization-core/migration-map.md` §3.
+1. The registry binding half was already done — feature 006 bound
+   ``NodeType`` -> ``node`` and ``NodeDictType`` -> ``node_list``.
+2. **The write path half is this feature.** Before ``CuemsNetworkMapType.save``
+   existed, network_map had *no* first-party writer at all — an injected
+   handler having no effect was moot, because nothing serialized nodes
+   either way. Now it does: FR-026d's break — "an injection is silently
+   ignored" — is provable because there is finally a working write path for
+   it to be silently ignored *by*.
+
+So this file's assertions flip from "prove nothing writes nodes, injected or
+not" to "prove nodes write correctly, and an injection changes nothing about
+it". The record that the break was declared and dated survives in this
+docstring; the tests below prove it closed.
 """
 
 from __future__ import annotations
 
 import warnings
 
-import pytest
-
 import cuemsutils.xml.Parsers as ParsersModule
 import cuemsutils.xml.XmlBuilder as XmlBuilderModule
+from cuemsutils.tools.NodeList import NodeRole
+from cuemsutils.xml.mapper import Mapper, read_config_document
 from cuemsutils.xml.registry import get_registry
-from tests.support import roundtrip as rt
-from tests.support.corpus import by_relpath
+from cuemsutils.xml.settings import NetworkMap
+from tests.support.corpus import REPO_ROOT
 
-SCRIPT = "cuems-editor/script_minimal.xml"
+NETWORK_MAP_PATH = REPO_ROOT / "tests" / "data" / "network_map.xml"
 
 
-class _InjectedParser:
-    """Stands in for `cuems-nodeconf`'s ``nodeParser``.
-
-    Records whether it was consulted, which is the only observable this break
-    has.
-    """
+class _InjectedNodeXmlBuilder:
+    """Stands in for ``cuems-nodeconf``'s real ``nodeXmlBuilder`` injection."""
 
     was_used = False
 
-    def __init__(self, init_dict=None, class_string=None, **kwargs):
-        type(self).was_used = True
-        self.init_dict = init_dict
-
-    def parse(self):
-        return {"injected": True}
-
-
-class _InjectedBuilder:
-    was_used = False
-
-    def __init__(self, _object=None, xml_tree=None, **kwargs):
+    def __init__(self, *args, **kwargs):
         type(self).was_used = True
 
     def build(self):
         return None
 
 
-@pytest.fixture
-def injected(monkeypatch):
-    """Reproduce the nodeconf injection, and undo it afterwards."""
-    _InjectedParser.was_used = False
-    _InjectedBuilder.was_used = False
+class _InjectedNodeParser:
+    """Stands in for ``cuems-nodeconf``'s real ``nodeParser`` injection."""
+
+    was_used = False
+
+    def __init__(self, *args, **kwargs):
+        type(self).was_used = True
+
+    def parse(self):
+        return {"injected": True}
+
+
+def _decoded():
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        netmap = NetworkMap(str(NETWORK_MAP_PATH))
+    raw = read_config_document(netmap.schema_object, str(NETWORK_MAP_PATH))
+    return Mapper("network_map").decode_config(raw)
+
+
+def test_the_registry_resolves_node_and_node_list():
+    """The half that was already true — feature 006's bindings, restated as
+    the foundation the write path (this feature) is built on."""
+    from cuemsutils.config.network_map import node, node_list
+
+    registry = get_registry("network_map")
+    assert registry.model_for("NodeType") is node
+    assert registry.model_for("NodeDictType") is node_list
+
+
+def test_the_write_path_now_exists_and_works(tmp_path):
+    """The half that was missing until this feature: node serialization
+    through the registry, at all."""
+    obj = _decoded()
+    out = tmp_path / "out.xml"
+    obj.save(str(out))
+
+    written = out.read_text()
+    assert "<node_role>controller</node_role>" in written
+    assert obj["node_list"][0]["node"]["node_role"] is NodeRole.controller  # unmutated
+
+
+def test_injecting_nodexmlbuilder_has_no_effect_on_the_write(tmp_path, monkeypatch):
+    """The break, reproduced against the now-working write path (FR-026d)."""
+    _InjectedNodeXmlBuilder.was_used = False
     monkeypatch.setattr(
-        ParsersModule, "AudioCueParser", _InjectedParser, raising=False
+        XmlBuilderModule, "nodeXmlBuilder", _InjectedNodeXmlBuilder, raising=False
     )
+
+    baseline = tmp_path / "baseline.xml"
+    _decoded().save(str(baseline))
+
+    injected_out = tmp_path / "injected.xml"
+    _decoded().save(str(injected_out))
+
+    assert _InjectedNodeXmlBuilder.was_used is False
+    assert injected_out.read_text() == baseline.read_text()
+
+
+def test_injecting_nodeparser_has_no_effect_on_the_read(monkeypatch):
+    _InjectedNodeParser.was_used = False
+    monkeypatch.setattr(ParsersModule, "nodeParser", _InjectedNodeParser, raising=False)
+
+    obj = _decoded()
+
+    assert _InjectedNodeParser.was_used is False
+    assert obj["node_list"][0]["node"]["node_role"] is NodeRole.controller
+
+
+def test_the_injection_still_imports_and_assigns_without_error(monkeypatch):
+    """What does **not** break, stated first — the imports still resolve and
+    the assignment still executes; only its effect is gone."""
     monkeypatch.setattr(
-        XmlBuilderModule, "AudioCueXmlBuilder", _InjectedBuilder, raising=False
+        XmlBuilderModule, "nodeXmlBuilder", _InjectedNodeXmlBuilder, raising=False
     )
-    yield
-    _InjectedParser.was_used = False
-    _InjectedBuilder.was_used = False
-
-
-def test_the_injection_still_imports_and_assigns_without_error(injected):
-    """What does **not** break, stated first.
-
-    The consumer's module still imports, and its four assignments still
-    execute. Only their effect is gone — which is the entire reason this
-    contract exists.
-    """
-    assert ParsersModule.AudioCueParser is _InjectedParser
-    assert XmlBuilderModule.AudioCueXmlBuilder is _InjectedBuilder
-
-
-def test_injected_parser_is_not_consulted_on_decode(injected):
-    doc = by_relpath(SCRIPT)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        rt.read_objects(doc)
-    assert _InjectedParser.was_used is False
-
-
-def test_injected_builder_is_not_consulted_on_encode(injected):
-    doc = by_relpath(SCRIPT)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        rt.write_bytes(doc, rt.read_objects(doc))
-    assert _InjectedBuilder.was_used is False
-
-
-def test_the_registry_resolves_the_type_instead(injected):
-    """The positive half: something else did the work, and it is the registry.
-
-    Without this, "the injection was not used" would also pass if nothing had
-    been serialized at all.
-    """
-    from cuemsutils.cues.AudioCue import AudioCue
-
-    assert get_registry("script").model_for("AudioCueType") is AudioCue
-
-    doc = by_relpath(SCRIPT)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        obj = rt.read_objects(doc)
-
-    cues = obj["CueList"]["contents"]
-    assert any(type(cue) is AudioCue for cue in cues)
-    assert not any(isinstance(cue, dict) and cue.get("injected") for cue in cues)
-
-
-def test_output_is_unaffected_by_the_injection(injected):
-    """The break costs nothing in output terms.
-
-    A consumer that injects a handler gets the registry's result, which for
-    every type the library itself knows is the same bytes it would produce
-    anyway. What is lost is the ability to override — and that is the declared
-    change.
-    """
-    doc = by_relpath(SCRIPT)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        produced = rt.write_bytes(doc, rt.read_objects(doc))
-    assert produced == rt.golden_bytes(f"xml/{doc.slug}.xml")
+    monkeypatch.setattr(ParsersModule, "nodeParser", _InjectedNodeParser, raising=False)
+    assert XmlBuilderModule.nodeXmlBuilder is _InjectedNodeXmlBuilder
+    assert ParsersModule.nodeParser is _InjectedNodeParser
 
 
 def test_no_public_registration_hook_replaces_it():
-    """The break is not softened by a new injection point.
+    """The break is not softened by a new injection point (D11 + Q14, FR-017).
 
-    D11 + Q14: nothing external owns a model in this feature. A consumer
-    needing one waits for the public registry in feature 006 — offering a
-    half-API here would have to be supported forever.
+    A consumer needing one uses the public registry — there is no half-API
+    that would have to be supported forever.
     """
     import cuemsutils.xml.registry as registry_module
 
     for name in ("register", "register_binding", "bind", "add_binding"):
         assert not hasattr(registry_module, name)
+
+
+def test_cuemsnodedict_xmlbuilder_no_longer_exists():
+    """FR-018 — the dead stub this feature deletes."""
+    assert not hasattr(XmlBuilderModule, "CuemsNodeDictXmlBuilder")
+
+
+def test_cuemsnodedict_parser_still_absent():
+    """Its prior removal (feature 006) stays asserted, so this file remains
+    the one place both halves of C7's claim are checked together."""
+    assert not hasattr(ParsersModule, "CuemsNodeDictParser")

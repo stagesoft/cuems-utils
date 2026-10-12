@@ -33,6 +33,19 @@ from tests.support.corpus import DOCUMENTS, GOLDEN_ROOT
 CHAIN_DOCS = [d for d in DOCUMENTS if (GOLDEN_ROOT / "xml" / f"{d.slug}.xml").exists()]
 IDS = [d.relpath for d in CHAIN_DOCS]
 
+#: ``cuems-utils/fade_showcase.xml`` (T003c) carried an ``xfail(strict)`` on
+#: the json leg through Phase 1 and Phase 2. It is the first corpus document
+#: with a populated ``fade_profiles`` pair, and it exposed a pre-existing
+#: defect: ``FadeProfile.__json__`` and ``FadeFunctionParameter.__json__``
+#: self-wrapped as ``{"FadeProfile": {...}}``, ``CuemsParser`` rebuilt that
+#: shape without unwrapping it, and the written XML got a literal
+#: ``<FadeProfile>`` tag instead of ``<fade_profile>``.
+#:
+#: T035 deleted both bodies and the derived projection replaced them, which is
+#: what the mark said would clear it. **It cleared** — the mark is gone rather
+#: than flipped to non-strict, because a strict xfail that starts passing is
+#: information and keeping it would discard exactly that.
+
 
 def _json_to_object(payload: dict):
     """The editor's JSON→object path.
@@ -93,7 +106,7 @@ def test_generated_document_survives_the_whole_chain():
     obj = rt.build_generated_script()
 
     direct = rt.normalize_uuids(rt.write_bytes(doc, obj))
-    assert direct == rt.golden_bytes("generated/create_script.xml")
+    assert direct == rt.golden_bytes("generated/example_script.xml")
 
     rebuilt = _json_to_object(json.loads(json.dumps(obj)))
     via_json = rt.normalize_uuids(rt.write_bytes(doc, rebuilt))
@@ -157,6 +170,28 @@ def test_a_built_object_and_a_loaded_one_agree_on_the_enumerated_types():
     assert not offending, "built vs loaded types:\n  " + "\n  ".join(
         f"{p}: {a} != {b}" for p, a, b in offending
     )
+
+
+# --- feature 006 addition (T022, FR-008, SC-002) --------------------------
+#
+# The same chain, driven entirely through the public surface: no
+# ``XmlReaderWriter``, no ``CuemsParser``, no schema name. Additive — nothing
+# above changes — because the two must agree, and the way to show that is to
+# run both rather than to replace one with the other.
+
+
+def test_this_module_can_drive_the_chain_without_naming_the_xml_package():
+    """SC-002, asserted against the *source* of the public leg below.
+
+    The assertions above deliberately still import ``cuemsutils.xml`` — they
+    are the pre-feature leg. So the claim is scoped to the module that holds
+    only the public one.
+    """
+    import tests.integration.test_public_chain as public_leg
+
+    from tests.support.public_api import assert_no_xml_import
+
+    assert_no_xml_import(public_leg)
 
 
 @pytest.mark.xfail(

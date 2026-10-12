@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+from enum import Enum
 from pathlib import Path
 
 from tests.support.capture_goldens import (
@@ -24,6 +25,7 @@ from tests.support.corpus import GOLDEN_ROOT, CorpusDoc
 
 __all__ = [
     "GENERATED_CREATED",
+    "as_plain",
     "GENERATED_MODIFIED",
     "build_generated_script",
     "golden_bytes",
@@ -33,7 +35,10 @@ __all__ = [
     "read_config_dict",
     "read_dict",
     "read_objects",
+    "wire_diff",
+    "wire_equal",
     "write_bytes",
+    "write_bytes_raw",
 ]
 
 
@@ -46,26 +51,51 @@ def _reader(schema: str, xmlfile: str):
 
 
 def read_dict(doc: CorpusDoc, source: str | Path | None = None):
-    """Reader configuration A: ``strip_namespaces=False`` (FR-013)."""
-    return _reader(doc.schema, str(source or doc.path)).read()
+    """Reader configuration A: ``strip_namespaces=False`` (FR-013).
+
+    Calls ``_raw_decode``, the **private core**, rather than the public
+    ``read()``. Two reasons, and the second is the one that matters:
+
+    * ``read()`` is deprecated as of feature 014, and contract C8 says no
+      internal caller invokes a deprecated symbol — a harness that measures the
+      library must not be the thing tripping that check.
+    * ``read()`` *is* a raw decode with no version conversion, which is exactly
+      what configuration A is defined as. There is no public equivalent,
+      deliberately: the public paths convert and report, which is a different
+      measurement. Reaching for the private name states plainly that this
+      harness measures an internal, instead of borrowing a deprecated public
+      name to do it.
+    """
+    return _reader(doc.schema, str(source or doc.path))._raw_decode()
 
 
 def read_config_dict(doc: CorpusDoc, source: str | Path | None = None):
     """Reader configuration B: the config classes (FR-013).
 
     ``strip_namespaces=True``, explicit ``dict``/``list``, ``attr_prefix=''``.
-    Resolved off the package rather than ``cuemsutils.xml.Settings``, whose name
-    is shadowed by the class of the same name.
+
+    Resolved off ``cuemsutils.xml.settings`` — the implementation module —
+    rather than off the package root. As of T061 the root's ``Settings``,
+    ``NetworkMap``, ``ProjectMappings`` and ``ProjectSettings`` are deprecation
+    aliases that warn on every call, and this helper is the harness for the
+    byte-identity goldens: it must measure the library, not the shim.
     """
-    import cuemsutils.xml as xml_package
+    import cuemsutils.xml.settings as settings_module
 
     assert doc.config_class is not None
-    cls = getattr(xml_package, doc.config_class)
+    cls = getattr(settings_module, doc.config_class)
     return cls(str(source or doc.path)).xml_dict
 
 
 def read_objects(doc: CorpusDoc, source: str | Path | None = None):
-    return _reader(doc.schema, str(source or doc.path)).read_to_objects()
+    """Configuration A, decoded to objects. See :func:`read_dict` on why this
+    goes through the private core rather than the deprecated ``read_to_objects``."""
+    from cuemsutils.xml.mapper import Mapper
+
+    reader = _reader(doc.schema, str(source or doc.path))
+    return Mapper(
+        doc.schema, document=str(source or doc.path)
+    ).decode_document(reader._raw_decode())
 
 
 def write_bytes(doc: CorpusDoc, obj) -> bytes:
@@ -74,15 +104,65 @@ def write_bytes(doc: CorpusDoc, obj) -> bytes:
     Writes to a scratch file because ``XmlReaderWriter.write`` takes its
     destination from the instance, not from an argument — the bytes on disk are
     the artifact C1 compares.
+
+    ``normalize_schema_location`` is retained and is now a **no-op**: T037
+    writes the bare schema filename, so there is no machine path left to
+    replace. Keeping the call rather than deleting it is deliberate — it is the
+    thing that would start substituting again if the absolute path ever came
+    back, and ``write_bytes_raw`` below is the assertion that it has not.
+    """
+    return normalize_schema_location(write_bytes_raw(doc, obj))
+
+
+def write_bytes_raw(doc: CorpusDoc, obj) -> bytes:
+    """``write_bytes`` with **no** normalization at all (T037).
+
+    Exists because "the normalization is a no-op now" is a claim that a
+    normalizing comparison cannot make.
     """
     out = Path(tempfile.mkdtemp()) / "written.xml"
-    _reader(doc.schema, str(out)).write_from_object(obj)
-    return normalize_schema_location(out.read_bytes())
+    # The private core: C8 again — see read_dict.
+    _reader(doc.schema, str(out))._write_object(obj)
+    return out.read_bytes()
+
+
+def as_plain(value):
+    """``value`` with every model object replaced by a plain ``dict``.
+
+    Insertion order is preserved, because that is what the dict goldens record
+    and what C2 compares.
+
+    Needed from feature 006 onward: ``CuemsDict`` gained a ``__json__`` hook, so
+    ``json.dumps`` on a decoded document now runs the **projection** rather than
+    serializing the mapping. That is correct for a payload and wrong for a
+    structural comparison — the projection filters undeclared keys (the leaked
+    ``schemaLocation``) and orders by declaration, neither of which the golden
+    is a record of. Stripping the classes first asks the question C2 has always
+    asked: *is the decoded structure the same?*
+    """
+    if isinstance(value, dict):
+        return {k: as_plain(v) for k, v in dict.items(value)}
+    if isinstance(value, list):
+        return [as_plain(v) for v in value]
+    return value
 
 
 def json_dumps(value) -> str:
-    """The comparison C2 specifies — order-sensitive, and deliberately so."""
-    return json.dumps(value)
+    """The comparison C2 specifies — order-sensitive, and deliberately so.
+
+    ``default=`` renders an ``Enum`` as its ``.value`` — first needed by
+    feature 007's ``network_map``, whose config B decode (``read_config_dict``)
+    now produces a real ``NodeRole`` for ``node_role`` (research R1). No
+    existing golden hit this path before: config B never ran adapters, and
+    config A (raw ``schema.to_dict()``) never has, either. ``bool`` needs no
+    handling — it's already JSON-native, which is *why* the golden's
+    ``adopted``/``online`` change from the JSON string ``"True"`` to the JSON
+    literal ``true`` for this one schema (FR-011a).
+    """
+    return json.dumps(
+        as_plain(value),
+        default=lambda o: o.value if isinstance(o, Enum) else str(o),
+    )
 
 
 def golden_bytes(relpath: str) -> bytes:
@@ -91,6 +171,53 @@ def golden_bytes(relpath: str) -> bytes:
 
 def golden_json(relpath: str) -> str:
     return (GOLDEN_ROOT / relpath).read_text(encoding="utf-8")
+
+
+def wire_diff(produced, golden, path: str = "$") -> list[str]:
+    """Structural differences between two wire payloads, per contracts §W1a.
+
+    Empty when they are equal under W1a: same recursive structure and list
+    order/length, matching dict key **order**, and exact scalar **type** —
+    checked with ``type(a) is type(b)``, not ``==``, because ``True == 1`` in
+    Python. Text is compared as plain ``str``, which is already
+    codepoint-equality once both sides are decoded from JSON. Every
+    byte-equality test in this feature (T005, T030, T043a) uses this one
+    predicate.
+    """
+    if isinstance(golden, dict) or isinstance(produced, dict):
+        if not (isinstance(golden, dict) and isinstance(produced, dict)):
+            return [f"{path}: type {type(produced).__name__} != {type(golden).__name__}"]
+        pk, gk = list(produced.keys()), list(golden.keys())
+        if pk != gk:
+            return [f"{path}: key order {pk!r} != {gk!r}"]
+        diffs = []
+        for k in gk:
+            diffs.extend(wire_diff(produced[k], golden[k], f"{path}.{k}"))
+        return diffs
+
+    if isinstance(golden, list) or isinstance(produced, list):
+        if not (isinstance(golden, list) and isinstance(produced, list)):
+            return [f"{path}: type {type(produced).__name__} != {type(golden).__name__}"]
+        if len(produced) != len(golden):
+            return [f"{path}: length {len(produced)} != {len(golden)}"]
+        diffs = []
+        for i, (p, g) in enumerate(zip(produced, golden)):
+            diffs.extend(wire_diff(p, g, f"{path}[{i}]"))
+        return diffs
+
+    if type(produced) is not type(golden):
+        return [
+            f"{path}: type {type(produced).__name__} != {type(golden).__name__} "
+            f"({produced!r} vs {golden!r})"
+        ]
+    if produced != golden:
+        return [f"{path}: {produced!r} != {golden!r}"]
+    return []
+
+
+def wire_equal(produced, golden) -> bool:
+    """``True`` iff ``wire_diff`` finds nothing — see its docstring for W1a."""
+    return not wire_diff(produced, golden)
 
 
 # Re-exported, not reimplemented: the tests must build the generated document

@@ -40,7 +40,57 @@ class Uuid():
 
     def __ne__(self, other):
         return not self.__eq__(other)
-    
+
+    # -- total ordering (feature 012, FR-029, data-model §6.2) --------------
+    #
+    # ``sorted()`` over a collection of these used to raise ``TypeError``, which
+    # every consumer hit the first time it wanted a stable node order. Adding it
+    # here removes the failure for all of them at once, including the ones that
+    # have not been fixed (M-b) — the argument for putting it in the library
+    # rather than asking each consumer to convert.
+    #
+    # Ordering **completes** the comparison set rather than introducing new
+    # semantics. ``__eq__`` and ``__hash__`` already work against both ``Uuid``
+    # and ``str``, so the only consistent ordering is the string form's, and it
+    # crosses the same boundary: a set that compared equal to a ``str`` and
+    # refused to order against one would be the more confusing outcome.
+    #
+    # ``functools.total_ordering`` is deliberately not used. It derives the
+    # other three operators from ``__lt__`` and ``__eq__``, and ``__eq__`` here
+    # returns ``False`` for an unrelated type rather than ``NotImplemented`` —
+    # so the derived ``__le__`` would answer ``True`` for
+    # ``Uuid(...) <= object()`` instead of raising. Spelling the four out keeps
+    # ``NotImplemented`` where it belongs.
+    #
+    # **Not added**: slicing, ``len`` and ``split``. They would invite treating
+    # an identity as a string in ways the compound ``<identity>_<output>``
+    # parsing already handles elsewhere, and the consumer census (research R4)
+    # found no site that needs them.
+
+    def _comparable(self, other) -> str | None:
+        if isinstance(other, Uuid):
+            return other.uuid
+        if isinstance(other, str):
+            return other
+        return None
+
+    def __lt__(self, other):
+        value = self._comparable(other)
+        return NotImplemented if value is None else self.uuid < value
+
+    def __le__(self, other):
+        value = self._comparable(other)
+        return NotImplemented if value is None else self.uuid <= value
+
+    def __gt__(self, other):
+        value = self._comparable(other)
+        return NotImplemented if value is None else self.uuid > value
+
+    def __ge__(self, other):
+        value = self._comparable(other)
+        return NotImplemented if value is None else self.uuid >= value
+
+
     def __json__(self):
         return self.uuid
 

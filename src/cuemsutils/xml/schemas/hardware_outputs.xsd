@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema targetNamespace="https://stagelab.coop/cuems/" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:cms="https://stagelab.coop/cuems/">
+    <xs:element name="CuemsHardwareOutputs">
+            <xs:annotation>
+                <xs:documentation xml:lang="en">Node hardware capability, discovered. Two writers at element granularity (F1, feature 011): cuems-hardware-discovery owns the probed port inventory; cuems-nodeconf transcribes display.conf's geometry.</xs:documentation>
+                <xs:appinfo>
+                    <cms:writer scope="inventory">cuems-hardware-discovery</cms:writer>
+                    <cms:writer scope="geometry">cuems-nodeconf</cms:writer>
+                </xs:appinfo>
+            </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <!-- Container, not one element per class (feature 013, axis D,
+                     FR-053). The container and the child do not share a name:
+                     output_groups is the wrapper, outputs is the per-class
+                     list. A repeated child beside nothing else, which is the
+                     shape research R2 requires. -->
+                <xs:element name="output_groups" minOccurs="1" maxOccurs="1" type="cms:OutputGroupsType" />
+            </xs:sequence>
+            <!-- Document-property version marker (feature 008, ITEM E, FR-048a).
+                 Not a domain field: excluded from spec._derive_attributes and
+                 every wire projection (research R1). Absent means version 1
+                 (FR-050); this schema is version 2: F4 retired
+                 default_video_output and default_audio_output (authored
+                 choices in a discovered document, already declared in
+                 project_mappings), with a registered hardware_outputs 1->2
+                 conversion (specs/planning/etc-cuems-first-install.md section
+                 8.5). The authority is versioning.CURRENT_VERSION, not this
+                 comment. -->
+            <xs:attribute name="doc_version" type="xs:positiveInteger" use="optional" />
+        </xs:complexType>
+    </xs:element>
+
+    <!-- TYPES DEFINITIONS -->
+    <xs:complexType name="OutputGroupsType">
+        <xs:sequence>
+            <xs:element name="outputs" minOccurs="0" maxOccurs="unbounded" type="cms:HardwareOutputsType" />
+        </xs:sequence>
+        <!-- FR-013 applied to the discovered inventory: one list per class.
+             No xs:alternative: no class here needs a special field, so a new
+             one costs nothing at all (SC-001). -->
+        <xs:assert test="count(outputs) = count(distinct-values(outputs/@class))" />
+    </xs:complexType>
+
+    <xs:complexType name="HardwareOutputsType">
+        <xs:sequence>
+            <xs:element name="output" type="xs:string" minOccurs="0" maxOccurs="unbounded" />
+        </xs:sequence>
+        <xs:attribute name="class" type="cms:NonEmptyString" use="required" />
+    </xs:complexType>
+
+    <!-- The discriminator's type. Byte-identical to the five other
+         declarations; the anti-drift guarantee is
+         tests/contract/test_schema_name_overlap.py's
+         KNOWN_IDENTICAL_DUPLICATES. -->
+    <xs:simpleType name="NonEmptyString">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1" />
+            <xs:pattern value=".*[^\s].*" />
+        </xs:restriction>
+    </xs:simpleType>
+
+</xs:schema>

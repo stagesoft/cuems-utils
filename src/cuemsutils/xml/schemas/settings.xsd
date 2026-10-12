@@ -8,17 +8,23 @@
                                          is set; precedence defined in
                                          cuemsutils.tools.ConfigManager)
 
-    A reference template (with REPLACE-... placeholders for per-node
-    values and inline operator guidance) lives in this same repo at:
-        templates/settings.xml
-
-    Any change to this schema MUST be reflected in the template — they
-    are two sides of the same contract. In the future, the in-dev
-    cuems-hardware-discovery project will consume the template, probe
-    node hardware, and populate the final deployed file automatically.
+    A reference instance is generated from this schema, not hand-maintained
+    alongside it (feature 008, FR-034): see
+    cuemsutils.xml.descriptor.generate_settings_example. A schema change
+    that adds or removes a required field is caught there — at generation
+    time — rather than relying on a second file nothing enforced agreement
+    with. In the future, the in-dev cuems-hardware-discovery project will
+    consume such a reference, probe node hardware, and populate the final
+    deployed file automatically.
 -->
 <xs:schema targetNamespace="https://stagelab.coop/cuems/" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:cms="https://stagelab.coop/cuems/">
     <xs:element name="CuemsSettings">
+            <xs:annotation>
+                <xs:documentation xml:lang="en">Node-authored settings. Sole writer: cuems-init-node (feature 011, F1); the engine, the editor, cuems-common tools and cuems-power-bridge read it. Identity (node/uuid, node/mac) is minted only by cuemsutils.tools.Uuid through that tool.</xs:documentation>
+                <xs:appinfo>
+                    <cms:writer scope="document">cuems-init-node</cms:writer>
+                </xs:appinfo>
+            </xs:annotation>
         <xs:complexType>
             <xs:sequence>
                 <xs:element name="Settings">
@@ -41,6 +47,15 @@
                     </xs:complexType>
                 </xs:element>
             </xs:sequence>
+            <!-- Document-property version marker (feature 008, ITEM E, FR-048a).
+                 Not a domain field: excluded from spec._derive_attributes and
+                 every wire projection (research R1). Absent means version 1
+                 (FR-050); this schema is version 2: F3 retired audio_cards and
+                 universes, with a registered settings 1->2 conversion, so a
+                 document in the field carrying them still loads
+                 (specs/planning/etc-cuems-first-install.md section 8.5). The
+                 authority is versioning.CURRENT_VERSION, not this comment. -->
+            <xs:attribute name="doc_version" type="xs:positiveInteger" use="optional" />
         </xs:complexType>
     </xs:element>
 
@@ -48,7 +63,7 @@
     <!-- TYPES DEFINITIONS -->
     <xs:complexType name="NodeConfType">
         <xs:sequence>
-            <xs:element name="uuid" type="cms:NonEmptyString" />
+            <xs:element name="uuid" type="cms:NodeUuidType" />
             <xs:element name="mac" type="cms:NonEmptyString" />
             <xs:element name="osc_dest_host" type="cms:NonEmptyString" />
             <xs:element name="oscquery_ws_port" type="cms:NonPrivilegedPort" />
@@ -61,10 +76,10 @@
             <xs:element name="osc_in_port_base" type="cms:NonPrivilegedPort" />
             <xs:element name="nng_hub_port" type="cms:NonPrivilegedPort" />
             <xs:element name="gradient_osc_port" type="cms:NonPrivilegedPort" />
-            <xs:element name="videoplayer" type="cms:VideoPlayerType" minOccurs="0" maxOccurs="1" />
-            <xs:element name="audioplayer" type="cms:AudioPlayerType" minOccurs="0" maxOccurs="1" />
+            <!-- Container: the repeated player is inside it, so a single
+                 audiomixer sibling is not dropped by the converter (R2). -->
+            <xs:element name="players" type="cms:PlayersType" minOccurs="0" maxOccurs="1" />
             <xs:element name="audiomixer" type="cms:AudioMixerType" minOccurs="0" maxOccurs="1" />
-            <xs:element name="dmxplayer" type="cms:DmxPlayerType" minOccurs="0" maxOccurs="1" />
         </xs:sequence>
     </xs:complexType>
 
@@ -75,9 +90,32 @@
         </xs:sequence>
     </xs:complexType>
 
-    <xs:complexType name="VideoPlayerType">
+    <!-- class is not on PlayerType: AudioMixerType extends that and has no
+         device class (FR-040a). An alternative type must derive from the
+         element's declared type, so player is PlayerClassType. -->
+    <xs:complexType name="PlayerClassType">
         <xs:complexContent>
             <xs:extension base="cms:PlayerType">
+                <xs:attribute name="class" type="cms:NonEmptyString" use="required" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="PlayersType">
+        <xs:sequence>
+            <xs:element name="player" minOccurs="0" maxOccurs="unbounded" type="cms:PlayerClassType">
+                <xs:alternative test="@class='video'" type="cms:VideoPlayerType" />
+                <xs:alternative test="@class='audio'" type="cms:AudioPlayerType" />
+                <xs:alternative test="@class='dmx'" type="cms:DmxPlayerType" />
+                <xs:alternative type="cms:PlayerClassType" />
+            </xs:element>
+        </xs:sequence>
+        <xs:assert test="count(player) = count(distinct-values(player/@class))" />
+    </xs:complexType>
+
+    <xs:complexType name="VideoPlayerType">
+        <xs:complexContent>
+            <xs:extension base="cms:PlayerClassType">
                 <xs:sequence>
                     <xs:element name="outputs" type="xs:positiveInteger" />
                     <xs:element name="osc_port" type="cms:NonPrivilegedPort" minOccurs="0" />
@@ -89,9 +127,8 @@
 
     <xs:complexType name="AudioPlayerType">
         <xs:complexContent>
-            <xs:extension base="cms:PlayerType">
+            <xs:extension base="cms:PlayerClassType">
                 <xs:sequence>
-                    <xs:element name="audio_cards" type="xs:positiveInteger"></xs:element>
                     <xs:element name="output_latency_ms" type="cms:AutoOrIntLatencyMsType" minOccurs="0" />
                 </xs:sequence>
             </xs:extension>
@@ -107,40 +144,20 @@
 
     <xs:complexType name="DmxPlayerType">
         <xs:complexContent>
-            <xs:extension base="cms:PlayerType">
+            <xs:extension base="cms:PlayerClassType">
                 <xs:sequence>
-                    <xs:element name="universes" type="xs:positiveInteger"></xs:element>
                     <xs:element name="output_latency_ms" type="cms:IntLatencyMsType" minOccurs="0" />
                 </xs:sequence>
             </xs:extension>
         </xs:complexContent>
     </xs:complexType>
 
-    <xs:simpleType name="BoolType">
-        <xs:restriction base="xs:string">
-            <xs:enumeration value="True" />
-            <xs:enumeration value="False" />
-        </xs:restriction>
-    </xs:simpleType>
 
     <xs:simpleType name="DateType">
         <xs:restriction base="xs:dateTime">
             <xs:minInclusive value="2020-01-01T00:00:00"></xs:minInclusive>
         </xs:restriction>
     </xs:simpleType>
-
-    <xs:simpleType name="TimecodeType">
-        <xs:restriction base="xs:string">
-            <xs:pattern value="[0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{2}" />
-        </xs:restriction>
-    </xs:simpleType>
-
-    <xs:complexType name="CTimecodeType">
-        <xs:choice>
-            <xs:element name="CTimecode" type="cms:TimecodeType" default="00:00:00:00" />
-            <xs:element name="NoneType" type="xs:string" />
-        </xs:choice>
-    </xs:complexType>
 
     <xs:simpleType name="NonEmptyString">
         <xs:restriction base="xs:string">
@@ -183,4 +200,47 @@
             <xs:maxInclusive value="500" />
         </xs:restriction>
     </xs:simpleType>
+
+    <!-- feature 012: uuid4 convergence (FR-020, FR-021c, data-model §1.2).
+         THREE declarations, deliberately, not one widened pattern: the
+         converged shape, the not-provisioned sentinel, and the union of them
+         that every node-identity element names. The two halves exist to be
+         nameable, testable and removable on their own; only the union is
+         referenced.
+
+         "Converged" means uuid4 lowercase and ONLY that. The sentinel is
+         ADMITTED and never converged — feature 011 established it as the
+         coherent state of a freshly installed node, and the package's own
+         build-time generation emits it, so a pattern that refused it would make
+         every new node unloadable (M-f).
+
+         Admitted by UNION, not by loosening: the sentinel is an enumeration of
+         exactly one string, so no other nil-like value becomes valid.
+
+         Declared here in all three narrowed schemas because none of the six
+         includes or imports another — they share a target namespace and nothing
+         else (research R13). NonEmptyString, declared identically in four
+         schemas, is the precedent. The anti-drift guarantee is therefore a
+         TEST, not a schema mechanism: the three names are recorded in
+         tests/contract/test_schema_name_overlap.py's KNOWN_IDENTICAL_DUPLICATES
+         (FR-021d), whose drift test fails the moment one copy gains a facet the
+         others lack. -->
+    <xs:simpleType name="ConvergedUuidType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}" />
+            <xs:minLength value="36" />
+            <xs:maxLength value="36" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NotProvisionedUuidType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="00000000-0000-0000-0000-000000000000" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NodeUuidType">
+        <xs:union memberTypes="cms:ConvergedUuidType cms:NotProvisionedUuidType" />
+    </xs:simpleType>
+
 </xs:schema>
