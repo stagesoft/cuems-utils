@@ -7,6 +7,7 @@ if TYPE_CHECKING:  # annotation only — no runtime import, so no cycle with xml
 
 from .ConfigBase import ConfigBase, load_config_document
 from .._ingest import payload_as_mapping
+from ..config.settings import CuemsProjectSettingsType
 from ..log import Logger, logged
 from ..xml.descriptor import (
     SchemaDescriptor,
@@ -172,6 +173,7 @@ _PROJECTABLE_SECTIONS = frozenset({
     'node_conf',
     'project_mappings',
     'project_node_mappings',
+    'project_settings',
 })
 
 
@@ -399,12 +401,18 @@ class ConfigManager(ConfigBase):
 
         Args:
             path (str | None): where to write. Defaults to
-                ``self.conf_path('network_map.xml')``.
+                ``self.conf_path('network_map.xml')`` — which **requires the
+                file to already exist** (G1, contract C1's declined "one call
+                that resolves and persists"): this default path is not where
+                a first write happens. Not a gap in practice — every
+                provisioned node has one from installation (feature 011).
 
         Raises:
             SchemaError: the in-memory map does not match ``network_map.xsd``
                 — a role value outside the enumeration, most commonly.
             AttributeError: before :meth:`load_network_map` has run.
+            FileNotFoundError: ``path`` is omitted and
+                ``network_map.xml`` does not exist yet.
         """
         self.network_map.save(path or self.conf_path('network_map.xml'))
 
@@ -416,7 +424,10 @@ class ConfigManager(ConfigBase):
 
         Args:
             path (str | None): where to write. Defaults to
-                ``self.conf_path('settings.xml')``.
+                ``self.conf_path('settings.xml')`` — **requires the file to
+                already exist** (G1), unchanged: this node's own
+                ``settings.xml`` already exists by the time any code can
+                reach here (``load_base_settings`` just read it).
 
         Raises:
             SchemaError: the in-memory settings do not match ``settings.xsd``.
@@ -504,6 +515,12 @@ class ConfigManager(ConfigBase):
             Logger.info(
                 f'Project {project_uname} settings not found. Keeping default settings.'
             )
+            # G2 (FR-015): an empty, schema-valid document — not None — so
+            # "no file" and "never loaded" stay distinguishable (FR-015a) and
+            # the public read below has something to project. Its own first
+            # save becomes reachable as soon as G1 supplies the write target
+            # (research R6).
+            self._project_settings_document = CuemsProjectSettingsType()
             return
 
         # **Compensation #1, deleted** (T050, FR-016).
@@ -524,6 +541,10 @@ class ConfigManager(ConfigBase):
         # latent defect: fixing it would change ``project_conf`` from ``{}`` to
         # the settings the document carries, which is a behaviour change no
         # requirement in this feature enumerates. Left alone deliberately.
+        # ``project_conf`` stays ``{}`` here too (the ``main_key`` mismatch
+        # above): a separate, latent defect this feature deliberately does not
+        # repair (FR-016). The public read G2 adds is the ``project_settings``
+        # property below, which holds the real decoded object regardless.
         self.project_conf = conf.get_dict()
         # The root object (feature 008, T035) — ``conf.get_dict()`` is always
         # ``{}`` (the ``main_key`` mismatch above), so ``save_project_settings``
@@ -532,20 +553,51 @@ class ConfigManager(ConfigBase):
 
         Logger.info(f'Project {project_uname} settings loaded')
 
+    @property
+    def project_settings(self) -> CuemsProjectSettingsType:
+        """This project's settings document (G2, contract C2).
+
+        Returns:
+            cuemsutils.config.settings.CuemsProjectSettingsType: the decoded
+            document when ``load_project_settings`` found a file; an
+            **empty**, schema-valid instance when it found none — "no file"
+            projects ``{}`` through :meth:`to_wire`, the same way any other
+            optional-and-empty field does (FR-015, FR-015b). Never a raw
+            ``dict`` (FR-010): :meth:`to_wire` calls ``.to_wire()`` on
+            whatever this returns, so a dict would raise rather than project.
+
+        Raises:
+            AttributeError: before :meth:`load_project_settings` has run for
+                this project — the "never loaded" state, kept distinguishable
+                from "no file" on purpose (FR-015a). Existence is answered by
+                :meth:`project_path`'s own existence-checking form, not by this
+                property (FR-015b) — a project's first save is then reachable
+                through G1's tolerated write target, once edited.
+        """
+        return self._project_settings_document
+
     def save_project_settings(self, project_uname: str, path: str | None = None) -> None:
         """Write a project's ``settings.xml`` back to disk (feature 008, T035).
 
         Args:
             project_uname (str): the project whose settings to write.
             path (str | None): where to write. Defaults to
-                ``self.project_path(project_uname, 'settings.xml')``.
+                ``self.project_path(project_uname, 'settings.xml')`` — which
+                **requires the file to already exist** (G1, contract C1's
+                declined "one call that resolves and persists"): a project's
+                **first** save must pass its own tolerated target explicitly,
+                resolved with
+                ``self.project_path(project_uname, 'settings.xml', must_exist=False)``.
 
         Raises:
             SchemaError: the in-memory settings do not match
                 ``project_settings.xsd``.
-            AttributeError: before :meth:`load_project_settings` has loaded a
-                document for this project (``_project_settings_document`` is
-                ``None`` until then).
+            FileNotFoundError: ``path`` is omitted and this project's
+                ``settings.xml`` does not exist yet (the ordinary first-save
+                case — see above).
+            AttributeError: before :meth:`load_project_settings` has run for
+                this project at all (G2 — ``_project_settings_document`` is
+                never ``None`` once it has, "no file" included).
         """
         self._project_settings_document.save(
             path or self.project_path(project_uname, 'settings.xml')
@@ -589,11 +641,17 @@ class ConfigManager(ConfigBase):
         Args:
             project_uname (str): the project whose mappings to write.
             path (str | None): where to write. Defaults to
-                ``self.project_path(project_uname, 'mappings.xml')``.
+                ``self.project_path(project_uname, 'mappings.xml')`` — which
+                **requires the file to already exist** (G1): a project's
+                first ``mappings.xml`` must pass its own tolerated target
+                explicitly, resolved with
+                ``self.project_path(project_uname, 'mappings.xml', must_exist=False)``.
 
         Raises:
             SchemaError: the in-memory mappings do not match
                 ``project_mappings.xsd``.
+            FileNotFoundError: ``path`` is omitted and this project's
+                ``mappings.xml`` does not exist yet.
             AttributeError: before :meth:`load_project_mappings` has run.
         """
         self.project_mappings.save(
@@ -878,7 +936,11 @@ class ConfigManager(ConfigBase):
 
         Args:
             section: ``'settings'``, ``'network_map'``, ``'mappings'``,
-                ``'node_conf'``, ``'node_network_map'`` or ``'node_mappings'``.
+                ``'node_conf'``, ``'node_network_map'``, ``'node_mappings'``,
+                ``'project_mappings'``, ``'project_node_mappings'`` or
+                ``'project_settings'`` (G2) — the last projects ``{}`` when no
+                project settings file was found, never raising for that reason
+                alone (FR-015).
 
         Returns:
             dict: JSON-safe, in the wire format §W2 states.

@@ -66,6 +66,36 @@ def test_a_projects_first_settings_save_creates_and_reloads_equal(config_manager
     assert reloaded["setting"][0]["value"] == "1"
 
 
+def test_the_full_g1_g2_journey_first_save_of_an_edited_project(config_manager):
+    """R6's synergy, SC-001/SC-002: a project with no ``settings.xml`` loads
+    an empty document (G2), the operator edits it, and G1 supplies the
+    tolerated target for its very first save."""
+    project_dir = os.path.join(config_manager.library_path, "projects", "never-saved-project")
+    os.makedirs(project_dir, exist_ok=True)
+
+    config_manager.load_project_config("never-saved-project")
+    assert config_manager.to_wire("project_settings") == {}
+
+    config_manager.project_settings["setting"] = [{"name": "volume", "value": "50"}]
+
+    target = config_manager.project_path(
+        "never-saved-project", "settings.xml", must_exist=False
+    )
+    assert not os.path.exists(target)
+
+    # G1's write target is resolved explicitly and handed to the save
+    # accessor: ``save_project_settings``'s own *default*-path resolution is
+    # unchanged (it still requires the file to already exist, contract C1's
+    # declined "one call that resolves and persists") — a first save passes
+    # the tolerated path through the existing ``path`` parameter.
+    config_manager.save_project_settings("never-saved-project", target)
+
+    assert os.path.exists(target)
+    reloaded = ProjectSettings(target).xml_dict
+    assert reloaded["setting"][0]["name"] == "volume"
+    assert reloaded["setting"][0]["value"] == "50"
+
+
 def test_a_target_whose_parent_directory_is_absent_still_fails_at_write_time(config_manager):
     # No directory was ever created for this project.
     target = config_manager.project_path(
