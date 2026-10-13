@@ -904,21 +904,30 @@ class ConfigManager(ConfigBase):
         return project()
 
     ## helper functions
-    def project_path(self, project_uname: str, file_name: str) -> str:
+    def project_path(self, project_uname: str, file_name: str, *, must_exist: bool = True) -> str:
         """
-        Returns the path to the project file if it exists.
+        Returns the path to the project file, under this library's one
+        ``projects/<uname>/<file>`` convention.
 
         Args:
             project_uname (str): The name of the project.
             file_name (str): The name of the file to be checked.
+            must_exist (bool): keyword-only (contract C1). ``True`` (default)
+                is today's behaviour, unchanged. ``False`` returns the
+                canonical path whether or not the file exists yet, for a
+                caller about to **write** a project's first save there (G1)
+                — resolving a tolerated target creates no file and no
+                directory, and a target whose **parent** directory is absent
+                still fails at write time, unchanged.
 
         Returns:
             str: The path to the project file.
 
         Raises:
-            FileNotFoundError: If the project file does not exist.
+            FileNotFoundError: If ``must_exist`` is ``True`` (the default) and
+                the project file does not exist.
         """
         project_path = path.join(self.library_path, 'projects', project_uname, file_name)
-        if not path.exists(project_path):
+        if must_exist and not path.exists(project_path):
             raise FileNotFoundError(f'Project file {project_path} not found')
         return project_path

@@ -144,21 +144,29 @@ class ConfigBase():
         self._settings_document = settings_doc.xml_dict
 
     # HELPER FUNCTIONS #
-    def conf_path(self, file_name: str) -> str:
+    def conf_path(self, file_name: str, *, must_exist: bool = True) -> str:
         """
         Returns the path to the configuration file.
 
         Args:
             file_name (str): The name of the file to be checked.
+            must_exist (bool): keyword-only (contract C1). ``True`` (default)
+                is today's behaviour, unchanged — every in-package call site
+                and every consumer keeps raising on an absent file. ``False``
+                returns the canonical path whether or not the file exists yet,
+                for a caller about to **write** there for the first time
+                (G1) — resolving a tolerated target creates no file and no
+                directory.
 
         Returns:
             str: The path to the configuration file.
 
         Raises:
-            FileNotFoundError: If the configuration file does not exist.
+            FileNotFoundError: If ``must_exist`` is ``True`` (the default) and
+                the configuration file does not exist.
         """
         conf_path = path.join(self.config_dir, file_name)
-        if not path.exists(conf_path):
+        if must_exist and not path.exists(conf_path):
             raise FileNotFoundError(f'Configuration file {conf_path} not found')
         return conf_path
     

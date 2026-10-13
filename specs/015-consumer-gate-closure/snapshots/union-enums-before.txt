@@ -1,0 +1,5 @@
+network_map NodeType uuid ('00000000-0000-0000-0000-000000000000',)
+settings AudioPlayerType output_latency_ms ('auto',)
+settings NodeConfType uuid ('00000000-0000-0000-0000-000000000000',)
+settings VideoPlayerType output_latency_ms ('auto',)
+project_mappings NodeMappingType uuid ('00000000-0000-0000-0000-000000000000',)

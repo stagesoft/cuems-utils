@@ -34,6 +34,20 @@ _PROJECT_SETTINGS_XML = (
 )
 
 
+def _point_library_path_at(conf_dir) -> None:
+    """Rewrite the copied ``settings.xml``'s ``library_path`` to ``conf_dir``
+    itself, so ``project_path``'s canonical ``<library_path>/projects/<uname>``
+    resolves **inside** the fixture's own ``CUEMS_CONF_PATH`` root rather than
+    at the fixture's unrelated ``/opt/cuems_library`` value (FR-007, T016)."""
+    settings_path = conf_dir / "settings.xml"
+    text = settings_path.read_text(encoding="utf-8")
+    text = text.replace(
+        "<library_path>/opt/cuems_library</library_path>",
+        f"<library_path>{conf_dir}</library_path>",
+    )
+    settings_path.write_text(text, encoding="utf-8")
+
+
 @pytest.fixture
 def config_manager(tmp_path, monkeypatch):
     """A ``ConfigManager`` rooted at a scratch copy of ``tests/data`` — every
@@ -41,6 +55,7 @@ def config_manager(tmp_path, monkeypatch):
     fixtures under version control."""
     conf_dir = tmp_path / "conf"
     shutil.copytree(REPO_ROOT_DATA, conf_dir, ignore=shutil.ignore_patterns("corpus"))
+    _point_library_path_at(conf_dir)
     monkeypatch.setenv("CUEMS_CONF_PATH", str(conf_dir))
     return ConfigManager()
 
@@ -57,24 +72,27 @@ def partial_config_manager(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def project_config_manager(config_manager, tmp_path, monkeypatch):
+def project_config_manager(config_manager):
     """``config_manager`` with a real project directory behind it, so
     ``load_project_config``/``save_project_settings``/``save_project_mappings``
     have something concrete to round-trip rather than falling back to
     defaults (``project_path`` raising ``FileNotFoundError``, per
-    ``ConfigManager.load_project_mappings``'s except branch)."""
-    project_dir = tmp_path / "project"
-    project_dir.mkdir()
-    (project_dir / "settings.xml").write_text(_PROJECT_SETTINGS_XML, encoding="utf-8")
+    ``ConfigManager.load_project_mappings``'s except branch).
+
+    The project lives at the **canonical** ``project_path`` —
+    ``<library_path>/projects/test_project/`` — which ``_point_library_path_at``
+    has made equal to the fixture's own ``conf_dir``, rather than at an
+    unrelated ``tmp_path`` directory reached only by monkeypatching the public
+    method (FR-007, T016)."""
+    project_dir = os.path.join(config_manager.library_path, "projects", "test_project")
+    os.makedirs(project_dir, exist_ok=True)
+    with open(os.path.join(project_dir, "settings.xml"), "w", encoding="utf-8") as f:
+        f.write(_PROJECT_SETTINGS_XML)
     shutil.copyfile(
         os.path.join(REPO_ROOT_DATA, "project_mappings.xml"),
-        project_dir / "mappings.xml",
+        os.path.join(project_dir, "mappings.xml"),
     )
 
-    def _project_path(project_uname, file_name):
-        return str(project_dir / file_name)
-
-    monkeypatch.setattr(config_manager, "project_path", _project_path)
     config_manager.load_project_config("test_project")
     return config_manager
 
