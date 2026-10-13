@@ -39,10 +39,16 @@ from tests.support.public_api import PUBLIC_SCRIPTS, installed_scripts
 GOLDEN = GOLDEN_ROOT / "api" / "public_api.json"
 
 #: The two public entry points, and the one public module of exceptions.
+#:
+#: ``NodeIndex`` joins here in feature 015 (G4, FR-041a): it has been *"the
+#: only public path to the node model"* since feature 007, but was tracked in
+#: neither this golden nor ``config_accessors.json`` until ``set_alias``
+#: needed a recorded signature. The gap predates this feature.
 PUBLIC_CLASSES = {
     "CuemsScript": ("cuemsutils.cues.CuemsScript", "CuemsScript"),
     "ConfigManager": ("cuemsutils.tools.ConfigManager", "ConfigManager"),
     "ConfigBase": ("cuemsutils.tools.ConfigBase", "ConfigBase"),
+    "NodeIndex": ("cuemsutils.tools.NodeList", "NodeIndex"),
 }
 
 #: The exception hierarchy, plus the repair-report types feature 008 (ITEM E)

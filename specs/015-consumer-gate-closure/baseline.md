@@ -97,6 +97,13 @@ Matches SC-003 (11 of 11, against the control of 0 of 11) and SC-004 (one invoca
 hand-rewrite). The one surviving **live** dead-end document — `../cuems-engine/dev/test_xml_files/settings.xml` —
 is closed separately by T039a, in that checkout, per FR-105.
 
+## G4 (US5) — T049, verified rather than changed
+
+`NodeIndex.signature()` already includes `alias` (`src/cuemsutils/tools/NodeList.py:288`):
+`n.get("alias")` is one of the nine tuple entries sorted by key. `set_alias` therefore needed no
+change to the write-if-changed path (FR-041) — confirmed by
+`test_set_alias_to_the_current_value_does_not_move_the_signature`.
+
 ---
 
 *Sections below are filled in as each phase lands.*

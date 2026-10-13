@@ -399,6 +399,12 @@ class ConfigManager(ConfigBase):
         (``manager.save_network_map()``) writes back where :meth:`load_network_map`
         read from.
 
+        ⚠ **This file has exactly one runtime writer** (G4, FR-045):
+        ``cuems-nodeconf``'s resident daemon. A call to this method from any
+        other process is reverted at that daemon's next write — see
+        :meth:`cuemsutils.config.network_map.CuemsNetworkMapType.save`'s own
+        docstring for why.
+
         Args:
             path (str | None): where to write. Defaults to
                 ``self.conf_path('network_map.xml')`` — which **requires the

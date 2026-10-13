@@ -51,6 +51,23 @@ Recorded once T097–T104 land — see §7 below.
 
 Recorded once T109–T115 land — see §8 below.
 
+## 6. G4 — `NodeIndex.set_alias`, verified against the two-repository contract (T050)
+
+`NodeIndex.set_alias(node_uuid, alias: str | None) -> bool` was checked word for word against
+`../cuems-nodeconf/specs/planning/12-node-set-alias.md` §4, which states this library's half of
+the contract identically. Agreement, item by item:
+
+| That document's §4 | This implementation |
+|---|---|
+| "Validates first: `alias` must be `None` or a string matching `NonEmptyString`, else `ValueError`, raised **before** any node is touched" | matches — the blank/empty check runs before the search loop |
+| "Mutates in place, on the node object the document holds" | matches — the same aliasing contract `adopt`/`unadopt` already document |
+| "Returns `False` for an unknown uuid and `True` otherwise, whether or not the value changed" | matches |
+| "`signature()` already includes `alias`, so the write-if-changed path needs no change" | verified (T049) — `NodeIndex.signature` already reads `n.get("alias")` |
+
+No divergence found. `cuems-nodeconf`'s own `alias_node` (its §5b) is written against exactly this
+signature, catching `ValueError` and checking `found`/`signature()` in that order — unblocked by
+this landing, not yet shipped (§1 above).
+
 ---
 
 *Sections below are filled in as each phase of `tasks.md` lands.*

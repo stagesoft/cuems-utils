@@ -240,6 +240,61 @@ class NodeIndex(dict):
                 return True
         return False
 
+    def set_alias(self, node_uuid, alias: str | None) -> bool:
+        """Set this node's operator-facing label (G4, contract C4).
+
+        **Scope is ``alias`` only** (FR-042) — no general "set operator
+        fields" call is offered, because it would invite writes to fields
+        discovery overwrites.
+
+        **Validates before mutating** (FR-036) — the clause with an incident
+        behind it: an in-place empty label would make the subsequent
+        ``save()`` fail *after* the index had already changed, and a
+        resident daemon's pending-write retry would then fail on that same
+        row until restart (``cuems-nodeconf``'s own R9).
+
+        **Mutates in place** (FR-039), on the node object the document holds
+        — the same aliasing contract :meth:`adopt` documents: callers hold
+        these node objects through more than one reference, which is what
+        makes a concurrent adopt (or label) unlosable in a daemon that takes
+        no lock across its worker loop and its comms thread. Rebinding a
+        copy would break a consumer while leaving every suite green.
+
+        Liveness is **not** a precondition (FR-043), unlike :meth:`adopt` —
+        an offline node and the controller are both labellable.
+
+        Args:
+            node_uuid: the identity of the node to label.
+            alias: the new label, or ``None`` to **clear** it (removes the
+                key — the element is optional). Setting it to the value it
+                already has reports success and does not move
+                :meth:`signature`, so a write-if-changed caller does not
+                write (FR-038, FR-041).
+
+        Returns:
+            bool: ``False`` for an unknown ``node_uuid`` (nothing mutated);
+            ``True`` otherwise — set, cleared, or already that value
+            (FR-037, FR-038).
+
+        Raises:
+            ValueError: ``alias`` is present but empty or whitespace-only —
+                raised **before** any node is touched (FR-036).
+        """
+        if alias is not None and not alias.strip():
+            raise ValueError(
+                f"NodeIndex.set_alias: {node_uuid}'s alias must be a "
+                f"non-empty string or None to clear it, not {alias!r}. "
+                "Pass a label with at least one non-space character."
+            )
+        for n in self.values():
+            if n.get("uuid") == node_uuid:
+                if alias is None:
+                    n.pop("alias", None)
+                else:
+                    n["alias"] = alias
+                return True
+        return False
+
     def set_controller_always_adopted(self) -> None:
         """Mark every controller adopted. Nothing else is touched.
 
