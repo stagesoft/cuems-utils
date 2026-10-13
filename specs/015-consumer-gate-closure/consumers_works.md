@@ -110,12 +110,12 @@ Measured 2026-10-13 against each sibling's working tree. Where a sibling carries
 
 | | |
 |---|---|
-| **Site** | `dev/test_xml_files/settings.xml` — carries the retired counts at that repository's tip. Measured 2026-10-13: the **only** such document across all seven checkouts |
+| **Site** | `dev/test_xml_files/settings.xml` — carries the retired counts (flat `<audioplayer>`/`<dmxplayer>`) at that repository's tip. Measured 2026-10-13: the **only** such document across all seven checkouts |
 | **Must do** | migrate with the fixed `cuems-reshape-devices`, **in this feature** (FR-105), rather than leaving it for the next gate to find with its own signal buried under it |
 | **Marker** | the document reshapes and then loads |
 | **Flips on a library change alone?** | It is fixed *by* running our own tool, so yes once someone runs it — which is what makes leaving it undone indefensible |
 | **Requirement** | SC-003a, FR-105 · closed by **T039a** |
-| **Status** | `verified outstanding` (2026-10-13) |
+| **Status** | ⚠ **measured, and the premise was wrong** (2026-10-13): the fixed tool correctly reshapes the flat players (`classify` returns `old`, `reshape_players` runs), but the **whole** `dev/test_xml_files/` directory in that repository — every one of its ten documents, not only `settings.xml` — carries a stale pre-rename namespace (`http://stagelab.net/cuems`) against this schema's `https://stagelab.coop/cuems/`, so the post-reshape validation refuses it for a reason that predates this feature and is unrelated to G5. The reshape tool correctly reports `skipped (would not validate: … is not an element of the schema …)` and writes nothing — no backup is left, no bytes changed. **Not closed here**: fixing one file's namespace in isolation would be a partial, misleading patch to a directory-wide, pre-existing defect in a sibling repository, and is out of this feature's scope to decide unilaterally. Recorded as a new finding for that repository's own maintainers rather than forced to a false "done". |
 
 ### 8 — the eleven historical dead-end documents · the control population
 

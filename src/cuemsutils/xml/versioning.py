@@ -318,8 +318,18 @@ register_conversion(
 # happens on read, before the decode sees them.
 
 
+#: Both of F3's spellings for one device class (research R7, G5): the flat,
+#: pre-013 path and the reshaped ``players/player[@class=…]`` predicate path
+#: 013 introduced. ``ElementTree``'s limited XPath supports the attribute
+#: predicate, so both are plain ``find`` calls — no new dependency.
+_PLAYER_PATHS = {
+    "audio": ("audioplayer", "players/player[@class='audio']"),
+    "dmx": ("dmxplayer", "players/player[@class='dmx']"),
+}
+
+
 def _settings_1_to_2(root: ET.Element) -> list[str]:
-    """F3 — the two derived counts leave ``settings.xsd``.
+    """F3 — the two derived counts leave ``settings.xsd``, under either shape.
 
     ``audioplayer/audio_cards`` and ``dmxplayer/universes`` restate
     ``len(inventory)`` in a second document with nothing reconciling the two,
@@ -331,19 +341,34 @@ def _settings_1_to_2(root: ET.Element) -> list[str]:
     Both were **required**, so every settings document in the field carries
     them and would fail a strict decode against the new schema. This step is
     what makes that a conversion rather than a breakage.
+
+    **G5 (research R7)**: the tree reaching this step may or may not have
+    been reshaped by 013's ``cuems-reshape-devices`` — on the load path it
+    has not; inside that tool's own pre-write validation probe it has — and
+    both are legitimate, so the field is dropped wherever it is found, under
+    **either** spelling, in one loop. Before this fix a document carrying
+    both the pre-013 flat shape and the pre-F3 counts dead-ended: the reshape
+    tool refused to write it (the target schema no longer admits the flat
+    counts), and nothing else could reshape it first.
+
+    ``Settings/node`` stays a **singular** lookup deliberately:
+    ``settings.xsd`` declares ``node`` with ``maxOccurs="1"`` (verified), so a
+    document can carry only one, and generalising to "every node section"
+    would handle a case the schema does not allow.
     """
     dropped: list[str] = []
     node = root.find("Settings/node")
     if node is None:
         return dropped
-    for section, field in (("audioplayer", "audio_cards"), ("dmxplayer", "universes")):
-        parent = node.find(section)
-        if parent is None:
-            continue
-        element = parent.find(field)
-        if element is not None:
-            parent.remove(element)
-            dropped.append(f"{section}/{field}")
+    for device_class, field in (("audio", "audio_cards"), ("dmx", "universes")):
+        for path in _PLAYER_PATHS[device_class]:
+            parent = node.find(path)
+            if parent is None:
+                continue
+            element = parent.find(field)
+            if element is not None:
+                parent.remove(element)
+                dropped.append(f"{path}/{field}")
     return dropped
 
 

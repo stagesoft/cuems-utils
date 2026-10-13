@@ -81,6 +81,22 @@ exit 1
 
 Matches `quickstart.md` §4 exactly. This is the red state US3 inverts.
 
+## G5 (US3) — SC-003/SC-004, measured against the restored population
+
+11 documents restored by ref (none exist in any working tree — 014's gate pass hand-rewrote
+them):
+`../cuems-power-bridge@dd1256f^:tests/fixtures/network_map/map-{controller-only,incomplete,mixed,no-self,none-adopted,partial-resolve,pre007,two-adopted,unresolvable}/settings.xml`
+(9) and `../cuems-nodeconf@61c5705^:tests/fixtures/etc_cuems/settings{,_sentinel}.xml` (2).
+
+| | Control (branch point) | After the fix |
+|---|---|---|
+| `cuems-reshape-devices` over all 11 | 0 of 11 (each: `skipped (would not validate: ... Unexpected child with tag 'audio_cards'/'universes' ...)`) | **11 of 11 `reshaped`, one invocation** |
+| Then load through `load_config_document` | n/a — never reshaped | **11 of 11 load cleanly** |
+
+Matches SC-003 (11 of 11, against the control of 0 of 11) and SC-004 (one invocation, no
+hand-rewrite). The one surviving **live** dead-end document — `../cuems-engine/dev/test_xml_files/settings.xml` —
+is closed separately by T039a, in that checkout, per FR-105.
+
 ---
 
 *Sections below are filled in as each phase lands.*
