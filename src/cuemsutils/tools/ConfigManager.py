@@ -796,6 +796,26 @@ class ConfigManager(ConfigBase):
         36.3 → 49.6 ms cold delta it recorded), which is why eager construction
         here is a design error rather than a budget overrun to accept.
 
+        **What a client may now rely on from each type's ``instance`` (G3).**
+        This is the rendered entry point for that contract — ``cuemsutils.xml``
+        stays private (``__all__ == []`` since feature 006), so this docstring
+        carries it rather than one on ``cuemsutils.xml.descriptor.TypeDescriptor``,
+        which renders nowhere:
+
+        * it is **wire-shaped by construction** — the same projection
+          ``to_wire()`` uses, so a repeated complex field nests as a list of
+          singly-keyed objects and a type reached only as such a field's
+          member carries that field's own wrapper (``CueOutput``, …);
+        * a root whose type has a single anonymous complex child is
+          **expanded**, never ``null``;
+        * every root instance, and every nested type instance a consumer
+          names, **saves** through this library's own write path unmodified —
+          every declared field, required and optional alike, carries a value
+          satisfying its type;
+        * a field whose model default is **callable** is still not invoked —
+          it is seeded from the field's declared type instead, and the
+          callable itself stays visible on the matching ``FieldDescriptor``.
+
         Args:
             schema: which of the six, as a :class:`SchemaName` member.
 
