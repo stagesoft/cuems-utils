@@ -170,6 +170,34 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     spread on one unchanged tree is **±4–8%**, so **a 110%-of-baseline budget is below this
     instrument's resolution**. Anything tighter measures the afternoon, not the code
     (`specs/014-xs-boolean-and-media-elements/baseline.md` §6.1).
+- **Feature 015 (`015-consumer-gate-closure`, specified 2026-10-13) adds no new technology** — no
+  runtime dependency, no new module in `src/`, no schema version step. It closes the five gates of
+  the coordinated tag plus the straggler sweep; `specs/015-consumer-gate-closure/research.md` holds
+  the twelve measured findings.
+  - **The box was migrated 2026-10-13, and line 88's claim is now substantively true.** Anaconda is
+    **removed**, pyenv is installed with a real **3.11.9**, and the toolchain (`uv`, `hatch`,
+    `specify`) lives under `~/.local`. One qualification is load-bearing and must travel with it:
+    **a pyenv build of this interpreter MUST carry `--enable-optimizations --with-lto`** (and
+    `CC=gcc-12`, since GCC 14 will not build CPython 3.11). Measured 2026-10-13: without those
+    flags pyenv's build is **32–72% slower** than the uv-managed python-build-standalone build that
+    `hatch` resolves, and the show-document load reads **23.4 ms against a 16.5 ms budget — 42% over
+    on unchanged code**. With them, the two builds agree to within **0–2%**. Record *which build* a
+    figure came from, never just "3.11.9".
+  - **Features 011–014's performance figures were all taken on conda-built CPython 3.11.2** and are
+    not directly comparable with anything measured after the migration. They remain internally
+    consistent and are not re-measured.
+  - **The show-document load straddles its 16.5 ms budget**, measured over **16 samples in three
+    windows**: band **16.465–17.750 ms**, median 16.864, **14 of 16 over**. So the assertion is
+    *flaky* on an unchanged tree rather than failing — and feature 015 adopts 012's R14 precedent
+    (band comparison, not a straddled line) rather than raising the budget a fourth time. Against
+    013's own 14.07–14.96 ms the drift is **+13% to +19%**, and it survived the interpreter
+    migration, so it is real.
+  - **Budget tolerance is 115%**, corroborating 014's ±4–8%: the pooled spread over those 16 samples
+    is **7.8%** (individual windows 2.9%, 7.7%, 4.8%). ⚠ **The sampling lesson, which cost feature
+    015 three wrong headline figures**: 3 samples under one sustained contention gave "32.8–33.5 ms,
+    a 2× regression"; 5 samples in one quiet window gave "exceeded by 2.0–4.9%" and a 110% tolerance;
+    only 16 samples across three windows gave the stable answer. **Consistency within a window is
+    not evidence — it is what makes a bad measurement persuasive.**
 
 ## Recent Changes
 
