@@ -260,14 +260,14 @@ with a non-enumerated member reports a closed set of choices.
 
 ### Tests for User Story 7 (REQUIRED) ⚠️
 
-- [ ] T051 [P] [US7] Contract test in `tests/contract/test_union_not_enumeration.py` that **all five** measured sites stop reporting a one-value choice set — `uuid` on `NodeType`, `NodeConfType` and `NodeMappingType`, and `output_latency_ms` on `AudioPlayerType` and `VideoPlayerType` (FR-067, SC-010)
-- [ ] T052 [P] [US7] Unit test extending `tests/unit/test_descriptor_enums.py` that a union **all** of whose members are enumerations keeps reporting their merged values — the narrowing is conditional, not a removal (FR-066, FR-068)
-- [ ] T053 [P] [US7] Unit test in `tests/unit/test_descriptor_enums.py` that every **other** descriptor fact for the five affected fields is unchanged (FR-029)
+- [x] T051 [P] [US7] Contract test in `tests/contract/test_union_not_enumeration.py` that **all five** measured sites stop reporting a one-value choice set — `uuid` on `NodeType`, `NodeConfType` and `NodeMappingType`, and `output_latency_ms` on `AudioPlayerType` and `VideoPlayerType` (FR-067, SC-010)
+- [x] T052 [P] [US7] Unit test extending `tests/unit/test_descriptor_enums.py` that a union **all** of whose members are enumerations keeps reporting their merged values — the narrowing is conditional, not a removal (FR-066, FR-068)
+- [x] T053 [P] [US7] Unit test in `tests/unit/test_descriptor_enums.py` that every **other** descriptor fact for the five affected fields is unchanged (FR-029)
 
 ### Implementation for User Story 7
 
-- [ ] T054 [US7] Narrow `_enum_values` in [src/cuemsutils/xml/descriptor.py:116](src/cuemsutils/xml/descriptor.py#L116) to report merged member enumerations only when every union member is an enumeration (FR-066, contract C6)
-- [ ] T055 [US7] Correct the documentation beside `_enum_values` in [src/cuemsutils/xml/descriptor.py:116](src/cuemsutils/xml/descriptor.py#L116) that treats the partial merge as the feature — it names `AutoOrIntLatencyMsType` as the case it handles, which is one of the five sites being fixed (FR-069)
+- [x] T054 [US7] Narrow `_enum_values` in [src/cuemsutils/xml/descriptor.py:116](src/cuemsutils/xml/descriptor.py#L116) to report merged member enumerations only when every union member is an enumeration (FR-066, contract C6)
+- [x] T055 [US7] Correct the documentation beside `_enum_values` in [src/cuemsutils/xml/descriptor.py:116](src/cuemsutils/xml/descriptor.py#L116) that treats the partial merge as the feature — it names `AutoOrIntLatencyMsType` as the case it handles, which is one of the five sites being fixed (FR-069)
 
 **Checkpoint**: SC-010's 5 becomes 0, verified against T004's snapshot. Seeding rule 2 can now be
 pinned non-vacuously.

@@ -118,9 +118,19 @@ def _enum_values(schema_name: str, xsd_type_name: str | None) -> tuple[str, ...]
 
     Resolved **per schema** (research R4) — never by a bare type name, since
     the same QName (``BoolType``) is declared independently in three of the
-    six schemas. Handles the one union enumeration in the bundle
-    (``AutoOrIntLatencyMsType``): a union's ``.enumeration`` is ``None`` on
-    the union itself, and the facet lives on one of its member types.
+    six schemas.
+
+    **A union reports a closed choice set only when every member is an
+    enumeration** (S2, FR-066/FR-068, contract C6). A union's own
+    ``.enumeration`` is ``None`` — the facet lives on its member types — and
+    a union with at least one non-enumerated member (``NodeUuidType``'s
+    pattern-restricted ``ConvergedUuidType`` member,
+    ``AutoOrIntLatencyMsType``'s numeric ``IntLatencyMsType`` member) is
+    **not itself closed**: narrowing to only the enumerated members' values
+    would silently drop every other valid value. Five measured sites
+    (data-model.md §4) stopped reporting a one-value choice set for exactly
+    this reason — two identity fields' sentinel and three latency fields'
+    ``auto``.
     """
     if xsd_type_name is None:
         return None
@@ -138,7 +148,10 @@ def _enum_values(schema_name: str, xsd_type_name: str | None) -> tuple[str, ...]
         return None
     merged: list[str] = []
     for member in member_types:
-        for value in getattr(member, "enumeration", None) or ():
+        member_values = getattr(member, "enumeration", None)
+        if not member_values:
+            return None
+        for value in member_values:
             if value not in merged:
                 merged.append(value)
     return tuple(merged) if merged else None
