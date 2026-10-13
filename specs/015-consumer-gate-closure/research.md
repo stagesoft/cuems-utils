@@ -258,6 +258,15 @@ Also: the message is unchanged, so FR-063 and FR-064 hold without further work, 
 
 ---
 
+⚠ **Added by the second analyze pass (2026-10-13): "published" is three places, and two of them are
+hand-maintained.** `tests/contract/test_public_api_surface.py` holds `PUBLIC_ERRORS` (9 names),
+asserts it **equal** to `cuemsutils.errors.__all__`, and **generates** `api/public_api.json`'s
+`errors` section from it. So the new class must land in `__all__`, in that tuple, and in the golden
+in one change (T080a) — otherwise either an existing contract test goes red or the re-cut golden
+omits the class it was scheduled late in order to capture.
+
+---
+
 ## R5 — `must_exist` and the two API goldens
 
 **Question**: FR-001/FR-003. Can the path helpers gain tolerance additively?
@@ -279,6 +288,13 @@ goldens as part of this feature's sanctioned golden event.
 tolerance by accident. The default `True` satisfies FR-002, so all 10 in-package call sites and every
 consumer keep today's behaviour with no edit. `tests/support/capture_goldens.py` refuses to
 overwrite a golden without `--force`, so the re-cut is necessarily an explicit, reviewable act.
+
+⚠ **Added by the second analyze pass: the goldens' scope is a hand-maintained list, which matters
+for G4 rather than for G1.** `PUBLIC_CLASSES` is `CuemsScript`/`ConfigManager`/`ConfigBase` and
+`PUBLIC_FUNCTIONS` is `partition_by_adoption`/`validate_config_document`, so both of *this*
+requirement's signatures are pinned (they are `ConfigBase`/`ConfigManager` methods) — but
+`NodeIndex` is tracked **nowhere**, so G4's `set_alias` had no recorded shape and T026's claim to
+cover it was false. `NodeIndex` joins the tracked classes by maintainer decision (FR-041a, T049a).
 
 **Note for G1's completion**: `cuems-editor`'s strict xfail for this gate does **not** flip on the
 library change alone — that repository's own `_config_path` must pass the flag on. Its
@@ -316,6 +332,16 @@ two adjacent fixes.
 empty projection as `{"setting": []}`. Measured, it is `{}` — the repeated field is omitted when
 empty, which is the projection's existing rule. The spec's illustration is corrected; the decision
 is unchanged.
+
+---
+
+⚠ **Added by the second analyze pass: the accessor returns the object, and that is load-bearing.**
+`ConfigManager.to_wire` reads the named section off the manager and calls `to_wire()` on what it
+finds (`ConfigManager.py:897-901`), so a dict-returning `project_settings` property would raise
+instead of projecting; and `tests/contract/test_config_object_surface.py` asserts **no** inventoried
+accessor returns a raw `dict`, reading its accessor set from the recorded inventory — so the failure
+would have appeared only when T026 re-cuts that inventory, six phases after US2. `contracts/`'s C2
+had the shape right; the requirement did not state it (now FR-010, pinned by T022a).
 
 ---
 
@@ -388,6 +414,18 @@ untouched and in one place.
 - breaks the first set unless both documents are re-authored in the new output form — FR-075;
 - may make a hand-authored document in the second set become identity, which that test's docstring
   says *"must be a decision rather than a drift"* — FR-076 is that decision.
+
+⚠ **A second contract test, added by the second analyze pass (2026-10-13) — this enumeration was one
+test short.** `tests/contract/test_network_map_roundtrip.py` diffs what `save()` writes against
+`specs/007-node-model-migration/pre-state/{network_map.xml,corpus/cuems-utils/network_map.xml,corpus/cuems-engine/network_map.xml}`
+and asserts `len(body_lines) == 2`, stating its own reason: *"the whole document is one line after
+normalisation, so the rename+mapping collapses the diff to a single before/after pair."* Measured:
+all three are one line, so indenting makes that diff the entire document, three times over. The
+three documents are re-authored in the new form (**FR-075a**, T090a) rather than the comparison
+being made structural — the test's value is that the `node_type` → `node_role` rename is legible
+**in a diff**. **So S3's hand-authored cost is five documents, not two**, and the reason this one was
+missed is worth keeping: it asserts a *line count*, so it does not appear in any golden list or
+manifest.
 
 ---
 

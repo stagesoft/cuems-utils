@@ -127,6 +127,12 @@ way to persist a UI edit.
 **This contract is stated identically** in `../cuems-nodeconf/specs/planning/12-node-set-alias.md` §4.
 Any divergence here is a change to a two-repository contract.
 
+**`NodeIndex` joins the recorded public surface in the same change** (FR-041a). Measured 2026-10-13:
+the API golden tracks `CuemsScript`, `ConfigManager` and `ConfigBase` as classes and
+`partition_by_adoption` / `validate_config_document` as functions, so `NodeIndex` is in **neither**
+golden — this signature would otherwise be the one public addition of the feature with no recorded
+shape, in a module that has been *"the only public path to the node model"* since feature 007.
+
 ---
 
 ## C5 — The identity collision, as data (S1)
@@ -146,7 +152,14 @@ cuemsutils.errors.NodeIdentityCollisionError(ValidationError)
 | message | **unchanged**, including the remedy sentence and the command it names |
 | message-shape recognition | keeps answering for any caller still on it |
 | two distinct collisions | distinguishable without re-parsing text |
-| published | in the errors module's `__all__` and its documented hierarchy |
+| published | in the errors module's `__all__`, its documented hierarchy, **and the recorded surface** |
+
+**"Published" means three places, and two of them do not follow the code** (FR-065c). `__all__` is
+asserted **equal** to a hand-maintained `PUBLIC_ERRORS` tuple in
+`tests/contract/test_public_api_surface.py`, and `api/public_api.json`'s `errors` section is
+**generated from that tuple**. So adding to `__all__` alone turns an existing contract test red, and
+re-cutting the golden without extending the tuple yields a golden that omits the new class. All
+three move together.
 
 **The two layers are the contract, not an implementation detail.** The accessor's handler orders
 `except ValidationError: raise` **before** the clause that attaches the file path, so a
@@ -189,6 +202,17 @@ they are input data rather than recorded output.
 signatures and G2's property do — and S1 lands five phases after the re-cut this plan originally
 scheduled inside G2. Counted on disk 2026-10-13; this said 20 wire-dict goldens and two API goldens
 for two additions.
+
+---
+
+### C7's byte-level reach, enumerated (FR-074, FR-075, FR-075a)
+
+Eight goldens plus the manifest, and **five hand-authored documents**: the two canonical corpus
+documents (`fade_showcase.xml`, `unicode_showcase.xml`) and the **three 007 pre-state**
+`network_map.xml` documents, which `tests/contract/test_network_map_roundtrip.py` diffs `save()`'s
+output against while asserting the diff is **exactly two lines** — a claim that holds only while the
+document is one line. Measured 2026-10-13: all three are one line. Re-authored rather than compared
+structurally, because that test's value is a rename a human can read in a diff.
 
 ---
 

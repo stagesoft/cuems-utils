@@ -287,7 +287,7 @@ done
 
 ---
 
-## 6. Re-cut the goldens (S3, and G1/G2's signatures)
+## 6. Re-cut the goldens (the polish phase's single event)
 
 The capture tool **refuses to overwrite without `--force`**, which is what makes this one reviewable
 act rather than a drift:
@@ -301,14 +301,29 @@ Expect exactly these to move, and nothing else:
 | Re-cut | Why |
 |---|---|
 | `xml/` × 5, `generated/example_script.xml` | the writer now indents |
-| `api/public_api.json`, `api/config_accessors.json` | the two path signatures and the new property |
+| `api/public_api.json`, `api/config_accessors.json` | **four** additions: G1's two path signatures, G2's `project_settings` property, G4's `NodeIndex.set_alias` and S1's `NodeIdentityCollisionError` |
 | `MANIFEST.sha256` | follows |
-| `dict/` × 20, `outcomes.json` | **must not move** — a wire dict carries no whitespace |
+| `dict/` × 24, `outcomes.json` | **must not move** — a wire dict carries no whitespace |
 
-Also re-author by hand, in the writer's new output form:
-`tests/data/corpus/cuems-utils/fade_showcase.xml` and `unicode_showcase.xml`. They are the two
-documents `tests/contract/test_roundtrip_stability.py` asserts are byte-identical after one save; if
-they are not re-authored, that assertion breaks rather than the goldens being wrong.
+⚠ **Two of those four appear only if their surface record moved first** (T049a, T080a). The goldens'
+scope is the hand-maintained `PUBLIC_CLASSES` / `PUBLIC_FUNCTIONS` / `PUBLIC_ERRORS` in
+`tests/contract/test_public_api_surface.py` — `NodeIndex` is in neither golden at the branch point,
+and the `errors` section is generated **from** the tuple rather than read from `__all__`. Check the
+diff contains all four rather than trusting the capture.
+
+⚠ **This is the polish phase's event, not US2's and not US8's.** It runs after every public addition
+and after the writer change, so the goldens are deliberately stale in between.
+
+Also re-author by hand, in the writer's new output form — **five documents, not two**:
+
+- `tests/data/corpus/cuems-utils/fade_showcase.xml` and `unicode_showcase.xml`, which
+  `tests/contract/test_roundtrip_stability.py` asserts are byte-identical after one save (T090);
+- `specs/007-node-model-migration/pre-state/network_map.xml`,
+  `pre-state/corpus/cuems-utils/network_map.xml` and `pre-state/corpus/cuems-engine/network_map.xml`,
+  which `tests/contract/test_network_map_roundtrip.py` diffs `save()`'s output against while
+  asserting the diff is **exactly two lines** — true only while the document is one line (T090a).
+
+If any of the five is not re-authored, those assertions break rather than the goldens being wrong.
 
 ---
 

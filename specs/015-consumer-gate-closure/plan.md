@@ -73,7 +73,8 @@ per-schema decode asymmetry preserved (FR-102); **115%** budget tolerance — th
 it to 110% on one five-sample window reading 2.9%; the narrowest window is not the instrument (R10).
 **Scale/Scope**: six bundled schemas; 30 named simple types + 7 built-ins to seed; 64
 required-with-no-default fields across 19 types; **9** planning documents to delete, **2** to
-correct, **1** to re-home, and the **21**-file `xml-rebuild/` subtree to disposition row by row;
+correct, **1** to re-home, **2** first-install documents to disposition, and the **20**-file
+`xml-rebuild/` subtree to disposition row by row (9 design documents + 11 prompts, counted on disk);
 7 sibling repositories, 4 of which carry a candidate tag; **10** obligations on other repositories,
 collected in `consumers_works.md` — six of them in repositories this feature does not touch.
 
@@ -120,7 +121,7 @@ collected in `consumers_works.md` — six of them in repositories this feature d
   gate would catch. And `E721`'s correct fix is `type(x) is Y`, **never** `isinstance(x, Y)` — the
   24 findings in `tests/` assert *exact* type, a distinction 013's subclass dispatch depends on.
   Recorded in `snapshots/lint-before.txt` beside the findings, where whoever runs the sweep will be.
-- **The sweep must not cost the project its rationale.** Sixteen `noqa` directives in `src/` name
+- **The sweep must not cost the project its rationale.** Fifteen `noqa` directives in `src/` name
   rules this project does not select, so they suppress nothing — but they carry the *reason* the code
   is written that way (*"a broken universe must still name itself"*). They become plain comments;
   **zero sentences are lost**. That is the way this task fails while every number improves.
@@ -135,6 +136,17 @@ collected in `consumers_works.md` — six of them in repositories this feature d
   `cuemsutils.helpers` (FR-078's target). The three modules are added to `docs/` and the gap is
   closed by a test (FR-UX-003a, FR-UX-003b), because a docstring nobody renders is the same failure
   this obligation exists to prevent.
+  ⚠ **Amended by the second analyze pass: those three, and the fourth target is reached by a
+  different route.** `cuemsutils.config.settings` is **not** added — G2 changes a branch inside it
+  but adds no public call there, and publishing an internal module is not a documentation fix. And
+  the obligation the first census missed entirely is **G3's**, the widest consumer-facing change in
+  the feature: `TypeDescriptor.instance`'s reversed position would have been stated only in
+  `cuemsutils.xml.descriptor`, which renders nowhere. By maintainer decision 2026-10-13 that is
+  discharged at **`ConfigManager.get_schema_descriptor`** — the rendered call that hands a client
+  the descriptor — rather than by rendering the module, because `cuemsutils.xml` is private by
+  decision (`__all__ == []` since 006) and becomes private in fact with the deprecated-surface
+  release. FR-026's record stays beside the code it reverses as well; the two are complements, not
+  alternatives (FR-UX-003c).
 - **Rationale recorded next to the decision, not only in specs**: FR-026 reverses a position
   recorded in `TypeDescriptor.instance`'s own docstring, and FR-026a is the reason. Both go beside
   the code.
@@ -161,6 +173,12 @@ collected in `consumers_works.md` — six of them in repositories this feature d
   prose.
 - **The one test this feature must retire** is `test_config_manager_save_accessors.py:77`'s
   monkeypatch of a public method (FR-007) — the defect's in-repository footprint.
+- **Three existing tests are *extended* rather than written**, each because a public addition has to
+  reach a record that does not follow the code: `test_public_api_surface.py`'s `PUBLIC_ERRORS` and
+  `PUBLIC_CLASSES` (FR-065c, FR-041a — the API golden is generated from them) and
+  `test_network_map_roundtrip.py`'s three one-line pre-state documents (FR-075a — its diff oracle
+  assumes a single-line document). All three were found by the second analyze pass, and all three
+  would have surfaced as an end-state red suite against SC-TEST-002.
 
 ### III. Consistent User Experience
 
@@ -216,7 +234,7 @@ specs/015-consumer-gate-closure/
 ├── consumers_works.md       # every obligation on another repository, measured (FR-106) — 10 rows
 ├── snapshots/               # created in Phase 1 — repairability, union enums, lint, types before-states
 ├── baseline.md              # created during implementation — the measured budgets
-├── migration-guide.md       # created during implementation — incl. R12's 21-file disposition table
+├── migration-guide.md       # created during implementation — incl. R12's 20-file disposition table
 └── tasks.md                 # /speckit.tasks output — NOT created by /speckit.plan
 ```
 
@@ -242,13 +260,22 @@ src/cuemsutils/
     └── versioning.py             # G5: _settings_1_to_2 addresses both player shapes
 
 docs/
-├── api.md                        # C1: + `cuemsutils.errors` (FR-UX-003a)
-└── tools.md                      # C1: + `cuemsutils.tools.NodeList`, `cuemsutils.config.*`
+├── api.md                        # + `cuemsutils.errors` (FR-UX-003a)
+└── tools.md                      # + `cuemsutils.tools.NodeList`, `cuemsutils.config.network_map`
+                                  #   exactly three modules; NOT `config.settings` (no public call
+                                  #   added there), and NOT `xml.descriptor` — G3's contract is
+                                  #   published at ConfigManager.get_schema_descriptor, which is
+                                  #   already rendered, because `cuemsutils.xml` stays private
+                                  #   (FR-UX-003c)
 
 tests/
 ├── contract/                     # seeding table, union narrowing, collision shape, aliasing,
 │                                 # tag-anchored resolver, indentation idempotence,
-│                                 # test_migration_guide*.py (FR-080)
+│                                 # test_migration_guide*.py (FR-080); and the two SURFACE RECORDS
+│                                 # in test_public_api_surface.py — + NodeIndex in PUBLIC_CLASSES
+│                                 # (G4), + the new class in PUBLIC_ERRORS (S1). The API golden is
+│                                 # generated from these, so they move with the call that needs
+│                                 # them, before the re-cut (FR-041a, FR-065c)
 ├── integration/                  # first-save journey, project_settings round trip, root instances
 │                                 # save, the G5 tool composition,
 │                                 # test_config_manager_save_accessors.py (FR-007)
@@ -256,7 +283,11 @@ tests/
 ├── golden/                       # 6 XML + 2 API goldens re-cut; MANIFEST.sha256
 └── data/corpus/cuems-utils/      # fade_showcase.xml, unicode_showcase.xml re-authored indented
 
-specs/planning/                   # the sweep: 9 deletions, 2 corrections, 2 gaps, 1 new record
+specs/007-node-model-migration/
+└── pre-state/                    # 3 network_map.xml re-authored indented (FR-075a) — the diff
+                                  # oracle test_network_map_roundtrip.py reads
+
+specs/planning/                   # the sweep: 9 deletions, 2 corrections, 3 gaps, 1 new record
 ```
 
 **Structure Decision**: single-project library layout, unchanged. This feature adds **no new
@@ -293,7 +324,20 @@ FR-074's *"one reviewable change"* true only of the record and not of the diff. 
 event — six XML goldens, two API goldens, the manifest, and the verification that the 24 wire-dict
 goldens did not move — is therefore one block in the polish phase**, after US1, US2, US4, US5, US6
 and US8 have all landed. The corpus re-authoring stays with S3, because it is a change to input
-data rather than to a recorded output.
+data rather than to a recorded output — and so does the re-authoring of the **three 007 pre-state
+documents** the second analyze pass added (FR-075a), for the same reason.
+
+⚠ **Corrected by the second analyze pass: neither of those two goldens moves by itself.** The
+sentence above — *"S1's `NodeIdentityCollisionError` moves that golden"* — is true only after a
+hand-maintained list is extended. Measured 2026-10-13: `tests/contract/test_public_api_surface.py`
+holds `PUBLIC_ERRORS` (9 names), asserts it equals `cuemsutils.errors.__all__`, **and builds the
+golden's `errors` section from it** — so adding to `__all__` alone turns that contract test red,
+and re-cutting the golden without extending the list produces a golden missing the new class.
+The same file's `PUBLIC_CLASSES` is `CuemsScript`/`ConfigManager`/`ConfigBase` and its
+`PUBLIC_FUNCTIONS` are `partition_by_adoption`/`validate_config_document`, so **`NodeIndex` is in
+neither golden** and G4's setter would have landed with no recorded surface. Both records are
+extended in the story that adds the call — T080a in Phase 9, T049a in Phase 6 — which is also what
+makes the polish-phase re-cut capture all four additions instead of two (FR-065c, FR-041a).
 
 **G4, G5 and S1 are independent** of all of the above and of each other.
 
@@ -348,6 +392,24 @@ touches `spec.py` (R1) and no longer needs a hand-written whitespace guard (R8).
 | II. Tests As A Release Gate | **PASS with one tracked exception** | The branch-point-red suite moved from prose into complexity tracking, as Governance requires; SC-TEST-002 now requires a green end state. Four requirements that had no task at all (FR-100, FR-101, FR-102, FR-UX-001) acquired one, and SC-009 — whose only measurable form is a removal in a consumer — acquired an owner |
 | III. UX Consistency | **PASS** | Unchanged in substance. FR-UX-001 is now asserted on the one new diagnostic this feature adds (`set_alias`'s refusal) rather than assumed from convention |
 | IV. Performance Budgets | **PASS with one tracked exception** | Unchanged in substance; the straddled-budget exception stands as designed. Two figure bands that disagreed between spec and plan were reconciled to R10's eight-sample measurements (save **13.612–14.297 ms**, derivation **1.015–1.060 ms**) |
+
+### Constitution re-check, post-second-analyze (2026-10-13)
+
+| Principle | Verdict | What the second pass changed |
+|---|---|---|
+| I. Code Quality | **PASS** | The documentation obligation is now discharged where it is actually read: G3's at the rendered `get_schema_descriptor` rather than in a private module nobody renders, and no internal module is published to satisfy a census (FR-UX-003c, FR-UX-003a) |
+| II. Tests As A Release Gate | **PASS with one tracked exception** | Three existing records a public addition must move were found not to follow the code — `PUBLIC_ERRORS`, `PUBLIC_CLASSES`, and three one-line pre-state documents. Each would have ended the feature red against SC-TEST-002; each now has a task in the story that creates the need (T080a, T049a, T090a) |
+| III. UX Consistency | **PASS** | Unchanged in substance. One shape that only a contract document stated is now in the requirement: the `project_settings` accessor answers with the document object, and the wire dict comes from projecting it (FR-010) |
+| IV. Performance Budgets | **PASS with one tracked exception** | Unchanged. No figure moved; the two static counts that did move were measured against the tree, not re-estimated (nine design documents, fifteen inert directives) |
+
+**The pattern, a second time, in a sharper form.** The first pass's findings were artefacts
+asserting things about other artefacts. The second pass's were **artefacts asserting that a record
+would move**: the API golden *for* an error class, the API golden *for* an index method, a diff
+oracle *for* an indented document. In all three the record is generated from, or written against, a
+hand-maintained list or a hand-authored file — so "the golden will move" was an assumption about
+machinery, and the machinery is one grep away. The cheap defence generalises the first pass's:
+**assert against the artefact, and when the claim is that an artefact will change, read the thing
+that generates it.**
 
 **The pattern worth keeping.** Five of the six substantive findings were places where an artefact
 asserted something about *another* artefact or about the tree — that `docs/` renders a module, that

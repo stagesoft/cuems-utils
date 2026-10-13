@@ -66,6 +66,10 @@ changes is what the manager holds when the file is absent.
 4. The public read reaches it through the **same** projection body as every other section; the
    section resolver already does `getattr(self, section)`, so a property of the right name is the
    whole mechanism (FR-011).
+5. The property answers with the **document object**, never a raw `dict` (FR-010) — and invariant 4
+   is the reason it cannot be otherwise: the resolver calls `to_wire()` on whatever `getattr` finds,
+   so a dict would raise instead of projecting. The standing object-surface contract (feature 006,
+   FR-014) asserts the same thing from the other side for every inventoried accessor.
 
 **Consequence worth stating as a model fact**: once the absent-file state holds a document, a
 project's **first** save becomes possible as soon as §1's tolerated target exists. G1 and G2 are one
@@ -226,6 +230,10 @@ Two or more map rows carrying one node identity, with the hardware addresses tha
 3. The message is unchanged, so message-shape recognition keeps answering for any caller still on it
    (FR-063, FR-064).
 4. Two distinct collisions in one document are distinguishable without re-parsing text (FR-062).
+5a. "Published surface" is **three** places and two are hand-maintained (FR-065c): `__all__`, the
+   `PUBLIC_ERRORS` tuple that is asserted equal to it, and the API golden that is **generated from**
+   that tuple. Adding to `__all__` alone turns an existing contract test red; re-cutting the golden
+   without the tuple omits the class entirely.
 5. The new type joins the errors module's published surface and documented hierarchy (FR-065a) — a
    type a consumer cannot import is a type it cannot catch.
 
@@ -289,3 +297,11 @@ family.
    the API goldens were scheduled before the addition in §6 that moves them.
 4. The two canonically-authored corpus documents are **re-authored** in the new form (FR-075), so
    their first-cycle byte-identity claim still holds rather than being quietly reclassified.
+5. The **three 007 pre-state documents** are re-authored too (FR-075a) — the hand-authored set is
+   **five** documents, not two. `tests/contract/test_network_map_roundtrip.py` diffs `save()`'s
+   output against them and asserts the diff is exactly two lines, which holds only while the
+   document is one line; all three are. ⚠ Added by the second analyze pass: this one is invisible to
+   a golden list because it asserts a **line count**, not a hash.
+6. A golden moving is a claim about the **generator**, not about the package (FR-041a, FR-065c): the
+   API goldens record a hand-maintained `PUBLIC_CLASSES`/`PUBLIC_FUNCTIONS`/`PUBLIC_ERRORS`, so
+   §5's `set_alias` and §6's exception type move them only once those lists do.

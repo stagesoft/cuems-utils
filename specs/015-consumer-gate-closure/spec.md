@@ -189,6 +189,36 @@ The rest were numeric drift between artefacts (golden counts, seeding-rule count
 bands), four requirements with no task, one overloaded identifier series, and wording. Each is
 applied at its own site; **no finding was recorded as accepted-and-not-fixed**.
 
+### Second analysis pass 2026-10-13 (`/speckit.analyze`)
+
+The first pass closed the identifier-level holes — after it, every one of the 161 requirement
+identifiers was cited by at least one task and every task cited at least one requirement. So the
+second pass checked the artefacts' **claims about the tree and the siblings** instead, and found
+**eleven** items, all applied here. Most of what it checked held exactly: every one of seventeen
+cited `src/` line numbers, the whole lint and type baseline (316 / 290 / 606, the four mechanical
+classes, 11 `# type: ignore`, 80 type errors in 26 files), all twelve pinned fixture refs, all four
+candidate-tag values and all three absences, the seven-xfail count (five decorators, one
+parametrized over three schemas), SC-010's five union sites, and every referenced test file,
+contract and section. The two that changed what this feature *does*:
+
+1. **Two public additions would not have reached the record they are supposed to move.** The public
+   error hierarchy is pinned by a hand-maintained list that is also the source the API golden's
+   `errors` section is generated from, so S1's class needed that list extended or the golden would
+   have been re-cut without it (**FR-065c**) — and `NodeIndex` is in **neither** API golden, so G4's
+   setter had no public-surface record at all. Decided: it joins (**FR-041a**).
+2. **S3's byte-level cost was one test larger than enumerated.** `test_network_map_roundtrip.py`
+   diffs `save()`'s output against three one-line pre-state documents and asserts the diff is
+   exactly two lines. Indenting the writer makes that diff the whole document, three times over;
+   the three documents are re-authored (**FR-075a**).
+
+The rest: the sweep's third undispositioned document (**FR-093b**), the `project_settings` accessor's
+return shape, which only one artefact stated and which the standing object-surface contract makes
+load-bearing (**FR-010**), G3's documentation obligation re-homed to its rendered public entry point
+rather than by publishing a private module (**FR-UX-003c**), two counts measured against the tree
+(nine design documents not ten, fifteen inert directives not sixteen), a `git diff -w` claim that
+could only fail (**SC-QUALITY-006**), and two stale numbers in `quickstart.md`. Again **no finding
+was recorded as accepted-and-not-fixed**.
+
 ---
 
 ## The branch point's five red tests
@@ -477,6 +507,9 @@ reloads equal.
    behaviour are all unchanged.
 5. **Given** the two canonically-authored corpus documents, **When** the round-trip contract runs,
    **Then** their first-cycle byte-identity claim still holds, in the new form.
+6. **Given** the three 007 pre-state documents, **When** the network-map round-trip contract runs,
+   **Then** its diff is still exactly the `node_type` → `node_role` rename and nothing else — which
+   requires those three documents to be re-authored in the new form as well (FR-075a).
 
 ---
 
@@ -573,8 +606,17 @@ is left without a disposition.
 
 ### Functional Requirements — G2: a public read for a project's settings
 
-- **FR-010**: `project_settings` MUST be publicly readable as a wire-shaped projection of the
-  document the library has loaded.
+- **FR-010**: `project_settings` MUST be publicly readable, as **two** calls whose shapes are stated
+  rather than left to the reader: the accessor answers with the **loaded document object**
+  (`CuemsProjectSettingsType`), and the wire-shaped dictionary is what projecting that section
+  returns. Both halves are required and neither substitutes for the other.
+  ⚠ **The accessor MUST NOT answer with a raw dict**, and this is not a style preference: the
+  projection dispatches by reading the named section off the manager and calling `to_wire()` on
+  what it finds, so a dict-returning accessor raises instead of projecting — and this repository's
+  standing object-surface contract (feature 006, FR-014) asserts that **no** inventoried accessor
+  returns a raw `dict`. That contract reads its accessor set from the recorded inventory, so a
+  dict-returning property would pass this story's own tests and fail only when the inventory golden
+  is re-cut in the polish phase, many phases later.
 - **FR-011**: That projection MUST go through the **same** projection body as every other
   configuration section. A second projection is forbidden.
 - **FR-012**: `project_settings` MUST be a member of the public section list, so the error that
@@ -671,6 +713,14 @@ is left without a disposition.
 - **FR-040**: The aliasing contract test MUST cover it.
 - **FR-041**: The signature MUST already include the label, so a write-if-changed path needs no
   further change. Verified on this branch: it does.
+- **FR-041a**: The setter MUST join the **recorded** public surface, which today does not reach the
+  node model at all. Measured 2026-10-13: the API golden's tracked classes are `CuemsScript`,
+  `ConfigManager` and `ConfigBase`, and its tracked functions are `partition_by_adoption` and
+  `validate_config_document` — so `NodeIndex` appears in neither golden, and a public addition there
+  would otherwise land with no public-surface record and no signature pinned. Decided 2026-10-13:
+  `NodeIndex` joins the tracked classes, which is what makes the golden move for this gate. Since
+  feature 007 this has been *"the only public path to the node model"*, so the gap is older than this
+  feature and is closed by it rather than merely noted.
 - **FR-042**: The setter MUST cover the label **only**. A general "set operator fields" call is
   deliberately not provided, because it would invite writes to fields discovery overwrites.
 - **FR-043**: An offline node and the controller MUST both be labellable — a label has no liveness
@@ -741,6 +791,14 @@ is left without a disposition.
 - **FR-065a**: The new exception type MUST join the errors module's published surface and its
   documented hierarchy, since a type a consumer cannot import is a type it cannot catch. This is
   the module's **first** addition since feature 009's.
+- **FR-065c**: "Published surface" MUST include the **recorded** one, not only `__all__`. The public
+  error hierarchy is pinned by a hand-maintained list in this repository's own contract test, and
+  that list is also the **source** the API golden's `errors` section is generated from — so the
+  record does not follow the module automatically in either direction. Measured 2026-10-13: adding to
+  `__all__` alone turns an existing contract test red (the list is asserted equal to `__all__`), and
+  re-cutting the golden without extending the list produces a golden that **does not contain the new
+  class at all** — which is the premise on which this feature's golden event was scheduled after
+  every public addition. Both MUST move in the same change as the class.
 
 - **FR-065b**: The consumer-side completion marker MUST be recorded and **verified in that
   repository rather than predicted here**: `cuems-editor` removes its anchored pattern over this
@@ -771,6 +829,15 @@ is left without a disposition.
 - **FR-075**: The two canonically-authored corpus documents MUST be re-authored in the new form so
   that their first-cycle byte-identity claim still holds, rather than being reclassified into the
   reformatted set.
+- **FR-075a**: The **three 007 pre-state documents** MUST be re-authored in the new form too, and
+  they are a second byte-level cost the first enumeration of this story missed. Measured 2026-10-13:
+  `tests/contract/test_network_map_roundtrip.py` diffs what `save()` writes against
+  `specs/007-node-model-migration/pre-state/{network_map.xml,corpus/cuems-utils/network_map.xml,corpus/cuems-engine/network_map.xml}`
+  and asserts the diff is **exactly two lines**, on the stated ground that *"the whole document is one
+  line after normalisation"* — and all three are indeed one line. Indenting the writer turns that diff
+  into the whole document for all three parametrized cases. Re-authoring is the decided fix (rather
+  than comparing parsed trees) because that test's value is that it reads the **rename** in a diff a
+  human can check, which a structural comparison would lose.
 - **FR-076**: Any flip of the contract test that asserts a hand-authored document is reformatted on
   its first cycle MUST be recorded as this decision, which that test's own documentation asks for.
 
@@ -854,16 +921,29 @@ is left without a disposition.
   which describes schema annotations as pending when all six schemas carry them (verified
   2026-10-13), and its §5 step 6, which records 014 as 45/46 with one task open when that feature
   closed at 46/46.
-- **FR-093**: The two documents the §9 sweep did not reach MUST be dispositioned:
+- **FR-093**: The documents the §9 sweep did not reach MUST be dispositioned. Three were found, not
+  the two the first pass recorded — the third is named in **FR-093b** — and the two this requirement
+  covers are:
   `refactor-sequencing-2026-10-01.md`, whose own stop-condition is now satisfied — the frontend flow
   it waited for has landed and carries a candidate tag — but whose residue (the adoption/liveness UI
   tier, *"new feature work… no other home yet"*) MUST be re-homed **into a named destination before
   that document is deleted**, namely a new `specs/planning/adoption-liveness-ui-tier.md`; and the
-  `specs/planning/xml-rebuild/` subtree (ten design documents and eleven consumer prompts), which
+  `specs/planning/xml-rebuild/` subtree (**nine** design documents and eleven consumer prompts —
+  **20** files, counted on disk 2026-10-13; three artefacts said ten and 21, and the subtree stops
+  at `xml-rebuild-09-consumer-audit.md`), which
   MUST acquire a per-document disposition.
 - **FR-093a**: No document may be deleted by the sweep until the destination of every piece of its
   residue **exists**. "Re-homed" is a file that exists and holds the content, not an intention
   recorded in a disposition table — otherwise the sweep is how the residue is lost.
+- **FR-093b**: The **first-install pair** MUST acquire a disposition, which no artefact of this
+  feature or of its source document gave them. Measured 2026-10-13:
+  `specs/planning/etc-cuems-first-install.md` (1384 lines, its own status line reading *"design
+  settled; feature 011 landed 2026-09-28"*) is named in neither §9.1, §9.2 nor §9.3 of the source and
+  nowhere in this feature, and `etc-cuems-first-install-execution.md` is **corrected** by FR-092
+  without ever being dispositioned. Both describe the 011–015 arc, so the honest disposition is
+  *kept until the coordinated tag is cut, then re-assessed as one pair* — but it MUST be written
+  down, because SC-016 asserts the folder holds no document whose work is complete, and a document
+  nobody dispositioned is how that claim becomes untrue without anyone deciding it.
 - **FR-094**: Every home of the coordinated tag's work order MUST agree after this feature — the
   execution companion, `CLAUDE.md`, and the gate list — so that "the tag comes after 011–015" and
   "015 is the gates" are both true at once.
@@ -927,7 +1007,7 @@ is left without a disposition.
   - **A stale suppression MUST be deleted.** Measured: **all eleven** `# type: ignore` comments in
     `src/` are unused — `--warn-unused-ignores` reports every one — and two `# noqa: F401` are stale
     against a rule that *is* enabled (`NodeList.py:22`, `init_node.py:36`).
-  - **An inert suppression MUST become a plain comment, keeping its sentence.** Sixteen `noqa`
+  - **An inert suppression MUST become a plain comment, keeping its sentence.** Fifteen `noqa`
     directives in `src/` name rules this project does not select (ten `BLE001`, two `N801`, and one
     each of `C901`, `E501`, `SIM115`), so they suppress nothing — but most carry the *reason* the
     code is written that way (*"a broken universe must still name itself"*). Deleting the directive
@@ -940,7 +1020,7 @@ is left without a disposition.
     is both unused *and* names a code that does not exist (`attr-union`, for `union-attr`) — which is
     itself the evidence that it never suppressed anything.
 - **FR-108a**: Enabling a lint rule this project does not currently select is **out of scope**. The
-  sixteen inert directives are evidence that someone once considered `BLE001` and the others; whether
+  fifteen inert directives are evidence that someone once considered `BLE001` and the others; whether
   to adopt them is a project decision, not a side effect of a sweep.
 - **FR-109**: Both static baselines MUST become a **descending ratchet**. The figure recorded at the
   end of this feature MUST be lower than the branch point's, and that new figure becomes the gate —
@@ -994,7 +1074,20 @@ is left without a disposition.
   one-runtime-writer warning) are rendered **nowhere**. Only FR-078's `cuemsutils.helpers` is already
   in the list. A docstring in an unrendered module is not published documentation, which is the
   premise FR-UX-003 rests on and the reason two consumers read a call the wrong way in the first
-  place.
+  place. **Exactly those three are added; no fourth.** `cuemsutils.config.settings` is *not* one of
+  them — G2 changes a branch inside it but adds no public call there, and adding an internal module
+  to the rendered documentation would publish surface this feature is not publishing.
+- **FR-UX-003c**: **G3's documentation obligation is discharged at `ConfigManager.get_schema_descriptor`,
+  not by rendering `cuemsutils.xml.descriptor`** — decided 2026-10-13, because `cuemsutils.xml` is
+  deliberately private (its `__all__` is `[]` since feature 006) and is scheduled to become private
+  in fact with the deprecated-surface release. The descriptor's reversed position (FR-026) and the
+  instance's new guarantees (FR-020..FR-025: wire shape, the wrapper, the expanded single child,
+  saveability, the uninvoked callable default) are what a client must read, and the only rendered call
+  that hands them a descriptor is `get_schema_descriptor`. So that method's docstring MUST state
+  them, in addition to FR-026's record beside the code it reverses. ⚠ The first census of this
+  obligation counted *"modules this feature adds a public call to"* and therefore missed the widest
+  consumer-facing change in the feature, whose statement would have landed only in an unrendered
+  module's docstring.
 - **FR-UX-003b**: That gap MUST be closed by a **test**, not only by this feature's edit: every
   module this feature adds a public call to MUST be asserted present in the rendered documentation,
   so the next feature's public addition cannot repeat it silently.
@@ -1155,10 +1248,16 @@ is left without a disposition.
   the repository alone.
 - **SC-QUALITY-006**: The sweep changed no behaviour, shown rather than asserted: the goldens, the
   wire dicts and `outcomes.json` are byte-identical across it, the suite is green, and
-  `git diff -w` over the mechanical commit is **empty**.
-- **SC-QUALITY-002**: Every module carrying a public call this feature adds is present in the
+  `git diff -w` restricted to the **whitespace findings** (278 of the 302: 267 `W293` + 11 `W291`) is
+  **empty**. ⚠ Stated as the subset it is: the mechanical commit also carries 7 `F541` and 17 `I001`
+  fixes, neither of which is whitespace, so `git diff -w` over the **whole** commit cannot be empty
+  and asserting that it is would be a check that can only fail.
+- **SC-QUALITY-002**: Every module carrying a public call this feature **adds** is present in the
   rendered API documentation, asserted by test. Measured at the branch point: **3 of the 4** modules
-  this feature documents into are absent from `docs/`.
+  this feature documents into are absent from `docs/`, and exactly those three are added.
+  `cuemsutils.xml.descriptor` is **deliberately outside** this criterion and the test that asserts
+  it: G3 changes a call that already exists there, `cuemsutils.xml` stays private, and the
+  obligation is discharged at `ConfigManager.get_schema_descriptor`, which is rendered (FR-UX-003c).
 - **SC-TEST-001**: Every requirement has a test that **fails before** the change and passes after.
   For G5 the failing test is the composition, not the unit.
 - **SC-TEST-002**: The suite ends **green**. All five branch-point failures are this feature's to
@@ -1221,7 +1320,7 @@ is left without a disposition.
 | Item | Where it lives |
 |---|---|
 | `hardware_outputs` — the structure pass, the inventory move, `default_mappings.xml`, the stored counts, the zero-caller output-id pair, the sibling namespace typo | `specs/planning/hardware-outputs-capability-layer.md` — deferred, unnumbered, re-owned to `cuems-nodeconf` |
-| The deprecated-surface removal — five modules, seven aliases, nine symbol sites, the frozen legacy builder | `specs/planning/deprecated-surface-removal-v0-1-1.md` — gated on a release, not a feature |
+| The deprecated-surface removal — five modules, seven aliases, nine symbol sites, the frozen legacy builder, **and `docs/xml.md`** | `specs/planning/deprecated-surface-removal-v0-1-1.md` — gated on a release, not a feature. The page is **entirely** the surface that block deletes (all five identifiers it renders), so it goes with them as **R9a**, added 2026-10-13 out of this feature's FR-UX-003c: deleting it here would publish nothing and break the documentation build for modules that still exist |
 | The version move and the five sibling package re-bounds, which are **one atomic step** | `specs/planning/coordinated-release-version-bump.md` |
 | The relocation of the timeout-loop class out of the package root | ships with the removal release; landing it here would mean two public paths for one class across a release boundary |
 | The Envelope feature | `specs/planning/envelope-feature.md` — an open central decision, not a gap |
