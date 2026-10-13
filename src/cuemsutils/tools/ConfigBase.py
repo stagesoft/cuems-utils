@@ -1,6 +1,7 @@
 from os import environ, path
 
 from ..errors import (
+    NodeIdentityCollisionError,
     SchemaError,
     ValidationError,
     network_map_node_type_message,
@@ -14,6 +15,7 @@ from ..log import Logger, logged
 # is a deprecation shim as of T061, and contract C8 forbids the library
 # calling one of its own deprecated names.
 from ..xml.settings import Settings
+from ..xml.validators import Violation
 from ..xml.versioning import DocumentTooNewError
 from ..helpers import mkdir_recursive
 
@@ -81,7 +83,19 @@ def load_config_document(cls, xmlfile: str, schema_name: str):
             collision = node_identity_collision_message(xmlfile, exc)
             if collision is not None:
                 Logger.error(collision)
-                raise ValidationError(collision) from exc
+                # S1 (feature 015, research R4): promoted here, not raised
+                # by the rule itself — this is where the file path exists
+                # to attach, and raising the public type from inside the
+                # rule would propagate past this very clause.
+                collisions = getattr(exc, 'collisions', {})
+                first_identity = next(iter(collisions), None)
+                violation = Violation(
+                    tier='T2', rule='node_uuid_unique',
+                    location=(first_identity, 'uuid'), message=str(exc),
+                )
+                raise NodeIdentityCollisionError(
+                    collision, collisions=collisions, file=xmlfile, violation=violation,
+                ) from exc
 
         # A non-converged node identity is a **structural** (T1) failure — the
         # narrowed NodeUuidType refuses it — so it stays a SchemaError. What

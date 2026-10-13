@@ -857,6 +857,26 @@ def _unwrap_single(wrapper):
 REMINT_COMMAND = "cuems-init-node --remint"
 
 
+class _NodeIdentityCollision(ValueError):
+    """The rule's own, **internal** exception (S1, research R4).
+
+    Stays a ``ValueError`` deliberately: ``xmlschema``'s own
+    ``XMLSchemaValidationError`` for a genuine structural (T1) failure is
+    *also* a ``ValueError``, so ``isinstance`` cannot tell a semantic
+    violation from a structural one — recognition is by message shape
+    (:func:`cuemsutils.errors.node_identity_collision_message`), unchanged
+    by this carrying structured data too. ``tests/golden/outcomes.json``
+    pins this reader's raw verdicts, which is the other reason this type
+    is not itself public: the accessor (``ConfigBase.load_config_document``)
+    promotes it to ``cuemsutils.errors.NodeIdentityCollisionError`` with
+    the file path attached, which this rule has no way to know.
+    """
+
+    def __init__(self, message: str, collisions: dict[str, tuple[str, ...]]):
+        super().__init__(message)
+        self.collisions = collisions
+
+
 def check_node_identities_unique(rows) -> None:
     """No two rows of a network map may carry one identity.
 
@@ -865,7 +885,9 @@ def check_node_identities_unique(rows) -> None:
             duplicates kept**.
 
     Raises:
-        ValueError: two or more rows share an identity. The message names the
+        ValueError: two or more rows share an identity, as
+            :class:`_NodeIdentityCollision` — carrying ``.collisions``
+            (``{identity: (mac, ...)}``) as data (S1). The message names the
             identity and every MAC carrying it, because the MAC is the only
             thing that tells the rows apart.
 
@@ -887,13 +909,14 @@ def check_node_identities_unique(rows) -> None:
         f"{identity} is carried by {len(macs)} rows (" + ", ".join(f"mac={m}" for m in macs) + ")"
         for identity, macs in sorted(collisions.items())
     )
-    raise ValueError(
+    raise _NodeIdentityCollision(
         f"node identities are not unique: {detail}. The library cannot know "
         "which row is the real node, so it will not choose. Decide from the "
         "two rows' hardware addresses and the scripts naming the shared token "
         "which node the outputs belong to, treat the other as never "
         f"provisioned, and re-mint it — see the migration guide, then run "
-        f"{REMINT_COMMAND}."
+        f"{REMINT_COMMAND}.",
+        collisions={identity: tuple(macs) for identity, macs in collisions.items()},
     )
 
 

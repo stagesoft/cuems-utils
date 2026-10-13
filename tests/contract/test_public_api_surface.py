@@ -58,12 +58,19 @@ PUBLIC_CLASSES = {
 #: caller cannot inspect is one it cannot surface. ``DmxChannelDecodeError``
 #: joins in feature 009 (FR-006) — a DMX channel entry that cannot be
 #: converted, replacing that setter's former swallow-and-log fallback.
+#: ``NodeIdentityCollisionError`` joins in feature 015 (S1, FR-065a/FR-065c):
+#: two or more network-map rows carrying one node identity, structured so a
+#: consumer reads ``.collisions`` rather than parsing the message. This tuple
+#: is asserted equal to ``cuemsutils.errors.__all__`` below, and the API
+#: golden's ``errors`` section is generated **from** it — adding to
+#: ``__all__`` alone is not enough for either.
 PUBLIC_ERRORS = (
     "ConversionRecord",
     "CuemsError",
     "DmxChannelDecodeError",
     "IngestError",
     "LoadReport",
+    "NodeIdentityCollisionError",
     "Outcome",
     "RepairRecord",
     "SchemaError",

@@ -7,8 +7,8 @@ what it is handed — that is why ``ValidationReport`` lives in
 is one the caller cannot catch, and the alternative consumers reach for is
 matching on message strings.
 
-Four types shipped with feature 006, and a fifth joined in feature 009 — the shape of the tree is
-still the contract:
+Four types shipped with feature 006, a fifth joined in feature 009, and a sixth in feature 015 —
+the shape of the tree is still the contract:
 
 ``CuemsError``
     the base. Lets a consumer catch everything this library raises without
@@ -39,6 +39,12 @@ still the contract:
     schema validation entirely (``CuemsScript.from_json``, direct
     construction) can trigger it.
 
+``NodeIdentityCollisionError`` (feature 015, S1)
+    two or more network-map rows carry one node identity. A
+    ``ValidationError`` subclass carrying the collisions as structured data
+    (``.collisions``, ``.file``) — the prose message a consumer previously
+    had to parse is no longer the supported interface.
+
 **I/O failures are not wrapped** (FR-035). A missing or unreadable file raises
 the standard library's ``OSError``/``FileNotFoundError``, which every consumer
 already handles. Wrapping it would force callers to unwrap it to find out what
@@ -55,6 +61,7 @@ __all__ = [
     "CuemsError",
     "DmxChannelDecodeError",
     "IngestError",
+    "NodeIdentityCollisionError",
     "SchemaError",
     "ValidationError",
     "ConversionRecord",
@@ -85,6 +92,45 @@ class ValidationError(CuemsError):
 
 class SchemaError(ValidationError):
     """A structural (T1) failure: the document does not match its schema."""
+
+
+class NodeIdentityCollisionError(ValidationError):
+    """Two or more network-map rows carry one node identity (feature 012,
+    FR-019a; structured by feature 015's S1, research R4).
+
+    A ``ValidationError`` subclass, so a consumer catching the general case
+    keeps catching this one. Raised by the public **accessor**
+    (``ConfigBase.load_config_document``), not by the rule that detects the
+    collision (``check_node_identities_unique``, ``xml/validators.py``) —
+    the rule raises an **internal** ``ValueError`` subclass instead, because
+    the accessor is where the file path exists to attach, and raising this
+    type from the rule would propagate past the handler clause that attaches
+    it.
+
+    The message is **unchanged** from feature 012's, including its remedy
+    sentence and the exact command it names
+    (``cuemsutils.xml.validators.REMINT_COMMAND``) — a caller matching on
+    message shape (``node_identity_collision_message``, below) keeps
+    answering for as long as it is on that path. The structured payload is
+    the supported interface going forward; a regular expression over the
+    message is not.
+
+    Attributes:
+        collisions: ``{identity: (mac, ...)}`` — every colliding identity
+            with the hardware addresses carrying it, so two distinct
+            collisions in one document are distinguishable without
+            re-parsing text (FR-062).
+        file: the document's path.
+        violation: inherited from :class:`ValidationError`, located as
+            ``(identity, "uuid")`` for the first colliding identity — the
+            pair form :class:`Violation` already documents as addressable
+            without parsing a string.
+    """
+
+    def __init__(self, message: str, *, collisions: dict, file: str, violation=None):
+        super().__init__(message, violation=violation)
+        self.collisions = collisions
+        self.file = file
 
 
 class IngestError(CuemsError):
