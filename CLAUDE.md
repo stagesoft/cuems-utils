@@ -232,8 +232,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     AST) before applying the unsafe fix.
   - **Sibling two-arm result**: `cuems-editor` 1 real regression (an indentation-sensitive assertion,
     fixed in its checkout, uncommitted) + 3 intended `XPASS(strict)` flips; `cuems-nodeconf` 0;
-    `cuems-power-bridge` 0 of 57 pre-existing; `cuems-engine` **unmeasurable** (its checkout is on
-    `format/module_extraction`, which imports a `cuemsutils.CTimecode` path no arm provides). SC-012's
+    `cuems-power-bridge` 0 of 57 pre-existing; `cuems-engine` (read on `feat/xml-refactor`; an earlier read on `format/module_extraction` was the wrong branch) 28 failures identical in both arms, but **against a mock `pyossia`** — needs a host with the real package. SC-012's
     "four flips on landing" is **three** — the fourth (G3 cue) is a test-construction problem in the editor.
   - Planning folder swept: nine documents deleted (T115), `refactor-sequencing` re-homed to
     `adoption-liveness-ui-tier.md`, 010's eleven prompts **deletable but kept** until 010 closes.

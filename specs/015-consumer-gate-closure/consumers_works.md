@@ -115,7 +115,7 @@ Measured 2026-10-13 against each sibling's working tree. Where a sibling carries
 | **Marker** | the document reshapes and then loads |
 | **Flips on a library change alone?** | It is fixed *by* running our own tool, so yes once someone runs it — which is what makes leaving it undone indefensible |
 | **Requirement** | SC-003a, FR-105 · closed by **T039a** |
-| **Status** | ⚠ **measured, and the premise was wrong** (2026-10-13): the fixed tool correctly reshapes the flat players (`classify` returns `old`, `reshape_players` runs), but the **whole** `dev/test_xml_files/` directory in that repository — every one of its ten documents, not only `settings.xml` — carries a stale pre-rename namespace (`http://stagelab.net/cuems`) against this schema's `https://stagelab.coop/cuems/`, so the post-reshape validation refuses it for a reason that predates this feature and is unrelated to G5. The reshape tool correctly reports `skipped (would not validate: … is not an element of the schema …)` and writes nothing — no backup is left, no bytes changed. **Not closed here**: fixing one file's namespace in isolation would be a partial, misleading patch to a directory-wide, pre-existing defect in a sibling repository, and is out of this feature's scope to decide unilaterally. Recorded as a new finding for that repository's own maintainers rather than forced to a false "done". |
+| **Status** | ✅ **closed in the engine's own history** (re-verified 2026-10-14 on `feat/xml-refactor`: the file is current, see the table at the end). *Historical reading, 2026-10-13, taken against a stale copy:* ⚠ measured, and the premise was wrong (2026-10-13): the fixed tool correctly reshapes the flat players (`classify` returns `old`, `reshape_players` runs), but the **whole** `dev/test_xml_files/` directory in that repository — every one of its ten documents, not only `settings.xml` — carries a stale pre-rename namespace (`http://stagelab.net/cuems`) against this schema's `https://stagelab.coop/cuems/`, so the post-reshape validation refuses it for a reason that predates this feature and is unrelated to G5. The reshape tool correctly reports `skipped (would not validate: … is not an element of the schema …)` and writes nothing — no backup is left, no bytes changed. **Not closed here**: fixing one file's namespace in isolation would be a partial, misleading patch to a directory-wide, pre-existing defect in a sibling repository, and is out of this feature's scope to decide unilaterally. Recorded as a new finding for that repository's own maintainers rather than forced to a false "done". |
 
 ### 8 — the eleven historical dead-end documents · the control population
 
@@ -184,7 +184,7 @@ looking, and three had been missed by every pass that did not.
 
 Measured in each checkout at its working tree (this library's tree: the uncommitted branch
 `015-consumer-gate-closure`; control arm: a throwaway `git worktree` at `75a958e`, never the shared
-checkout). Neither `cuems-editor` nor `cuems-engine` carries an `xml-refactor-merge-candidate` tag,
+checkout). `cuems-engine` was first read on `format/module_extraction` and **re-read on `feat/xml-refactor` (`fc0cad3`, `__version__ = "0.1.0rc7"`) the same day**; row 7 reflects the latter. Neither `cuems-editor` nor `cuems-engine` carries an `xml-refactor-merge-candidate` tag,
 so these are tips, not tags — **`not verifiable at a tag yet`** for those two, and the table is to be
 re-run when they are tagged.
 
@@ -196,7 +196,7 @@ re-run when they are tagged.
 | 4 | `cuems-frontend` G3 | `verified outstanding`, deletable in one edit | `toWireShape` + `UR1_UI_STARTING_VALUES` (`schema-descriptor.handler.ts:84,149`) are called from `project-create.handler.ts:19,37` only. **Measured against the library's instances (T106)**: repeated containers arrive as lists of single-key wrappers (`channels: [{"channel": …}]`), `class` is present, every required scalar carries a value — so nothing needs hand-authoring on the UI side. ⚠ **The values differ from the UI's table**: library seeds are `output_vol 0`, `channel_vol 0`, `x_scale/y_scale 0.0`, where the UI's table gives `80`, `80`, `1`, `1`. Deleting the transform in one edit therefore **changes what a new output starts at**; that is a product decision for the frontend, not a defect here |
 | 5 | `cuems-editor` G3 docstring | `verified outstanding` | `_root_instance` (`CuemsWsUser.py:264-270`) still reads *"not a saveable document: its required leaves are null"*, now false |
 | 6 | `cuems-editor` S1 | `verified outstanding` | `node_reads.py:38` `_COLLIDED_IDENTITY` regex and the `''` fallback in `collided_identity` both still present; `NodeIdentityCollisionError` is not named anywhere in `src/` |
-| 7 | `cuems-engine` dead-end doc | `not verifiable here` | the checkout is on `format/module_extraction` (`a197cac`), a branch with **no `feat/xml-refactor` line** — it imports `cuemsutils.CTimecode`, a path absent from both arms, so its suite cannot even collect (4 errors in each arm). Not switched: moving a sibling's branch is not this feature's to do |
+| 7 | `cuems-engine` dead-end doc | `verified done` (2026-10-14, on `feat/xml-refactor` @ `fc0cad3`) | `dev/test_xml_files/settings.xml` is in the current namespace and device shape (014's `9fce7e6`); `cuems-reshape-devices --dry-run` reports `already current`, and `load_config_document(Settings, …)` returns a `Settings`. The earlier ⚠ measurement below was taken on the wrong branch (`format/module_extraction`) and is **superseded** |
 | 8 | control population | `verified done` | unchanged |
 | 9 | fixtures the indenting writer breaks | **one found, closed** (below) | see T107/T108 |
 | 10 | tag-readiness record | reconciled | see below |
@@ -232,3 +232,23 @@ this measurement forces on the editor's record (not edited there — that is its
 the three config-root G3 rows are no longer standing, and the G3 cue row's flip condition is
 *"the test builds the cue from the wrapped instance"*, not only a library change. **G5**: closed in
 this library (`b43bc50`), no editor test, as that record says.
+
+### Correction, 2026-10-14 (later the same day): `cuems-engine` was read on the wrong branch
+
+Everything above that says `cuems-engine` was *unverifiable* or *unmeasurable* came from its checkout
+being on `format/module_extraction`, a branch with no `xml-refactor` line. On **`feat/xml-refactor`**
+(`fc0cad3`; created locally from `origin/feat/xml-refactor`, tree clean):
+
+- **Row 7** is `verified done` — see the table.
+- Its suite, **run in two arms** (A = this library at `75a958e`, B = this branch): **28 failed ·
+  831 passed · 1 error in both, with the identical set of 28 failures** — `test_ossia.py` (14),
+  `test_pyossia_osc.py` (8), `test_players_dmxplayer.py` (5), `test_project_go.py` (1). **None is
+  attributable to this feature.** ⚠ The runner could not use the real `pyossia` (`>= 2.0.0-rc6+124+cuems3`
+  is not obtainable here; the local `libossia` is rc4 and fails to load), so a **mock** stood in, and the
+  28 are exactly the tests that touch it (`isinstance() arg 2 must be a type`). A verdict on those
+  needs a host with `python3-pyossia`. `libmtcmaster` was built in scratch to let the rest import.
+- The two facts 012's guide states about the engine are **true at this branch**: `__version__ =
+  "0.1.0rc7"` and `cluster_warning` is published at `/engine/status/cluster_warning` with a `"missing"`
+  list (`ControllerEngine.py:1126`). The "corrections" this feature first made to that guide were
+  therefore **wrong and have been reverted**; the tests that guard them skip only because the engine
+  carries no `xml-refactor-merge-candidate` tag, not because the claims fail.

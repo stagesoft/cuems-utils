@@ -116,11 +116,13 @@ fails → fail; partial tag set → partial honest result).
 
 **Today's reading (2026-10-14)**: `cuems-common`, `cuems-nodeconf`, `cuems-power-bridge` and
 `cuems-frontend` are tagged; `cuems-engine` and `cuems-editor` are not, so the two engine claims
-(coupled version, `cluster_warning`) **skip with a stated reason** rather than pass or fail. Both
-were false claims in 012's guide and are corrected there as documentation defects (T100) — the
-engine's tree declares `0.1.0-rev1`, and `cluster_warning` is absent from its controller source.
-013's two dead pins (`cuems-editor 106015c`, `cuems-frontend 3183845`) are marked dead and dated
-in place (T101).
+(coupled version, `cluster_warning`) **skip with a stated reason** rather than pass or fail. Checked
+by hand against `cuems-engine` `feat/xml-refactor` (`fc0cad3`), **both hold**: `__version__ =
+"0.1.0rc7"` and `/engine/status/cluster_warning` with a `"missing"` list. ⚠ This section first said
+both were false and "corrected" 012's guide accordingly; that came from reading the engine on the
+wrong branch (`format/module_extraction`), and the corrections were **reverted** (T100 is therefore a
+no-op on the 012 guide). 013's two dead pins (`cuems-editor 106015c`, `cuems-frontend 3183845`) are
+marked dead and dated in place (T101).
 
 **Tag values, re-verified against the tags (T102).** Record the *commit* (`<tag>^{commit}`), never
 `git rev-parse <tag>`: an annotated tag has a separate object id. The draft figures
@@ -152,17 +154,19 @@ it). The shared checkout is never moved (FR-104).
 | `cuems-editor` | 2 failed · 258 passed · 3 skipped · 7 xfailed | 6 failed · 257 passed · 3 skipped · 4 xfailed | **4**: three intended `XPASS(strict)` flips (G3 config roots) and **one real fixture break** (indentation) — all closed, see below |
 | `cuems-nodeconf` | 184 passed · 1 xfailed | 184 passed · 1 xfailed | **0** |
 | `cuems-power-bridge` | 57 failed · 219 passed | 57 failed · 219 passed (identical set) | **0** of 57 — the 57 pre-date this feature (`network_map_invalid` fixtures) |
-| `cuems-engine` | cannot collect (4 errors) | cannot collect (4 errors) | **unmeasurable** — its checkout is on `format/module_extraction`, which imports a `cuemsutils.CTimecode` path that neither arm provides. Left alone; re-run when it is on its `xml-refactor` line |
+| `cuems-engine` (`feat/xml-refactor` @ `fc0cad3`) | 28 failed · 831 passed · 1 error | 28 failed · 831 passed · 1 error (identical set) | **0** — but ⚠ run against a **mock `pyossia`**, so the 28 failures are the tests that touch it, unmeasured rather than passing; needs a host with the real package |
 | `cuems-frontend` | 289 success | 289 success | **0** — no Python dependency; coupled only by wire shape (`ng test --watch=false --browsers=ChromeHeadless`), so the arms are identical by construction |
 
 **The ratio is the finding**: 1 real regression and 3 intended flips against 59 failures already
-present in two siblings. After T108 the editor's own suite is `2 failed · 261 passed · 4 xfailed`,
+present in two siblings (and 28 in the engine, identical in both arms). After T108 the editor's own suite is `2 failed · 261 passed · 4 xfailed`,
 the 2 being the control arm's.
 
 **T108**: closed in `../cuems-editor` (uncommitted there): `test_repair_durations.py` stripped
 `\n` but not indentation; and the three flipped G3 markers were removed (S6). Details and the
 G3-cue finding (a **test-construction** problem, so *three* of SC-012's four flips happen, not
 four) are in [consumers_works.md](consumers_works.md).
+
+*First reading of the engine (superseded):* its checkout was on `format/module_extraction` and could not collect; it was re-read on `feat/xml-refactor` on the same day, which is the row above.
 
 **Not closed, and why**: nothing in `cuems-nodeconf` or `cuems-power-bridge` was broken by this
 feature, so nothing was edited there.
