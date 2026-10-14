@@ -36,10 +36,11 @@ version does not move for this tag"), and decision 2 of
 
 ---
 
-## 1. Why the versions have to move: three collisions, measured
+## 1. Why the versions have to move: four collisions, measured
 
 The refactor branches have been holding version numbers that the release lines have since **taken
-and shipped**. Measured 2026-10-12 after fetching every sibling.
+and shipped**. Measured 2026-10-12 after fetching every sibling; the `cuems-nodeconf` row was
+corrected 2026-10-13 by `../cuems-nodeconf/specs/upstream-reports/coordinated-release-bump-corrections.md`, which measured the line that is actually releasing.
 
 | Repo | Branch holds | Parallel line released | Same commit? | Verdict |
 |---|---|---|---|---|
@@ -47,14 +48,14 @@ and shipped**. Measured 2026-10-12 after fetching every sibling.
 | `cuems-common` | `1.3.0-23` (UNRELEASED) | `v1.3.0-23` (`8109884`, 2026-10-07), then `-24`, `-25` | ❌ no | **collision** |
 | `cuems-editor` | `0.1.0rc1-4` (UNRELEASED) | `v0.1.0rc1-4` (`faaa626`, 2026-10-06), then `-5`, `-6`, `-7` | ❌ no | **collision** |
 | `cuems-engine` | `0.1.0rc2-3` (`bookworm`) | nothing tagged; packaging exists only on the refactor branch | — | no collision |
-| `cuems-nodeconf` | `0.1.0-8` (UNRELEASED) | nothing tagged | — | no collision |
+| `cuems-nodeconf` | `0.1.0-8` (UNRELEASED) — the TXT-record rename | `0.1.0-8` (2026-10-06, foreign-controller filtering) and `0.1.0-9` (2026-10-07), both on **`origin/rc_1`**, untagged | ❌ no | **collision** — the 2026-10-12 reading measured `debian/bookworm`, which stopped 2025-12-30 |
 | `cuems-power-bridge` | `0.3.1-1` (`unstable`) | `v0.3.0-10`, which sorts **below** it | — | no collision |
 
-**The released commits are not ancestors of the refactor branches**, verified for all three
+**The released commits are not ancestors of the refactor branches**, verified for all four
 collisions. So a user with `cuems-common 1.3.0-23` installed has a package that shares a version
 number with the `/etc/cuems` handover and contains none of it.
 
-All three are resolved by **§10.1 rule 2**: the colliding `UNRELEASED` header is dropped and its body
+All four are resolved by **§10.1 rule 2**: the colliding `UNRELEASED` header is dropped and its body
 folded into the new top entry, so the contested numbers stay with the builds that actually shipped
 under them.
 
@@ -77,8 +78,19 @@ failing. Same shape as the `>= 0.1.0rc16` floor in §2.
 | `1.3.0-23`, `-24`, `-25` *(released, no handover)* | ⛔ **admitted — the defect** | ✅ correctly refused |
 | `1.3.1~rc1`, `1.3.1-1` *(the handover)* | admitted | ✅ admitted |
 
+**Two more relations are defeated the same way** (measured by `../cuems-nodeconf/specs/upstream-reports/coordinated-release-bump-corrections.md` §2), both on the
+TXT-record rename (`node_type` → `node_role`, D33). Each lets through a half-renamed pair: the
+listener reads `node_role`, the publisher writes `node_type`, and the cluster discovers nothing, with
+no install error.
+
+| Relation | Lets through, though it should refuse | Fixed by |
+|---|---|---|
+| `cuems-common` `Breaks: cuems-nodeconf (<< 0.1.0-8)` | released `cuems-nodeconf` `0.1.0-8`, `-9` (still `node_type`) | §4.3 → `<< 0.1.1~` |
+| `cuems-nodeconf` `Breaks: cuems-common (<< 1.3.0-23~)` | released `cuems-common` `1.3.0-23`, `-24`, `-25` (still `node_type`; `origin/rc_1` still ships `cuems.service.{firstrun,master,slave}`) | §4.2 → `<< 1.3.1~` |
+
 So this is not a separate repair to schedule — it is **§4's relation matrix doing its job**, and the
-reason the matrix cannot be skipped as cosmetic.
+reason the matrix cannot be skipped as cosmetic. The matrix already carried all three fixes; only
+the measurement of the second and third was missing.
 
 ## 2. `0.1.0rc16` is released, and carries none of the migrated API
 
@@ -101,7 +113,7 @@ never released"* — true when written, false now.
 | `cuems-common` | `1.3.0` | `v1.3.0-25` | `1.3.0-23` ⚠ | **`1.3.1-1`** | `debian/changelog:1` *(no Python version in this repo)* |
 | `cuems-engine` | `0.1.0rc7` | *(none tagged)* | `0.1.0rc2-3` ⚠ **disagrees with source** | **`0.1.1-1`** | `pyproject.toml:11`, `src/cuemsengine/__init__.py:5`, `debian/changelog:1` |
 | `cuems-editor` | `0.1.0rc1` | `v0.1.0rc1-7` | `0.1.0rc1-4` ⚠ | **`0.1.1-1`** | `pyproject.toml:7`, `src/cuemseditor/__init__.py:4`, `debian/changelog:1` |
-| `cuems-nodeconf` | `0.1.0` | *(none tagged)* | `0.1.0-8` | **`0.1.1-1`** | `pyproject.toml:7`, `debian/changelog:1` |
+| `cuems-nodeconf` | `0.1.0` | `0.1.0-9` (`origin/rc_1`, untagged) | `0.1.1-1` UNRELEASED — headed so during the 2026-10-13 merge (§10.2), a maintainer decision so the changelog never runs backwards | **`0.1.1-1`** | `pyproject.toml:7`, `debian/changelog:1` |
 | `cuems-power-bridge` | `0.3.1` (pyproject) / **`0.2.0`** (`__init__`) ⚠ | `v0.3.0-10` | `0.3.1-1` | **`0.3.1-1`** — already correct | `src/cuemspowerbridge/__init__.py:5` **only**, to reconcile |
 | `cuems-frontend` | `0.0.0` (`package.json`, name `formitgo-tw`) | *(none)* | not packaged, no `debian/` | **decision needed** — §9.1 | `package.json:3` |
 
@@ -275,12 +287,14 @@ stale) and checking both out on `feat/xml-refactor`.
 | `cuems-common` | `e595e67` 2026-10-05 | `e3c9430` ✅ | **3 ahead** | **`origin/debian/bookworm`** → `1.3.0-25` | 41 ahead / **22 behind** |
 | `cuems-engine` | `fc0cad3` | **none** | — | none — packaging exists *only* on this branch; every other branch still says `osc-control (0.0.0-2)` | n/a |
 | `cuems-editor` | `a3309ab` | **none** | — | **`origin/debian/bookworm`** → `0.1.0rc1-7` | 36 ahead / **43 behind** |
-| `cuems-nodeconf` | `65605de` | `5be6cf0` 2026-09-30 | at the tag | **`origin/debian/bookworm`** → `0.1.0-1` only | 71 ahead / **9 behind** |
+| `cuems-nodeconf` | `ac14b90` 2026-10-14 *(re-measured)* | `5be6cf0` 2026-09-30 | **27 ahead** *(re-measured 2026-10-14)* | **`origin/rc_1`** → `0.1.0-9` (corrected 2026-10-13; `debian/bookworm` → `0.1.0-1` stopped 2025-12-30) | **0 behind both** after the 2026-10-13 merges (was 6 behind `rc_1`, 9 behind `debian/bookworm`; disjoint sets) |
 | `cuems-power-bridge` | `dd1256f` 2026-10-05 | `399baf7` ✅ | **2 ahead** | **`origin/main`** → `0.3.0-10` | 47 ahead / **26 behind** |
 | `cuems-frontend` | `f5453a3` 2026-10-07 | `f5453a3` | at the tag | not packaged | §9.1 |
 
-⚠ **The packaging release line is `debian/bookworm`, not `main` or `rc_1`, in four of the five
-packaged repositories.** Measuring against the default branch gives wrong answers in both
+⚠ **The packaging release line is `debian/bookworm`, not `main` or `rc_1`, in three of the five
+packaged repositories** — `cuems-nodeconf` is the exception the other way round: its releasing line
+is `rc_1`, and `debian/bookworm` is the one that stopped (corrected 2026-10-13, `../cuems-nodeconf/specs/upstream-reports/coordinated-release-bump-corrections.md` §1;
+the 2026-10-12 table said "four of the five"). Measuring against the default branch gives wrong answers in both
 directions: `cuems-common` reports "0 behind `main`" while being 22 behind its actual release line,
 and `cuems-editor` reports 16 behind `rc1` when it is **43** behind `debian/bookworm`.
 
@@ -333,7 +347,7 @@ Each repository's `debian/changelog` ends up as:
 <package> (<…>) bookworm                   <- …the rest of the released history, in order
 ```
 
-Two rules follow from that, and they are what make the three collisions in §1 disappear:
+Two rules follow from that, and they are what make the four collisions in §1 disappear:
 
 1. **The released entries are absorbed verbatim.** They describe builds that exist in the field; they
    are history and are not rewritten, renumbered or merged into the new entry.
@@ -360,7 +374,7 @@ comm -13 <(git show <refactor>:debian/changelog | grep -oE '^<pkg> \([^)]+\)' | 
 | `cuems-utils` | **`0.1.0rc16+1`** — stops shipping `/usr/lib/cuems/CACHEDIR.TAG`, which `0.1.0rc16` picked up from virtualenv and which `cuems-editor 0.1.0rc1-5` and `cuems-engine 0.1.0rc4`/`rc5` also ship, so `dpkg -i` failed with "trying to overwrite" unless forced. No code change | the `0.1.0rc16` UNRELEASED entry *(features 011–015)* |
 | `cuems-common` | **`1.3.0-23`, `-24`, `-25`** | the `1.3.0-23` UNRELEASED entry *(the `/etc/cuems` handover)* |
 | `cuems-editor` | **`0.1.0rc1-5`, `-6`, `-7`** | the `0.1.0rc1-4` UNRELEASED entry |
-| `cuems-nodeconf` | **none** — the release line stopped at `0.1.0-1`; the refactor branch already carries `-2`…`-8` | `-2`…`-8`, all of them UNRELEASED or `unstable`-but-unreleased |
+| `cuems-nodeconf` | **`0.1.0-8`, `-9`** from `origin/rc_1` (`0.1.0-7` is identical on both lines). ✅ **Absorbed 2026-10-13** — `78e7290` (`rc_1`, entries kept word for word) and `952b9dd` (`debian/bookworm`, recorded as absorbed; its `postinst`, which enables and starts the daemon, deliberately **not** taken — the `rc_1` packages never shipped maintainer scripts). `141cf1f` (static link-local address) was ported as `16b207d`; `80ccc83` (foreign controllers) is §10.4 | the old `0.1.0-8` UNRELEASED body, folded into the `0.1.1-1 UNRELEASED` entry already at the top |
 | `cuems-power-bridge` | **`0.3.0-7`, `-8`, `-9`, `-10`** — the `/poweroff` endpoint, the `CACHEDIR.TAG` fix, `nextcue_name`, the NDI preview | the `0.3.1-1` entry, which is already at the target |
 | `cuems-engine` | **none** — no release line exists; packaging lives only on the refactor branch | its `0.1.0rc2-3` entry |
 
@@ -370,11 +384,18 @@ already ships"), and it was fixed independently in `cuems-utils 0.1.0rc16+1` and
 `cuems-power-bridge 0.3.0-8`. If the merge drops either fix, `dpkg -i` breaks again at install
 time — which is the concrete form of "nothing is lost on the new versions".
 
-⚠ The `cuems-nodeconf` row above ("none") predates
-`../cuems-nodeconf/specs/upstream-reports/coordinated-release-bump-corrections.md`, which measures
-otherwise: a shipped `0.1.0-8` exists (foreign-controller filtering, `80ccc83`) and collides with the
-refactor branch's `0.1.0-8 UNRELEASED`. Re-derive the row with the `comm` command in §10.1 before
-merging. That fix's code half does **not** arrive by merge; see §10.4.
+The `cuems-nodeconf` row was corrected 2026-10-13 (the 2026-10-12 reading said "none", having
+measured `debian/bookworm`). It also found an **older** collision: `debian/bookworm` released a
+`0.1.0-1` (dated 19 Dec 2024, the `.deb` cached in `rc1_packages/`) that is a different build from the
+`0.1.0-1 UNRELEASED` that `rc_1`'s history starts from. The changelog keeps `rc_1`'s history, which is
+what the shipped `-2`…`-9` carry, and both `-1` builds sort below `0.1.1-1`, so the bump is unaffected.
+
+### 10.3 The merge is also how the branches stop being behind
+
+Every refactor branch except `cuems-engine`'s was behind its release line (§9: 73, 22, 43 and 26
+commits; `cuems-nodeconf` was 6 behind `rc_1` and is now 0, merged 2026-10-13). Merge-before-bump discharges that lag as a precondition of the bump rather than leaving it
+as debt, which also means **the relation edits in §4 should be made after the merge**, on the merged
+`debian/control` — otherwise a merge conflict resolves them back to the parallel line's values.
 
 ### 10.4 Rule-4 items this library re-implements instead of absorbing by merge
 
@@ -386,18 +407,11 @@ is then broken for that item.
 
 | Shipped fix | Re-implemented here | Status | Consumer obligation |
 |---|---|---|---|
-| `cuems-nodeconf` `80ccc83` (`0.1.0-8`): foreign-controller filtering. A controller on a shared LAN adopted other clusters' controllers into its map | `CuemsNetworkMapType.refresh(..., *, cluster=)`; `NodeIndex.cluster_controllers`, `is_foreign_controller`, `foreign_controllers`, `drop_foreign_controllers`. Request: `../cuems-nodeconf/specs/upstream-reports/foreign-controller-scoping.md` (D22 puts the map mutation here) | ✅ **landed** on `feat/xml-refactor`, `38d2ede` (2026-10-14). Listed in `CHANGELOG.md`'s `0.1.1` section | `cuems-nodeconf` only: delete its interim discovery filter, pass `cluster=` computed with `cluster_controllers(settings_uuid, own_role)`, and log `foreign_controllers(cluster)`. Its strict `xfail` removal test turns `XPASS`. It needs no feature detection, because §4.1's floor is `>= 0.1.1` |
+| `cuems-nodeconf` `80ccc83` (`0.1.0-8`): foreign-controller filtering. A controller on a shared LAN adopted other clusters' controllers into its map | `CuemsNetworkMapType.refresh(..., *, cluster=)`; `NodeIndex.cluster_controllers`, `is_foreign_controller`, `foreign_controllers`, `drop_foreign_controllers`. Request: `../cuems-nodeconf/specs/upstream-reports/foreign-controller-scoping.md` (D22 puts the map mutation here) | ✅ **landed** on `feat/xml-refactor`, `38d2ede` (2026-10-14). Listed in `CHANGELOG.md`'s `0.1.1` section | `cuems-nodeconf` only: delete its interim discovery filter (`6afb5eb`, which keeps new foreign controllers out but cannot remove saved ones), pass `cluster=` computed with `cluster_controllers(settings_uuid, own_role)`, and log `foreign_controllers(cluster)`. Its strict `xfail` removal test turns `XPASS`. It needs no feature detection, because §4.1's floor is `>= 0.1.1` |
 
 Known limitation, carried as in the shipped fix: a fresh node that hears two clusters' controllers
 on its first pass accepts both. Fixing that is `cuems-nodeconf`'s controller-election work, not
 this release's.
-
-### 10.3 The merge is also how the branches stop being behind
-
-Every refactor branch except `cuems-engine`'s is behind its release line (§9: 73, 22, 43, 9 and 26
-commits). Merge-before-bump discharges that lag as a precondition of the bump rather than leaving it
-as debt, which also means **the relation edits in §4 should be made after the merge**, on the merged
-`debian/control` — otherwise a merge conflict resolves them back to the parallel line's values.
 
 ## 11. Execution order
 
@@ -408,8 +422,9 @@ as debt, which also means **the relation edits in §4 should be made after the m
    `CLAUDE.md`'s `debian/bookworm` / `packaging-rc14` claim at the same time (§9), since step 4
    merges from the branch it says is dead.
 4. **Merge the release line into each refactor branch** (§10) — `debian/bookworm` for `cuems-utils`,
-   `cuems-common`, `cuems-editor` and `cuems-nodeconf`; `main` for `cuems-power-bridge`;
-   `cuems-engine` has none. Resolve `debian/changelog` per §10.1: released entries absorbed verbatim,
+   `cuems-common` and `cuems-editor`; `main` for `cuems-power-bridge`;
+   `cuems-engine` has none — and **`rc_1` for `cuems-nodeconf`, already done 2026-10-13** (§10.2).
+   Resolve `debian/changelog` per §10.1: released entries absorbed verbatim,
    the branch's `UNRELEASED` header dropped and its body folded upward. Suite green per repository
    **before** anything is renumbered. Check every §10.4 row: the library half is landed, and the
    consumer half has been applied on the consumer's refactor branch (for `cuems-nodeconf`, its
