@@ -7,7 +7,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 **Status: deferred, and deliberately unnumbered.** This work was feature **014** until 2026-10-02,
 then feature **015** until 2026-10-12. It is now **neither**: feature 015 is the consumer-gate
-closure ([`upcoming-feature-requirements-2026-10-02.md`](upcoming-feature-requirements-2026-10-02.md)),
+closure ([`upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)*](../015-consumer-gate-closure/spec.md)),
 and this becomes an upcoming feature **coordinated with `cuems-nodeconf` and `cuems-common`**,
 numbered when it is scheduled. It will probably land with the `xml-refactor` arc; that is a decision
 for later and is not made here.

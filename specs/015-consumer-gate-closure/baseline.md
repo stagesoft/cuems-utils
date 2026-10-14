@@ -107,3 +107,82 @@ change to the write-if-changed path (FR-041) — confirmed by
 ---
 
 *Sections below are filled in as each phase lands.*
+
+## Static-quality ratchet — registered after the sweep (T136)
+
+| Instrument | Tool (bound, T127) | Before | After | Gate from here |
+|---|---|---|---|---|
+| lint | ruff 0.17.0 (`>=0.17.0,<0.18`) | **606** (316 `src/` + 290 `tests/`) | **0** | **0** |
+| types | mypy 2.4.0 (`>=2.4.0,<3`) | **80** | **72** | **72** |
+
+Snapshots: `snapshots/lint-after.txt`, `snapshots/types-after.txt`; residue and reasons are in the
+latter. **Re-baseline trigger**: a minor bump of either tool inside its bound may legitimately move
+the count — record the new figure and attribute the delta to the tool. Behaviour-preservation
+(T135): the 8 re-cut XML goldens, the 24 wire-dict goldens and `outcomes.json` are byte-identical
+across the sweep (sha256 compared); the whitespace part (`W293`/`W291`) has an empty `diff -w`; the
+non-whitespace edits are the 7 `F541` and import sorts, done file by file with the suite after each
+(three files initially failed only on remint **timing** tests and passed on retry). Three judgement
+fixes worth naming: `E721` became `type(x) is Y` and **not** `isinstance` (exact-type assertions
+kept); `E712` became `is True`/`is False` and the suite stayed green, so those comparisons were
+genuine booleans; three bare `except:` became `except Exception:`.
+
+## Budgets after the code landed — measured 2026-10-14 (T116–T120, T123)
+
+**Interpreter**: the `hatch` build, CPython 3.11.9 python-build-standalone (Clang 18.1.8, PGO+LTO).
+**Box state — read this first.** An unrelated Chrome renderer was holding one core at ~80% for the
+whole session and `/proc/loadavg` read **2.0–3.1** throughout (the quickstart's quiet band is
+0.6–1.1; `nproc` = 12). The box then ran in two states: a slow one where *every* path reads ~2×
+(load 33 ms, save 28 ms — **discarded, not a result**) and a fast one that reproduces the branch
+point. Both arms were therefore run **interleaved in one session**, A = a throwaway `git worktree` at
+`75a958e`, B = this branch, and only the fast-state pairs are used. The raw pairs are in
+`snapshots/perf-paired-2026-10-14.txt`. By the sampling lesson (R10): consistency within a window is
+not evidence, so the verdicts below lean on the **A/B ratio**, not on the absolute figure.
+
+| Path | A: branch point | B: this branch | Δ | Budget | Verdict |
+|---|---|---|---|---|---|
+| show-document **load** | 17.217 / 17.219 ms | 17.317 / 17.294 ms | +0.5% | band 16.465–17.750 (bound 20.41) | **inside the band** |
+| show-document **save** | 14.186 / 14.800 | 14.870 / 14.971 | +1–5% | ≤ 16.4 ms | **met** |
+| `network_map` load | 1.117 / 1.159 | 1.044 / 1.086 | −5% | reported (SC-PERF-004) | not moved |
+| `settings` load | 2.470 / 2.519 | 2.427 / 2.620 | ±4% | reported | not moved |
+| `project_mappings` load | 4.844 / 5.065 | 5.062 / 5.367 | +4–6% | reported | within the ±4–8% spread |
+| **descriptor derivation**, `script` | **1.023 / 1.062 ms** | **2.791 / 2.873 ms** | **+170%** | **≤ 1.22 ms** | ⚠ **EXCEEDED** |
+| suite, per test | 36.03 s / 3553 = **10.14 ms** | 39.19 s / 3706 = **10.57 ms** | +4.3% | ≤ 10.3 ms/test | ⚠ absolute exceeded in this contended session; **relative +4.3%** |
+
+**The writer did not move the reader** (T118): all four load paths are inside their spread, and the
+show-document load equals its control to 0.5% — the proof an edit to the writer owed.
+
+### Exceeded, recorded as exceeded (T120, FR-PERF-001)
+
+1. **Descriptor derivation: 1.04 → 2.83 ms, +170%, against ≤ 1.22 ms.** The mechanism is identified
+   by profile, not guessed: of a 34-type `types('script')` call, **~80% of the cumulative time is
+   `descriptor._instance_for`** (1020 calls / 30 iterations), i.e. G3's wire-shaped, seeded,
+   recursively expanded `instance`, which every `describe()` now builds eagerly (FR-020..FR-025).
+   Per-type figure is ~65 µs. This is the cost of the feature the budget was set to police, not
+   an accident; it was predicted by SC-PERF-002's own wording ("both G3 and S2 change it"). It is a
+   warm, per-call cost on an `lru_cache`d path with one caller family (`get_schema_descriptor`),
+   so it is **accepted and carried, not mitigated here**. The obvious mitigation — build an
+   `instance` lazily on first access, or cache `_instance_for` and hand out copies — is a
+   follow-up with its own copy-safety question, because callers mutate instances (the editor's
+   tests do).
+2. **Suite per-test, absolute: 10.57 ms/test against ≤ 10.3.** The control arm read 10.14 in the same
+   contended session (the branch-point record is 8.93 on a quiet box), so ~13% of the figure is the
+   box, and the feature's own share is the **+4.3%** relative. 3706 vs 3553 passed: +153 tests.
+   Recorded exceeded rather than restated; re-measure on a quiet box before citing 10.57 anywhere.
+
+### SC-005a and SC-010 (T123)
+
+- **SC-005a, repairability invariance**: the 327-row table (schema · type · field · repairability ·
+  default) is **identical** to the pre-feature snapshot after normalising the address of one
+  callable default — `snapshots/repairability-after.txt`. **Zero entries changed.**
+- **SC-010, the union narrowing**: the five sites that reported a one-value choice set now report
+  `None` (no closed set), as S2 specifies — `network_map NodeType.uuid`, `settings NodeConfType.uuid`,
+  `project_mappings NodeMappingType.uuid`, and both `output_latency_ms` — against
+  `('00000000-0000-0000-0000-000000000000',)` / `('auto',)` before. `snapshots/union-enums-after.txt`.
+
+### Release gates, final run (T121, T121a, T122)
+
+`hatch run test.py3.11:lint` → **All checks passed** (606 → 0). `types:check src/cuemsutils` →
+**72** (80 → 72). Suite → **3707 passed, 115 skipped, 2 xfailed, 0 failed** in 38.8 s. The branch-point
+failures are all closed: the show-load line by the band (FR-079), the four cross-repository
+assertions by the tag resolver (FR-080), and `test_no_version_bump`'s sibling read, a fifth of the
+same class found on the way, re-pointed at the tag.

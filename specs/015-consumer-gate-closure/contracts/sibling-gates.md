@@ -91,6 +91,12 @@ rather than work to do.
 
 ### Measured tag state, 2026-10-13
 
+> ⚠ **Correction 2026-10-14 (T102):** the *Tag* column below holds annotated **tag-object** ids
+> (`git rev-parse <tag>`), not commits. As commits (`<tag>^{commit}`): `cuems-common` `e3c9430` and
+> `cuems-power-bridge` `399baf7` **match** `CLAUDE.md`; only `cuems-nodeconf` moved
+> (`b305c1c` → `5be6cf0`); `cuems-frontend` is `f5453a3`. "Three of four recorded values are wrong"
+> below is therefore one of four.
+
 | Repository | Tag | `CLAUDE.md` records | Verdict |
 |---|---|---|---|
 | `cuems-common` | `91b2d25` | `e3c9430` | ⚠ **moved** |

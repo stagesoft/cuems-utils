@@ -16,7 +16,7 @@ speckit features, `011` through `015`.
 2026-10-12. It is now **neither**: it moved out to
 [`hardware-outputs-capability-layer.md`](hardware-outputs-capability-layer.md) — deferred,
 unnumbered, and re-owned to `cuems-nodeconf` — and the **015 slot now holds the consumer-gate
-closure**, [`upcoming-feature-requirements-2026-10-02.md`](upcoming-feature-requirements-2026-10-02.md).
+closure**, [`upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)*](../015-consumer-gate-closure/spec.md).
 The 014 slot went to the `xs:boolean` + media-elements gate (§6), which landed 2026-10-12.
 
 Consequences for reading older text: features **012 and 013 are landed** and their documents say
@@ -144,7 +144,7 @@ So of the fourteen, **three are done** and eleven remain, all of them packaging 
 
 | Flag | State |
 |---|---|
-| **F1** — one writer per document, declared in the schema's annotation | ◐ **011's T072/T073** (decision Q11, 2026-09-28): the annotations land in one isolated commit that also moves the six hashes in `test_schema_scope`; the check joins `test_duplication_flags`. Before it: five of six schemas contain zero `xs:annotation` |
+| **F1** — one writer per document, declared in the schema's annotation | ✅ **011's T072/T073** (decision Q11, 2026-09-28) — corrected 2026-10-14 (feature 015, FR-092): **all six schemas carry the annotations** (measured: every `.xsd` under `src/cuemsutils/xml/schemas/` contains an `xs:annotation`). This row described them as pending after they had landed |
 | **F2** — a fact is declared once | ✅ `tests/contract/test_schema_name_overlap.py`. `KNOWN_DIVERGENT_DECLARATIONS` is now **empty** — `UuidType`, its last entry, was resolved by feature 012 (2026-09-30), which is that feature's completion marker (FR-025) |
 | **F3** — derived facts computed, never stored | ✅ ratchet in `tests/contract/test_duplication_flags.py`. Two live violations enumerated → §4.2 |
 | **F4** — one provenance per document | ✅ same file. `network_map`'s straddle recorded as a decision |
@@ -310,8 +310,8 @@ step 2  D15/D16/D17 values + generator   no SDD    DONE  e421e31
 step 3  feature 011  /etc/cuems first install         SDD        LANDED 2026-09-28 (82/82; nodeconf 003 gate CLOSED 2026-09-28)
 step 4  feature 012  uuid4 convergence                SDD        LANDED 2026-09-30 (101/101)
 step 5  feature 013  device-class reshape (F6)        SDD        LANDED 2026-10-01
-step 6  feature 014  xs:boolean + media block + config ingestion   reduced   LANDED 2026-10-12 (45/46; T039 outward, open), specs/014-xs-boolean-and-media-elements/
-step 7  feature 015  the consumer-gate closure (G1-G5) SDD       NEXT, specs/planning/upcoming-feature-requirements-2026-10-02.md
+step 6  feature 014  xs:boolean + media block + config ingestion   reduced   LANDED 2026-10-12 (46/46 — T039 closed the same day by `cuems-editor` 002; corrected 2026-10-14, feature 015, FR-092), specs/014-xs-boolean-and-media-elements/
+step 7  feature 015  the consumer-gate closure (G1-G5) SDD       IMPLEMENTED on its branch 2026-10-14 (the tag follows it), specs/015-consumer-gate-closure/
 step 8  (unnumbered) hardware_outputs capability layer  SDD       DEFERRED + re-owned, specs/planning/hardware-outputs-capability-layer.md
 ```
 
@@ -561,7 +561,7 @@ those forms; without 014 it would verify the wrong widget as correct.
 non-gate library gaps this folder had left stray.
 
 **This brief deliberately holds no detail.** It lives in
-[`upcoming-feature-requirements-2026-10-02.md`](upcoming-feature-requirements-2026-10-02.md) — §0a is
+[`upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)*](../015-consumer-gate-closure/spec.md) — §0a is
 the ranked work order, §9 is the straggler sweep — which is already the measurement and the consumer
 evidence for every item. Restating it here would create the second drifting copy this folder's
 deletion policy exists to prevent. What belongs *here* is only the sequencing:
@@ -690,9 +690,10 @@ reported all six schemas as show-layer violations for that reason alone. See
   the method to repeat, not the result to copy.
 - **Do not ship anything from this branch alone.** D27: nothing in this ecosystem releases by
   itself. The coordinated merge is what the `xml-refactor-merge-candidate` tag marks, and the
-  tag comes after 011–015, not before — where **015 is the consumer-gate closure**, not
-  `hardware_outputs`. The capability layer (step 8) is **outside** this tag and may ride a later
-  one. Reconciled 2026-10-12; §9.4 of the 015 brief records the contradiction this resolved.
+  tag comes after 011–015, not before — where **015 is the consumer-gate closure** (its five gates
+  G1–G5 are its work order), not `hardware_outputs`. The capability layer (step 8) is **outside**
+  this tag and may ride a later one. Reconciled 2026-10-12; the contradiction this resolved is
+  recorded in `specs/015-consumer-gate-closure/spec.md` (the source brief was deleted 2026-10-14).
 - **Do not give the capability layer a feature number in passing.** Two renumberings already left
   eight code and test sites naming a feature that had become something else — one of them a
   refusal message a consumer reads at runtime. Name the document, or name the behaviour.

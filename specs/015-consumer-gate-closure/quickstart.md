@@ -204,7 +204,7 @@ import sys; sys.argv=['cuems-reshape-devices','/tmp/pref3.xml']
 from cuemsutils.xml.reshape_devices import main; print('exit', main())"
 ```
 
-Today, verified at `75a958e`:
+At `75a958e` this printed:
 
 ```
 /tmp/pref3.xml: skipped (would not validate: ... Unexpected child with tag 'audio_cards' at position 3 ...)
@@ -212,7 +212,9 @@ nothing to do (1 skipped)
 exit 1
 ```
 
-**After the fix it must say `reshaped`, and the document must then load.** The red test is this
+**On the finished branch (verified 2026-10-14) it prints `reshaped`, exits 0, and the document then
+loads** (`load_config_document(Settings, …)` returns a `Settings`; the file is now indented).
+That composition — not a unit test on the converter — is the red test. The red test is this
 composition, not a unit test on the converter — a unit test with an already-reshaped tree would pass
 the moment the paths are added and would not catch the next instance of this class.
 
@@ -242,7 +244,7 @@ for td in sd.types('script'):
         print(td.key.name, json.dumps(td.instance, default=str))"
 ```
 
-Today: no wrapper, `channels` nested the wrong way, every scalar `null`. Compare against the wire
+At the branch point: no wrapper, `channels` nested the wrong way, every scalar `null`. Now (G3): the wrapper is present, `channels` is a list of single-key wrappers, `class` is set and every required scalar carries a value. Compare against the wire
 shape in `tests/golden/dict/cuems-engine__projects__complex_test__script.reader.json`.
 
 **The union narrowing (S2)** — five sites must stop reporting a one-value choice set:
@@ -277,11 +279,11 @@ print(len(rows))
 open('specs/015-consumer-gate-closure/snapshots/repairability-before.txt','w').write('\n'.join(map(str, sorted(rows))))"
 ```
 
-**The candidate tags (FR-080f)** — three of four recorded values are wrong:
+**The candidate tags (FR-080f)** — resolve the **commit** (`^{commit}`); a bare `rev-parse` of an annotated tag prints the tag object, which is what made three recorded values look wrong when only one (`cuems-nodeconf`) had moved:
 
 ```bash
 for r in cuems-common cuems-nodeconf cuems-power-bridge cuems-engine cuems-editor cuems-frontend cuems-utils; do
-  printf "%-22s %s\n" "$r" "$(git -C ../$r rev-parse --short xml-refactor-merge-candidate 2>/dev/null || echo 'no tag')"
+  printf "%-22s %s\n" "$r" "$(git -C ../$r rev-parse --short 'xml-refactor-merge-candidate^{commit}' 2>/dev/null || echo 'no tag')"
 done
 ```
 

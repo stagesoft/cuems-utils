@@ -187,7 +187,7 @@ obligations, and it is sequenced here because its subject is the five modules R2
 
 ## 3. The atomic step — R11 is five repositories, not one file
 
-Migrated from `upcoming-feature-requirements-2026-10-02.md` §3, which is where this was first
+Migrated from `upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)* §3, which is where this was first
 recorded. §1.1's table is the proof.
 
 > **The version move and the re-bound of five sibling packages are one step.** A library at `0.1.1`

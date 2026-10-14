@@ -177,3 +177,58 @@ The cheap defence is the one this feature institutionalises for cross-repository
 FR-080c: **assert against the artefact, not against a description of it.** Rows 1, 2, 3, 5 and 6
 above are each a file and a line number in somebody else's tree. Every one of them was found by
 looking, and three had been missed by every pass that did not.
+
+---
+
+## Re-verified after the code landed — 2026-10-14 (T105a–T105e, T106, T107)
+
+Measured in each checkout at its working tree (this library's tree: the uncommitted branch
+`015-consumer-gate-closure`; control arm: a throwaway `git worktree` at `75a958e`, never the shared
+checkout). Neither `cuems-editor` nor `cuems-engine` carries an `xml-refactor-merge-candidate` tag,
+so these are tips, not tags — **`not verifiable at a tag yet`** for those two, and the table is to be
+re-run when they are tagged.
+
+| # | Row | Measured status | Evidence |
+|---|---|---|---|
+| 1 | `cuems-editor` G1 | `verified outstanding` | `CuemsWsUser.py:258-261` `_config_path` still calls `conf_path(file_name)` / `project_path(project_uname, file_name)` with no `must_exist`; its G1 xfail still stands (4 xfailed) |
+| 2 | `cuems-editor` G2 | `verified outstanding` | `CONFIG_LOAD_REFUSED['project_settings']` at `:234`, absent from `CONFIG_LOAD_STEPS`, `:290` early-out intact |
+| 3 | `cuems-nodeconf` G4 | `verified outstanding` | no `node_set` anywhere under `cuemsnodeconf/`; editor's `test_nodeconf_engine_callback_accepts_node_set` still xfails *unknown action* (the control reading); the library half (`NodeIndex.set_alias`) is landed; the handler spec is `../cuems-nodeconf/specs/planning/12-node-set-alias.md` |
+| 4 | `cuems-frontend` G3 | `verified outstanding`, deletable in one edit | `toWireShape` + `UR1_UI_STARTING_VALUES` (`schema-descriptor.handler.ts:84,149`) are called from `project-create.handler.ts:19,37` only. **Measured against the library's instances (T106)**: repeated containers arrive as lists of single-key wrappers (`channels: [{"channel": …}]`), `class` is present, every required scalar carries a value — so nothing needs hand-authoring on the UI side. ⚠ **The values differ from the UI's table**: library seeds are `output_vol 0`, `channel_vol 0`, `x_scale/y_scale 0.0`, where the UI's table gives `80`, `80`, `1`, `1`. Deleting the transform in one edit therefore **changes what a new output starts at**; that is a product decision for the frontend, not a defect here |
+| 5 | `cuems-editor` G3 docstring | `verified outstanding` | `_root_instance` (`CuemsWsUser.py:264-270`) still reads *"not a saveable document: its required leaves are null"*, now false |
+| 6 | `cuems-editor` S1 | `verified outstanding` | `node_reads.py:38` `_COLLIDED_IDENTITY` regex and the `''` fallback in `collided_identity` both still present; `NodeIdentityCollisionError` is not named anywhere in `src/` |
+| 7 | `cuems-engine` dead-end doc | `not verifiable here` | the checkout is on `format/module_extraction` (`a197cac`), a branch with **no `feat/xml-refactor` line** — it imports `cuemsutils.CTimecode`, a path absent from both arms, so its suite cannot even collect (4 errors in each arm). Not switched: moving a sibling's branch is not this feature's to do |
+| 8 | control population | `verified done` | unchanged |
+| 9 | fixtures the indenting writer breaks | **one found, closed** (below) | see T107/T108 |
+| 10 | tag-readiness record | reconciled | see below |
+
+### What flipped, and what did not (editor's seven strict xfails)
+
+| Test | Result with this library | Why |
+|---|---|---|
+| `test_a_config_root_instance_saves_through_config_save[settings]` | **XPASS(strict)** — flipped | G3 (b) landed |
+| `…[project_mappings]` | **flipped** | same |
+| `…[project_settings]` | **flipped** | same |
+| `test_a_cue_built_from_the_descriptor_instance_saves_through_project_save` | **still xfails** — *not* the flip SC-012 claimed | the failure is now `missing required attribute 'class'` at `CueOutput`, and the cause is the **test's construction**, not the library: it takes `_script_instance('AudioCueOutputsType')`, which now (FR-021) *already carries* the `CueOutput` wrapper and `class`, then sets `output_name` beside it and wraps it again as `{'CueOutput': [output]}` — a double wrap built for the old, unwrapped instance. Rebuilding that one construction is the editor's half of G3 (a) |
+| G1, G2, G4 | still xfail | each has a consumer half (rows 1–3) |
+
+So **three of the four** flips SC-012 claimed happen on this library change; the fourth needs the
+editor to follow FR-021. SC-012's "four" is corrected here rather than in the frozen spec.
+
+### T108 — the fixture this feature broke, closed in the sibling
+
+`cuems-editor` `tests/test_repair_durations.py::test_structured_duration_differing_from_the_database_is_reported`
+failed only on this branch: it asserted `…</CTimecode></duration>` after stripping `\n`, which
+left the indentation. Fixed in that checkout to strip inter-element whitespace. The three flipped
+xfails had their markers removed (S6: *the marker comes off and the assertion stays*). **Both edits
+are uncommitted in `../cuems-editor`** for the maintainer to review there. After them the editor's
+suite is `2 failed · 261 passed · 3 skipped · 4 xfailed`; the 2 failures
+(`test_document_load_report.py::test_an_unrepairable_open_is_document_load_failed[…]`) fail
+identically on the control arm and are not this feature's.
+
+### T105e — reconciled with `../cuems-editor/specs/002-config-round-trip/tag-readiness.md`
+
+Both list the same seven xfails and the same owners; they agree row by row, with two corrections
+this measurement forces on the editor's record (not edited there — that is its repository's record):
+the three config-root G3 rows are no longer standing, and the G3 cue row's flip condition is
+*"the test builds the cue from the wrapped instance"*, not only a library change. **G5**: closed in
+this library (`b43bc50`), no editor test, as that record says.

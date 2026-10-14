@@ -30,7 +30,7 @@ and the file inventory in this repository.
 **It reverses three standing decisions**, each recorded where it was made rather than quietly
 overwritten: §12/§12.1 of [`etc-cuems-first-install.md`](etc-cuems-first-install.md) ("the library
 version stays at `0.1.0rc16`" / "why not `0.1.1`"), §0a of
-[`upcoming-feature-requirements-2026-10-02.md`](upcoming-feature-requirements-2026-10-02.md) ("the
+[`upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)*](../015-consumer-gate-closure/spec.md) ("the
 version does not move for this tag"), and decision 2 of
 `specs/014-xs-boolean-and-media-elements/plan.md` ("the branch stays on rc16").
 
@@ -144,7 +144,7 @@ Verified with `dpkg`: the pair refuses every `0.1.0rcN` (including the released 
 break an unmigrated consumer at runtime.
 
 ⚠ **`<< 0.2.0~` is wrong** — both `deprecated-surface-removal-v0-1-1.md` §3 and
-`upcoming-feature-requirements-2026-10-02.md` §3 propose it, and it would admit `0.1.2`, the release
+`upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)* §3 propose it, and it would admit `0.1.2`, the release
 that deletes the surface the ceiling exists to protect. It is `<< 0.1.2~`.
 
 ### 4.2 Edges naming `cuems-common` → `1.3.1`
@@ -235,16 +235,16 @@ line there gets *run*, not merely read.
 
 | File | Sites | What has to change |
 |---|---|---|
-| `specs/planning/feature-014-sibling-gate-prompt.md` | 111-113, 134, 477 | the check `expect: 0.1.0rc16` and **"Do not bump any version or dependency bound"** — handed to sibling flows, the most dangerous stale instruction in the set |
-| `specs/planning/upcoming-feature-requirements-2026-10-02.md` | 44-54, 225, 233, 238-254, 280 | §0a's **"The version does not move for this tag"**, its "do not propose an `rc17`", and its "§3 belongs to a later release and is unaffected". §3's ceiling → `<< 0.1.2~`. §0a is the current work order for the tag, so correct it first |
+| `specs/planning/feature-014-sibling-gate-prompt.md` *(deleted 2026-10-14, feature 015; in git history)* | 111-113, 134, 477 | the check `expect: 0.1.0rc16` and **"Do not bump any version or dependency bound"** — handed to sibling flows, the most dangerous stale instruction in the set |
+| `specs/planning/upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)* | 44-54, 225, 233, 238-254, 280 | §0a's **"The version does not move for this tag"**, its "do not propose an `rc17`", and its "§3 belongs to a later release and is unaffected". §3's ceiling → `<< 0.1.2~`. §0a is the current work order for the tag, so correct it first |
 | `specs/planning/etc-cuems-first-install.md` | 959, 1327-1360 | **§12 and §12.1 are the decision being overturned** — rewrite. §12.1's two reasons were sound and are now *resolved*: `REMOVAL_RELEASE` moves with the version, and the ceilings re-bind in the same step |
 | `specs/planning/etc-cuems-first-install-execution.md` | 25, 92-94, 285, 640-641 | "Do not move the library version off `0.1.0rc16`" reverses |
-| `specs/planning/refactor-sequencing-2026-10-01.md` | 30, 77, 108, 223 | §2's hostage argument and "if `v0.1.1` is not wanted soon" both resolve |
-| `specs/planning/editor-001-amend-after-013-prompt.md` | 279 | "Do not lower `cuemsutils>=0.1.0rc16,<0.1.1`" → it is now *raised* |
-| `specs/planning/editor-specify-prompt.md` | 156 | the `v0.1.1` move reference |
+| `specs/planning/refactor-sequencing-2026-10-01.md` *(deleted 2026-10-14 by feature 015, T110; its residue is `adoption-liveness-ui-tier.md`; recoverable from git history)* | 30, 77, 108, 223 | §2's hostage argument and "if `v0.1.1` is not wanted soon" both resolve |
+| `specs/planning/editor-001-amend-after-013-prompt.md` *(deleted 2026-10-14, feature 015; in git history)* | 279 | "Do not lower `cuemsutils>=0.1.0rc16,<0.1.1`" → it is now *raised* |
+| `specs/planning/editor-specify-prompt.md` *(deleted 2026-10-14, feature 015; in git history)* | 156 | the `v0.1.1` move reference |
 | `specs/planning/tools-external-consumers-and-timeoutloop-migration.md` | 216 | `REMOVAL_RELEASE` quote; R6's coordination point |
-| `specs/planning/stored-media-values-preimplementation.md` | 142, 203, 237 | quoted sibling pins; the "rc15 must be on PyPI first" precondition now reads against `0.1.1` |
-| `specs/planning/media-pixel-dimensions-for-xml-refactor.md` | 156 | engine pin quote (low) |
+| `specs/planning/stored-media-values-preimplementation.md` *(deleted 2026-10-14, feature 015; in git history)* | 142, 203, 237 | quoted sibling pins; the "rc15 must be on PyPI first" precondition now reads against `0.1.1` |
+| `specs/planning/media-pixel-dimensions-for-xml-refactor.md` *(deleted 2026-10-14, feature 015; in git history)* | 156 | engine pin quote (low) |
 | `specs/planning/xml-rebuild/010-consumer-prompts/00-cuems-utils.md` | 28, 119, 245 | plus single-line hits in `01`, `02`, `03`, `04`, `04a`, `04b`, `07`, `README.md` |
 | `specs/010-consumer-migration/contracts/release-gate.md` | **18** | the gate contract itself — its `dpkg` table and every "closed edge" verdict assume `<< 0.1.1~` |
 | `specs/010-consumer-migration/baseline.md` | **19** | incl. §T090 ("inside `0.1.0rc16`, no bump" — §2 retires its premise) and the four-edge table at 1458-1471 |
@@ -412,7 +412,7 @@ as debt, which also means **the relation edits in §4 should be made after the m
 3. **When `0.1.1` goes to PyPI, relative to the sibling `.deb` builds.** *Not* whether — that is
    settled: `debian/bookworm`'s `0.1.0rc16+1` entry states "cuemsutils 0.1.0rc16 on PyPI", so the
    parallel line already publishes. But `dh-virtualenv` resolves the editor's `cuemsutils` bound
-   from PyPI at build time (`stored-media-values-preimplementation.md` §203), so **`0.1.1` must be on
+   from PyPI at build time (`stored-media-values-preimplementation.md` *(deleted 2026-10-14, feature 015; in git history)* §203), so **`0.1.1` must be on
    PyPI before any sibling `.deb` that bounds `>= 0.1.1` can be built.** That orders step 6's
    coordinated set internally, and nothing in §11 currently says so.
 4. ~~How the branches behind their release lines catch up.~~ **Answered 2026-10-12: merge before
