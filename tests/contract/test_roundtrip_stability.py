@@ -71,6 +71,13 @@ def test_stability_holds_for_a_third_cycle(doc, tmp_path):
 #: carry it (``doc_version="2"``, this schema's current version), which is
 #: what keeps this file's claim strengthened rather than silently
 #: reclassifying these two into ``REFORMATTED``.
+#:
+#: Feature 015 (S3, T090/T091): the writer now **indents**, so these two were
+#: re-authored by hand-in-effect (regenerated through the writer, verified
+#: equal to their previous content modulo inter-element whitespace) in the new
+#: output form. The set is **unchanged on purpose** -- the decision recorded
+#: here is that they stay classified as identity rather than being quietly
+#: moved to ``REFORMATTED``; no document in ``REFORMATTED`` became identity.
 FIRST_CYCLE_IS_IDENTITY = {
     "cuems-utils/fade_showcase.xml",
     "cuems-utils/unicode_showcase.xml",

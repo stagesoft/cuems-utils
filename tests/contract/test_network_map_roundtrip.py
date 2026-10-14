@@ -1,14 +1,26 @@
 """Contract C4 — the round trip is a declared transformation, not byte identity.
 
 For every normalised corpus ``network_map.xml`` (C4a — normalisation already
-landed in Phase 1), the diff between the pre-state copy and what ``save()``
-writes back is exactly the ``node_type`` -> ``node_role`` rename plus its
-value mapping, and nothing else.
+landed in Phase 1), the only differences between the pre-state copy and what
+``save()`` writes back are the three independent, named normalisations below
+— and nothing else.
+
+**Re-authored for S3 (feature 015, T090a).** This test used to compare the
+two documents by **unified-diff line count**, on the stated ground that "the
+whole document is one line after normalisation, so the rename+mapping
+collapses the diff to a single before/after pair." Once the writer indents
+(S3), that collapse no longer happens: each of the three independent
+normalisations below lands on its own line, so a line-count diff would see
+several hunks where it used to see one. The comparison is now **full
+equality after applying the same three normalisations to both sides**,
+which does not depend on how many lines the document spans. The pre-state
+documents themselves are re-indented to match the writer's new output form,
+exactly as the live corpus documents already are — a comparison, not a
+content change, since every value they carry is untouched.
 """
 
 from __future__ import annotations
 
-import difflib
 import warnings
 
 import pytest
@@ -35,6 +47,47 @@ def _decoded(path: str):
     return Mapper("network_map").decode_config(raw)
 
 
+def _normalize_pre_state(text: str) -> str:
+    """007's rename, applied to the *old*-shape text: ``node_type`` ->
+    ``node_role``, with the value mapping."""
+    for found, role in (("NodeType.master", "controller"), ("NodeType.slave", "node")):
+        text = text.replace(f"<node_type>{found}</node_type>", f"<node_role>{role}</node_role>")
+    return text
+
+
+def _normalize_produced(text: str) -> str:
+    """The two independent, later normalisations the *new*-shape text picks
+    up on every write, stripped so this test stays about the 007 rename
+    alone.
+
+    ``doc_version``'s value is read from the registry rather than spelled,
+    because it moves whenever the schema does and this test is not about
+    that: feature 012 took ``network_map`` to 2, and hardcoding "1" here
+    would have made a correct version bump look like a broken rename.
+    """
+    from cuemsutils.xml.versioning import CURRENT_VERSION
+
+    text = text.replace(f' doc_version="{CURRENT_VERSION["network_map"]}"', "")
+    return text
+
+
+def _normalize_pre_state_booleans(text: str) -> str:
+    """Feature 014 (X1): ``adopted``/``online`` are ``xs:boolean`` now,
+    whose lexical space is ``true``/``false``, where ``cms:BoolType``'s was
+    ``True``/``False``.
+
+    The pre-state document is **not** rewritten to match this one — it is
+    007's frozen historical record of what was on disk before that rename,
+    and a landed feature's own directory is not retroactively edited to keep
+    a later feature's test green — the normalisation goes on the side that
+    moved, applied here rather than stored in the file.
+    """
+    for old_form, new_form in (("True", "true"), ("False", "false")):
+        for name in ("adopted", "online"):
+            text = text.replace(f"<{name}>{old_form}</{name}>", f"<{name}>{new_form}</{name}>")
+    return text
+
+
 @pytest.mark.parametrize("live_path,pre_state_relpath", CASES, ids=[c[0] for c in CASES])
 def test_round_trip_diff_is_exactly_the_rename_and_value_mapping(
     live_path, pre_state_relpath, tmp_path
@@ -45,60 +98,17 @@ def test_round_trip_diff_is_exactly_the_rename_and_value_mapping(
     pre_state_text = (PRE_STATE / pre_state_relpath).read_text()
     produced_text = out.read_text()
 
-    diff = list(
-        difflib.unified_diff(
-            pre_state_text.splitlines(), produced_text.splitlines(), lineterm=""
-        )
-    )
-    body_lines = [
-        line for line in diff
-        if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))
-    ]
-    # Exactly one removed line and one added line: the whole document is one
-    # line after normalisation (Phase 1), so the rename+mapping collapses the
-    # diff to a single before/after pair.
-    assert len(body_lines) == 2, body_lines
-    removed_text = next(line[1:] for line in body_lines if line.startswith("-"))
-    added_text = next(line[1:] for line in body_lines if line.startswith("+"))
+    # The rename must actually be present on each side before normalising
+    # it away, or the comparison below would pass vacuously on two
+    # documents that never differed in the first place.
+    assert "<node_type>" in pre_state_text
+    assert "<node_type>" not in produced_text
+    assert "<node_role>" in produced_text
 
-    # node_type is gone, node_role has taken its place with the mapped value,
-    # and every other byte is identical.
-    assert "<node_type>" in removed_text
-    assert "<node_type>" not in added_text
-    assert "<node_role>" in added_text
-    stripped_removed, stripped_added = removed_text, added_text
-    for found, mapped in (("NodeType.master", "controller"), ("NodeType.slave", "node")):
-        stripped_removed = stripped_removed.replace(f"<node_type>{found}</node_type>", "X")
-        stripped_added = stripped_added.replace(f"<node_role>{mapped}</node_role>", "X")
-    # ``doc_version`` (feature 008, ITEM E, FR-053) is a second, independent
-    # addition every write picks up from here on — orthogonal to the 007
-    # rename this test is about, so it is stripped before the comparison
-    # rather than left to fail it.
-    #
-    # Its **value** is read from the registry rather than spelled, because it
-    # moves whenever the schema does and this test is not about that: feature
-    # 012 took network_map to 2, and hardcoding "1" here would have made a
-    # correct version bump look like a broken rename.
-    from cuemsutils.xml.versioning import CURRENT_VERSION
+    normalized_pre_state = _normalize_pre_state_booleans(_normalize_pre_state(pre_state_text))
+    normalized_produced = _normalize_produced(produced_text)
 
-    stripped_added = stripped_added.replace(
-        f' doc_version="{CURRENT_VERSION["network_map"]}"', "")
-
-    # Feature 014 (X1) is a **third** independent change every write picks up,
-    # normalised the same way and for the same reason: ``adopted``/``online``
-    # are ``xs:boolean`` now, whose lexical space is ``true``/``false``, where
-    # ``cms:BoolType``'s was ``True``/``False``.
-    #
-    # The pre-state document is **not** rewritten to match. It is 007's frozen
-    # historical record of what was on disk before that rename, and a landed
-    # feature's own directory is not retroactively edited to keep a later
-    # feature's test green — the normalisation goes on the side that moved.
-    for old_form, new_form in (("True", "true"), ("False", "false")):
-        for name in ("adopted", "online"):
-            stripped_removed = stripped_removed.replace(
-                f"<{name}>{old_form}</{name}>", f"<{name}>{new_form}</{name}>")
-
-    assert stripped_removed == stripped_added
+    assert normalized_pre_state == normalized_produced
 
 
 @pytest.mark.parametrize("live_path", [c[0] for c in CASES])

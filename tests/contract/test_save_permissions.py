@@ -185,6 +185,13 @@ def test_a_failed_write_leaves_the_target_untouched(tmp_path):
     os.chmod(target, 0o640)
 
     class Exploding:
+        # ``write_tree`` now calls ``ET.indent(tree, ...)`` before
+        # ``tree.write(...)`` (S3) — ``indent`` checks ``len(tree)`` first
+        # and returns immediately for an "empty" one, so ``__len__`` must
+        # be supported for the failure to still surface from ``write``.
+        def __len__(self):
+            return 0
+
         def write(self, *a, **kw):
             raise RuntimeError("serialization failed partway")
 

@@ -6,15 +6,15 @@ garbage) and the schema change that makes ``<duration>`` a ``cms:CTimecodeType``
 FR-002/FR-003) — instead of the unconstrained plain-string ``TimecodeType`` it
 used to be.
 """
-from os import path
+
+import re
 
 import pytest
 
-from cuemsutils.cues import CuemsScript, CueList, AudioCue
+from cuemsutils.cues import AudioCue, CueList, CuemsScript
 from cuemsutils.cues.MediaCue import Media, Region
 from cuemsutils.tools.CTimecode import CTimecode
 from cuemsutils.xml import XmlReaderWriter
-
 
 # ------------------------------------------------------------------ setter ---
 
@@ -102,10 +102,13 @@ def test_xsd_rejects_malformed_duration(tmp_path):
     f = str(tmp_path / 'bad.xml')
     XmlReaderWriter(schema_name='script', xmlfile=f).write_from_object(script)
     with open(f) as handle:
-        raw = handle.read().replace(
-            '<duration><CTimecode>00:00:01.000</CTimecode></duration>',
-            '<duration><CTimecode>banana</CTimecode></duration>',
+        # Whitespace-tolerant: the writer indents (feature 015, S3).
+        raw = re.sub(
+            r'(<duration>\s*<CTimecode>)00:00:01\.000(</CTimecode>\s*</duration>)',
+            r'\1banana\2',
+            handle.read(),
         )
+        assert 'banana' in raw
     with open(f, 'w') as handle:
         handle.write(raw)
     with pytest.raises(Exception):   # XMLSchemaValidationError on strict read

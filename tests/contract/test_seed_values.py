@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import re
 from pathlib import Path
 
 import pytest
@@ -138,6 +139,11 @@ def test_generated_settings_is_byte_identical_after_the_move(tmp_path):
 
     normalised = produced.replace(f'doc_version="{current}"'.encode(),
                                   b'doc_version="2"')
+    # Feature 015 (S3): the writer indents, and the digest was recorded from
+    # a one-line document. Whitespace *between* elements is stripped so the
+    # digest keeps asserting what it always did -- that no value moved --
+    # rather than being re-recorded, which would assert nothing.
+    normalised = re.sub(rb"(?<!\?)>\s+<", b"><", normalised).strip()
     assert hashlib.sha256(normalised).hexdigest() == PRE_MOVE_SHA256, (
         "the generated settings.xml changed by more than its version marker"
     )

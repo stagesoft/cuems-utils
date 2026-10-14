@@ -15,12 +15,13 @@ sites rather than of a flag threaded through here.
 
 from __future__ import annotations
 
+import io
 import os
 import stat
 import tempfile
 from os import PathLike
 from pathlib import Path
-from xml.etree.ElementTree import ElementTree, register_namespace
+from xml.etree.ElementTree import ElementTree, indent, register_namespace
 
 from xmlschema import XMLSchema11
 
@@ -286,6 +287,27 @@ def _mode_for(target: Path) -> int:
         return _NEW_DOCUMENT_MODE & ~_current_umask()
 
 
+def serialize_tree(tree: ElementTree) -> bytes:
+    """The bytes of ``tree`` as this library writes a document (S3, FR-070).
+
+    **The one serialization point**: encoding, XML declaration, the ``cms``
+    prefix registration and indentation all live here, so every writer —
+    ``write_tree``'s atomic file replace and ``cuems-init-node``'s
+    set-of-three — produces the same bytes for the same tree. Nothing
+    else in the package calls ``ElementTree.write``.
+
+    ``ET.indent`` preserves mixed content by its own contract — verified
+    directly, and the one mixed-content type in the six schemas
+    (``script:UiPropertiesType``) is the one place that guarantee matters
+    (FR-073). The tree is indented **in place**, as ``indent`` does.
+    """
+    register_namespace(next(iter(NAMESPACE)), next(iter(NAMESPACE.values())))
+    indent(tree, space="  ")
+    buffer = io.BytesIO()
+    tree.write(buffer, encoding="utf-8", xml_declaration=True)
+    return buffer.getvalue()
+
+
 def write_tree(tree: ElementTree, target: str | PathLike) -> None:
     """Write ``tree`` to ``target`` atomically (FR-003, FR-036a).
 
@@ -322,8 +344,10 @@ def write_tree(tree: ElementTree, target: str | PathLike) -> None:
     ``cms:`` turned into ``ns0:`` — found by ``test_roundtrip_stability.py``'s
     canonical-document assertion, because the library's own writer would then no
     longer reproduce the file byte for byte.
+
+    **The document is indented** (S3, FR-070, research R8) by
+    :func:`serialize_tree`, the one serialization point every writer shares.
     """
-    register_namespace(next(iter(NAMESPACE)), next(iter(NAMESPACE.values())))
     target = Path(os.fspath(target))
     handle, temporary = tempfile.mkstemp(
         dir=str(target.parent), prefix=f".{target.name}.", suffix=".tmp"
@@ -331,7 +355,9 @@ def write_tree(tree: ElementTree, target: str | PathLike) -> None:
     os.close(handle)
     try:
         os.chmod(temporary, _mode_for(target))
-        tree.write(temporary, encoding="utf-8", xml_declaration=True)
+        data = serialize_tree(tree)
+        with open(temporary, "wb") as out:
+            out.write(data)
         os.replace(temporary, target)
     except BaseException:
         try:

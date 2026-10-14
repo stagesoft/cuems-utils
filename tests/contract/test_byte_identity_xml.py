@@ -77,11 +77,16 @@ def test_no_trailing_newline(golden):
 
 
 @pytest.mark.parametrize("golden", ALL_XML)
-def test_no_indentation(golden):
-    """One line after the declaration — no pretty-printing anywhere."""
+def test_indentation(golden):
+    """Two-space indentation, one element per line (feature 015, S3).
+
+    Was ``test_no_indentation`` -- "one line after the declaration" -- until
+    the writer began indenting. Inverted rather than deleted: the property
+    under contract is still *uniform layout*, now the opposite one.
+    """
     body = rt.golden_bytes(golden).split(b"\n", 1)[1]
-    assert b"\n" not in body
-    assert b"  <" not in body
+    assert b"\n" in body
+    assert b"\n  <" in body
 
 
 @pytest.mark.parametrize("golden", ALL_XML)

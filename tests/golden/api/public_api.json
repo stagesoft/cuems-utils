@@ -59,6 +59,17 @@
         "__init__": "(self, document: 'str', outcome: 'Outcome', conversions: 'tuple[ConversionRecord, ...]' = (), repairs: 'tuple[RepairRecord, ...]' = (), file_differs_from_loaded: 'bool' = False) -> None"
       }
     },
+    "NodeIdentityCollisionError": {
+      "bases": [
+        "ValidationError"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, message: 'str', *, collisions: 'dict', file: 'str', violation=None)",
+        "add_note": "<no signature>",
+        "with_traceback": "<no signature>"
+      }
+    },
     "Outcome": {
       "bases": [
         "Enum"
@@ -121,7 +132,7 @@
       "kind": "type",
       "methods": {
         "__init__": "(self, config_dir: str)",
-        "conf_path": "(self, file_name: str) -> str",
+        "conf_path": "(self, file_name: str, *, must_exist: bool = True) -> str",
         "load_base_settings": "(self, base_dir: str)",
         "set_dir_hierarchy": "(self) -> None"
       }
@@ -134,7 +145,7 @@
       "methods": {
         "__init__": "(self, config_dir: str = '/etc/cuems/', load_all: bool = True)",
         "check_project_mappings": "(self) -> bool",
-        "conf_path": "(self, file_name: str) -> str",
+        "conf_path": "(self, file_name: str, *, must_exist: bool = True) -> str",
         "from_json": "(self, schema: cuemsutils.tools.ConfigManager.SchemaName, payload)",
         "generate_example": "(self, schema: cuemsutils.tools.ConfigManager.SchemaName)",
         "get_audio_output_id": "(self, mapping_name: str)",
@@ -147,7 +158,7 @@
         "load_project_config": "(self, project_uname: str) -> None",
         "load_project_mappings": "(self, project_uname: str)",
         "load_project_settings": "(self, project_uname: str)",
-        "project_path": "(self, project_uname: str, file_name: str) -> str",
+        "project_path": "(self, project_uname: str, file_name: str, *, must_exist: bool = True) -> str",
         "save_network_map": "(self, path: str | None = None) -> None",
         "save_project_mappings": "(self, project_uname: str, path: str | None = None) -> None",
         "save_project_settings": "(self, project_uname: str, path: str | None = None) -> None",
@@ -207,6 +218,36 @@
         "to_wire": "(self) -> dict",
         "update": "<no signature>",
         "validate": "(self)",
+        "values": "<no signature>"
+      }
+    },
+    "NodeIndex": {
+      "bases": [
+        "dict"
+      ],
+      "kind": "type",
+      "methods": {
+        "__init__": "(self, nodes: 'dict | None' = None)",
+        "adopt": "(self, node_uuid) -> 'bool'",
+        "by_role": "(self, role: 'NodeRole') -> 'tuple[node, ...]'",
+        "clear": "<no signature>",
+        "copy": "<no signature>",
+        "ensure": "(self, entry) -> 'bool'",
+        "from_nodes": "(nodes, key: 'Callable[[node], Hashable]') -> \"'NodeIndex'\"",
+        "fromkeys": "(iterable, value=None, /)",
+        "get": "(self, key, default=None, /)",
+        "items": "<no signature>",
+        "keys": "<no signature>",
+        "merge": "(self, discovered) -> 'None'",
+        "missing_adopted": "(self, discovered) -> 'tuple'",
+        "pop": "<no signature>",
+        "popitem": "(self, /)",
+        "set_alias": "(self, node_uuid, alias: 'str | None') -> 'bool'",
+        "set_controller_always_adopted": "(self) -> 'None'",
+        "setdefault": "(self, key, default=None, /)",
+        "signature": "(self) -> 'tuple'",
+        "unadopt": "(self, node_uuid) -> 'bool'",
+        "update": "<no signature>",
         "values": "<no signature>"
       }
     }

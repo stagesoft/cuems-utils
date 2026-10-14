@@ -2,7 +2,7 @@
   "ConfigBase": {
     "conf_path": {
       "kind": "method",
-      "signature": "(self, file_name: str) -> str"
+      "signature": "(self, file_name: str, *, must_exist: bool = True) -> str"
     },
     "config_dir": {
       "kind": "property",
@@ -84,7 +84,7 @@
     },
     "conf_path": {
       "kind": "method",
-      "signature": "(self, file_name: str) -> str"
+      "signature": "(self, file_name: str, *, must_exist: bool = True) -> str"
     },
     "config_dir": {
       "kind": "property",
@@ -192,7 +192,11 @@
     },
     "project_path": {
       "kind": "method",
-      "signature": "(self, project_uname: str, file_name: str) -> str"
+      "signature": "(self, project_uname: str, file_name: str, *, must_exist: bool = True) -> str"
+    },
+    "project_settings": {
+      "kind": "property",
+      "return": "CuemsProjectSettingsType"
     },
     "set_dir_hierarchy": {
       "kind": "method",

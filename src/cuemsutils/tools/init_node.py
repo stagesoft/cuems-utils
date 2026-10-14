@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
-import io
 import os
 import socket
 import subprocess
@@ -33,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from ..xml.seed_values import SeedValueError
-from .identity_check import (  # noqa: F401 — re-exported: the wording constants are this tool's public face
+from .identity_check import (  # re-exported: the wording constants are this tool's public face
     FIX_NODECONF,
     FIX_PLAIN,
     FIX_REMINT,
@@ -202,7 +201,7 @@ def _load_existing(conf: Path, only: tuple[str, ...] = DOCUMENTS) -> dict[str, A
             continue
         try:
             existing[name] = reader(str(path)).get_dict()
-        except Exception as exc:  # noqa: BLE001 — any read failure is class 2, named
+        except Exception as exc:  # any read failure is class 2, named
             raise Unreadable(f"{path}: cannot be read ({type(exc).__name__}: {exc})") from exc
     return existing
 
@@ -255,15 +254,15 @@ def _three_way(name: str, computed: dict[str, Any], on_disk: dict[str, Any] | No
 
 def _serialize(obj: Any, schema: str) -> bytes:
     from ..errors import SchemaError
-    from ..xml.documents import build_tree, iter_schema_errors
+    from ..xml.documents import build_tree, iter_schema_errors, serialize_tree
     from ..xml.validators import violation_from_schema_error
 
     tree = build_tree(obj, schema)
     for error in iter_schema_errors(schema, tree):
         raise SchemaError(str(violation_from_schema_error(error)))
-    buffer = io.BytesIO()
-    tree.write(buffer, encoding="utf-8", xml_declaration=True)
-    return buffer.getvalue()
+    # S3: the one serialization point, so these documents are indented like
+    # every other this library writes.
+    return serialize_tree(tree)
 
 
 def _mode_for(target: Path) -> int:
@@ -333,7 +332,7 @@ def _map_identities(conf: Path) -> dict[str, str]:
         return {}
     try:
         root = ET.parse(str(path)).getroot()
-    except Exception:  # noqa: BLE001 — an unreadable map refuses nothing
+    except Exception:  # an unreadable map refuses nothing
         return {}
     found = {}
     for element in root.iter():
@@ -536,7 +535,7 @@ def _run(args) -> int:
             if SENTINEL.encode() in payload or SENTINEL_MAC.encode() in payload:
                 raise Refusal(f"{conf / name}: a sentinel token survived specialisation; refusing to write")
 
-    if record is None and any(name in existing for name in targets) and not args.reset:  # noqa: E501
+    if record is None and any(name in existing for name in targets) and not args.reset:
         print(f"{write_record.record_path(state)}: no write record; every on-disk difference is treated as an operator edit")
     for name, path, value in kept:
         print(f"{conf / name}: {MODIFIED_KEPT} {path}={value!r} (run {FIX_RESET} to revert)")
@@ -664,7 +663,7 @@ def main(argv: list[str] | None = None) -> int:
     lock_path = Path(args.lock_file)
     try:
         lock_path.parent.mkdir(parents=True, exist_ok=True)
-        lock = open(lock_path, "w")  # noqa: SIM115 — held for the run
+        lock = open(lock_path, "w")  # held for the run
     except OSError as exc:
         print(f"ERROR: cannot open lock file {lock_path}: {exc}", file=sys.stderr)
         return 2
