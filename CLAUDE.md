@@ -348,9 +348,12 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   - **`cuems-hardware-discovery` is not a repository and will not be one.** The probe role, the
     `display.conf` transcription and any related machinery are **`cuems-nodeconf`'s**. The seam is
     **`cuems-common` generates `display.conf`, `cuems-nodeconf` probes and transcribes,
-    `cuems-utils` describes and persists** — and the real gate is nodeconf accepting that, which it
-    has not recorded yet (zero mentions of `display.conf`/`hardware_outputs`/`hardware-discovery`
-    across its `specs/`, measured 2026-10-12).
+    `cuems-utils` describes and persists** — and the real gate was nodeconf accepting that. **It
+    has, as of 2026-10-13** (`2bbec36`, verified 2026-10-14): `../cuems-nodeconf/specs/planning/13-atomization-remeasured.md`
+    rows 13 (hardware probe → `hardware_outputs.xml`, with `CuemsHwDiscovery.py` on its
+    `origin/main` as prior art) and 14 (`display.conf` transcription) are assigned to that
+    repository. One condition remains open there: `cuems-common` must agree to a second reader of
+    `display.conf`. (Measured 2026-10-12, its `specs/` had zero mentions of any of this.)
   - **The renumbering left eight code and test sites naming a feature number for that work**, one
     of them a refusal message a consumer reads at runtime (`ConfigManager`'s `hardware_outputs is
     reserved…until feature 015`). All are re-pointed. ⚠ The lesson: **a comment that names a
