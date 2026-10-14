@@ -12,7 +12,7 @@ class StringSanitizer():
         if len(_string) > 255 :
             _string = _string[0:255] # return first 255 characters
         return _string
-    
+
     @staticmethod
     def sanitize_file_name(_string):
         if len(_string) >= 240 :
@@ -32,7 +32,7 @@ class StringSanitizer():
         _string = _string.replace('-', '_')
         keepcharacters = ('_')
         return "".join(c for c in _string if c.isalnum() or c in keepcharacters).rstrip().lower()
-    
+
     @staticmethod
     def sanitize_dir_permit_increment(_string):
         if len(_string) >= 240 :

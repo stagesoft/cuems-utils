@@ -95,7 +95,7 @@ dependencies = [
   "pytest-mock",
   "hypothesis",
   "coverage[toml]",
-  "ruff",
+  "ruff>=0.17.0,<0.18",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -171,7 +171,7 @@ ignore = ["E501"]
 
 [tool.hatch.envs.types]
 extra-dependencies = [
-  "mypy>=1.0.0"
+  "mypy>=2.4.0,<3"
 ]
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/cuemsutils tests}"

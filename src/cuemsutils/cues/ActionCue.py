@@ -1,5 +1,5 @@
-from .Cue import Cue
 from ..helpers import ensure_items
+from .Cue import Cue
 
 REQ_ITEMS = {
     'action_target': None,
@@ -8,7 +8,7 @@ REQ_ITEMS = {
 
 class ActionCue(Cue):
     """A cue that represents an action to be performed on a target object.
-    
+
     This cue is used to trigger actions on other objects in the system, such as
     playing, pausing, or stopping media cues.
     """
@@ -49,7 +49,7 @@ class ActionCue(Cue):
 
     def get_action_target(self):
         """Get the target object for the action.
-        
+
         Returns:
             The target object identifier.
         """
@@ -90,7 +90,7 @@ class ActionCue(Cue):
 
     def get_action_type(self) -> str:
         """Get the type of action to perform.
-        
+
         Returns:
             str: The action type (e.g., 'play', 'pause', 'stop').
         """
@@ -98,7 +98,7 @@ class ActionCue(Cue):
 
     def set_action_type(self, action_type: str) -> None:
         """Set the type of action to perform.
-        
+
         Args:
             action_type (str): The action type (e.g., 'play', 'pause', 'stop').
         """

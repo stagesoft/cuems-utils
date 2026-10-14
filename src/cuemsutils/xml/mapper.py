@@ -1052,7 +1052,7 @@ class DmxSceneWriteError(RuntimeError):
         if hasattr(scene, "get"):
             try:
                 scene_id = scene.get("id")
-            except Exception:  # noqa: BLE001 - a broken scene must still name itself
+            except Exception:  # a broken scene must still name itself
                 scene_id = None
         where = f"id={scene_id!r}" if scene_id is not None else f"index {index}"
 

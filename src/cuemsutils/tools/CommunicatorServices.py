@@ -5,11 +5,13 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from enum import Enum
 from functools import partial
-from deprecated import deprecated
-from pynng import Req0, Rep0
 
-from ..log import Logger
+from deprecated import deprecated
+from pynng import Rep0, Req0
+
 from ..helpers import check_path
+from ..log import Logger
+
 
 class IpcAddress(Enum):
     """ IPC addresses for the different services """
@@ -47,7 +49,7 @@ class NngRequestResponse(CommunicatorService):
         if requester_dials:
             self.params_request = {'dial': self.address}
             self.params_reply = {'listen': self.address}
-        else: 
+        else:
             self.params_request = {'listen': self.address}
             self.params_reply = {'dial': self.address}
 
@@ -134,11 +136,11 @@ class NngRequestResponse(CommunicatorService):
             decoded_request = json.loads(request.decode())  # Parse the JSON request
             Logger.debug(f"Received: {decoded_request}")
             if asyncio.iscoroutinefunction(callback):
-                Logger.debug(f"Calling callback function async")
+                Logger.debug("Calling callback function async")
                 await callback(decoded_request, context)
             else:
                 loop = asyncio.get_event_loop()
-                Logger.debug(f"Calling sync callback function in executor")
+                Logger.debug("Calling sync callback function in executor")
                 await loop.run_in_executor(None, partial(callback, decoded_request, context))
         except Exception as e:
             Logger.error(f"Error occurred while handling request: {e}")
@@ -191,7 +193,7 @@ class Communicator(CommunicatorService):
         self.address = address
         self.requester_dials = requester_dials
         self.communicator_service:CommunicatorService = communicator_service(self.address, requester_dials=self.requester_dials)
-        
+
     async def send_request(self, request):
         response = await self.communicator_service.send_request(request)
         return response
@@ -207,10 +209,10 @@ class Communicator(CommunicatorService):
         self._has_callable('responder_get_request')
         await self.communicator_service.responder_get_request(callback)
 
-    async def responder_post_reply(self, response, context): 
+    async def responder_post_reply(self, response, context):
         self._has_callable('responder_post_reply')
         await self.communicator_service.responder_post_reply(response, context)
-    
+
     def _has_callable(self, name):
         """Check if communicator_service has callable attribute of the given name"""
         if not hasattr(self.communicator_service, name):

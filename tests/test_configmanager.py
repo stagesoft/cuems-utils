@@ -1,6 +1,8 @@
-import pytest
 from os import environ, path
 from pathlib import Path
+
+import pytest
+
 from cuemsutils.tools.ConfigManager import ConfigManager
 
 TEST_DATA_PATH = path.join(Path(__file__).parent, 'data')
@@ -60,7 +62,7 @@ def test_network_map(config_manager):
     assert isinstance(config_manager.network_map, dict)
     assert type(config_manager.node_network_map) is node
     assert 'node_list' in config_manager.network_map
-    assert type(config_manager.network_map['node_list']) == list
+    assert type(config_manager.network_map['node_list']) is list
     assert len(config_manager.network_map['node_list']) == 2
     assert config_manager.node_network_map['uuid'] == '0367f391-ebf4-48b2-9f26-000000000001'
     assert config_manager.node_network_map['mac'] == '2cf05d21cca3'

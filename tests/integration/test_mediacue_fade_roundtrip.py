@@ -5,7 +5,6 @@ The fade-profile round-trip assertions this file used to carry are retired
 ``fade_profiles``) no longer exists anywhere in the schema or the model.
 """
 
-import pytest
 
 from cuemsutils.xml.descriptor import generate_script_example
 

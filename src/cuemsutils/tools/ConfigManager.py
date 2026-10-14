@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:  # annotation only — no runtime import, so no cycle with xml/
     from ..config.network_map import CuemsNetworkMapType
 
-from .ConfigBase import ConfigBase, load_config_document
 from .._ingest import payload_as_mapping
 from ..config.settings import CuemsProjectSettingsType
 from ..log import Logger, logged
@@ -14,8 +13,10 @@ from ..xml.descriptor import (
     generate_script_example,
     generate_settings_example,
 )
+
 # The concrete module, not the package root — see ConfigBase.
 from ..xml.settings import NetworkMap, ProjectMappings, ProjectSettings
+from .ConfigBase import ConfigBase, load_config_document
 
 CUEMS_CONF_PATH = '/etc/cuems/'
 
@@ -248,7 +249,7 @@ class ConfigManager(ConfigBase):
         self.project_name = ''
         self.using_default_mappings = False
         self.network_map = {}
-        self.network_mappings = {}
+        self.network_mappings: Any = {}
         self.node_mappings = {}
         self.node_hw_outputs = HardwareOutputs()
         super().__init__(config_dir)
@@ -303,7 +304,7 @@ class ConfigManager(ConfigBase):
             ValueError: if no node in the map carries this node's uuid.
         """
         return self._node_network_map
-    
+
     @node_network_map.setter
     def node_network_map(self, value: NetworkMap | dict):
         if isinstance(value, NetworkMap):
@@ -333,7 +334,7 @@ class ConfigManager(ConfigBase):
     @mappings.setter
     def mappings(self, value: dict[str, Any]):
         self._mappings = value
-    
+
     @property
     def node_mappings(self):
         """**This** node's hardware mappings, resolved by uuid.
@@ -449,13 +450,13 @@ class ConfigManager(ConfigBase):
         """
         try:
             mappings_file = self.project_path(self.project_name, 'mappings.xml')
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             mappings_file = self.conf_path('default_mappings.xml')
 
         project_mappings = load_config_document(
             ProjectMappings, mappings_file, 'project_mappings'
         )
-        self.mappings = project_mappings.processed # type: ignore[attr-defined]
+        self.mappings = project_mappings.processed
 
         self.node_mappings = project_mappings.get_node(self.node_conf['uuid'])
         Logger.debug(f"Node uuid is: {self.node_conf['uuid']}")
@@ -497,10 +498,10 @@ class ConfigManager(ConfigBase):
             project_uname (str): The name of the project.
         """
         ## Initialize with empty values
-        self.project_conf = {}
-        self.project_mappings = {}
-        self.project_node_mappings = {}
-        self.project_default_outputs = {}
+        self.project_conf: Any = {}
+        self.project_mappings: Any = {}
+        self.project_node_mappings: Any = {}
+        self.project_default_outputs: Any = {}
         self._project_settings_document = None
 
         self.project_name = project_uname
@@ -625,15 +626,15 @@ class ConfigManager(ConfigBase):
                 Logger.warning(
                     f'No mappings assigned for this node in project {project_uname}'
                 )
-        except FileNotFoundError as e:
-            Logger.info(f'Project mappings not found. Adopting default mappings.')
+        except FileNotFoundError:
+            Logger.info('Project mappings not found. Adopting default mappings.')
             self.project_mappings = self.mappings
             self.project_node_mappings = self.node_mappings
         except Exception as e:
             Logger.exception(f'Exception in load_project_mappings: {e}')
             raise e
 
-        self.number_of_nodes = int(self.mappings['number_of_nodes']) # type: ignore[index]
+        self.number_of_nodes = int(self.mappings['number_of_nodes'])
         Logger.info(f'Project {project_uname} mappings loaded')
 
     def save_project_mappings(self, project_uname: str, path: str | None = None) -> None:
@@ -873,7 +874,7 @@ class ConfigManager(ConfigBase):
                         if mapping_name == each_map['mapped_to']:
                             return each_out['name']
 
-        raise Exception(f'Video output wrongly mapped')
+        raise Exception('Video output wrongly mapped')
 
     def get_audio_output_id(self, mapping_name: str):
         """
@@ -882,12 +883,12 @@ class ConfigManager(ConfigBase):
         if mapping_name == 'default':
             return self.node_conf['default_audio_output']
         else:
-            for each_out in self.project_mappings['audio']['outputs']: # type: ignore[index]
+            for each_out in self.project_mappings['audio']['outputs']:
                 for each_map in each_out[0]['mappings']:
                     if mapping_name == each_map['mapped_to']:
                         return each_out[0]['name']
 
-        raise Exception(f'Audio output wrongly mapped')
+        raise Exception('Audio output wrongly mapped')
 
     def check_project_mappings(self) -> bool:
         """Check that every port the project asks for exists on this node.

@@ -11,7 +11,6 @@ from cuemsutils.xml.descriptor import (
     _BUILTIN_SEEDS,
     _PATTERN_SEEDS,
     _seed_for,
-    _seed_for_facets,
 )
 from cuemsutils.xml.schema import get_schema
 

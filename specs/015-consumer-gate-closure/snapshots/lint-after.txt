@@ -1,0 +1,11 @@
+# ruff — after the sweep (T136)
+#
+# Captured      2026-10-14, after T126–T133
+# Command       PYENV_VERSION=3.11.9 uvx hatch run test.py3.11:lint
+# ruff          0.17.0, now bounded `>=0.17.0,<0.18` (T127)
+# BASELINE      0 errors  =  0 in src/  +  0 in tests/       (was 606 = 316 + 290; 614 on the
+#               tree just before the sweep, the 8 being this feature's own new code)
+#
+# THE GATE FROM HERE: zero. A minor bump of ruff inside the bound may legitimately move it;
+# that re-baselines with the delta attributed to the tool, not the code.
+All checks passed!

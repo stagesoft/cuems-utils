@@ -203,7 +203,7 @@ def test_md5_is_bound_explicitly_and_never_coerced():
     wrong silently the day something changes around it.
 
     The value being pinned is the one the input document warns about
-    (``specs/planning/stored-media-values-preimplementation.md`` §5): an md5 of
+    (``specs/014-xs-boolean-and-media-elements/plan.md (§10.5; the source note was deleted by feature 015)`` §5): an md5 of
     all digits — about one in a million — which an older parser coerced to an
     ``int``, so that the next save failed the schema.
     """

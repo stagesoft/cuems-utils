@@ -12,7 +12,7 @@ class Parent(dict):
     @property
     def hello(self) -> str:
         return self["_hello"]
-    
+
     @hello.setter
     def hello(self, value: str) -> None:
         self["_hello"] = value
@@ -39,7 +39,7 @@ def test_superproperty():
     """Test that a class can call diretly a __super__ property from a parent class."""
     assert parent.hello == "Hello, World!"
     assert sec_parent.hello == "Hello World!, also"
-    
+
     assert child.hello == "Goodbye, World!"
     assert child.hello == child["_hello"]
     assert child.bye == "See you soon!"
@@ -64,7 +64,7 @@ def test_frominitdict():
                         x(v)
                     except AttributeError:
                         next
-        
+
         def seta(self, a):
             super().__setitem__('a', a + 1)
 

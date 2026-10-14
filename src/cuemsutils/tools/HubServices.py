@@ -3,13 +3,14 @@ import json
 import socket
 import struct
 from abc import ABC, abstractmethod
-from enum import Enum
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
 from deprecated import deprecated
 from pynng import Bus0
 from pynng import exceptions as pynng_exceptions
-from typing import Optional, Dict, List
 
 from ..log import Logger
 
@@ -63,22 +64,22 @@ class NngBusHub(HubService):
         self._next_conn_key: int = 0  # monotonic key; avoids calling pipe.id in callbacks
         self.address = hub_address
         self.mode = mode
-        self.incoming = asyncio.Queue()
-        self.outgoing = asyncio.Queue()
+        self.incoming: asyncio.Queue[Any] = asyncio.Queue()
+        self.outgoing: asyncio.Queue[Any] = asyncio.Queue()
         self.connection = None
-        
+
         # Set to True at the very start of teardown so pipe callbacks become no-ops.
         # NNG fires post_pipe_remove callbacks from its internal C threads during socket
         # close; if those callbacks call any pynng C function (e.g. pipe.id) while NNG
         # internals are being freed, a SIGFPE or SIGABRT results.
         self._closing: bool = False
-        
+
         # Connection health tracking
         self._last_message_received: Optional[datetime] = None
         self._last_message_sent: Optional[datetime] = None
         self._messages_received_count: int = 0
         self._messages_sent_count: int = 0
-        
+
         # Ping/pong configuration
         self._auto_ping_enabled: bool = False
         self._auto_ping_interval: float = 10.0
@@ -115,14 +116,14 @@ class NngBusHub(HubService):
             sender_task = asyncio.create_task(self._send_handler(), name="sender")
             receiver_task = asyncio.create_task(self._receiver_handler(), name="receiver")
             ping_task = asyncio.create_task(self._auto_ping_handler(), name="ping")
-            
+
             tasks = [sender_task, receiver_task, ping_task]
             task_names = {sender_task: "sender", receiver_task: "receiver", ping_task: "ping"}
-            
+
             Logger.info(f"NNG {self.mode.value} tasks started: sender, receiver, ping")
-            
+
             done_tasks, pending_tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
-            
+
             # Check if completed task had an exception
             for task in done_tasks:
                 task_name = task_names.get(task, "unknown")
@@ -131,12 +132,12 @@ class NngBusHub(HubService):
                     Logger.error(f"Exception type: {type(task.exception()).__name__}")
                 else:
                     Logger.warning(f"NNG {self.mode.value} {task_name} handler exited unexpectedly (no exception)")
-            
+
             # Log pending task cancellation
             pending_names = [task_names.get(t, "unknown") for t in pending_tasks]
             if pending_names:
                 Logger.info(f"Cancelling pending tasks: {pending_names}")
-            
+
             # Cancel and await pending tasks
             for task in pending_tasks:
                 task.cancel()
@@ -144,7 +145,7 @@ class NngBusHub(HubService):
                     await task
                 except asyncio.CancelledError:
                     pass
-            
+
             Logger.warning(f"NNG {self.mode.value} start() exiting - all tasks terminated")
 
         except Exception as e:
@@ -183,7 +184,7 @@ class NngBusHub(HubService):
     async def start_listener(self):
         """
         Initialize the bus connection in LISTENER mode (listening for connections).
-        
+
         Creates a Bus0 socket that listens on the configured address with a 100ms receive timeout.
         TCP keepalive is enabled BEFORE listening to ensure it applies to all connections.
         Callbacks are registered BEFORE listening to ensure no connection events are missed.
@@ -198,7 +199,7 @@ class NngBusHub(HubService):
     async def start_dialer(self):
         """
         Initialize the bus connection in DIALER mode (dialing to controller).
-        
+
         Creates a Bus0 socket that dials to the configured address with a 100ms receive timeout.
         TCP keepalive is enabled BEFORE dialing to ensure it applies to the connection.
         Non-blocking dial is used to allow reconnection if controller is not yet available.
@@ -238,10 +239,10 @@ class NngBusHub(HubService):
             data = message
         else:
             raise TypeError(f"send_message requires dict or Message, got {type(message).__name__}")
-        
+
         # JSON-encode the dict
         json_data = json.dumps(data)
-        
+
         await self.outgoing.put(json_data)
 
     async def get_message(self) -> Message:
@@ -275,8 +276,8 @@ class NngBusHub(HubService):
     def get_connection_health_info(self, activity_timeout: float = 30.0) -> Dict:
         """
         Get connection health information based on message activity.
-        
-        This is particularly useful for DIALERs to check if they're still 
+
+        This is particularly useful for DIALERs to check if they're still
         connected to the controller, since nodes don't track the controller
         connection in active_connections.
 
@@ -294,7 +295,7 @@ class NngBusHub(HubService):
         """
         now = datetime.now()
         last_activity = None
-        
+
         # Determine most recent activity
         if self._last_message_received and self._last_message_sent:
             last_activity = max(self._last_message_received, self._last_message_sent)
@@ -302,17 +303,17 @@ class NngBusHub(HubService):
             last_activity = self._last_message_received
         elif self._last_message_sent:
             last_activity = self._last_message_sent
-        
+
         # Calculate seconds since last activity
         seconds_since_activity = None
         if last_activity:
             seconds_since_activity = (now - last_activity).total_seconds()
-        
+
         # Determine health status
         is_healthy = False
         if seconds_since_activity is not None:
             is_healthy = seconds_since_activity <= activity_timeout
-        
+
         return {
             'is_healthy': is_healthy,
             'last_received': self._last_message_received,
@@ -325,10 +326,10 @@ class NngBusHub(HubService):
     def is_connection_healthy(self, activity_timeout: float = 30.0) -> bool:
         """
         Check if the connection is healthy based on recent activity.
-        
+
         Parameters:
         - activity_timeout: Seconds of inactivity before considering unhealthy (default: 30.0)
-        
+
         Returns:
         - bool: True if connection appears healthy
         """
@@ -337,15 +338,15 @@ class NngBusHub(HubService):
     def enable_auto_ping(self, interval: float = 10.0, inactivity_threshold: float = 5.0):
         """
         Enable automatic ping mechanism for the controller.
-        
+
         The controller will automatically send ping messages to all nodes if there's
         been no activity for the specified threshold period. Nodes will automatically
         respond with pong messages.
-        
+
         Parameters:
         - interval: How often to check for inactive connections (default: 10.0 seconds)
         - inactivity_threshold: Send ping if no activity for this many seconds (default: 5.0)
-        
+
         Note: This is primarily useful for LISTENER mode to verify node connections.
         """
         self._auto_ping_enabled = True
@@ -371,7 +372,7 @@ class NngBusHub(HubService):
     async def send_ping(self):
         """
         Manually send a ping message to all connected nodes.
-        
+
         Returns:
         - int: Number of pings sent
         """
@@ -384,35 +385,35 @@ class NngBusHub(HubService):
     async def _auto_ping_handler(self):
         """
         Internal handler for automatic ping mechanism.
-        
+
         Periodically checks for inactive connections and sends pings if needed.
         Only runs in LISTENER mode when auto_ping is enabled.
         """
         if not hasattr(self, '_inactivity_threshold'):
             self._inactivity_threshold = 5.0
-            
+
         while await asyncio.sleep(0, result=True):
             try:
                 await asyncio.sleep(self._auto_ping_interval)
-                
+
                 if not self._auto_ping_enabled:
                     continue
-                
+
                 # Check if we need to send a ping
                 now = datetime.now()
                 should_ping = False
-                
+
                 if self._last_message_sent:
                     seconds_since_last_sent = (now - self._last_message_sent).total_seconds()
                     if seconds_since_last_sent >= self._inactivity_threshold:
                         should_ping = True
                 else:
                     should_ping = True  # Never sent anything yet
-                
+
                 if should_ping:
-                    Logger.debug(f"Sending ping due to inactivity")
+                    Logger.debug("Sending ping due to inactivity")
                     await self.send_ping()
-                    
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -433,10 +434,10 @@ class NngBusHub(HubService):
                 return
             try:
                 pynng_message = await self.connection.arecv_msg()
-                
+
                 # Extract sender information from the message pipe
                 sender = self._extract_sender_info(pynng_message.pipe)
-                
+
                 # Decode bytes to string, then parse JSON to dict
                 decoded_string = pynng_message.bytes.decode()
                 try:
@@ -444,25 +445,25 @@ class NngBusHub(HubService):
                 except json.JSONDecodeError:
                     Logger.warning(f"Received non-JSON message from {sender}: {decoded_string}")
                     data_dict = {"raw_data": decoded_string}
-                
+
                 message = Message(data=data_dict, sender=sender)
-                
+
                 # Track message receipt for connection health
                 self._last_message_received = datetime.now()
                 self._messages_received_count += 1
-                
+
                 # DEBUG: Log every received message with count
                 msg_type = data_dict.get("__type__", data_dict.get("type", "unknown"))
                 Logger.debug(f"[MSG #{self._messages_received_count}] {self.mode.value} received from {sender}: type={msg_type}")
-                
+
                 # Handle ping/pong messages
                 handled = await self._handle_ping_pong(message, sender)
-                
+
                 if not handled:
                     # Normal message - put in queue for user
                     Logger.debug(f"Received message from {sender}: {message.data}")
                     await self.incoming.put(message)
-                    
+
             except pynng_exceptions.Timeout:
                 pass  # Timeout is expected during polling
             except pynng_exceptions.Closed:
@@ -482,11 +483,11 @@ class NngBusHub(HubService):
     async def _handle_ping_pong(self, message: Message, sender) -> bool:
         """
         Handle ping/pong messages internally.
-        
+
         Parameters:
         - message: The received message
         - sender: The sender information
-        
+
         Returns:
         - bool: True if message was handled (ping/pong), False if it's a normal message
         """
@@ -494,7 +495,7 @@ class NngBusHub(HubService):
             # Data is already parsed as dict
             data = message.data
             message_type = data.get("__type__")
-            
+
             if message_type == "ping":
                 # Received ping - send pong if auto-pong enabled
                 if self._auto_pong_enabled:
@@ -509,16 +510,16 @@ class NngBusHub(HubService):
                 else:
                     Logger.debug(f"Received ping from {sender} (auto-pong disabled)")
                 return True
-                
+
             elif message_type == "pong":
                 # Received pong response
                 Logger.debug(f"Received pong from {sender}")
                 return True
-                
+
         except (AttributeError, TypeError, KeyError):
             # Doesn't have __type__ or invalid structure - treat as normal message
             pass
-        
+
         return False
 
     async def _send_handler(self):
@@ -529,7 +530,7 @@ class NngBusHub(HubService):
         them to the bus connection. Any exceptions during sending are logged.
 
         The loop runs until cancelled or an unhandled exception occurs.
-        
+
         Note: In LISTENER mode, waits for at least one connection before sending
         to avoid losing messages due to BUS protocol's best-effort delivery.
         """
@@ -539,25 +540,25 @@ class NngBusHub(HubService):
             while len(self.active_connections) == 0:
                 await asyncio.sleep(0.1)
             Logger.info(f"Node connected, sender ready ({len(self.active_connections)} connections)")
-        
+
         while await asyncio.sleep(0, result=True):
             if self._closing:
                 return
             try:
                 message = await self.outgoing.get()
-                
+
                 # Track message send for connection health
                 self._last_message_sent = datetime.now()
                 self._messages_sent_count += 1
-                
+
                 # DEBUG: Log message type before sending
                 try:
                     data = json.loads(message)
                     msg_type = data.get("__type__", data.get("type", "unknown"))
-                except:
+                except Exception:
                     msg_type = "non-json"
                 Logger.debug(f"[SEND #{self._messages_sent_count}] {self.mode.value} sending: type={msg_type}")
-                
+
                 await self.connection.asend(message.encode())
             except pynng_exceptions.Closed:
                 # Same rule as the receiver: never touch NNG again once the
@@ -616,17 +617,17 @@ class NngBusHub(HubService):
                 Logger.warning("DIALER has no active connections - waiting for reconnection")
         except Exception as e:
             Logger.error(f"Error in disconnect callback: {e}")
-            
+
     def _extract_sender_info(self, pipe):
         """
         Extract sender information from the message pipe.
-        
+
         Handles both TCP and IPC addresses. For TCP, extracts the IP address.
         For IPC, returns the pipe URL.
-        
+
         Parameters:
         - pipe: The pynng pipe object containing remote address information.
-        
+
         Returns:
         - str: The sender identifier (IP address for TCP, URL for IPC).
         """

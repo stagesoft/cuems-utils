@@ -1,9 +1,11 @@
 import logging
-import pytest
 import signal
 from unittest.mock import patch
 
+import pytest
+
 from cuemsutils.tools.SignalEngine import SignalEngine
+
 
 @pytest.fixture
 def daemon(with_signals: bool = True):
@@ -40,13 +42,13 @@ def test_engine_can_start_and_stop():
     engine = SignalEngine(with_signals=False)
     sleep(0.05)
     engine.stop()
-    assert engine.running == False
+    assert engine.running is False
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning") # py3.12 and py3.13 @Process
 def test_signal_handling_graceful_exit(daemon):
     from multiprocessing import Process
-    from time import sleep
     from os import kill
+    from time import sleep
 
     proc = Process(target=daemon.start)
     proc.start()

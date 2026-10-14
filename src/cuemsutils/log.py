@@ -1,10 +1,22 @@
+import inspect
 import sys
-from logging import getLogger, LoggerAdapter, NullHandler, StreamHandler, Formatter, DEBUG, INFO, ERROR, WARNING, CRITICAL
-from logging.handlers import SysLogHandler
 from functools import wraps
+from logging import (
+    CRITICAL,
+    DEBUG,
+    ERROR,
+    INFO,
+    WARNING,
+    Formatter,
+    LoggerAdapter,
+    NullHandler,
+    StreamHandler,
+    getLogger,
+)
+from logging.handlers import SysLogHandler
 from os import environ
 from os.path import basename
-import inspect
+from typing import Any
 
 cuemsFormatter = Formatter('[%(asctime)s][%(levelname)s] \tFormitGo (PID: %(process)d)-(%(threadName)-9s)-(%(name)s:%(funcName)s:%(caller)s)> %(message)s')
 
@@ -24,7 +36,7 @@ cuemsFormatter = Formatter('[%(asctime)s][%(levelname)s] \tFormitGo (PID: %(proc
 getLogger().addHandler(NullHandler())
 
 # Cache for module-specific loggers to avoid duplicate handlers
-_logger_cache = {}
+_logger_cache: dict[str, Any] = {}
 
 def log_level_to_obj(log_level):
     """
@@ -40,7 +52,7 @@ def log_level_to_obj(log_level):
 
 class CuemsLoggerAdapter(LoggerAdapter):
     """Custom LoggerAdapter that properly merges extra dictionaries."""
-    
+
     def process(self, msg, kwargs):
         """
         Process the logging call to merge extra dictionaries.
@@ -49,11 +61,11 @@ class CuemsLoggerAdapter(LoggerAdapter):
         # Start with a copy of the adapter's extra dict (with default caller='')
         extra = {'caller': ''}
         extra.update(self.extra)
-        
+
         # Merge in any extra dict from the logging call
         if 'extra' in kwargs:
             extra.update(kwargs['extra'])
-        
+
         kwargs['extra'] = extra
         return msg, kwargs
 
@@ -158,11 +170,11 @@ class Logger:
         module_name = Logger._get_caller_module()
         logger = main_logger(module_name=module_name)
         logger.log(level, message, stacklevel = 4, **kwargs)
-    
+
     @staticmethod
     def debug(message, **kwargs):
         Logger.log(DEBUG, message, **kwargs)
-    
+
     @staticmethod
     def info(message, **kwargs):
         Logger.log(INFO, message, **kwargs)
@@ -198,7 +210,7 @@ def logged(func):
         # Only set caller field (the decorated function name)
         # funcName is automatically set by logging to the actual calling function (wrapper)
         d = {"caller": func.__name__}
-        func_logger.debug(f"Call recieved", extra = d)
+        func_logger.debug("Call recieved", extra = d)
         func_logger.debug(f"Using args: {args} and kwargs: {kwargs}", extra = d)
         try:
             result = func(*args, **kwargs)
@@ -209,7 +221,7 @@ def logged(func):
         except Exception as e:
             func_logger.error(f"Error occurred: {e}", extra = d)
             raise
-        
+
         else:
             return result
 

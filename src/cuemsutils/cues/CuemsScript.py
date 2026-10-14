@@ -1,14 +1,22 @@
-import json_fix
-
 from collections.abc import Mapping
+from typing import Any
 
-from .CueList import CueList
-from .MediaCue import MediaCue
+import json_fix  # noqa: F401 -- registers __json__ JSON support
+
 from .._ingest import payload_as_mapping
 from ..errors import IngestError, LoadReport, SchemaError, ValidationError
-from ..log import logged, Logger
-from ..helpers import as_cuemsdict, ensure_items, new_uuid, new_datetime, unique_values_to_list, CuemsDict
+from ..helpers import (
+    CuemsDict,
+    as_cuemsdict,
+    ensure_items,
+    new_datetime,
+    new_uuid,
+    unique_values_to_list,
+)
+from ..log import Logger, logged
 from ..tools.Uuid import Uuid
+from .CueList import CueList
+from .MediaCue import MediaCue
 
 #: The schema every script document is described by. Bound here, once, so that
 #: **no public signature takes a schema name** (FR-021, SC-004): it is a
@@ -59,7 +67,7 @@ class CuemsScript(CuemsDict):
 
     def __init__(self, init_dict = None):
         """Initialize a CuemsScript.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to set initial properties.
@@ -71,7 +79,7 @@ class CuemsScript(CuemsDict):
 
     def get_id(self):
         """Get the unique identifier of the script.
-        
+
         Returns:
             Uuid: The script's unique identifier.
         """
@@ -79,7 +87,7 @@ class CuemsScript(CuemsDict):
 
     def set_id(self, id):
         """Set the unique identifier of the script.
-        
+
         Args:
             id: The new unique identifier.
         """
@@ -89,7 +97,7 @@ class CuemsScript(CuemsDict):
 
     def get_name(self):
         """Get the name of the script.
-        
+
         Returns:
             str: The script's name.
         """
@@ -97,7 +105,7 @@ class CuemsScript(CuemsDict):
 
     def set_name(self, name):
         """Set the name of the script.
-        
+
         Args:
             name (str): The new name for the script.
         """
@@ -107,7 +115,7 @@ class CuemsScript(CuemsDict):
 
     def get_description(self):
         """Get the description of the script.
-        
+
         Returns:
             str: The script's description.
         """
@@ -115,7 +123,7 @@ class CuemsScript(CuemsDict):
 
     def set_description(self, description):
         """Set the description of the script.
-        
+
         Args:
             description (str): The new description for the script.
         """
@@ -125,7 +133,7 @@ class CuemsScript(CuemsDict):
 
     def get_created(self):
         """Get the creation timestamp of the script.
-        
+
         Returns:
             datetime: When the script was created.
         """
@@ -133,7 +141,7 @@ class CuemsScript(CuemsDict):
 
     def set_created(self, created):
         """Set the creation timestamp of the script.
-        
+
         Args:
             created (datetime): The new creation timestamp.
         """
@@ -143,7 +151,7 @@ class CuemsScript(CuemsDict):
 
     def get_modified(self):
         """Get the last modification timestamp of the script.
-        
+
         Returns:
             datetime: When the script was last modified.
         """
@@ -151,7 +159,7 @@ class CuemsScript(CuemsDict):
 
     def set_modified(self, modified):
         """Set the last modification timestamp of the script.
-        
+
         Args:
             modified (datetime): The new modification timestamp.
         """
@@ -161,7 +169,7 @@ class CuemsScript(CuemsDict):
 
     def get_CueList(self) -> CueList:
         """Get the main cue list of the script.
-        
+
         Returns:
             CueList: The script's main cue list.
         """
@@ -169,17 +177,17 @@ class CuemsScript(CuemsDict):
 
     def set_CueList(self, cuelist: CueList | dict):
         """Set the main cue list of the script.
-        
+
         Args:
             cuelist (CueList or dict): The new cue list or a dictionary to create one.
-            
+
         Raises:
             ValueError: If the cuelist is not a valid CueList object or dictionary.
         """
         if not isinstance(cuelist, CueList):
             try:
                 cuelist = CueList(cuelist)
-            except:
+            except Exception:
                 raise ValueError(
                     f'CueList {cuelist} is not a CueList object or a valid dict'
                 )
@@ -189,7 +197,7 @@ class CuemsScript(CuemsDict):
 
     def get_ui_properties(self) -> CuemsDict:
         """Get the UI properties of the script.
-        
+
         Returns:
             dict: The script's UI properties.
         """
@@ -197,7 +205,7 @@ class CuemsScript(CuemsDict):
 
     def set_ui_properties(self, ui_properties: dict | CuemsDict):
         """Set the UI properties of the script.
-        
+
         Args:
             ui_properties (dict): The new UI properties.
         """
@@ -209,10 +217,10 @@ class CuemsScript(CuemsDict):
 
     def find(self, uuid):
         """Find a cue by its UUID in the script.
-        
+
         Args:
             uuid: The UUID to search for.
-            
+
         Returns:
             Cue or None: The found cue, or None if not found.
         """
@@ -221,20 +229,20 @@ class CuemsScript(CuemsDict):
     @logged
     def get_media(self) -> dict:
         """Get all media files referenced in a CueList.
-        
+
         Args:
             cuelist (CueList, optional): The cue list to search in.
                 If not provided, uses the script's main cue list.
-                
+
         Returns:
             dict: A dictionary mapping Cue UUIDs to their media information.
         """
         return self.cuelist.get_media()
-    
+
     @logged
     def get_media_filenames(self) -> list:
         """Get all media filenames referenced in a CueList.
-        
+
         Returns:
             list: A list of media filenames.
         """
@@ -244,17 +252,17 @@ class CuemsScript(CuemsDict):
     @logged
     def get_own_media(self, config: dict, cuelist: CueList | None = None) -> dict:
         """Get media files that are local to the current node.
-        
+
         Args:
             cuelist (CueList, optional): The cue list to search in.
                 If not provided, uses the script's main cue list.
             config: The configuration containing node information.
-                
+
         Returns:
             dict: A dictionary mapping media file names to their associated cues
                 that are local to the current node.
         """
-        media_dict = dict()
+        media_dict: dict[str, Any] = dict()
 
         # If no cuelist is specified we are looking inside our own
         # script object, so our cuelist is our self cuelist
@@ -265,9 +273,9 @@ class CuemsScript(CuemsDict):
             return media_dict
 
         pos = 0
-        for cue in cuelist.contents:  # type: ignore[union-attr]
+        for cue in cuelist.contents:
             Logger.debug(f'CuemsScript get_own_media: {pos} {cue}')
-            if type(cue) == CueList:
+            if type(cue) is CueList:
                 media_dict.update(
                     self.get_own_media(config=config, cuelist=cue)
                 )
@@ -282,7 +290,7 @@ class CuemsScript(CuemsDict):
     @logged
     def get_own_media_filenames(self, config: dict, cuelist: CueList | None = None) -> list:
         """Get all media filenames that are local to the current node.
-        
+
         Returns:
             list: A list of media filenames.
         """
@@ -500,7 +508,7 @@ class CuemsScript(CuemsDict):
 
         try:
             tree = self._build_tree()
-        except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+        except Exception as exc:  # reported, not swallowed
             return ValidationReport(
                 [Violation('T1', 'document_build', (None, None), str(exc))]
             )

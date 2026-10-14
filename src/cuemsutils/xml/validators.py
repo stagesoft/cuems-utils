@@ -792,7 +792,7 @@ def _cuelist_shape(value, obj=None) -> None:
         return
     try:
         CueList(value)
-    except Exception as exc:  # noqa: BLE001 - the constructor is the check
+    except Exception as exc:  # the constructor is the check
         raise ValueError(
             f"CueList {value} is not a CueList object or a valid dict"
         ) from exc

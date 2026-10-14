@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import shutil
 
-import pytest
-
 from cuemsutils.tools.ConfigBase import load_config_document
 from cuemsutils.xml.reshape_devices import reshape_file
 from cuemsutils.xml.settings import Settings

@@ -31,7 +31,6 @@ import os
 
 from cuemsutils.tools.CopyMoveVersioned import CopyMoveVersioned
 
-
 # --- move: explicit dest_filename, no collision -------------------------------
 
 

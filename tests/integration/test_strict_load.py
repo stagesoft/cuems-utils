@@ -103,8 +103,8 @@ def test_project_mappings_semantic_violation_raises_validation_error_not_schema_
 
 def test_a_structurally_invalid_config_document_still_raises_schema_error(tmp_path):
     """The other half: a genuine T1 failure keeps its existing type."""
-    from cuemsutils.tools.ConfigBase import load_config_document
     from cuemsutils.errors import SchemaError
+    from cuemsutils.tools.ConfigBase import load_config_document
     from cuemsutils.xml.settings import ProjectMappings
 
     bad = tmp_path / "not_xml_at_all.xml"

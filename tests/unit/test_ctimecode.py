@@ -27,12 +27,12 @@ from __future__ import annotations
 import warnings
 
 import pytest
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from cuemsutils._deprecation import REMOVAL_RELEASE, deprecation_reason
 from cuemsutils.helpers import format_timecode
 from cuemsutils.tools.CTimecode import CTimecode, CTimecodeError
-
 
 # Standard framerate matrix per the 869cyndtv plan. 'ms' is CTimecode's default.
 FRAMERATE_MATRIX: list[int | float | str] = [24, 25, 29.97, 30, "ms"]

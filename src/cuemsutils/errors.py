@@ -168,7 +168,7 @@ class DmxChannelDecodeError(CuemsError):
 
         try:
             universe_num = universe.universe_num
-        except Exception:  # noqa: BLE001 - a broken universe must still name itself
+        except Exception:  # a broken universe must still name itself
             universe_num = "<universe_num unknown>"
 
         super().__init__(

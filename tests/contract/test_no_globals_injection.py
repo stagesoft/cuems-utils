@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import warnings
 
-import cuemsutils.xml.XmlBuilder as xml_builder_module
 import cuemsutils.xml.Parsers as parsers_module
+import cuemsutils.xml.XmlBuilder as xml_builder_module
 from cuemsutils.xml.mapper import Mapper, read_config_document
 from cuemsutils.xml.settings import NetworkMap
 from tests.support.corpus import REPO_ROOT

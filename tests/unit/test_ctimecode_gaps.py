@@ -14,7 +14,6 @@ import pytest
 
 from cuemsutils.tools.CTimecode import CTimecode, CTimecodeError
 
-
 # --- construction: init_dict / from_dict --------------------------------------
 
 

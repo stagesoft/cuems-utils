@@ -10,14 +10,15 @@ from ..errors import (
     node_identity_shape_message,
     project_mappings_semantic_message,
 )
+from ..helpers import mkdir_recursive
 from ..log import Logger, logged
+
 # The concrete module, not the package root: ``cuemsutils.xml.Settings``
 # is a deprecation shim as of T061, and contract C8 forbids the library
 # calling one of its own deprecated names.
 from ..xml.settings import Settings
 from ..xml.validators import Violation
 from ..xml.versioning import DocumentTooNewError
-from ..helpers import mkdir_recursive
 
 
 def load_config_document(cls, xmlfile: str, schema_name: str):
@@ -183,11 +184,11 @@ class ConfigBase():
         if must_exist and not path.exists(conf_path):
             raise FileNotFoundError(f'Configuration file {conf_path} not found')
         return conf_path
-    
+
     def set_dir_hierarchy(self) -> None:
         """
         Sets the directory hierarchy for the library path.
-        """      
+        """
         dirs = [
             'projects',
             'media',
@@ -205,12 +206,12 @@ class ConfigBase():
                 mkdir_recursive(each_path)
         except Exception as e:
             Logger.error("error: {} {}".format(type(e), e))
-    
+
     # CLASS PROPERTIES #
     @property
     def config_dir(self):
         return self._config_dir
-    
+
     @config_dir.setter
     def config_dir(self, value: str):
         if not path.exists(value):
@@ -220,15 +221,15 @@ class ConfigBase():
     @property
     def library_path(self):
         return self.settings['library_path']
-    
+
     @property
     def tmp_path(self):
         return self.settings['tmp_path']
-    
+
     @property
     def database_name(self):
         return self.settings['database_name']
-    
+
     @property
     def show_lock_file(self):
         return self.settings['show_lock_file']
@@ -236,11 +237,11 @@ class ConfigBase():
     @property
     def editor_url(self):
         return self.settings['editor_url']
-    
+
     @property
     def controller_url(self):
         return self.settings['controller_url']
-    
+
     @property
     def templates_path(self):
         return self.settings['templates_path']

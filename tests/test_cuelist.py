@@ -3,12 +3,13 @@ from cuemsutils.cues import AudioCue, CueList
 from cuemsutils.cues.Cue import Cue
 from cuemsutils.xml.descriptor import generate_script_example
 
+
 def test_simple_cuelist():
     ## Arrange
     c = Cue({'loop': False})
     c2 = Cue({'loop': False})
     ac = AudioCue({'loop': True, 'media': 'file.ext', 'master_vol': 66} )
-    
+
     ## Act
     custom_cue_list = CueList({'contents': [c]})
     custom_cue_list.append(c2)
@@ -47,6 +48,7 @@ def test_cuelist_errors():
 def test_cuelist_media():
     ## Arrange
     from copy import deepcopy
+
     from cuemsutils.helpers import new_uuid
 
     script = generate_script_example()

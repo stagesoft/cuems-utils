@@ -19,7 +19,7 @@ from typing import Callable, Hashable
 # Re-exported (FR-002b, FR-007) — the public path to the container a document
 # decodes. ``cuemsutils.config`` itself exports nothing (research R10a); a
 # consumer imports ``node`` from here, never from ``cuemsutils.config.network_map``.
-from ..config.network_map import node  # noqa: F401
+from ..config.network_map import node
 
 # ``partition_by_adoption`` is resolved by the module ``__getattr__`` at the
 # foot of this file, which ruff cannot see — hence the narrow suppression rather

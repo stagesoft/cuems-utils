@@ -1,6 +1,7 @@
-from collections.abc import Mapping
-from cuemsutils.log import Logger
+
 from cuemsutils.errors import DmxChannelDecodeError
+from cuemsutils.log import Logger
+
 from ..helpers import ensure_items
 from .Cue import Cue, CuemsDict
 from .CueOutput import DmxCueOutput
@@ -41,7 +42,7 @@ CUE_OUTPUT_ELEMENT = 'CueOutput'
 
 class DmxCue(Cue):
     """A cue for handling DMX lighting control.
-    
+
     This class extends Cue to provide specific functionality for DMX lighting control,
     including scene management, fade timing, and OSC communication for DMX routing.
     """
@@ -72,7 +73,7 @@ class DmxCue(Cue):
 
     def get_fadein_time(self):
         """Get the fade-in time for the DMX cue.
-        
+
         Returns:
             The fade-in time value.
         """
@@ -80,7 +81,7 @@ class DmxCue(Cue):
 
     def set_fadein_time(self, fadein_time):
         """Set the fade-in time for the DMX cue.
-        
+
         Args:
             fadein_time: The new fade-in time value.
         """
@@ -90,16 +91,16 @@ class DmxCue(Cue):
 
     def get_fadeout_time(self):
         """Get the fade-out time for the DMX cue.
-        
+
         Returns:
             The fade-out time value.
         """
         return super().__getitem__('fadeout_time')
 
-    
+
     def set_fadeout_time(self, fadeout_time):
         """Set the fade-out time for the DMX cue.
-        
+
         Args:
             fadeout_time: The new fade-out time value.
         """
@@ -109,7 +110,7 @@ class DmxCue(Cue):
 
     def get_outputs(self):
         """Get the output routing configuration.
-        
+
         Returns:
             list: The list of output configurations.
         """
@@ -117,7 +118,7 @@ class DmxCue(Cue):
 
     def set_outputs(self, outputs):
         """Set the output routing configuration.
-        
+
         Args:
             outputs (list): The list of output configurations. Each item can be
                 a DmxCueOutput object, a bare dict, or a dict wrapped in the
@@ -126,10 +127,10 @@ class DmxCue(Cue):
         if outputs is None:
             super().__setitem__('outputs', None)
             return
-        
+
         if not isinstance(outputs, list):
             outputs = [outputs]
-        
+
         converted_outputs = []
         for output in outputs:
             if output is None:
@@ -151,38 +152,38 @@ class DmxCue(Cue):
                     converted_outputs.append(output)
             else:
                 converted_outputs.append(output)
-        
+
         super().__setitem__('outputs', converted_outputs)
 
     outputs = property(get_outputs, set_outputs)
 
     def get_DmxScene(self):
         """Get the DMX scene for this cue.
-        
+
         Returns:
             DmxScene: The current DMX scene.
         """
         return super().__getitem__('DmxScene')
 
-    
+
     def set_DmxScene(self, dmxscene):
         """Set the DMX scene for this cue.
-        
+
         Args:
             dmxscene (DmxScene or dict): The new DMX scene or a dictionary to create one.
-            
+
         Raises:
             NotImplementedError: If the scene type is not supported.
         """
         if not isinstance(dmxscene, DmxScene):
             dmxscene = DmxScene(dmxscene)
         super().__setitem__('DmxScene', dmxscene)
-        
+
     DmxScene = property(get_DmxScene, set_DmxScene)
 
     def osc_route(self, osc_route):
         """Set the OSC route for DMX control.
-        
+
         Args:
             osc_route (str): The OSC route to use for DMX control.
         """
@@ -190,7 +191,7 @@ class DmxCue(Cue):
 
     def offset_route(self, offset_route):
         """Set the offset route for DMX timing.
-        
+
         Args:
             offset_route (str): The new offset route.
         """
@@ -198,7 +199,7 @@ class DmxCue(Cue):
 
     def player(self, player):
         """Set the DMX player instance.
-        
+
         Args:
             player: The DMX player instance to use.
         """
@@ -206,26 +207,26 @@ class DmxCue(Cue):
 
     def review_offset(self, timecode):
         """Calculate the offset for DMX timing review.
-        
+
         Args:
             timecode: The timecode to calculate the offset from.
-            
+
         Returns:
             float: The calculated offset in milliseconds.
         """
         return -timecode.milliseconds_exact
-    
+
     def check_mappings(self, settings):
         """Check if the DMX output mappings are valid.
-        
+
         For DMX cues, the output_name format is "{node_uuid}" (just the node UUID).
         A DMX cue can have multiple outputs (one per target node). This method
         iterates through all outputs and sets _local=True if ANY output_name
         matches the current node UUID. Other outputs are ignored.
-        
+
         Args:
             settings: The settings containing project node mappings.
-            
+
         Returns:
             bool: True if the mappings are valid, False otherwise.
         """
@@ -235,22 +236,22 @@ class DmxCue(Cue):
 
         if not settings.project_node_mappings:
             return True
-        
+
         # Initialize _local to False (will be set to True if any output matches)
         self._local = False
-        
+
         # Get current node UUID
         current_node_uuid = settings.node_conf.get('uuid')
         if not current_node_uuid:
             Logger.warning(f'DmxCue {self.id}: No node UUID found in settings')
             return True
-        
+
         # Check each output
         if self.outputs:
             for output in self.outputs:
                 # For DMX cues, output_name is just the node UUID (not {node_uuid}_{output_name})
                 output_name = output.get('output_name', '')
-                
+
                 # Compare entire output_name with current node UUID
                 if output_name == current_node_uuid:
                     self._local = True
@@ -258,19 +259,19 @@ class DmxCue(Cue):
                         f'DmxCue {self.id} output_name {output_name} matches current node, setting _local=True'
                     )
                     break  # Found a match, no need to check other outputs
-        
+
         return True
-    
+
 class DmxScene(CuemsDict):
     """A class representing a DMX scene containing multiple universes."""
 
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = SCENE_REQ_ITEMS
-    
+
     def __init__(self, init_dict=None):
         """Initialize a DMX scene.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to create DMX universes.
@@ -284,15 +285,15 @@ class DmxScene(CuemsDict):
 
     def get_id(self):
         """Get the scene ID.
-        
+
         Returns:
             int: The scene ID.
         """
         return super().__getitem__('id')
-    
+
     def set_id(self, scene_id):
         """Set the scene ID.
-        
+
         Args:
             scene_id (int): The new scene ID.
         """
@@ -300,21 +301,21 @@ class DmxScene(CuemsDict):
     id = property(get_id, set_id)
     def get_DmxUniverse(self):
         """Get a specific DMX universe.
-        
+
         Args:
             num (int, optional): The universe number to get.
                 If None, returns None.
-                
+
         Returns:
             DmxUniverse or None: The requested universe or None if not found.
         """
         return super().__getitem__('DmxUniverse')
 
 
-      
+
     def set_DmxUniverse(self, universe):
         """Set a DMX universe at a specific number.
-        
+
         Args:
             universe: The universe to set.
             num (int, optional): The universe number. Defaults to 0.
@@ -322,12 +323,12 @@ class DmxScene(CuemsDict):
         if not isinstance(universe, DmxUniverse):
             universe = DmxUniverse(universe)
         super().__setitem__('DmxUniverse', universe)
-        
+
     DmxUniverse = property(get_DmxUniverse, set_DmxUniverse)
 
     # def merge_universe(self, universe, num=0):
     #     """Merge two universes, with priority given to the new universe.
-        
+
     #     Args:
     #         universe: The universe to merge with.
     #         num (int, optional): The universe number to merge into. Defaults to 0.
@@ -340,10 +341,10 @@ class DmxUniverse(CuemsDict):
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = UNIVERSE_REQ_ITEMS
-    
+
     def __init__(self, init_dict=None):
         """Initialize a DMX universe.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to create DMX channels.
@@ -360,15 +361,15 @@ class DmxUniverse(CuemsDict):
 
     def get_universe_num(self):
         """Get the universe number.
-        
+
         Returns:
             int: The universe number.
         """
         return super().__getitem__('universe_num')
-    
+
     def set_universe_num(self, universe_num):
         """Set the universe number.
-        
+
         Args:
             universe_num (int): The new universe number.
         """
@@ -377,7 +378,7 @@ class DmxUniverse(CuemsDict):
 
     def get_dmx_channels(self):
         """Get the dmx channel for the scene.
-        
+
         Returns:
             list: The list of dmx channels.
         """
@@ -427,10 +428,10 @@ class DmxUniverse(CuemsDict):
 
     # def setall(self, value):
     #     """Set all channels in the universe to the same value.
-        
+
     #     Args:
     #         value: The value to set all channels to.
-            
+
     #     Returns:
     #         DmxUniverse: Self for method chaining.
     #     """
@@ -440,7 +441,7 @@ class DmxUniverse(CuemsDict):
 
     # def update(self, other=None, **kwargs):
     #     """Update multiple channels in the universe.
-        
+
     #     Args:
     #         other (dict or iterable, optional): Dictionary or iterable of channel updates.
     #         **kwargs: Additional channel updates as keyword arguments.
@@ -457,10 +458,10 @@ class DmxChannel(CuemsDict):
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = DMXCHANNEL_REQ_ITEMS
-    
+
     def __init__(self, init_dict = None):
         """Initialize a DMX channel.
-        
+
         Args:
             value (int, optional): The initial channel value.
             init_dict (dict, optional): Dictionary containing initialization values.
@@ -476,15 +477,15 @@ class DmxChannel(CuemsDict):
 
     def get_channel(self):
         """Get the channel number.
-        
+
         Returns:
             int: The channel number.
         """
         return super().__getitem__('channel')
-    
+
     def set_channel(self, channel):
         """Set the channel number.
-        
+
         Args:
             num (int): The new channel number.
         """
@@ -493,15 +494,15 @@ class DmxChannel(CuemsDict):
 
     def get_value(self):
         """Get the channel value.
-        
+
         Returns:
             int: The channel value.
         """
         return super().__getitem__('value')
-    
+
     def set_value(self, value):
         """Set the channel value.
-        
+
         Args:
             value (int): The new channel value.
         """

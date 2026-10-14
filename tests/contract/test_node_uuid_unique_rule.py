@@ -124,7 +124,10 @@ def test_the_internal_exception_remains_a_value_error(tmp_path):
     raises: still a plain ``ValueError``, so ``isinstance(exc, ValueError)``
     holds everywhere it holds today and ``tests/golden/outcomes.json``'s
     raw verdicts are unaffected."""
-    from cuemsutils.xml.validators import _NodeIdentityCollision, check_node_identities_unique
+    from cuemsutils.xml.validators import (
+        _NodeIdentityCollision,
+        check_node_identities_unique,
+    )
 
     with pytest.raises(ValueError) as raised:
         check_node_identities_unique([(SHAPES["uuid4"], mac_for(0)), (SHAPES["uuid4"], mac_for(1))])

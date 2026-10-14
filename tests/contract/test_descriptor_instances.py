@@ -21,7 +21,7 @@ import pytest
 
 from cuemsutils.xml.descriptor import SchemaDescriptor
 from cuemsutils.xml.schema import SCHEMA_NAMES
-from cuemsutils.xml.spec import FieldKind, derive
+from cuemsutils.xml.spec import FieldKind
 from tests.support.corpus import REPO_ROOT  # feature 011, T007: no host /etc/cuems
 
 

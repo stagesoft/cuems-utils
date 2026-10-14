@@ -1,6 +1,8 @@
 import os
 import shutil
+
 from ..log import Logger
+
 
 class CopyMoveVersioned():
 
@@ -9,10 +11,10 @@ class CopyMoveVersioned():
         i = 0
         if dest_filename is None:
             dest_filename = os.path.basename(orig_path)
-            
+
         (base, ext) = os.path.splitext(dest_filename)
-        
-        while True:     
+
+        while True:
             if not os.path.exists(os.path.join(dest_path, dest_filename)):
                 Logger.debug('moving file to: {}'.format(os.path.join(dest_path, dest_filename)))
                 shutil.move( orig_path, os.path.join(dest_path, dest_filename))
@@ -20,14 +22,14 @@ class CopyMoveVersioned():
             else:
                 i += 1
                 dest_filename = base + "-{:03d}".format(i) + ext
-                continue    
+                continue
         return dest_filename
 
     @staticmethod
     def copy_dir(orig_path, dest_path, dest_dirname):
         i = 0
         orig_name = dest_dirname
-        while True:     
+        while True:
             if not os.path.exists(os.path.join(dest_path, dest_dirname)):
                 Logger.debug('copyin dir to: {}'.format(os.path.join(dest_path, dest_dirname)))
                 shutil.copytree( orig_path, os.path.join(dest_path, dest_dirname))
@@ -35,5 +37,5 @@ class CopyMoveVersioned():
             else:
                 i += 1
                 dest_dirname = orig_name + "-{:03d}".format(i)
-                continue    
+                continue
         return dest_dirname

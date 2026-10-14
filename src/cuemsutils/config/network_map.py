@@ -53,7 +53,7 @@ from ..helpers import Unset
 from .base import ConfigDict, save_document
 
 
-class node(ConfigDict):  # noqa: N801 - the domain's name, not a class-name style
+class node(ConfigDict):  # the domain's name, not a class-name style
     """One node's identity in the network map.
 
     Lowercase on purpose: ``node`` is what the element is called, what
@@ -86,7 +86,7 @@ class node(ConfigDict):  # noqa: N801 - the domain's name, not a class-name styl
     }
 
 
-class node_list(ConfigDict):  # noqa: N801 - the element's name
+class node_list(ConfigDict):  # the element's name
     """``NodeDictType`` — the repeated ``<node>`` container.
 
     **The decoded value at this position is a Python list, not an instance of

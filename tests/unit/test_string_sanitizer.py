@@ -48,7 +48,6 @@ from __future__ import annotations
 
 from cuemsutils.tools.StringSanitizer import StringSanitizer
 
-
 # --- sanitize_name: Project.name / Media.name, peewee CharField(max_length=255) --
 
 

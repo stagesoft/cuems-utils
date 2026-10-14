@@ -1,15 +1,17 @@
-from .Cue import Cue
-from .MediaCue import MediaCue
+from typing import Any
+
 from ..helpers import ensure_items
 from ..tools.Uuid import Uuid
+from .Cue import Cue
+from .MediaCue import MediaCue
 
-REQ_ITEMS = {
+REQ_ITEMS: dict[str, Any] = {
     'contents': []
 }
 
 class CueList(Cue):
     """A cue that contains a list of other cues.
-    
+
     This class extends Cue to provide functionality for managing collections of cues,
     including nested cue lists and media tracking.
     """
@@ -17,10 +19,10 @@ class CueList(Cue):
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = REQ_ITEMS
-    
+
     def __init__(self, init_dict = None):
         """Initialize a CueList.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If not provided, default values from REQ_ITEMS will be used.
@@ -33,7 +35,7 @@ class CueList(Cue):
 
     def get_contents(self) -> list[Cue]:
         """Get the list of cues in this cue list.
-        
+
         Returns:
             list: The list of Cue objects.
         """
@@ -41,7 +43,7 @@ class CueList(Cue):
 
     def set_contents(self, contents: list[Cue]):
         """Set the list of cues in this cue list.
-        
+
         Args:
             contents (list): The new list of Cue objects.
         """
@@ -51,10 +53,10 @@ class CueList(Cue):
 
     def append(self, item: Cue):
         """Add a cue to the end of the list.
-        
+
         Args:
             item (Cue): The cue to add.
-            
+
         Raises:
             TypeError: If the item is not a Cue object.
         """
@@ -64,12 +66,12 @@ class CueList(Cue):
 
     def check_mappings(self, settings):
         """Check if the cue list mappings are valid.
-        
+
         Currently, all CueList objects are considered local.
-        
+
         Args:
             settings: The settings containing project node mappings.
-            
+
         Returns:
             bool: Always returns True for CueList objects.
         """
@@ -78,10 +80,10 @@ class CueList(Cue):
 
     def find(self, uuid: Uuid):
         """Find a cue by its UUID in this cue list or its nested lists.
-        
+
         Args:
             uuid (Uuid): The UUID to search for.
-            
+
         Returns:
             Cue or None: The found cue, or None if not found.
         """
@@ -95,14 +97,14 @@ class CueList(Cue):
                     return item
                 elif isinstance(item, CueList):
                     recursive = item.find(uuid)
-                    if recursive != None:
+                    if recursive is not None:
                         return recursive
-            
+
         return None
 
     def get_media(self):
         """Get a dictionary of all media files present inside contents.
-        
+
         Returns:
             dict: A dictionary mapping cue UUIDs to their media information.
                 Each entry contains the media file name and cue type.
@@ -117,7 +119,7 @@ class CueList(Cue):
                 media_dict.update(cue.get_media())
             elif isinstance(cue, MediaCue) and hasattr(cue.media, 'file_name'):
                 media_dict[str(cue.id)] = {str(cue.media.id) : cue.media.file_name }
-        
+
         return media_dict
 
     def get_next_cue(self):
@@ -147,7 +149,7 @@ class CueList(Cue):
 
     def times(self):
         """Get a list of all cue offsets in this cue list.
-        
+
         Returns:
             list: A list of timecode offsets for each cue in the list.
         """
@@ -158,7 +160,7 @@ class CueList(Cue):
 
     def has_contents(self):
         """Check if the cue list has contents.
-        
+
         Returns:
             bool: True if the cue list has contents, False otherwise.
         """

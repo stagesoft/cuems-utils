@@ -12,12 +12,12 @@ should still be caught here.
 """
 
 import cuemsutils.cues  # noqa: F401 — forces every public cue module to
-from cuemsutils.xml.descriptor import generate_script_example
 
 # be imported so Cue.__subclasses__() sees them.
 from cuemsutils.cues import CueList
 from cuemsutils.cues.Cue import Cue
 from cuemsutils.cues.MediaCue import MediaCue
+from cuemsutils.xml.descriptor import generate_script_example
 
 
 def _collect_cue_subclasses(root):

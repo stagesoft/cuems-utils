@@ -314,7 +314,7 @@ def reshape_file(path: Path, *, write: bool, dry_run: bool, clock: str) -> str:
         return "skipped (unrecognised root)"
     try:
         get_schema(schema_name).validate(_as_the_load_path_sees_it(schema_name, tree))
-    except Exception as exc:  # noqa: BLE001 - named, and the original stays
+    except Exception as exc:  # named, and the original stays
         return f"skipped (would not validate: {exc})"
     write_tree(tree, path)
     return "reshaped"

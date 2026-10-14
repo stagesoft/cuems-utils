@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import re
 
-import pytest
-
 from cuemsutils.xml.documents import get_pkg_schema
 from cuemsutils.xml.registry import all_registries
 
@@ -81,15 +79,15 @@ def test_timecodetype_remains_the_inner_ctimecode_elements_type():
 #: 82→83 from the import swap, 242→258 and 438/439→454/455 from the expanded
 #: docstring. The **count is unchanged at six**, so no new frame-based form
 #: was introduced — which is the thing this pin exists to catch. Any future
-#: edit to ``CTimecode.py`` above line 455 moves these again; re-run and
+#: edit to ``CTimecode.py`` above line 453 moves these again; re-run and
 #: re-record rather than widening the check.
 _ALLOWED_FRAME_FORM_LOCATIONS = {
     ("src/cuemsutils/tools/CTimecode.py", 24),
-    ("src/cuemsutils/tools/CTimecode.py", 79),
-    ("src/cuemsutils/tools/CTimecode.py", 83),
-    ("src/cuemsutils/tools/CTimecode.py", 258),
-    ("src/cuemsutils/tools/CTimecode.py", 454),
-    ("src/cuemsutils/tools/CTimecode.py", 455),
+    ("src/cuemsutils/tools/CTimecode.py", 77),
+    ("src/cuemsutils/tools/CTimecode.py", 81),
+    ("src/cuemsutils/tools/CTimecode.py", 256),
+    ("src/cuemsutils/tools/CTimecode.py", 452),
+    ("src/cuemsutils/tools/CTimecode.py", 453),
 }
 
 _FRAME_FORM_RE = re.compile(r"\b\d{2}:\d{2}:\d{2}:\d{2}\b")

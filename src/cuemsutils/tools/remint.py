@@ -736,7 +736,7 @@ def verify(conf, documents, table: SubstitutionTable,
             from ..xml.schema import get_schema
 
             get_schema(schema_name).validate(str(path))
-        except Exception as exc:  # noqa: BLE001 — any failure is a failure, named
+        except Exception as exc:  # any failure is a failure, named
             invalid.append(f"{path}: does not validate against {schema_name}.xsd ({exc})")
     if invalid:
         failures.extend(invalid)
@@ -747,7 +747,7 @@ def verify(conf, documents, table: SubstitutionTable,
             from .ConfigManager import ConfigManager
 
             ConfigManager(config_dir=str(conf), load_all=False).load_config()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             loaded = False
             failures.append(f"{conf}: a full load does not succeed ({exc})")
 
@@ -900,7 +900,7 @@ def _record_nothing_to_do(state, own, table, scope) -> None:
     ).save(completion_record_path(state, node))
 
 
-def run(args, *, confirm=None) -> int:  # noqa: C901 - the eight ordered steps
+def run(args, *, confirm=None) -> int:  # the eight ordered steps
     """``cuems-init-node --remint``. The eight steps of contracts/cli-remint.md.
 
     Args:

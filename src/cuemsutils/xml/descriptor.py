@@ -947,7 +947,7 @@ def _build_choice_members(builders: dict, leaf_names: tuple[str, ...]) -> list:
     """One object per element name, and per class where the element is
     conditional — in schema order, then alternative order."""
     choice = derive(TypeKey("script", "CueListContentsType"))
-    cues = []
+    cues: list[Any] = []
     for name in leaf_names:
         builder = builders[name]
         if isinstance(builder, dict):
