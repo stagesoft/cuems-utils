@@ -1,5 +1,7 @@
-from cuemsutils import __version__ as version
 import re
+
+from cuemsutils import __version__ as version
+
 
 def is_zero_or_digit(s: str) -> bool:
     if s[0] == "0":

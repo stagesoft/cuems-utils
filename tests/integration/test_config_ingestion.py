@@ -32,8 +32,13 @@ from cuemsutils.tools.NodeList import NodeRole
 from cuemsutils.tools.Uuid import Uuid
 from cuemsutils.xml.descriptor import SchemaDescriptor
 from cuemsutils.xml.mapper import root_spec
+from cuemsutils.xml.settings import (
+    NetworkMap,
+    ProjectMappings,
+    ProjectSettings,
+    Settings,
+)
 from cuemsutils.xml.versioning import CURRENT_VERSION
-from cuemsutils.xml.settings import NetworkMap, ProjectMappings, ProjectSettings, Settings
 
 REPO_ROOT_DATA = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 

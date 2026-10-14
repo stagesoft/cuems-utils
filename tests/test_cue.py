@@ -4,21 +4,22 @@ import pytest
 
 from cuemsutils.cues.ActionCue import ActionCue
 from cuemsutils.cues.Cue import Cue
+from cuemsutils.cues.CueOutput import AudioCueOutput, DmxCueOutput, VideoCueOutput
 from cuemsutils.cues.MediaCue import MediaCue
-from cuemsutils.cues.CueOutput import AudioCueOutput, VideoCueOutput, DmxCueOutput
 from cuemsutils.helpers import new_uuid
+
 
 def test_simple_cue():
     ## Arrange
     uuid = new_uuid()
     ui_dict = {'id': uuid, 'loop': False}
-    
+
     ## Act
     cue = Cue(ui_dict)
 
     ## Assert
     assert cue.id == uuid
-    assert cue.loop == False
+    assert cue.loop is False
 
 def test_cue_as_dict_key():
     ## Arrange
@@ -113,7 +114,7 @@ def test_media_cue_localize_cue():
     ## Act
     media_cue.localize_cue('0367f391-ebf4-48b2-9f26-000000000001')
     ## Assert
-    assert media_cue._local == True
+    assert media_cue._local is True
     media_cue.localize_cue('0367f391-ebf4-48b2-9f26-000000000002')
     ## Assert
-    assert media_cue._local == False
+    assert media_cue._local is False

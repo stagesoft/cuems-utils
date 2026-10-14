@@ -1,6 +1,6 @@
-from .MediaCue import MediaCue
-from ..tools.CTimecode import CTimecode
 from ..helpers import ensure_items
+from ..tools.CTimecode import CTimecode
+from .MediaCue import MediaCue
 
 REQ_ITEMS = {
     # Alphabetical, for the reason recorded in ``AudioCue.REQ_ITEMS``.
@@ -65,7 +65,7 @@ class VideoCue(MediaCue):
 
     def player(self, player):
         """Set the video player instance.
-        
+
         Args:
             player: The video player instance to use.
         """
@@ -81,17 +81,17 @@ class VideoCue(MediaCue):
 
     def stop(self):
         """Stop the video playback.
-        
+
         This method sets the stop request flag to halt video playback.
         """
         self._stop_requested = True
 
     def check_mappings(self, settings):
         """Check if the video output mappings are valid.
-        
+
         Args:
             settings: The settings containing project node mappings.
-            
+
         Returns:
             bool: True if the mappings are valid, False otherwise.
         """

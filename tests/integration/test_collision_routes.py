@@ -129,6 +129,27 @@ def test_route_3b_the_library_refuses_to_read_a_colliding_map(tmp_path):
     assert mac_for(0) in str(raised.value) and mac_for(1) in str(raised.value)
 
 
+def test_route_3d_two_distinct_collisions_are_distinguishable_without_reparsing(tmp_path):
+    """FR-062 (feature 015, S1) — the structured half of route 3: a document
+    carrying two *separate* colliding identities names both in
+    ``.collisions`` without a consumer re-parsing the message."""
+    from cuemsutils.errors import NodeIdentityCollisionError
+
+    rows = [
+        NodeSpec(SHAPES["uuid4"], mac_for(0), "controller", "n0", "10.0.0.1"),
+        NodeSpec(SHAPES["uuid4"], mac_for(1), "node", "n1", "10.0.0.2"),
+        NodeSpec(SHAPES["uuid4b"], mac_for(2), "node", "n2", "10.0.0.3"),
+        NodeSpec(SHAPES["uuid4b"], mac_for(3), "node", "n3", "10.0.0.4"),
+    ]
+    path = tmp_path / "network_map.xml"
+    path.write_text(network_map_xml(rows), encoding="utf-8")
+
+    with pytest.raises(NodeIdentityCollisionError) as raised:
+        load_config_document(NetworkMap, str(path), "network_map")
+
+    assert set(raised.value.collisions) == {SHAPES["uuid4"], SHAPES["uuid4b"]}
+
+
 def test_route_3c_the_silent_collapse_that_used_to_hide_it(tmp_path):
     """What the refusal replaced, asserted so the change is legible. ``merge``
     still collapses by identity — that is its job — which is exactly why the

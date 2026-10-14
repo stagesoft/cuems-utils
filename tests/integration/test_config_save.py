@@ -13,7 +13,12 @@ import threading
 
 import pytest
 
-from cuemsutils.xml.settings import NetworkMap, ProjectMappings, ProjectSettings, Settings
+from cuemsutils.xml.settings import (
+    NetworkMap,
+    ProjectMappings,
+    ProjectSettings,
+    Settings,
+)
 
 REPO_ROOT_DATA = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 

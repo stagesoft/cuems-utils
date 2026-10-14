@@ -1,12 +1,23 @@
 import os
 from datetime import datetime
-from re import match, Match
+from re import Match, match
 
-from cuemsutils.helpers import ensure_items, extract_items, new_uuid, new_datetime, DATETIME_FORMAT, Uuid, check_path
+from cuemsutils.helpers import (
+    DATETIME_FORMAT,
+    Uuid,
+    check_path,
+    ensure_items,
+    extract_items,
+    new_datetime,
+    new_uuid,
+)
+
 
 def test_ensure_items():
     ## ARRANGE
-    call_a = lambda: 0
+    def call_a():
+        return 0
+
     x = {'a': 1, 'b': 2}
     required = {'a': 0, 'b': 0, 'c': None, 'd': call_a, 'e': ''}
 
@@ -69,7 +80,7 @@ def test_given_uuid():
         failed_uuid = Uuid(not_uuid4)
     except ValueError as e:
         failed_uuid = e
-    
+
     ## ASSERT
     assert target_uuid.uuid == uuid
     assert target_uuid.check() is True
@@ -104,7 +115,7 @@ class TestCheckPath:
         assert dir_path_result is True
         assert isinstance(fail_path_result, Exception)
         assert isinstance(fail_path_result, FileNotFoundError)
-        
+
     def test_check_root_path(self):
         ## ARRANGE
         parent_dir = os.path.dirname(self.root_path)
@@ -158,5 +169,5 @@ class TestCheckPath:
 
         ## CLEANUP
         os.rmdir(self.tmp_dir)
-        
-        
+
+

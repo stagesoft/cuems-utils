@@ -1,9 +1,9 @@
 """Set of helper functions for the cuemsutils package."""
 
-from os import access, mkdir, path, R_OK, W_OK
-from datetime import datetime
-from typing import Any
 from collections.abc import ItemsView, KeysView
+from datetime import datetime
+from os import R_OK, W_OK, access, mkdir, path
+from typing import Any
 from xml.etree.ElementTree import Element, SubElement
 
 from .tools.CTimecode import CTimecode
@@ -385,6 +385,14 @@ class CuemsDict(dict):
         15.49 ms the direct projection exists to avoid, against a 5 ms budget
         on the system's hottest path.
 
+        **It fills a model default for an optional element the document
+        omitted** (FR-078). This is a general property of the projection,
+        not a fact about any one field: an element the schema marks optional
+        and the document left out appears in the payload with the value the
+        model layer declares for it (``opacity`` is merely the instance that
+        surfaced it). A consumer comparing a payload against the document it
+        was loaded from must expect the extra keys.
+
         Returns:
             dict: JSON-safe, ordered as the wire contract states.
 
@@ -496,7 +504,7 @@ class CuemsDict(dict):
     #: invisible in review, produces no failure in any test that does not
     #: itself hash a cue, and surfaces as a ``TypeError`` in a consumer
     #: repository (FR-028d).
-    __hash__ = None  # type: ignore[assignment]
+    __hash__ = None
 
     def __copy__(self):
         """A shallow copy with **fresh** runtime state (FR-028c).
@@ -526,10 +534,10 @@ class CuemsDict(dict):
 
     def setter(self, settings: dict):
         """Set the object properties from a dictionary.
-        
+
         Args:
             settings (dict): Dictionary containing property values to set.
-            
+
         Raises:
             AttributeError: If settings is not a dictionary.
         """
@@ -615,7 +623,7 @@ def ensure_items(x: dict, requiered: dict) -> dict:
     x = dict(x)
     for k,v in requiered.items():
         if k not in x.keys():
-            if v == None:
+            if v is None:
                 x[k] = None
             elif callable(v):
                 x[k] = v()
@@ -624,12 +632,12 @@ def ensure_items(x: dict, requiered: dict) -> dict:
 
     ## Order the dictionary
     x = {k: x[k] for k in sorted(x.keys())}
-    
+
     return x
 
 def extract_items(x, keys: list[str] | KeysView[str]) -> ItemsView[str, Any]:
     """Extract list of keys and values from a dictionary
-    
+
     Args:
         x (items): The dictionary items to extract from
         keys (list): The keys to extract
@@ -689,7 +697,7 @@ def strtobool(val: str) -> bool:
         True values are y, yes, t, true, on and 1.
         False values are n, no, f, false, off and 0.
         Raises ValueError if val is anything else.
-    """ 
+    """
     if val.lower() in ['y', 'yes', 't', 'true', 'on', '1']:
         return True
     elif val.lower() in ['n', 'no', 'f', 'false', 'off', '0']:
@@ -699,7 +707,7 @@ def strtobool(val: str) -> bool:
 
 def unique_values_to_list(x: dict) -> list:
     """Convert a dictionary to a sorted list of its unique values.
-    
+
     Args:
         x (dict): The dictionary to convert
     """
@@ -721,4 +729,4 @@ def _readable(path: str) -> bool:
 
 def _writable(path: str) -> bool:
     """Check if a path is writable."""
-    return access(path, W_OK) 
+    return access(path, W_OK)

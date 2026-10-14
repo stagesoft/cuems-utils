@@ -116,3 +116,22 @@ def test_the_rule_is_not_repairable_so_nothing_substitutes_a_default(tmp_path):
     duplicate to keep, and the library has no way to know which row is real. The
     flag is a statement about the repair *model*, not a gap in it."""
     assert RULES[RULE].repairable is False
+
+
+def test_the_internal_exception_remains_a_value_error(tmp_path):
+    """R4/data-model.md §6 invariant 1 (S1, feature 015) — structuring the
+    collision at the accessor must not change what the **rule itself**
+    raises: still a plain ``ValueError``, so ``isinstance(exc, ValueError)``
+    holds everywhere it holds today and ``tests/golden/outcomes.json``'s
+    raw verdicts are unaffected."""
+    from cuemsutils.xml.validators import (
+        _NodeIdentityCollision,
+        check_node_identities_unique,
+    )
+
+    with pytest.raises(ValueError) as raised:
+        check_node_identities_unique([(SHAPES["uuid4"], mac_for(0)), (SHAPES["uuid4"], mac_for(1))])
+
+    assert isinstance(raised.value, ValueError)
+    assert isinstance(raised.value, _NodeIdentityCollision)
+    assert not isinstance(raised.value, ValidationError)

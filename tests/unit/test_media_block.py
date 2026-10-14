@@ -8,7 +8,7 @@
 **Renamed 2026-10-06**: ``file_hash`` -> ``file_md5``, ``Md5HashType`` ->
 ``Md5Type``. When this feature was planned the input document specified three
 elements and the fourth was 014's own addition, free to be named here. Its D18
-revision (``specs/planning/stored-media-values-preimplementation.md``) ships the
+revision (``specs/014-xs-boolean-and-media-elements/plan.md (§10.5; the source note was deleted by feature 015)``) ships the
 fourth too, as ``file_md5``, and rc15 **has already shipped it** — into rc15
 itself and back-patched into rc14 and ``pre_release_1``. An element name is an
 instance-document name, so two spellings would not be a style disagreement: an
@@ -39,7 +39,7 @@ a mechanism:
   outlier, not this one. **The obligation this creates is the editor's**: it
   stores the md5 the client sent, so it must ``.lower()`` before assigning, where
   on rc15 the library did that for it. Recorded in
-  ``specs/planning/stored-media-values-preimplementation.md``.
+  ``specs/014-xs-boolean-and-media-elements/plan.md (§10.5; the source note was deleted by feature 015)``.
 """
 
 from __future__ import annotations
@@ -292,12 +292,11 @@ def test_the_writer_omits_an_absent_field_rather_than_emitting_it_empty():
 
 
 def test_a_partial_block_still_round_trips_and_revalidates():
-    from cuemsutils.xml.schema import get_schema as _gs
-
     import tempfile
     from pathlib import Path
 
     from cuemsutils.cues import CuemsScript
+    from cuemsutils.xml.schema import get_schema as _gs
 
     script, _ = CuemsScript.load_with_report(FIXTURE)
     media = script['CueList'].contents[0]['Media']

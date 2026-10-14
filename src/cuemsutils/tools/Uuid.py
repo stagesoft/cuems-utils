@@ -5,7 +5,7 @@ UUID4_REGEX = r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 
 class Uuid():
     """A class to interact with unique identifiers.
-        
+
         Comparisions should be made based on memory allocation.
 
         Calling or printing the instance will return the uuid4 string.
@@ -17,10 +17,10 @@ class Uuid():
             self.uuid = str(uuid)
         if not self.check():
             raise ValueError(f'uuid {uuid} is not valid')
-    
+
     def __str__(self):
         return self.uuid
-    
+
     def __repr__(self):
         return self.uuid
 
@@ -96,7 +96,7 @@ class Uuid():
 
     def items(self):
         return [("uuid", self.uuid)]
-    
+
     def check(self):
         m = match(UUID4_REGEX, self.uuid)
         if m:

@@ -7,7 +7,6 @@ from cuemsutils.config.network_map import CuemsNetworkMapType, node, node_list
 from cuemsutils.helpers import CuemsDict
 from tests.support.config_inventory import build_config_manager
 
-
 # -- C10 ----------------------------------------------------------------------
 
 

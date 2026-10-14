@@ -1,9 +1,11 @@
 import signal
 from os import getpid
-from systemd.daemon import notify as notify_systemd_daemon
 from time import sleep
 
+from systemd.daemon import notify as notify_systemd_daemon
+
 from ..log import Logger, logged
+
 
 class SignalEngine:
     """
@@ -45,8 +47,8 @@ class SignalEngine:
         self.stop_requested = True
         try:
             if hasattr(self, 'stop_all'):
-                self.stop_all()  # type: ignore[attr-defined]
-        except:
+                self.stop_all()
+        except Exception:
             Logger.warning('Exception when calling stop_all')
         self.running = False
 
@@ -71,7 +73,7 @@ class SignalEngine:
         self.stop()
         sleep(0.1)
         exit()
-    
+
     def handle_terminate(self, sigNum, frame) -> None:
         string = f'SIGTERM received! Exiting with result code: {sigNum}'
         print('\n\n' + string + '\n\n')
@@ -84,7 +86,7 @@ class SignalEngine:
     def handle_print_all(self, sigNum, frame) -> None:
         Logger.info(f"STATUS REQUEST BY SIGUSR2 SIGNAL {sigNum}")
         if hasattr(self, 'print_all_status'):
-            self.print_all_status()  # type: ignore[attr-defined]
+            self.print_all_status()
 
     def handle_print_running(self, sigNum, frame) -> None:
         run_str = "" if self.running else " NOT"

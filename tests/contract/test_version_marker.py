@@ -16,7 +16,6 @@ from cuemsutils.xml.schema import SCHEMA_NAMES, get_schema
 from cuemsutils.xml.versioning import CURRENT_VERSION, DOC_VERSION_ATTR, read_version
 from tests.support import invalid_scripts as broken
 
-
 # --- T091: every written document carries the marker; absence means 1 -----
 
 
@@ -32,7 +31,7 @@ def test_every_written_script_document_carries_doc_version(tmp_path):
 def test_a_marker_less_document_is_treated_as_version_1_not_malformed():
     from tests.support.corpus import by_relpath
 
-    doc = by_relpath("cuems-utils/unicode_showcase.xml")
+    by_relpath("cuems-utils/unicode_showcase.xml")  # the entry must exist
     # This corpus document carries the marker now (T102a); parse the
     # *pre-008* original, which never had one, to test the true absence case.
     from tests.support.corpus import REPO_ROOT

@@ -42,7 +42,7 @@ class Settings(XmlReaderWriter):
     def get_dict(self) -> dict[str, Any]:
         if self.main_key == '':
             return self.xml_dict if isinstance(self.xml_dict, dict) else {}
-        value = self.xml_dict.get(self.main_key) # type: ignore[index]
+        value = self.xml_dict.get(self.main_key)
         if isinstance(value, dict):
             return value
         # If main_key value is not a dict (e.g., list), wrap it in a dict
@@ -109,7 +109,7 @@ class Settings(XmlReaderWriter):
         )
         self.xml_dict = Mapper(self.schema_name, document=self.xmlfile).decode_config(raw)
         if (hasattr(self, 'process_xml_dict')):
-            self.process_xml_dict() # type: ignore[attr-defined]
+            self.process_xml_dict()
         self.loaded = True
 
     # ``data2xml`` / ``buildxml`` **deleted** (T056, D3).
@@ -134,7 +134,8 @@ def _as_bool(val: Any) -> bool:
     table and was written against the ``"True"``/``"False"`` strings
     ``cms:BoolType`` decodes to. It stays callable with either shape rather
     than only the new one, because Assumption 8 keeps this method available
-    until feature 009 migrates its caller.
+    until its last caller (``cuems-engine``) has migrated and the
+    deprecated surface is removed (``specs/planning/deprecated-surface-removal-v0-1-1.md``).
     """
     return val if isinstance(val, bool) else strtobool(val)
 
@@ -214,8 +215,9 @@ class NetworkMap(Settings):
     )
     def get_nodes_by_adoption(network_map_dict: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """Deprecated (T083) — mutates its argument in place (FR-015's
-        opposite), kept working until feature 009 migrates its
-        ``cuems-engine`` caller (Assumption 8). See
+        opposite), kept working until ``cuems-engine`` migrates its
+        caller and the deprecated surface is removed (Assumption 8;
+        ``specs/planning/deprecated-surface-removal-v0-1-1.md``). See
         :meth:`partition_by_adoption` for the non-mutating replacement."""
         nodes = []
         new_nodes = []
@@ -248,8 +250,8 @@ class NetworkMap(Settings):
         """Split a network map's nodes into ``(adopted, unadopted)`` (research R7, contract C6).
 
         The non-mutating replacement for :meth:`get_nodes_by_adoption`
-        (Assumption 8 keeps that one available until feature 009 migrates its
-        caller). Every node value in ``network_map`` is unchanged, field by
+        (Assumption 8 keeps that one available until its caller has migrated
+        and the deprecated surface is removed). Every node value in ``network_map`` is unchanged, field by
         field, before and after this call — it only reads ``adopted``,
         through the same tolerant :func:`_as_bool` conversion (a caller may
         still hold the pre-typing string shape), and never writes back.
@@ -275,8 +277,8 @@ class NetworkMap(Settings):
         if not node_list:
             raise ValueError('No node list found in network map dictionary')
 
-        adopted = []
-        unadopted = []
+        adopted: list[Any] = []
+        unadopted: list[Any] = []
         for node_item in node_list:
             candidate = node_item.get('node')
             if candidate is None:
@@ -306,7 +308,7 @@ class ProjectMappings(Settings):
 
     def get_node(self, uuid):
         out = None
-        for node in self.processed['nodes']: # type: ignore[index]
+        for node in self.processed['nodes']:
             node = node['node']
             if node['uuid'] == uuid:
                 out = node

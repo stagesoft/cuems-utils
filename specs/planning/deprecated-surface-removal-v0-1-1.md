@@ -64,10 +64,12 @@ Either half alone is a broken promise. Together, at `v0.1.1`, both are kept.
 
 ---
 
-## 2. What moved here — twelve tasks
+## 2. What moved here — twelve tasks, plus one found later
 
 Renumbered **R1–R12** so they cannot be confused with 010's, with 010's original id beside each.
 The text is preserved in substance; where §4 found it wrong, the correction is marked **⚠**.
+**R9a** is not from 010 — it was found on 2026-10-13 while reviewing feature 015's documentation
+obligations, and it is sequenced here because its subject is the five modules R2–R6 and R9 delete.
 
 ### The gate
 
@@ -126,6 +128,46 @@ The text is preserved in substance; where §4 found it wrong, the correction is 
       schema rejects. R8's item 2 removes a *symbol site* in that file; this removes the file. Doing
       both in one release is the only way they do not contradict each other
 
+- [ ] **R9a** Delete `docs/xml.md`, the rendered documentation page for the modules this block
+      removes. **Found 2026-10-13**, while feature 015 was measuring which of its own public calls
+      `docs/` actually renders (that feature's FR-UX-003a/FR-UX-003c). `docs/` is mkdocstrings over
+      an **explicit list of modules**, and this page's list is five entries, **every one of which
+      this block deletes**:
+
+      | `docs/xml.md` renders | Fate in this block |
+      |---|---|
+      | `cuemsutils.xml.Parsers` | **deleted** by R4 |
+      | `cuemsutils.xml.XmlBuilder` | **deleted** by R9 |
+      | `cuemsutils.xml.Settings` | **deleted** by R2 |
+      | `cuemsutils.xml.XmlReaderWriter` | **deleted** by R3 |
+      | `cuemsutils.xml.CMLCuemsConverter` | **deleted** by R5 |
+
+      So the page is **entirely** the deprecated surface, and after R7 leaves `__all__ = []` there
+      is nothing in `cuemsutils.xml` left to publish: mkdocstrings would fail on five missing
+      identifiers, and the page's own existence is the last thing in the repository asserting that
+      `cuemsutils.xml` is a public package. **Blocked by R2–R5 and R9, and done *with* them**, not
+      after — any commit that deletes a module while its page still names it leaves the
+      documentation build broken.
+      Measured 2026-10-13: `mkdocs.yml` declares **no `nav`** — the five pages are discovered from
+      `docs/` — so deleting the one file is the whole task. Re-check that before deleting: a `nav`
+      added between now and then makes it two edits, and a nav entry pointing at a deleted page is
+      a build failure rather than a dead link.
+
+      **Why it is here rather than in 015**: 015 is additive public-surface work and publishes three
+      modules *into* `docs/` (`cuemsutils.errors`, `cuemsutils.tools.NodeList`,
+      `cuemsutils.config.network_map`). Deleting a page for modules that still exist on that branch
+      would publish nothing and break the build for no gain. The decision 015 *did* take, and the
+      one this task completes, is that **`cuemsutils.xml` is private**: that feature discharges its
+      descriptor documentation at `ConfigManager.get_schema_descriptor` — a rendered, public
+      call — rather than by publishing `cuemsutils.xml.descriptor`, on the stated ground that this
+      package becomes private in fact with **this** release. `docs/xml.md` is the other half of
+      that: while it stands, the private package has a published page.
+
+      ⚠ **`cuemsutils.xml.descriptor` must not be added to `docs/` as a replacement.** The module
+      stays internal; its public path is `ConfigManager.get_schema_descriptor`, already rendered in
+      `docs/tools.md`. 015's `tests/contract/test_public_docs_coverage.py` carries that exclusion
+      with its reason, so this task deletes a page without opening a question.
+
 ### The release
 
 - [ ] **R10** *(was T059)* Retire `tests/contract/test_deprecation_shims.py` **deliberately**,
@@ -145,7 +187,7 @@ The text is preserved in substance; where §4 found it wrong, the correction is 
 
 ## 3. The atomic step — R11 is five repositories, not one file
 
-Migrated from `upcoming-feature-requirements-2026-10-02.md` §3, which is where this was first
+Migrated from `upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)* §3, which is where this was first
 recorded. §1.1's table is the proof.
 
 > **The version move and the re-bound of five sibling packages are one step.** A library at `0.1.1`

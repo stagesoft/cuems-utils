@@ -15,12 +15,12 @@ assignment time.
 
 from __future__ import annotations
 
-from cuemsutils.xml.descriptor import generate_script_example
 from cuemsutils.cues.ActionCue import ActionCue
 from cuemsutils.cues.AudioCue import AudioCue
 from cuemsutils.cues.CuemsScript import CuemsScript
 from cuemsutils.cues.MediaCue import Media
 from cuemsutils.tools.Uuid import Uuid
+from cuemsutils.xml.descriptor import generate_script_example
 
 
 def test_clearing_a_script_id_leaves_it_empty():

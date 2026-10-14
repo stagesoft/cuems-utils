@@ -19,7 +19,7 @@ import warnings
 
 import pytest
 
-from cuemsutils.tools.NodeList import NodeRole
+from cuemsutils.tools.NodeList import NodeIndex, NodeRole
 from cuemsutils.xml.mapper import Mapper, read_config_document
 from cuemsutils.xml.settings import NetworkMap
 from tests.support.corpus import REPO_ROOT
@@ -63,3 +63,50 @@ def test_xml_to_object_to_json_to_object_to_xml(path, tmp_path):
     written = out.read_text()
     assert f"<node_role>{original_role.value}</node_role>" in written
     assert "<node_type>" not in written
+
+
+# -- G4, T046: a label persists through a save, an IP change, an adopt and an
+# un-adopt --------------------------------------------------------------------
+
+
+def test_a_labelled_index_saves_a_document_carrying_the_label(tmp_path):
+    document = _decoded("tests/data/network_map.xml")
+    index = NodeIndex({i["node"]["mac"]: i["node"] for i in document["node_list"]})
+    target = list(index.values())[0]
+
+    assert index.set_alias(target["uuid"], "stage-left") is True
+
+    out = tmp_path / "labelled.xml"
+    document.save(str(out))
+
+    assert "<alias>stage-left</alias>" in out.read_text()
+
+
+def test_a_label_survives_an_ip_change_an_adopt_and_an_unadopt(tmp_path):
+    document = _decoded("tests/data/network_map.xml")
+    index = NodeIndex({i["node"]["mac"]: i["node"] for i in document["node_list"]})
+    target = next(n for n in index.values() if n.get("node_role") is not NodeRole.controller)
+    target["online"] = True
+
+    index.set_alias(target["uuid"], "stage-left")
+
+    # An IP change, via discovery merge.
+    discovered = {target["mac"]: {
+        k: v for k, v in target.items()
+        if k in ("uuid", "mac", "name", "node_role", "ip", "adopted", "online")
+    }}
+    discovered[target["mac"]]["ip"] = "10.10.10.10"
+    index.merge(discovered)
+    assert target["alias"] == "stage-left"
+
+    # An adopt.
+    assert index.adopt(target["uuid"]) is True
+    assert target["alias"] == "stage-left"
+
+    # An un-adopt.
+    assert index.unadopt(target["uuid"]) is True
+    assert target["alias"] == "stage-left"
+
+    out = tmp_path / "survived.xml"
+    document.save(str(out))
+    assert "<alias>stage-left</alias>" in out.read_text()

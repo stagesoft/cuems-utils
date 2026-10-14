@@ -8,6 +8,7 @@ from .._deprecation import deprecated_symbol
 from ..log import Logger, logged
 from .converter import CuemsConverter
 from .documents import get_pkg_schema as _get_pkg_schema
+from .documents import write_tree
 from .mapper import Mapper, build_document
 from .schema import get_schema
 
@@ -80,11 +81,9 @@ class XmlReaderWriter(CuemsXml):
     def write(self, xml_data: ElementTree):
         Logger.info(f"Writing {self.schema_name} document {self.xmlfile}")
         self.schema_object.validate(xml_data)
-        xml_data.write(
-            self.xmlfile,
-            encoding = "utf-8",
-            xml_declaration = True
-        )
+        # S3 (feature 015): one writer for every document -- indented,
+        # atomic and mode-preserving -- rather than a second direct write.
+        write_tree(xml_data, self.xmlfile)
 
     def write_from_dict(self, project_dict):
         """Decode a payload and write it.

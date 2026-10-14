@@ -39,10 +39,16 @@ from tests.support.public_api import PUBLIC_SCRIPTS, installed_scripts
 GOLDEN = GOLDEN_ROOT / "api" / "public_api.json"
 
 #: The two public entry points, and the one public module of exceptions.
+#:
+#: ``NodeIndex`` joins here in feature 015 (G4, FR-041a): it has been *"the
+#: only public path to the node model"* since feature 007, but was tracked in
+#: neither this golden nor ``config_accessors.json`` until ``set_alias``
+#: needed a recorded signature. The gap predates this feature.
 PUBLIC_CLASSES = {
     "CuemsScript": ("cuemsutils.cues.CuemsScript", "CuemsScript"),
     "ConfigManager": ("cuemsutils.tools.ConfigManager", "ConfigManager"),
     "ConfigBase": ("cuemsutils.tools.ConfigBase", "ConfigBase"),
+    "NodeIndex": ("cuemsutils.tools.NodeList", "NodeIndex"),
 }
 
 #: The exception hierarchy, plus the repair-report types feature 008 (ITEM E)
@@ -52,12 +58,19 @@ PUBLIC_CLASSES = {
 #: caller cannot inspect is one it cannot surface. ``DmxChannelDecodeError``
 #: joins in feature 009 (FR-006) — a DMX channel entry that cannot be
 #: converted, replacing that setter's former swallow-and-log fallback.
+#: ``NodeIdentityCollisionError`` joins in feature 015 (S1, FR-065a/FR-065c):
+#: two or more network-map rows carrying one node identity, structured so a
+#: consumer reads ``.collisions`` rather than parsing the message. This tuple
+#: is asserted equal to ``cuemsutils.errors.__all__`` below, and the API
+#: golden's ``errors`` section is generated **from** it — adding to
+#: ``__all__`` alone is not enough for either.
 PUBLIC_ERRORS = (
     "ConversionRecord",
     "CuemsError",
     "DmxChannelDecodeError",
     "IngestError",
     "LoadReport",
+    "NodeIdentityCollisionError",
     "Outcome",
     "RepairRecord",
     "SchemaError",

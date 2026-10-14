@@ -199,3 +199,65 @@ def test_ensure_is_a_no_op_when_the_uuid_is_already_present():
     assert index.ensure(duplicate) is False
     assert "000000000000" not in index, "ensure inserted a second row for a present uuid"
     assert index[existing["mac"]] is existing and existing["adopted"] is True
+
+
+# -- G4 (T040/T043-T045): set_alias joins the aliasing contract --------------
+
+
+def test_set_alias_mutates_the_node_object_the_caller_holds():
+    """Same guarantee as ``adopt``/``unadopt`` — see those tests for why."""
+    document = _decoded()
+    index = _index_over(document)
+    victim = list(index.values())[0]
+    wrappers = document["node_list"]
+
+    assert index.set_alias(victim["uuid"], "stage-left") is True
+
+    assert victim["alias"] == "stage-left", "set_alias did not reach the caller's object"
+    aliased = next(i["node"] for i in wrappers if i["node"]["uuid"] == victim["uuid"])
+    assert aliased is victim, "the document no longer aliases the index's node"
+    assert aliased["alias"] == "stage-left"
+
+
+def test_set_alias_to_the_current_value_does_not_move_the_signature():
+    """FR-038/FR-041 — a write-if-changed caller must not write."""
+    document = _decoded()
+    index = _index_over(document)
+    victim = list(index.values())[0]
+    index.set_alias(victim["uuid"], "stage-left")
+    before = index.signature()
+
+    assert index.set_alias(victim["uuid"], "stage-left") is True
+    assert index.signature() == before
+
+
+def test_set_alias_labels_an_offline_node_and_the_controller():
+    """FR-043 — liveness is not a precondition, unlike ``adopt``."""
+    document = _decoded()
+    index = _index_over(document)
+    offline = next((n for n in index.values() if not n.get("online")), None)
+    if offline is None:
+        offline = list(index.values())[0]
+        offline["online"] = False
+    controller = next(n for n in index.values() if n.get("node_role") is NodeRole.controller)
+
+    assert index.set_alias(offline["uuid"], "offline-node") is True
+    assert offline["alias"] == "offline-node"
+    assert index.set_alias(controller["uuid"], "the-controller") is True
+    assert controller["alias"] == "the-controller"
+
+
+def test_a_discovery_merge_after_a_label_does_not_clear_it():
+    """FR-044/SC-007 — pinned by test, not argued from ``merge``'s body."""
+    document = _decoded()
+    index = _index_over(document)
+    target = list(index.values())[0]
+    index.set_alias(target["uuid"], "stage-left")
+    discovered = {target["mac"]: {
+        k: v for k, v in target.items()
+        if k in ("uuid", "mac", "name", "node_role", "ip", "adopted", "online")
+    }}
+
+    index.merge(discovered)
+
+    assert target["alias"] == "stage-left", "merge cleared a label it never carries"

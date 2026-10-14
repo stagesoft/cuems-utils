@@ -1,7 +1,13 @@
 from deprecated import deprecated
 
+from ..helpers import (
+    CuemsDict,
+    as_cuemsdict,
+    ensure_items,
+    format_timecode,
+    new_uuid,
+)
 from ..tools.CTimecode import CTimecode
-from ..helpers import CuemsDict, ensure_items, extract_items, format_timecode, new_uuid, as_cuemsdict
 
 REQ_ITEMS = {
     'autoload': False,
@@ -21,7 +27,7 @@ REQ_ITEMS = {
 
 class Cue(CuemsDict):
     """Base class for all cue types in the system.
-    
+
     A cue represents a single action or event that can be triggered in the system.
     It contains properties like timing, target, and behavior settings.
     """
@@ -50,7 +56,7 @@ class Cue(CuemsDict):
 
     def __init__(self, init_dict = None):
         """Initialize a new Cue.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to set initial properties.
@@ -64,7 +70,7 @@ class Cue(CuemsDict):
 
     def get_id(self):
         """Get the unique identifier of the cue.
-        
+
         Returns:
             Uuid: The cue's unique identifier.
         """
@@ -72,7 +78,7 @@ class Cue(CuemsDict):
 
     def set_id(self, id):
         """Set the unique identifier of the cue.
-        
+
         Args:
             id: The new unique identifier.
         """
@@ -82,7 +88,7 @@ class Cue(CuemsDict):
 
     def get_name(self):
         """Get the name of the cue.
-        
+
         Returns:
             str: The cue's name.
         """
@@ -90,7 +96,7 @@ class Cue(CuemsDict):
 
     def set_name(self, name):
         """Set the name of the cue.
-        
+
         Args:
             name (str): The new name for the cue.
         """
@@ -100,7 +106,7 @@ class Cue(CuemsDict):
 
     def get_description(self):
         """Get the description of the cue.
-        
+
         Returns:
             str: The cue's description.
         """
@@ -108,7 +114,7 @@ class Cue(CuemsDict):
 
     def set_description(self, description):
         """Set the description of the cue.
-        
+
         Args:
             description (str): The new description for the cue.
         """
@@ -118,7 +124,7 @@ class Cue(CuemsDict):
 
     def get_enabled(self):
         """Get whether the cue is enabled.
-        
+
         Returns:
             bool: True if the cue is enabled, False otherwise.
         """
@@ -126,7 +132,7 @@ class Cue(CuemsDict):
 
     def set_enabled(self, enabled):
         """Set whether the cue is enabled.
-        
+
         Args:
             enabled (bool): True to enable the cue, False to disable it.
         """
@@ -136,7 +142,7 @@ class Cue(CuemsDict):
 
     def get_autoload(self):
         """Get whether the cue should be autoloaded.
-        
+
         Returns:
             bool: True if the cue should be autoloaded, False otherwise.
         """
@@ -144,7 +150,7 @@ class Cue(CuemsDict):
 
     def set_autoload(self, autoload: bool):
         """Set whether the cue should be autoloaded.
-        
+
         Args:
             autoload (bool): True to enable autoloading, False to disable it.
         """
@@ -154,7 +160,7 @@ class Cue(CuemsDict):
 
     def get_timecode(self):
         """Get the timecode setting of the cue.
-        
+
         Returns:
             bool: The timecode setting.
         """
@@ -162,7 +168,7 @@ class Cue(CuemsDict):
 
     def set_timecode(self, timecode):
         """Set the timecode setting of the cue.
-        
+
         Args:
             timecode (bool): The new timecode setting.
         """
@@ -172,7 +178,7 @@ class Cue(CuemsDict):
 
     def get_offset(self):
         """Get the timecode offset of the cue.
-        
+
         Returns:
             CTimecode: The cue's timecode offset.
         """
@@ -180,7 +186,7 @@ class Cue(CuemsDict):
 
     def set_offset(self, offset):
         """Set the timecode offset of the cue.
-        
+
         Args:
             offset: The new timecode offset.
         """
@@ -191,7 +197,7 @@ class Cue(CuemsDict):
 
     def get_loop(self):
         """Get the loop count of the cue.
-        
+
         Returns:
             int: The number of times the cue should loop.
         """
@@ -199,7 +205,7 @@ class Cue(CuemsDict):
 
     def set_loop(self, loop):
         """Set the loop count of the cue.
-        
+
         Args:
             loop (int): The number of times the cue should loop.
         """
@@ -209,7 +215,7 @@ class Cue(CuemsDict):
 
     def get_prewait(self):
         """Get the pre-wait time of the cue.
-        
+
         Returns:
             CTimecode: The time to wait before executing the cue.
         """
@@ -217,7 +223,7 @@ class Cue(CuemsDict):
 
     def set_prewait(self, prewait):
         """Set the pre-wait time of the cue.
-        
+
         Args:
             prewait: The new pre-wait time.
         """
@@ -228,7 +234,7 @@ class Cue(CuemsDict):
 
     def get_postwait(self):
         """Get the post-wait time of the cue.
-        
+
         Returns:
             CTimecode: The time to wait after executing the cue.
         """
@@ -236,7 +242,7 @@ class Cue(CuemsDict):
 
     def set_postwait(self, postwait):
         """Set the post-wait time of the cue.
-        
+
         Args:
             postwait: The new post-wait time.
         """
@@ -247,7 +253,7 @@ class Cue(CuemsDict):
 
     def get_post_go(self):
         """Get the post-go behavior of the cue.
-        
+
         Returns:
             str: The post-go behavior (e.g., 'pause').
         """
@@ -255,7 +261,7 @@ class Cue(CuemsDict):
 
     def set_post_go(self, post_go):
         """Set the post-go behavior of the cue.
-        
+
         Args:
             post_go (str): The new post-go behavior.
         """
@@ -265,7 +271,7 @@ class Cue(CuemsDict):
 
     def get_target(self):
         """Get the target of the cue.
-        
+
         Returns:
             Uuid: The target's unique identifier.
         """
@@ -273,7 +279,7 @@ class Cue(CuemsDict):
 
     def set_target(self, target):
         """Set the target of the cue.
-        
+
         Args:
             target: The new target identifier.
         """
@@ -283,7 +289,7 @@ class Cue(CuemsDict):
 
     def get_ui_properties(self):
         """Get the UI properties of the cue.
-        
+
         Returns:
             dict: The cue's UI properties.
         """
@@ -291,7 +297,7 @@ class Cue(CuemsDict):
 
     def set_ui_properties(self, ui_properties):
         """Set the UI properties of the cue.
-        
+
         Args:
             ui_properties (dict): The new UI properties.
         """
@@ -299,7 +305,7 @@ class Cue(CuemsDict):
         super().__setitem__('ui_properties', ui_properties)
 
     ui_properties = property(get_ui_properties, set_ui_properties)
-    
+
     # ``__eq__`` is **deliberately absent** (T029, behaviour change 5).
     #
     # It used to compare by ``id`` alone, so two cues sharing an id and
@@ -326,7 +332,7 @@ class Cue(CuemsDict):
 
     def target_object(self, target_object):
         """Set the target object for the cue.
-        
+
         Args:
             target_object: The target object to set.
         """
@@ -334,7 +340,7 @@ class Cue(CuemsDict):
 
     def type(self):
         """Get the type of the cue.
-        
+
         Returns:
             type: The class type of the cue.
         """
@@ -367,10 +373,10 @@ class Cue(CuemsDict):
     @deprecated(reason="This method is deprecated in favor of new mapping logic. Use localize_cue instead.", version="0.1.0rc4")
     def check_mappings(self, settings):
         """Check if the given settings are valid for this cue.
-        
+
         Args:
             settings: The settings to check.
-            
+
         Returns:
             bool: True if the settings are valid, False otherwise.
         """
@@ -380,7 +386,7 @@ class Cue(CuemsDict):
         """Fallback method to set the _local attribute to True.
 
         This method is a fallback for cues that do not implement their own localization logic.
-        
+
         Args:
             node_id: The ID of the node to localize the cue to.
         """

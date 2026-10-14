@@ -35,7 +35,18 @@ def test_xml_emits_the_wrapped_duration_element(tmp_path):
     script.save(target)
 
     written = target.read_text(encoding='utf-8')
-    assert '<duration><CTimecode>00:00:12.500</CTimecode></duration>' in written
+    # S3 (feature 015): the writer now indents, so the wrapper element and
+    # its one child are on separate, indented lines rather than packed on
+    # one — the wrapping relationship this test actually checks is
+    # unchanged.
+    assert '<duration>' in written
+    assert '<CTimecode>00:00:12.500</CTimecode>' in written
+    duration_start = written.index('<duration>')
+    duration_end = written.index('</duration>', duration_start)
+    ctimecode_start = written.index('<CTimecode>00:00:12.500</CTimecode>', duration_start)
+    assert duration_start < ctimecode_start < duration_end, (
+        "CTimecode must be nested inside duration's wrapper element"
+    )
 
 
 def test_json_projects_media_duration_as_ctimecode_wrapper():

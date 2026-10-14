@@ -5,7 +5,6 @@ unrepairable-field lists (ITEM E, US7, T114) — FR-045, SC-020.
 from __future__ import annotations
 
 import ast
-from pathlib import Path
 
 from cuemsutils.cues.CuemsScript import CuemsScript
 from cuemsutils.xml.descriptor import Repairability, SchemaDescriptor
@@ -55,7 +54,6 @@ def test_zero_fields_are_unclassified_across_every_schema():
 def test_a_repair_records_default_traceable_to_the_descriptor(tmp_path):
     """The value ``repair()`` substituted is exactly the same value the
     descriptor reports as that field's default — not independently derived."""
-    from cuemsutils.xml.registry import get_registry
     from cuemsutils.xml.spec import TypeKey
 
     script = broken.repairable_violation()

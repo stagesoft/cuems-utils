@@ -1,0 +1,5 @@
+network_map NodeType uuid None
+settings AudioPlayerType output_latency_ms None
+settings NodeConfType uuid None
+settings VideoPlayerType output_latency_ms None
+project_mappings NodeMappingType uuid None

@@ -1,9 +1,10 @@
 from time import sleep
+
 from deprecated import deprecated
 
-from .MediaCue import MediaCue
 from ..helpers import ensure_items
-from ..log import logged, Logger
+from ..log import Logger, logged
+from .MediaCue import MediaCue
 
 REQ_ITEMS = {
     # The class value ``script.xsd``'s ``@class='audio'`` alternative selects
@@ -16,7 +17,7 @@ REQ_ITEMS = {
 
 class AudioCue(MediaCue):
     """A cue for handling audio playback and control.
-    
+
     This class extends MediaCue to provide specific functionality for audio playback,
     including volume control and OSC communication for audio routing.
     """
@@ -33,7 +34,7 @@ class AudioCue(MediaCue):
 
     def __init__(self, init_dict = None):
         """Initialize an AudioCue.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to set initial properties.
@@ -46,7 +47,7 @@ class AudioCue(MediaCue):
 
     def get_master_vol(self):
         """Get the master volume level.
-        
+
         Returns:
             float: The master volume level.
         """
@@ -54,7 +55,7 @@ class AudioCue(MediaCue):
 
     def set_master_vol(self, master_vol):
         """Set the master volume level.
-        
+
         Args:
             master_vol (float): The new master volume level.
         """
@@ -64,7 +65,7 @@ class AudioCue(MediaCue):
 
     def player(self, player):
         """Set the audio player instance.
-        
+
         Args:
             player: The audio player instance to use.
         """
@@ -72,7 +73,7 @@ class AudioCue(MediaCue):
 
     def osc_route(self, osc_route):
         """Set the OSC route for audio control.
-        
+
         Args:
             osc_route (str): The OSC route to use for audio control.
         """
@@ -85,10 +86,10 @@ class AudioCue(MediaCue):
     @logged
     def audio_media_loop(self, ossia, mtc):
         """Handle the audio media playback loop.
-        
+
         This method manages the playback loop for audio media, including handling
         looping behavior and OSC communication for timing control.
-        
+
         Args:
             ossia: The OSC communication interface.
             mtc: The MIDI Time Code interface.
@@ -116,7 +117,7 @@ class AudioCue(MediaCue):
 
                 loop_counter += 1
 
-            if self._local:                
+            if self._local:
                 try:
                     key = f'{self._osc_route}/mtcfollow'
                     ossia.send_message(key, 0)
@@ -131,7 +132,7 @@ class AudioCue(MediaCue):
 
     def stop(self):
         """Stop the audio playback.
-        
+
         This method stops the audio player and sets the stop request flag.
         """
         self._stop_requested = True
@@ -140,10 +141,10 @@ class AudioCue(MediaCue):
 
     def check_mappings(self, settings):
         """Check if the audio output mappings are valid.
-        
+
         Args:
             settings: The settings containing project node mappings.
-            
+
         Returns:
             bool: True if the mappings are valid, False otherwise.
         """

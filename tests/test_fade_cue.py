@@ -6,8 +6,6 @@
 
 from os import path
 
-import sys
-
 import pytest
 
 from cuemsutils.cues import CueList, CuemsScript

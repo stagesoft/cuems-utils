@@ -32,7 +32,6 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GUIDE = REPO_ROOT / "specs" / "012-uuid4-convergence" / "migration-guide.md"
-SIBLINGS = REPO_ROOT.parent
 
 
 def _words(text: str) -> str:
@@ -132,15 +131,20 @@ def test_the_normaliser_does_not_make_every_check_vacuous():
 # --- 2. resolution: the facts the guide asserts about other trees ------------
 
 
-def _sibling(name: str) -> Path:
-    path = SIBLINGS / name
-    if not path.is_dir():
-        pytest.skip(
-            f"{path} is not checked out; the cross-repository facts this guide "
-            "names cannot be verified here. Skipped rather than passed, so a "
-            "machine with no siblings does not read as evidence."
-        )
-    return path
+def _sibling(name: str):
+    """The sibling **at its coordinated tag** (feature 015, FR-080c).
+
+    These are *operator instructions* — what the guide tells a person to
+    check or type on a node — so they are asserted at the tag the cluster
+    ships from, never at a tip that moves. Skips with a reason when the
+    checkout or the tag is absent; fails when the tag resolves and the claim
+    does not hold. Provenance pins (a commit a line number was measured at)
+    are the other assertion class and are *not* asserted to resolve; see
+    ``test_migration_guide_names_sites.py``.
+    """
+    from tests.support.sibling_tags import tagged
+
+    return tagged(name)
 
 
 def test_the_coupled_engine_version_resolves(guide):
@@ -150,7 +154,7 @@ def test_the_coupled_engine_version_resolves(guide):
     engine = _sibling("cuems-engine")
     declared = re.search(
         r'__version__\s*=\s*"([^"]+)"',
-        (engine / "src" / "cuemsengine" / "__init__.py").read_text(),
+        engine.read("src/cuemsengine/__init__.py"),
     )
     assert declared, "cuems-engine declares no __version__"
 
@@ -168,7 +172,7 @@ def test_the_engine_really_broadcasts_the_status_the_guide_tells_you_to_watch(gu
     ``missing`` out of it. Both must exist, and the channel name must be the one
     the engine actually publishes on."""
     engine = _sibling("cuems-engine")
-    controller = (engine / "src" / "cuemsengine" / "ControllerEngine.py").read_text()
+    controller = engine.read("src/cuemsengine/ControllerEngine.py")
     assert "cluster_warning" in controller
     assert '"missing"' in controller
     assert "/engine/status/cluster_warning" in GUIDE.read_text()
@@ -187,7 +191,7 @@ def test_every_unit_on_the_stop_list_is_a_unit_that_exists(guide, unit):
     ignore the errors from the ones that do."""
     assert unit in GUIDE.read_text(), f"the guide does not name {unit}"
     common = _sibling("cuems-common")
-    assert (common / "etc" / "systemd" / "system" / unit).is_file(), (
+    assert common.exists(f"etc/systemd/system/{unit}"), (
         f"{unit} is on the guide's stop list and is shipped by no package"
     )
 
@@ -196,14 +200,14 @@ def test_the_power_bridge_unit_exists_where_its_own_package_ships_it(guide):
     """The one unit not in ``cuems-common``: the bridge ships its own."""
     assert "cuems-power-bridge.service" in GUIDE.read_text()
     bridge = _sibling("cuems-power-bridge")
-    assert (bridge / "debian" / "cuems-power-bridge.service").is_file()
+    assert bridge.exists("debian/cuems-power-bridge.service")
 
 
 def test_nodeconf_really_writes_the_map(guide):
     """The stop list's whole justification. If nodeconf stopped writing the map,
     the most emphatic warning in this document would be false."""
     nodeconf = _sibling("cuems-nodeconf")
-    source = (nodeconf / "cuemsnodeconf" / "CuemsNodeConf.py").read_text()
+    source = nodeconf.read("cuemsnodeconf/CuemsNodeConf.py")
     assert "network_map.xml" in source
     assert re.search(r"\.save\(|write_network_map|save_network_map", source), (
         "cuems-nodeconf no longer appears to write the map; the guide's central "

@@ -53,7 +53,9 @@ So `Mapper.decode_config` substitutes classes and changes nothing else. See its
 docstring for the symmetry with ``decode``.
 """
 
-from .base import ConfigDict
+from .base import (
+    ConfigDict as ConfigDict,  # internal re-export; deliberately not in __all__
+)
 
 #: Empty, joining ``cuemsutils.xml`` on the internal side of Q14->(i) — this
 #: package is internal machinery, not a second public model surface

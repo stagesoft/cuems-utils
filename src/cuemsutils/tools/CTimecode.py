@@ -27,10 +27,8 @@ string), which handles drop-frame correction at 29.97/59.94 DF correctly.
 """
 from __future__ import annotations
 
-import warnings
-
-from timecode import Timecode
 import json_fix  # noqa: F401  -- registers __json__ JSON support
+from timecode import Timecode
 
 from .._deprecation import deprecated_symbol
 

@@ -14,7 +14,6 @@ from cuemsutils.cues.CuemsScript import CuemsScript
 from cuemsutils.errors import Outcome, ValidationError
 from tests.support import invalid_scripts as broken
 
-
 # --- T108: a repairable violation loads with the descriptor default -------
 
 

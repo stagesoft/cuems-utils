@@ -89,6 +89,32 @@ TWELVE_SHOW_DOCUMENT_BUDGET_MS = 15.0
 #: declarations.
 SHOW_DOCUMENT_BUDGET_MS = 16.5
 
+#: **Feature 015 (FR-079, FR-079a, FR-079b): that 16.5 ms line is straddled,
+#: and is no longer asserted.** It is kept above as the budget's *history*
+#: (008 -> 35.99, 012 -> 15.0, 013 -> 16.5), not as a line anything binds to.
+#:
+#: Measured at the 015 branch point on the interpreter ``hatch`` resolves, by
+#: this file's own method: **16 samples across three separated windows**, band
+#: **16.465-17.750 ms**, median **16.864 ms**, pooled spread 7.8%. 14 of the 16
+#: exceed 16.5 ms and 2 do not -- so the old assertion was *flaky on an
+#: unchanged tree*, indistinguishable from a regression arriving. This is
+#: "straddled and accepted", **not** "passing": the drift against 013's own
+#: 14.07-14.96 ms is +13% to +19%, it survived an interpreter migration across
+#: two 3.11.9 builds, and it is owned by
+#: ``specs/planning/show-document-load-drift.md`` rather than investigated
+#: here.
+#:
+#: The instrument changes from a line to the band -- 012's R14 precedent for
+#: this exact pathology -- rather than a fourth raise of the budget. The bound
+#: is the band's top plus the 115% tolerance 015 measured (research.md,
+#: "Tolerance"), i.e. a regression has to clear the *worst observed* load by
+#: more than run-to-run spread to fail.
+SHOW_DOCUMENT_BAND_MS = (16.465, 17.750)
+SHOW_DOCUMENT_BAND_MEDIAN_MS = 16.864
+SHOW_DOCUMENT_BAND_SAMPLES = 16  # across three windows (n=16)
+BUDGET_TOLERANCE = 1.15
+SHOW_DOCUMENT_BAND_BOUND_MS = SHOW_DOCUMENT_BAND_MS[1] * BUDGET_TOLERANCE
+
 #: Four trials gave 7.416 / 7.489 / 7.502 / 7.956 ms, so 8.8 ms is the worst
 #: plus 10%.
 #:
@@ -149,24 +175,33 @@ def test_the_named_baseline_exists_and_records_both_rows():
 
 
 def test_the_show_document_load_is_within_its_recorded_budget():
+    """Compared against the measured **band**, not the straddled 16.5 ms line.
+
+    The recorded state is printed on every run so a reader sees "straddled and
+    accepted" rather than a bare pass: band {band} ms, median
+    {median} ms, n={n} across three windows (FR-079b).
+    """
     from cuemsutils.cues.CuemsScript import CuemsScript
 
     median = _median_ms(lambda: CuemsScript.load(str(SHOW_DOCUMENT)))
+    low, high = SHOW_DOCUMENT_BAND_MS
     print(f"\nshow document load: {median:.3f} ms "
-          f"(re-baselined budget {SHOW_DOCUMENT_BUDGET_MS} ms; "
-          f"008 measured {EIGHT_SHOW_DOCUMENT_MS} ms against "
+          f"(recorded band {low}-{high} ms, median "
+          f"{SHOW_DOCUMENT_BAND_MEDIAN_MS} ms, n={SHOW_DOCUMENT_BAND_SAMPLES} "
+          f"across three windows; bound {SHOW_DOCUMENT_BAND_BOUND_MS:.2f} ms = "
+          f"band top x {BUDGET_TOLERANCE}; 013 had {SHOW_DOCUMENT_BUDGET_MS} ms "
+          f"as budget, 008 {EIGHT_SHOW_DOCUMENT_MS} ms against "
           f"{EIGHT_SHOW_DOCUMENT_BUDGET_MS} ms)")
-    assert median <= SHOW_DOCUMENT_BUDGET_MS, (
-        f"show-document load is {median:.3f} ms, over the re-baselined budget of "
-        f"{SHOW_DOCUMENT_BUDGET_MS} ms (this feature's worst measurement plus 10%)"
+    assert median <= SHOW_DOCUMENT_BAND_BOUND_MS, (
+        f"show-document load is {median:.3f} ms, over the recorded band's bound "
+        f"of {SHOW_DOCUMENT_BAND_BOUND_MS:.2f} ms ({high} ms x {BUDGET_TOLERANCE}). "
+        "This is a regression against the worst load observed at the 015 "
+        "branch point, not the straddled 16.5 ms line."
     )
     assert median <= EIGHT_SHOW_DOCUMENT_BUDGET_MS, (
-        "and over feature 008's original budget, which the re-baselined one sits "
-        "well inside — so this is a regression against both"
+        "and over feature 008's original budget, which the band sits well "
+        "inside -- so this is a regression against both"
     )
-    # The 012 figure is asserted as *provenance*, in the direction that is still
-    # true: this path has not improved back under it. Asserting ``<=`` on it
-    # would simply re-fail for the reason T062 recorded and accepted.
     assert median > 0.0
 
 

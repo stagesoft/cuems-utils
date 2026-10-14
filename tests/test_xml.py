@@ -2,13 +2,13 @@
 import typing
 from logging import DEBUG, INFO
 from os import path
-from xml.etree.ElementTree import ElementTree, Element
+from xml.etree.ElementTree import Element, ElementTree
 
-from cuemsutils.cues import ActionCue, AudioCue, DmxCue, CuemsScript, CueList, VideoCue
+from cuemsutils.cues import ActionCue, AudioCue, CueList, CuemsScript, VideoCue
 from cuemsutils.cues.MediaCue import Media, Region
-
 from cuemsutils.xml import XmlReaderWriter
 from cuemsutils.xml.XmlBuilder import XmlBuilder
+
 
 def create_dummy_script():
     target_uuid = '1f301cf8-dd03-4b40-ac17-ef0e5e7988be'
@@ -72,12 +72,12 @@ def create_dummy_script():
     #ac.outputs = {'stereo': 1}
     #d_c = DmxCue(time=23, scene={0:{0:10, 1:50}, 1:{20:23, 21:255}, 2:{5:10, 6:23, 7:125, 8:200}}, init_dict={'loop' : 3})
     #d_c.outputs = {'universe0': 3}
-    
+
     custom_cue_list = CueList({'contents': [c]})
     custom_cue_list.append(c2)
     custom_cue_list.append(ac)
     custom_cue_list.append(c3)
-    
+
     script = CuemsScript({
         'CueList': custom_cue_list,
         'ui_properties': {'icon': 'icon.png', 'color': '#000000'}
@@ -122,9 +122,9 @@ def test_XmlBuilder(caplog):
 
     xmlscript = xml_data.getroot().find('CuemsScript')
     assert xmlscript.find('description').text == 'This is a test script'
-    assert type(xmlscript.find('id')) == Element
-    assert type(xmlscript.find('modified')) == Element
-    assert type(xmlscript.find('modified')) == Element
+    assert type(xmlscript.find('id')) is Element
+    assert type(xmlscript.find('modified')) is Element
+    assert type(xmlscript.find('modified')) is Element
     assert xmlscript.find('created').text == xmlscript.find('modified').text
 
     script_ui_properties = xmlscript.find('ui_properties')
@@ -132,22 +132,22 @@ def test_XmlBuilder(caplog):
     assert script_ui_properties.find('color').text == '#000000'
 
     cuelist = xmlscript.find('CueList')
-    assert type(cuelist) == Element
-    assert type(cuelist.find('contents')) == Element
+    assert type(cuelist) is Element
+    assert type(cuelist.find('contents')) is Element
 
     contents = cuelist.find('contents')
     assert contents.__len__() == 4
     assert contents[0].tag == 'ActionCue'
     assert contents[0].find('loop').text == '0'
     action_cue_ui_properties = contents[0].find('ui_properties')
-    assert type(action_cue_ui_properties) == Element
+    assert type(action_cue_ui_properties) is Element
     assert action_cue_ui_properties.find('icon').text == 'icon.png'
     assert action_cue_ui_properties.find('color').text == '#ffffff'
     assert contents[1].tag == 'VideoCue'
     assert contents[2].tag == 'AudioCue'
     assert contents[2].find('master_vol').text == '66'
     audio_media = contents[2].find('Media')
-    assert type(audio_media) == Element
+    assert type(audio_media) is Element
     assert audio_media.find('file_name').text == 'file.ext'
     assert audio_media.find('regions').find('Region').find('loop').text == '2'
     assert contents[3].tag == 'VideoCue'
@@ -166,8 +166,8 @@ def test_XmlWriter(caplog):
 
     writer.write_from_object(reloaded_script)
 
-    assert writer.validate() == None
-    assert path.isfile(tmpfile) == True
+    assert writer.validate() is None
+    assert path.isfile(tmpfile) is True
 
 def test_XmlReader(caplog):
     from cuemsutils.log import Logger
@@ -179,17 +179,17 @@ def test_XmlReader(caplog):
         xmlfile = tmpfile
     )
     readed = reader.read_to_objects()
-    
-    assert path.isfile(tmpfile) == True
-    assert type(readed) == CuemsScript
-    assert type(readed.created) == str
+
+    assert path.isfile(tmpfile) is True
+    assert type(readed) is CuemsScript
+    assert type(readed.created) is str
     Logger.info(readed.__dict__)
-    assert type(readed.cuelist) == CueList
+    assert type(readed.cuelist) is CueList
     assert len(readed.cuelist.contents) == 4
-    assert type(readed.cuelist.contents[0]) == ActionCue
-    assert type(readed.cuelist.contents[1]) == VideoCue
-    assert type(readed.cuelist.contents[2]) == AudioCue
-    assert type(readed.cuelist.contents[3]) == VideoCue
+    assert type(readed.cuelist.contents[0]) is ActionCue
+    assert type(readed.cuelist.contents[1]) is VideoCue
+    assert type(readed.cuelist.contents[2]) is AudioCue
+    assert type(readed.cuelist.contents[3]) is VideoCue
 
     # ``assert reloaded_script == readed`` until feature 006.
     #
@@ -225,17 +225,17 @@ TMP_JSON_FILE = path.dirname(__file__) + '/tmp/test_json_script.xml'
 
 def test_jsonload(caplog):
     ## ARRANGE
-    from cuemsutils.xml.Parsers import CuemsParser
-    from cuemsutils.xml.xml_reader_writer import XmlWriter
-    from cuemsutils.cues import CuemsScript, CueList
-    from cuemsutils.tools.CTimecode import CTimecode
     import json
+
+    from cuemsutils.cues import CueList, CuemsScript
+    from cuemsutils.tools.CTimecode import CTimecode
+    from cuemsutils.xml.Parsers import CuemsParser
 
     caplog.set_level(DEBUG)
 
     with open(TEST_JSON_FILE) as json_file:
         data = json.load(json_file)
-        assert type(data) == dict
+        assert type(data) is dict
         assert data['action'] == 'project_save'
         json_script = data['value']
 
@@ -248,19 +248,20 @@ def test_jsonload(caplog):
     writer.write_from_object(parsed)
 
     ## ASSERT
-    assert writer.validate() == None
-    assert json_script != None
+    assert writer.validate() is None
+    assert json_script is not None
     assert json_script['CuemsScript']['name'] == 'Prueba'
-    assert json_script['CuemsScript']['description'] == None
-    assert type(parsed) == CuemsScript
-    assert type(parsed.cuelist) == CueList
+    assert json_script['CuemsScript']['description'] is None
+    assert type(parsed) is CuemsScript
+    assert type(parsed.cuelist) is CueList
     assert len(parsed.cuelist.contents) == 4
-    assert parsed.cuelist.offset == None
-    assert type(parsed.cuelist.postwait) == CTimecode
-    assert type(parsed.cuelist.prewait) == CTimecode
+    assert parsed.cuelist.offset is None
+    assert type(parsed.cuelist.postwait) is CTimecode
+    assert type(parsed.cuelist.prewait) is CTimecode
 
 def test_json_dump():
     import json
+
     from cuemsutils.xml.descriptor import generate_script_example
 
     script = generate_script_example()
@@ -269,11 +270,11 @@ def test_json_dump():
     json_string = '{"CuemsScript": ' + json_string + '}'
     json_self_str = script.to_json()
 
-    assert json_string != None
-    assert type(json_string) == str
+    assert json_string is not None
+    assert type(json_string) is str
 
-    assert json_self_str != None
-    assert type(json_self_str) == str
+    assert json_self_str is not None
+    assert type(json_self_str) is str
 
     assert json_string == json_self_str
 
@@ -286,15 +287,16 @@ def test_json_dump():
 
 def test_json_readwrite(caplog):
     ## ARRANGE
-    from cuemsutils.xml.Parsers import CuemsParser
     import json
+
+    from cuemsutils.xml.Parsers import CuemsParser
 
     caplog.set_level(DEBUG)
     TMP_PARSED_FILE = path.dirname(__file__) + '/tmp/test_script.json'
 
     with open(TEST_JSON_FILE) as json_file:
         data = json.load(json_file)
-        assert type(data) == dict
+        assert type(data) is dict
         assert data['action'] == 'project_save'
         json_script = data['value']
 
@@ -312,7 +314,7 @@ def test_json_readwrite(caplog):
 
     with open(TMP_PARSED_FILE) as tmp_json_file:
         tmp_data = json.load(tmp_json_file)
-        assert type(tmp_data) == dict
+        assert type(tmp_data) is dict
         assert tmp_data['action'] == 'project_save'
         json_parsed = tmp_data['value']
 
@@ -398,9 +400,9 @@ def test_settings():
     SETTINGS_PATH = path.dirname(__file__) + '/data/settings.xml'
 
     settings = Settings(SETTINGS_PATH)
-    assert settings.validate() == None
-    assert settings.read() == None
-    assert settings.loaded == True
+    assert settings.validate() is None
+    assert settings.read() is None
+    assert settings.loaded is True
     assert isinstance(settings.get_dict(), dict)
 
 
@@ -445,6 +447,7 @@ def test_auto_rejected_on_dmxplayer():
     because no auto-measurement path exists.
     """
     import xmlschema
+
     from cuemsutils.xml import Settings
     BAD_PATH = path.dirname(__file__) + '/data/settings_bad_dmx_auto.xml'
 
@@ -464,11 +467,11 @@ def test_auto_rejected_on_dmxplayer():
 def test_networkmap():
     from cuemsutils.xml import NetworkMap
     NETWORKMAP_PATH = path.dirname(__file__) + '/data/network_map.xml'
-    
+
     networkmap = NetworkMap(NETWORKMAP_PATH)
-    assert networkmap.validate() == None
-    assert networkmap.read() == None
-    assert networkmap.loaded == True
+    assert networkmap.validate() is None
+    assert networkmap.read() is None
+    assert networkmap.loaded is True
     network_dict = networkmap.get_dict()
     assert isinstance(network_dict, dict)
     assert 'node_list' in network_dict
@@ -478,8 +481,8 @@ def test_networkmap():
 def test_projectmappings():
     from cuemsutils.xml import ProjectMappings
     PROJECTMAPPINGS_PATH = path.dirname(__file__) + '/data/project_mappings.xml'
-    
+
     projectmappings = ProjectMappings(PROJECTMAPPINGS_PATH)
-    assert projectmappings.validate() == None
-    assert projectmappings.read() == None
-    assert projectmappings.loaded == True
+    assert projectmappings.validate() is None
+    assert projectmappings.read() is None
+    assert projectmappings.loaded is True

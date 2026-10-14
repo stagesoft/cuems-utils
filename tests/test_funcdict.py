@@ -4,7 +4,7 @@ def test_funcdict():
     ## Arrange
     def hello():
         return "Hello, World!"
-    
+
     def goodbye():
         return "Goodbye, World!"
 

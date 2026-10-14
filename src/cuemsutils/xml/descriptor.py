@@ -61,36 +61,51 @@ class TypeDescriptor:
 
     key: TypeKey
     fields: tuple[FieldDescriptor, ...]
-    instance: dict = field(default_factory=dict)
-    """A constructible empty instance of this type (FR-022a).
+    instance: dict | list = field(default_factory=dict)
+    """A constructible, **wire-shaped and saveable** instance of this type
+    (G3, contracts/public-surface.md C3). A ``dict`` for most types; a
+    **bare list** for the few pure wrapper containers — ``OutputsType``,
+    ``NodeDictType``, ``AudioChannelsType`` and the like — whose own content
+    model is exactly one repeated field, which is what they collapse to
+    once embedded and therefore what they are when queried standalone too.
 
-    The **sixth** emitted fact, and the one capability feature 010 adds to the
-    descriptor. It exists because a nested object is not a field default:
-    ``getTemplateOutputStructure`` in the UI needs the *shape* of a cue's
-    output — geometry, region, mapping — which no combination of the five
-    per-field facts supplies.
+    **Produced by construction, not by a second implementation.** The value
+    is built fully populated, then projected through the same
+    ``Mapper.encode_wire`` that ``to_wire()`` uses (research R2) — so a
+    repeated complex field nests as a list of singly-keyed objects, a
+    document-body type carries the wrapper the wire carries, and a later
+    change to the wire shape moves this instance with it automatically.
+    This **reverses** this class's earlier recorded position (FR-026): an
+    instance built from model defaults alone could not be schema-valid for
+    64 required-with-no-default scalar fields across 19 types in the show
+    schema; G3 closes that gap with a seed derived from each field's
+    declared XSD type (contracts/seeding-rules.md) — never from the
+    field's name, and never promoted into ``FieldDescriptor.default`` or
+    the repairability classification, both of which stay exactly as they
+    were (FR-026a).
 
-    **Nested, not flat.** A complex field expands into its own instance, which
-    is what makes this a replacement for deep-cloning an example document
-    rather than a restatement of ``fields``.
+    **Complete.** Every declared non-wildcard field is present, required
+    and optional alike, so nothing is "optional and empty" and the
+    projection has nothing to omit (research R3 decision 3) — the one
+    deliberate divergence from projecting a real sparse object, in the
+    direction of being more useful.
 
-    **A repeated complex field carries one exemplar**, not an empty list. The
-    call site this exists for clones element ``[0]`` of an example's outputs;
-    an empty list would hand it nothing to clone.
+    **A repeated complex field carries one exemplar**, not an empty list —
+    unchanged from this class's original reason: a caller cloning element
+    ``[0]`` of an example's outputs needs something to clone.
 
-    **Callable defaults are not called** — they appear as ``None``. Two
-    reasons, and the first is decisive: ``derive`` is cached, so calling
-    ``new_uuid()`` once would freeze a single "fresh" identifier and hand the
-    same one to every caller thereafter. Second, this object is served over a
+    **Callable defaults are still not invoked** (FR-027) — two reasons, and
+    the first is decisive: ``derive`` is cached, so calling ``new_uuid()``
+    once would freeze a single "fresh" identifier and hand the same one to
+    every caller thereafter. Second, this object is served over a
     websocket to the UI, and a function is not serialisable. The callable
     itself remains visible on ``FieldDescriptor.default`` for a caller that
     wants to invoke it.
 
-    **Not required to be schema-valid.** 12 of the 58 complex types have a
-    required field with no usable default, so a defaults-only instance cannot
-    validate for them (measured 2026-09-04). This is a *seed the consumer
-    fills*, and SC-003 says so rather than asserting a validity the data
-    cannot support.
+    **Every root instance saves through this library's own write path
+    unmodified** (FR-023, FR-024, SC-005) — the property the retired
+    position above could not offer, and the one four of
+    ``cuems-editor``'s seven gate xfails assert directly.
     """
 
 
@@ -118,9 +133,19 @@ def _enum_values(schema_name: str, xsd_type_name: str | None) -> tuple[str, ...]
 
     Resolved **per schema** (research R4) — never by a bare type name, since
     the same QName (``BoolType``) is declared independently in three of the
-    six schemas. Handles the one union enumeration in the bundle
-    (``AutoOrIntLatencyMsType``): a union's ``.enumeration`` is ``None`` on
-    the union itself, and the facet lives on one of its member types.
+    six schemas.
+
+    **A union reports a closed choice set only when every member is an
+    enumeration** (S2, FR-066/FR-068, contract C6). A union's own
+    ``.enumeration`` is ``None`` — the facet lives on its member types — and
+    a union with at least one non-enumerated member (``NodeUuidType``'s
+    pattern-restricted ``ConvergedUuidType`` member,
+    ``AutoOrIntLatencyMsType``'s numeric ``IntLatencyMsType`` member) is
+    **not itself closed**: narrowing to only the enumerated members' values
+    would silently drop every other valid value. Five measured sites
+    (data-model.md §4) stopped reporting a one-value choice set for exactly
+    this reason — two identity fields' sentinel and three latency fields'
+    ``auto``.
     """
     if xsd_type_name is None:
         return None
@@ -138,7 +163,10 @@ def _enum_values(schema_name: str, xsd_type_name: str | None) -> tuple[str, ...]
         return None
     merged: list[str] = []
     for member in member_types:
-        for value in getattr(member, "enumeration", None) or ():
+        member_values = getattr(member, "enumeration", None)
+        if not member_values:
+            return None
+        for value in member_values:
             if value not in merged:
                 merged.append(value)
     return tuple(merged) if merged else None
@@ -215,38 +243,490 @@ def _repairability(key: TypeKey, field_name: str, default: Any) -> Repairability
     return Repairability.REPAIRABLE
 
 
-def _instance_for(key: TypeKey, seen: frozenset = frozenset()) -> dict:
-    """A nested, constructible empty instance for ``key`` (FR-022a).
+#: Rule 8 — XSD built-ins in use, table-seeded (contracts/seeding-rules.md).
+#: ``0`` would not validate for ``positiveInteger``, which is the one entry
+#: that is not simply "the zero of its kind".
+_BUILTIN_SEEDS: dict[str, Any] = {
+    "boolean": False,
+    "string": "",
+    "positiveInteger": 1,
+    "nonNegativeInteger": 0,
+    "integer": 0,
+    "float": 0.0,
+    "byte": 0,
+}
 
-    ``seen`` carries the keys already open on the current branch. The content
-    models really are cyclic — ``CueListType`` → ``CueListContentsType`` →
-    ``CueListType`` is the documented example — so a revisit yields ``None``
-    rather than recursing. Bounding by *branch* rather than by a global visited
-    set matters: a type reached twice down two different branches must expand
-    both times, or the second consumer receives a hole.
+#: Rule 7 — the pattern table (contracts/seeding-rules.md). A regular
+#: expression cannot be inverted, and no runtime dependency generates a
+#: matching string; this is the irreducible residue, keyed by type and
+#: guarded by completeness/validity contract tests.
+_PATTERN_SEEDS: dict[str, Any] = {
+    "UuidType": "00000000-0000-4000-8000-000000000000",
+    "TargetType": "",
+    "Md5Type": "0" * 32,
+    "TimecodeType": "00:00:00.000",
+    "NonEmptyString": "x",
+}
+
+
+def _facet(simple_type, local_name: str):
+    facets = getattr(simple_type, "facets", None) or {}
+    for key, facet in facets.items():
+        if facet is not None and key.rsplit("}", 1)[-1] == local_name:
+            return facet
+    return None
+
+
+def _facet_value(simple_type, local_name: str) -> Any:
+    """A facet's declared bound (``minInclusive``/``minLength``/…). Not for
+    ``pattern``, whose facet carries no single ``.value`` — presence alone
+    is what rule 6 needs, checked with :func:`_facet` directly."""
+    facet = _facet(simple_type, local_name)
+    return facet.value if facet is not None else None
+
+
+def _scalarize(value: Any) -> Any:
+    """A facet's bound value, made lexical/wire-safe. A numeric facet
+    (``PercentType``'s ``minInclusive``) already hands back a plain
+    ``int``/``float``; a date-typed one (``DateType``) hands back an
+    ``elementpath`` ``DateTime``, which is not JSON-serialisable and would
+    write as an empty string if passed to the XML writer raw — its lexical
+    form is what both paths actually need."""
+    if value is None or isinstance(value, (int, float, bool, str)):
+        return value
+    return str(value)
+
+
+def _seed_for_facets(simple_type) -> Any:
+    """Rules 3–6 over ``simple_type``'s own facets, plus rule 7's table —
+    contracts/seeding-rules.md. Never reached for an enumeration or a
+    union; the caller (:func:`_seed_for`) handles rules 1, 2 and 8."""
+    min_inclusive = _facet_value(simple_type, "minInclusive")
+    if min_inclusive is not None:
+        return _scalarize(min_inclusive)  # rule 3
+
+    min_exclusive = _facet_value(simple_type, "minExclusive")
+    max_inclusive = _facet_value(simple_type, "maxInclusive")
+    if min_exclusive is not None and max_inclusive is not None:
+        return _scalarize(max_inclusive)  # rule 4
+    if max_inclusive is not None:
+        return 0  # rule 5
+
+    min_length = _facet_value(simple_type, "minLength")
+    pattern = _facet(simple_type, "pattern")
+    if pattern is None and min_length is not None:
+        return "" if min_length == 0 else "x"  # rule 6
+
+    name = simple_type.name.rsplit("}", 1)[-1] if simple_type.name else None
+    return _PATTERN_SEEDS.get(name)  # rule 7
+
+
+def _seed_for_type_object(simple_type) -> Any:
+    """Like :func:`_seed_for`, but given the simple-type xmlschema object
+    directly rather than resolving one by name through ``schema.types``.
+    Used only by :func:`_inline_named_type_seed` below, where there is no
+    locally-declared type to look up by name — the content is anonymous
+    *and* built-in (``xs:string``).
+    """
+    if simple_type is None or not simple_type.is_simple():
+        return None
+    if simple_type.enumeration:
+        return simple_type.enumeration[0]
+    member_types = getattr(simple_type, "member_types", None)
+    if member_types:
+        for member in member_types:
+            if getattr(member, "enumeration", None):
+                return member.enumeration[0]
+        return _seed_for_type_object(member_types[0])
+    seeded = _seed_for_facets(simple_type)
+    if seeded is not None:
+        return seeded
+    return _BUILTIN_SEEDS.get(getattr(simple_type, "local_name", None))
+
+
+def _inline_named_type_seed(key: TypeKey, field_spec) -> dict | list | None:
+    """The one measured exception research R1 found and left unresolved:
+    an anonymous complex child declared inside a **named** (non-path)
+    type — ``PutType.mappings`` is the one site in the six schemas. R1's
+    path-based resolution needs the *enclosing* type to be path-reachable
+    (``CuemsProject/CuemsScript``); a named type like ``PutType`` is not,
+    so there is no ``TypeKey`` to resolve this field's child by at all —
+    "left raw, which is what the recorded config goldens carry."
+
+    Walked directly off the XSD element, bypassing ``FieldSpec``/
+    ``TypeKey`` entirely — the one place in this module that does, because
+    there is no other way to reach it. Returns ``None`` when the shape
+    does not match (a simple-content field, or more than one child),
+    rather than guessing.
+    """
+    schema = get_schema(key.schema)
+    xsd_type = schema.types.get(key.name)
+    content = getattr(xsd_type, "content", None)
+    if content is None or not hasattr(content, "iter_elements"):
+        return None
+    element = next((e for e in content.iter_elements() if e.name == field_spec.name), None)
+    if element is None or element.type is None or element.type.is_simple():
+        return None
+    inner_content = getattr(element.type, "content", None)
+    if inner_content is None or not hasattr(inner_content, "iter_elements"):
+        return None
+    inner_fields = list(inner_content.iter_elements())
+    if len(inner_fields) != 1:
+        return None
+    inner = inner_fields[0]
+    seed = _seed_for_type_object(inner.type)
+    repeated = inner.occurs[1] is None or inner.occurs[1] > 1
+    return [{inner.name: seed}] if repeated else {inner.name: seed}
+
+
+def _seed_for(schema_name: str, xsd_type_name: str | None) -> Any:
+    """A value satisfying ``xsd_type_name``'s declared facets — the closed,
+    eight-rule contract in contracts/seeding-rules.md (FR-025, FR-026b,
+    FR-028), never derived from the field's name. Resolved **per schema**
+    (research R4), matching :func:`_enum_values`.
+
+    Precedence is the caller's: this is consulted only where the bound
+    model's own declared default is ``Unset`` or callable (data-model.md §3,
+    "The seed, as a derived value").
+    """
+    if xsd_type_name is None:
+        return None
+    schema = get_schema(schema_name)
+    simple_type = schema.types.get(xsd_type_name)
+    if simple_type is None or not simple_type.is_simple():
+        return _BUILTIN_SEEDS.get(xsd_type_name)  # rule 8
+
+    if simple_type.enumeration:
+        return simple_type.enumeration[0]  # rule 1
+
+    member_types = getattr(simple_type, "member_types", None)
+    if member_types:  # rule 2 — a union
+        for member in member_types:
+            if getattr(member, "enumeration", None):
+                return member.enumeration[0]
+        return _seed_for_facets(member_types[0])
+
+    return _seed_for_facets(simple_type)
+
+
+def _model_for(key: TypeKey) -> type | None:
+    """The bound Python model class for ``key``, or ``None`` for a
+    ``GENERIC`` or unbound type (reuses :func:`_defaults_for`'s own
+    resolution, research R5)."""
+    registry = get_registry(key.schema)
+    binding = (
+        registry.binding_for_path(key.name) if key.is_path else registry.binding_for(key.name)
+    )
+    if binding is None or binding.is_generic or not isinstance(binding.model, type):
+        return None
+    return binding.model
+
+
+def _is_wrapper_shape(key: TypeKey) -> bool:
+    """Every declared field is repeated — the pure structural-container
+    shape (``OutputsType``, ``NodeDictType``, ``AudioChannelsType``, the
+    multi-member choice ``CueListContentsType``) that the decoder collapses
+    away whenever it is *embedded*: config decode preserves its one or more
+    repeated children as a flat, pre-tagged list directly on the embedding
+    field, never as a nested dict holding this type's own field (measured
+    against real corpus documents — ``node_list``, ``players``, ``outputs``
+    all decode this way; research R2's general pattern, not three special
+    cases).
+    """
+    fields = [f for f in derive(key).fields if not f.is_wildcard]
+    return bool(fields) and all(f.repeated for f in fields)
+
+
+def _chosen_child(field_spec) -> tuple[Any, TypeKey | None]:
+    """The exemplar to build for a repeated field: the first declared
+    alternative if any (``AudioCueOutputsType`` for ``CueOutput``,
+    ``VideoPlayerType`` for ``player``, …) — deterministic and reproducible,
+    and a better exemplar than the unconditional fallback, which exists for
+    an *unmatched* class — else the field's own declared child."""
+    if field_spec.alternatives:
+        return field_spec.alternatives[0]
+    return None, field_spec.child
+
+
+def _build_value_for(key: TypeKey, seen: frozenset) -> dict:
+    """The raw, fully-populated, decoded-shape value for ``key`` — every
+    declared non-wildcard field present, required and optional alike
+    (research R3 decision 3).
+
+    ``seen`` bounds cycles by branch, as the retired ``_instance_for`` did —
+    a type reached twice down two different branches expands both times; a
+    revisit on the same branch yields ``{}``.
     """
     if key in seen:
         return {}
     spec = derive(key)
-    defaults = _defaults_for(key)
     branch = seen | {key}
+    defaults = _defaults_for(key)
 
     instance: dict = {}
     for field_spec in spec.fields:
         if field_spec.is_wildcard:
             continue
-        if field_spec.child is not None:
-            nested = _instance_for(field_spec.child, branch)
-            value = [nested] if field_spec.repeated else nested
+        if field_spec.repeated:
+            instance[field_spec.name] = _build_repeated_direct(key.schema, field_spec, branch)
         else:
-            value = defaults.get(field_spec.name, None)
-            if value is Unset or callable(value):
-                # Unset has no value to seed with; a callable must not be
-                # invoked here — see TypeDescriptor.instance.
-                value = None
-            if field_spec.repeated and value is None:
-                value = []
-        instance[field_spec.name] = value
+            instance[field_spec.name] = _build_single(key, field_spec, defaults, branch)
+    return instance
+
+
+def _build_repeated_direct(schema_name: str, field_spec, branch: frozenset) -> list:
+    """One exemplar of a repeated field declared **directly** on the type
+    being built (no intermediate wrapper collapsing into it) — tagged as it
+    would actually decode on its own: the chosen item's own class/element
+    name, never the field's own name (measured:
+    ``project_settings``' ``setting`` decodes to a bare list of real
+    ``SettingType`` instances and so tags as ``SettingType``, where
+    ``network_map``'s ``node`` happens to tag as ``node`` only because the
+    bound model class is itself named that)."""
+    class_value, chosen_key = _chosen_child(field_spec)
+    if chosen_key is None:
+        # A repeated *scalar* field — measured: one site, hardware_outputs.
+        return [_seed_for(schema_name, field_spec.xsd_type)]
+
+    if _is_wrapper_shape(chosen_key):
+        # The chosen child is itself a pure container sharing one type
+        # between two *differently-named* repeated fields — measured:
+        # ``DeviceType.outputs`` and ``.inputs`` both declare their child as
+        # ``PutGroupType``, which carries both ``output`` and ``input``.
+        # Resolving to ``PutGroupType`` directly would reuse the same ports
+        # for both directions; the field this one actually means is
+        # ``PutGroupType``'s own inner field matching this field's name.
+        inner = _select_wrapper_field(chosen_key, field_spec.name)
+        return [_build_repeated_wrapped(schema_name, inner, branch)]
+
+    body = _build_value_for(chosen_key, branch)
+    if class_value is not None and "class" in body:
+        body["class"] = class_value
+
+    model = _model_for(chosen_key)
+    if model is not None:
+        # The tag ``encode_wire`` would derive for this item is its own
+        # bound class's name, resolved by ``Mapper._tag_for_item`` from the
+        # item's **runtime type** — measured: ``project_settings``' real
+        # decoded ``setting`` items are bare ``SettingType`` instances, and
+        # ``settings``' real decoded ``player`` items are bare
+        # ``VideoPlayerType`` instances, neither pre-wrapped. A plain dict
+        # here would resolve to the class name ``"dict"`` instead, so the
+        # item must be the real model, unwrapped, for that resolution to
+        # run at all.
+        return [model(body)]
+    return [{field_spec.name: body}]
+
+
+def _select_wrapper_field(wrapper_key: TypeKey, outer_name: str):
+    """Which of a wrapper-shaped type's (possibly several) inner fields a
+    repeated outer field sharing that type actually means — by name match,
+    tolerating the plural/singular spelling (``outputs``/``output``), the
+    one measured divergence. Falls back to the first field when there is
+    exactly one, or no match is found."""
+    wrapper_fields = [f for f in derive(wrapper_key).fields if not f.is_wildcard]
+    for f in wrapper_fields:
+        if f.name in (outer_name, outer_name.rstrip("s")):
+            return f
+    return wrapper_fields[0]
+
+
+def _build_repeated_wrapped(schema_name: str, field_spec, branch: frozenset) -> list:
+    """One exemplar of a field declared on a **wrapper container type**
+    that is being collapsed into (:func:`_is_wrapper_shape`) — pre-tagged
+    with the field's **own** declared name (``CueOutput``/``node``/
+    ``player``/``channel``/…), which is what config decode already
+    preserves and what ``encode_wire``'s repeated-field handling recognises
+    as an already-tagged member (research R2)."""
+    class_value, chosen_key = _chosen_child(field_spec)
+    if chosen_key is None:
+        return [_seed_for(schema_name, field_spec.xsd_type)]
+
+    body = _build_value_for(chosen_key, branch)
+    if class_value is not None and "class" in body:
+        body["class"] = class_value
+    return [{field_spec.name: body}]
+
+
+def _build_wrapper_collapse(wrapper_key: TypeKey, branch: frozenset) -> list:
+    """The collapsed value for a wrapper-shaped type being embedded — one
+    exemplar of its **first** declared field.
+
+    A single-field container (``OutputsType``) has only one choice. A
+    multi-member choice (``CueListContentsType``:
+    ``Cue``/``ActionCue``/``FadeCue``/``CueList``) could in principle offer
+    one exemplar per member, but ``ActionCue``/``FadeCue``'s
+    ``action_target`` is a cross-reference T2 validates against the
+    *document*'s own cues (feature 010's ``action_target_resolves``) — no
+    seed can satisfy that generically, and populating them anyway would
+    break FR-023's "every root instance saves unmodified" for the one
+    schema that has this shape. The first member is deterministic,
+    reproducible, and keeps every root saveable; see
+    ``test_the_instance_carries_every_declared_field``'s own exemption for
+    a type whose content model is a true choice rather than a sequence.
+    """
+    fields = [f for f in derive(wrapper_key).fields if not f.is_wildcard]
+    return _build_repeated_wrapped(wrapper_key.schema, fields[0], branch)
+
+
+def _build_single(key: TypeKey, field_spec, defaults: dict, branch: frozenset) -> Any:
+    """One non-repeated field's value: a nested instance for a complex
+    child (R1's anonymous-child case included), collapsing through a
+    wrapper-shaped child (research R2), or a seeded scalar — model default
+    first, then :func:`_seed_for` (data-model.md §3)."""
+    if field_spec.name == "&":
+        # The converter's own text key for a simple-content type
+        # (``spec.py``'s ``_simple_content_text``) — ``DefaultPortType``'s
+        # own text, not an element, so it carries neither a qname nor a
+        # complex child to resolve by. Its real type is the
+        # ``xs:simpleContent`` base, read directly off the XSD.
+        schema = get_schema(key.schema)
+        xsd_type = schema.types.get(key.name)
+        base = getattr(xsd_type, "content", None)
+        seed = _seed_for_type_object(base) if base is not None else None
+        return seed if seed is not None else ""
+
+    if field_spec.xsd_type == "CTimecodeType":
+        # The one value object that is neither scalar nor mapping
+        # (mapper.py's own note beside ``_fill``): ``encode_wire`` checks
+        # ``adapter_for(field.xsd_type)`` **before** looking at
+        # ``field.child`` at all, and the adapter expects a real
+        # ``CTimecode``, not the nested ``{"CTimecode": …}`` dict recursing
+        # into the complex child would build — which the adapter would
+        # then stringify wholesale instead of converting.
+        from ..tools.CTimecode import CTimecode
+
+        return CTimecode("00:00:00.000")
+
+    child_key = field_spec.child
+    if child_key is None and field_spec.xsd_type is None and key.is_path:
+        # R1: an anonymous single complex child (``CuemsSettings/Settings``,
+        # ``CuemsProject/CuemsScript``) has no qname to key it by, so
+        # ``field_spec.child`` is ``None``. Resolved by **path**, reusing the
+        # guard conditions of ``Mapper._anonymous_child``/``_child_spec_for``
+        # verbatim, rather than widening ``FieldSpec.child``'s own notion of
+        # a leaf (27 consumers depend on it meaning "scalar").
+        candidate = TypeKey(key.schema, f"{key.name}/{field_spec.name}", is_path=True)
+        try:
+            derive(candidate)
+            child_key = candidate
+        except (KeyError, StopIteration, AttributeError):
+            child_key = None
+
+    if child_key is not None:
+        if _is_wrapper_shape(child_key):
+            return _build_wrapper_collapse(child_key, branch)
+        return _build_value_for(child_key, branch)
+
+    default = defaults.get(field_spec.name, Unset)
+    if default is Unset or callable(default):
+        # Unset has no value to seed with; a callable must not be invoked
+        # here (FR-027) — see TypeDescriptor.instance.
+        if field_spec.xsd_type is None:
+            # Not a scalar at all — the one measured exception (R1,
+            # ``PutType.mappings``): an anonymous complex child inside a
+            # *named* (non-path) type, which neither a qname nor R1's path
+            # form can reach.
+            inline = _inline_named_type_seed(key, field_spec)
+            if inline is not None:
+                return inline
+        return _seed_for(key.schema, field_spec.xsd_type)
+    return default
+
+
+_wrap_index_cache: dict[str, dict[TypeKey, str]] = {}
+
+
+def _wrap_index(schema_name: str) -> dict[TypeKey, tuple[str, Any]]:
+    """``TypeKey -> (the field name that wraps it, its class value or
+    None)``, for every type reachable only by **collapsing into a
+    wrapper-shaped container** (research R2's general pattern — FR-021's
+    ``CueOutput`` wrapper is one instance of it, not a special case). Such
+    a type has no wire representation of its own; queried standalone, its
+    instance is what it would be as one member of that field — class
+    value included, so ``VideoPlayerType`` queried standalone still seeds
+    ``class="video"`` rather than a generic string.
+
+    Scoped to **non-repeated** fields whose own child collapses
+    (:func:`_is_wrapper_shape`), mirroring :func:`_build_single` exactly —
+    a repeated field declared *directly* on a type (``setting`` on the
+    ``project_settings`` root) never collapses, and indexing it here would
+    wrongly wrap that field's own item type too (measured:
+    ``SettingType`` queried standalone is bare, never ``{"setting": …}``).
+    """
+    if schema_name not in _wrap_index_cache:
+        index: dict[TypeKey, tuple[str, Any]] = {}
+        registry = get_registry(schema_name)
+        keys = [TypeKey(schema_name, n) for n in registry.bound_type_names]
+        keys += [TypeKey(schema_name, n, is_path=True) for n in registry.bound_path_names]
+        for key in keys:
+            for field_spec in derive(key).fields:
+                if field_spec.repeated or field_spec.child is None:
+                    continue
+                if not _is_wrapper_shape(field_spec.child):
+                    continue
+                wrapper_fields = [f for f in derive(field_spec.child).fields if not f.is_wildcard]
+                inner = wrapper_fields[0]
+                if inner.child is not None:
+                    index.setdefault(inner.child, (inner.name, None))
+                for class_value, alt_key in inner.alternatives:
+                    index.setdefault(alt_key, (inner.name, class_value))
+        _wrap_index_cache[schema_name] = index
+    return _wrap_index_cache[schema_name]
+
+
+def _instance_for(key: TypeKey) -> dict | list:
+    """The descriptor's wire-shaped, saveable instance for ``key`` (G3,
+    contracts/public-surface.md C3, FR-020..FR-027).
+
+    Builds the raw, fully-populated value above, then projects it through
+    the **same** encoder ``to_wire()`` uses (``Mapper.encode_wire``) — so
+    the wrapping and the nesting are structural, not a second
+    implementation the descriptor owns and could drift from (research R2).
+    """
+    from .mapper import Mapper
+
+    if _model_for(key) is None and _is_wrapper_shape(key):
+        # An **unbound** wrapper container (``OutputsType``,
+        # ``AudioChannelsType``, ``CueListContentsType``, …) has no
+        # standalone existence of its own — nothing in this library ever
+        # constructs one — so queried directly it is what it would look
+        # like embedded: the bare, pre-tagged list (measured: a *bound*
+        # wrapper like ``NodeDictType`` has a real standalone
+        # ``.to_wire()``, which stays on the normal path below and is
+        # measurably different — a dict, not a list).
+        # One exemplar **per declared field** — a multi-member choice
+        # (``CueListContentsType``: ``Cue``/``ActionCue``/``FadeCue``/
+        # ``CueList``) has more than one, and every one of them must
+        # appear for FR-020's "every declared field present" to hold; a
+        # single-field container (``OutputsType``) is the one-item case of
+        # the same rule, not a different one.
+        fields = [f for f in derive(key).fields if not f.is_wildcard]
+        items = []
+        for chosen_field in fields:
+            class_value, chosen_key = _chosen_child(chosen_field)
+            if chosen_key is None:
+                items.append({chosen_field.name: _seed_for(key.schema, chosen_field.xsd_type)})
+                continue
+            body = _build_value_for(chosen_key, frozenset({key}))
+            if class_value is not None and "class" in body:
+                body["class"] = class_value
+            projected_body = Mapper(key.schema).encode_wire(body, derive(chosen_key))
+            items.append({chosen_field.name: projected_body})
+        return items
+
+    spec = derive(key)
+    raw = _build_value_for(key, frozenset())
+
+    wrap = _wrap_index(key.schema).get(key)
+    if wrap is not None:
+        wrapper_name, class_value = wrap
+        if class_value is not None and "class" in raw:
+            raw["class"] = class_value
+    instance = Mapper(key.schema).encode_wire(raw, spec)
+
+    if wrap is not None:
+        instance = {wrapper_name: instance}
     return instance
 
 
@@ -292,6 +772,7 @@ class SchemaDescriptor:
 def clear_cache() -> None:
     global _repairability_cache
     _repairability_cache = None
+    _wrap_index_cache.clear()
 
 
 # --- example-document generation (T070, T078) -------------------------------
@@ -466,7 +947,7 @@ def _build_choice_members(builders: dict, leaf_names: tuple[str, ...]) -> list:
     """One object per element name, and per class where the element is
     conditional — in schema order, then alternative order."""
     choice = derive(TypeKey("script", "CueListContentsType"))
-    cues = []
+    cues: list[Any] = []
     for name in leaf_names:
         builder = builders[name]
         if isinstance(builder, dict):

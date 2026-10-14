@@ -1,10 +1,8 @@
 import re
 from typing import Tuple
 
+from ..helpers import CuemsDict, Unset, ensure_items, format_timecode
 from .Cue import Cue
-
-from ..helpers import CuemsDict, ensure_items, format_timecode, Unset
-from ..tools.CTimecode import CTimecode
 
 REQ_ITEMS = {
     'Media': None,
@@ -97,7 +95,7 @@ class Region(CuemsDict):
 
     def __init__(self, init_dict = None):
         """Initialize a Region.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If not provided, default values will be used.
@@ -108,10 +106,10 @@ class Region(CuemsDict):
         # literal that made a bare region the one object in the model whose
         # defaults lived inside its own ``__init__`` (T026).
         self._fill_declared_defaults()
-    
+
     def get_id(self):
         """Get the region ID.
-        
+
         Returns:
             str: The region's identifier.
         """
@@ -119,7 +117,7 @@ class Region(CuemsDict):
 
     def set_id(self, id):
         """Set the region ID.
-        
+
         Args:
             id: The new region identifier.
         """
@@ -129,7 +127,7 @@ class Region(CuemsDict):
 
     def get_loop(self):
         """Get the loop count for this region.
-        
+
         Returns:
             int: The number of times the region should loop.
         """
@@ -137,7 +135,7 @@ class Region(CuemsDict):
 
     def set_loop(self, loop):
         """Set the loop count for this region.
-        
+
         Args:
             loop (int): The number of times the region should loop.
         """
@@ -147,7 +145,7 @@ class Region(CuemsDict):
 
     def get_in_time(self):
         """Get the in point of the region.
-        
+
         Returns:
             CTimecode: The timecode where the region starts.
         """
@@ -155,7 +153,7 @@ class Region(CuemsDict):
 
     def set_in_time(self, in_time):
         """Set the in point of the region.
-        
+
         Args:
             in_time: The new in point timecode.
         """
@@ -166,7 +164,7 @@ class Region(CuemsDict):
 
     def get_out_time(self):
         """Get the out point of the region.
-        
+
         Returns:
             CTimecode: The timecode where the region ends.
         """
@@ -174,7 +172,7 @@ class Region(CuemsDict):
 
     def set_out_time(self, out_time):
         """Set the out point of the region.
-        
+
         Args:
             out_time: The new out point timecode.
         """
@@ -217,20 +215,20 @@ class Media(CuemsDict):
         'file_size': Unset,
         'file_md5': Unset,
     }
-    
+
     def __init__(self, init_dict = None):
         """Initialize a Media object.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If provided, will be used to set initial properties.
         """
         if init_dict:
             self.setter(init_dict)
-    
+
     def get_file_name(self):
         """Get the media file name.
-        
+
         Returns:
             str: The name of the media file.
         """
@@ -238,7 +236,7 @@ class Media(CuemsDict):
 
     def set_file_name(self, file_name):
         """Set the media file name.
-        
+
         Args:
             file_name (str): The new media file name.
         """
@@ -248,7 +246,7 @@ class Media(CuemsDict):
 
     def get_id(self):
         """Get the UUID of the media file.
-        
+
         Returns:
             str: The UUID of the media file.
         """
@@ -256,7 +254,7 @@ class Media(CuemsDict):
 
     def set_id(self, id):
         """Set the UUID of the media file.
-        
+
         Args:
             id (str): The new UUID of the media file.
         """
@@ -304,7 +302,7 @@ class Media(CuemsDict):
 
     def get_regions(self):
         """Get the list of regions in the media file.
-        
+
         Returns:
             list: The list of Region objects.
         """
@@ -465,7 +463,7 @@ class Media(CuemsDict):
         a caller that relied on the library lowercasing for it — the editor,
         which stores the md5 its client sent — must ``.lower()`` before
         assigning here. See
-        ``specs/planning/stored-media-values-preimplementation.md``.
+        ``specs/014-xs-boolean-and-media-elements/plan.md (§10.5; the source note was deleted by feature 015)``.
 
         Raises:
             ValueError: *value* is not 32 lowercase hexadecimal characters.
@@ -485,7 +483,7 @@ class Media(CuemsDict):
 
 class MediaCue(Cue):
     """Base class for media-related cues (audio and video).
-    
+
     This class extends Cue to provide common functionality for media playback,
     including media file handling and output routing.
     """
@@ -493,10 +491,10 @@ class MediaCue(Cue):
     #: Declared fields and their defaults for this class alone;
     #: :meth:`CuemsDict.declared_defaults` accumulates the chain.
     DECLARED_DEFAULTS = REQ_ITEMS
-    
+
     def __init__(self, init_dict = None):
         """Initialize a MediaCue.
-        
+
         Args:
             init_dict (dict, optional): Dictionary containing initialization values.
                 If not provided, default values from REQ_ITEMS will be used.
@@ -509,7 +507,7 @@ class MediaCue(Cue):
 
     def get_Media(self):
         """Get the media object associated with this cue.
-        
+
         Returns:
             Media: The media object containing file and region information.
         """
@@ -517,7 +515,7 @@ class MediaCue(Cue):
 
     def set_Media(self, value):
         """Set the media object for this cue.
-        
+
         Args:
             value (Media or dict): The media object or dictionary to create one.
         """
@@ -529,7 +527,7 @@ class MediaCue(Cue):
 
     def get_outputs(self):
         """Get the output routing configuration.
-        
+
         Returns:
             list: The list of output configurations.
         """
@@ -537,7 +535,7 @@ class MediaCue(Cue):
 
     def set_outputs(self, outputs):
         """Set the output routing configuration.
-        
+
         Args:
             outputs (list): The list of output configurations.
         """
@@ -564,5 +562,5 @@ class MediaCue(Cue):
             node_id: The ID of the node to localize the cue to.
         """
         self._local = any(x[0] == node_id for x in self.get_all_output_names())
-        
+
 

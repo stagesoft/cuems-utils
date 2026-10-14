@@ -1,6 +1,7 @@
 from os import environ, path
 
 from ..errors import (
+    NodeIdentityCollisionError,
     SchemaError,
     ValidationError,
     network_map_node_type_message,
@@ -9,13 +10,15 @@ from ..errors import (
     node_identity_shape_message,
     project_mappings_semantic_message,
 )
+from ..helpers import mkdir_recursive
 from ..log import Logger, logged
+
 # The concrete module, not the package root: ``cuemsutils.xml.Settings``
 # is a deprecation shim as of T061, and contract C8 forbids the library
 # calling one of its own deprecated names.
 from ..xml.settings import Settings
+from ..xml.validators import Violation
 from ..xml.versioning import DocumentTooNewError
-from ..helpers import mkdir_recursive
 
 
 def load_config_document(cls, xmlfile: str, schema_name: str):
@@ -81,7 +84,19 @@ def load_config_document(cls, xmlfile: str, schema_name: str):
             collision = node_identity_collision_message(xmlfile, exc)
             if collision is not None:
                 Logger.error(collision)
-                raise ValidationError(collision) from exc
+                # S1 (feature 015, research R4): promoted here, not raised
+                # by the rule itself — this is where the file path exists
+                # to attach, and raising the public type from inside the
+                # rule would propagate past this very clause.
+                collisions = getattr(exc, 'collisions', {})
+                first_identity = next(iter(collisions), None)
+                violation = Violation(
+                    tier='T2', rule='node_uuid_unique',
+                    location=(first_identity, 'uuid'), message=str(exc),
+                )
+                raise NodeIdentityCollisionError(
+                    collision, collisions=collisions, file=xmlfile, violation=violation,
+                ) from exc
 
         # A non-converged node identity is a **structural** (T1) failure — the
         # narrowed NodeUuidType refuses it — so it stays a SchemaError. What
@@ -144,28 +159,36 @@ class ConfigBase():
         self._settings_document = settings_doc.xml_dict
 
     # HELPER FUNCTIONS #
-    def conf_path(self, file_name: str) -> str:
+    def conf_path(self, file_name: str, *, must_exist: bool = True) -> str:
         """
         Returns the path to the configuration file.
 
         Args:
             file_name (str): The name of the file to be checked.
+            must_exist (bool): keyword-only (contract C1). ``True`` (default)
+                is today's behaviour, unchanged — every in-package call site
+                and every consumer keeps raising on an absent file. ``False``
+                returns the canonical path whether or not the file exists yet,
+                for a caller about to **write** there for the first time
+                (G1) — resolving a tolerated target creates no file and no
+                directory.
 
         Returns:
             str: The path to the configuration file.
 
         Raises:
-            FileNotFoundError: If the configuration file does not exist.
+            FileNotFoundError: If ``must_exist`` is ``True`` (the default) and
+                the configuration file does not exist.
         """
         conf_path = path.join(self.config_dir, file_name)
-        if not path.exists(conf_path):
+        if must_exist and not path.exists(conf_path):
             raise FileNotFoundError(f'Configuration file {conf_path} not found')
         return conf_path
-    
+
     def set_dir_hierarchy(self) -> None:
         """
         Sets the directory hierarchy for the library path.
-        """      
+        """
         dirs = [
             'projects',
             'media',
@@ -183,12 +206,12 @@ class ConfigBase():
                 mkdir_recursive(each_path)
         except Exception as e:
             Logger.error("error: {} {}".format(type(e), e))
-    
+
     # CLASS PROPERTIES #
     @property
     def config_dir(self):
         return self._config_dir
-    
+
     @config_dir.setter
     def config_dir(self, value: str):
         if not path.exists(value):
@@ -198,15 +221,15 @@ class ConfigBase():
     @property
     def library_path(self):
         return self.settings['library_path']
-    
+
     @property
     def tmp_path(self):
         return self.settings['tmp_path']
-    
+
     @property
     def database_name(self):
         return self.settings['database_name']
-    
+
     @property
     def show_lock_file(self):
         return self.settings['show_lock_file']
@@ -214,11 +237,11 @@ class ConfigBase():
     @property
     def editor_url(self):
         return self.settings['editor_url']
-    
+
     @property
     def controller_url(self):
         return self.settings['controller_url']
-    
+
     @property
     def templates_path(self):
         return self.settings['templates_path']

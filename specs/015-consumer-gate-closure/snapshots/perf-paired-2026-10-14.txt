@@ -1,0 +1,8 @@
+A load 2.14 load=33.155 save=27.463 derive=1.984 network_map=1.934 settings=4.694 project_mappings=9.156
+B load 2.14 load=32.953 save=28.476 derive=5.733 network_map=2.000 settings=4.762 project_mappings=9.584
+A load 2.21 load=34.746 save=28.339 derive=1.819 network_map=1.826 settings=4.035 project_mappings=7.498
+B load 2.21 load=18.560 save=16.516 derive=3.273 network_map=1.045 settings=2.786 project_mappings=5.437
+A load 2.21 load=17.219 save=14.800 derive=1.062 network_map=1.159 settings=2.519 project_mappings=5.065
+B load 2.52 load=17.317 save=14.971 derive=2.873 network_map=1.086 settings=2.620 project_mappings=5.367
+A load 2.52 load=17.217 save=14.186 derive=1.023 network_map=1.117 settings=2.470 project_mappings=4.844
+B load 2.52 load=17.294 save=14.870 derive=2.791 network_map=1.044 settings=2.427 project_mappings=5.062

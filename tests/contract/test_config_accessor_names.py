@@ -169,6 +169,26 @@ def test_the_moved_accessor_has_a_recorded_consumer_census():
     )
 
 
+def test_project_settings_joins_the_public_section_set():
+    """G2 (T018) — ``'project_settings'`` becomes a public section name
+    (FR-012), named beside the golden rather than by re-cutting it: this is an
+    addition, not a change to an existing name (contract C2's own convention,
+    see ``test_the_new_public_descriptor_accessor_is_named_as_decided`` just
+    below)."""
+    from cuemsutils.tools.ConfigManager import _PROJECTABLE_SECTIONS
+
+    assert 'project_settings' in _PROJECTABLE_SECTIONS
+
+
+def test_the_section_error_names_project_settings():
+    from tests.support.config_inventory import build_config_manager
+
+    manager = build_config_manager(load_project=False)
+    with pytest.raises(ValueError) as exc_info:
+        manager.to_wire('not-a-real-section')
+    assert 'project_settings' in str(exc_info.value)
+
+
 def test_the_new_public_descriptor_accessor_is_named_as_decided():
     """T010 / FR-028 — the name is part of the deliverable, so it is pinned.
 

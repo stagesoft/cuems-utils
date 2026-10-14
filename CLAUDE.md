@@ -170,8 +170,74 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     spread on one unchanged tree is **±4–8%**, so **a 110%-of-baseline budget is below this
     instrument's resolution**. Anything tighter measures the afternoon, not the code
     (`specs/014-xs-boolean-and-media-elements/baseline.md` §6.1).
+- **Feature 015 (`015-consumer-gate-closure`, specified 2026-10-13, implemented on its branch 2026-10-14) adds no new technology** — no
+  runtime dependency, no new module in `src/`, no schema version step. (One tooling change: `ruff>=0.17.0,<0.18` and `mypy>=2.4.0,<3`, because their finding counts are now gates.) It closes the five gates of
+  the coordinated tag plus the straggler sweep; `specs/015-consumer-gate-closure/research.md` holds
+  the twelve measured findings.
+  - **The box was migrated 2026-10-13, and line 88's claim is now substantively true.** Anaconda is
+    **removed**, pyenv is installed with a real **3.11.9**, and the toolchain (`uv`, `hatch`,
+    `specify`) lives under `~/.local`. One qualification is load-bearing and must travel with it:
+    **a pyenv build of this interpreter MUST carry `--enable-optimizations --with-lto`** (and
+    `CC=gcc-12`, since GCC 14 will not build CPython 3.11). Measured 2026-10-13: without those
+    flags pyenv's build is **32–72% slower** than the uv-managed python-build-standalone build that
+    `hatch` resolves, and the show-document load reads **23.4 ms against a 16.5 ms budget — 42% over
+    on unchanged code**. With them, the two builds agree to within **0–2%**. Record *which build* a
+    figure came from, never just "3.11.9".
+  - **Features 011–014's performance figures were all taken on conda-built CPython 3.11.2** and are
+    not directly comparable with anything measured after the migration. They remain internally
+    consistent and are not re-measured.
+  - **The show-document load straddles its 16.5 ms budget**, measured over **16 samples in three
+    windows**: band **16.465–17.750 ms**, median 16.864, **14 of 16 over**. So the assertion is
+    *flaky* on an unchanged tree rather than failing — and feature 015 adopts 012's R14 precedent
+    (band comparison, not a straddled line) rather than raising the budget a fourth time. Against
+    013's own 14.07–14.96 ms the drift is **+13% to +19%**, and it survived the interpreter
+    migration, so it is real.
+  - **Budget tolerance is 115%**, corroborating 014's ±4–8%: the pooled spread over those 16 samples
+    is **7.8%** (individual windows 2.9%, 7.7%, 4.8%). ⚠ **The sampling lesson, which cost feature
+    015 three wrong headline figures**: 3 samples under one sustained contention gave "32.8–33.5 ms,
+    a 2× regression"; 5 samples in one quiet window gave "exceeded by 2.0–4.9%" and a 110% tolerance;
+    only 16 samples across three windows gave the stable answer. **Consistency within a window is
+    not evidence — it is what makes a bad measurement persuasive.**
 
 ## Recent Changes
+
+- **`015-consumer-gate-closure` IMPLEMENTED** on its branch 2026-10-14 (all tasks ticked; **nothing
+  committed from the final session — the working tree holds Phase 10–11**). The five gates
+  (G1 `must_exist`, G2 public `project_settings`, G3 wire-shaped saveable descriptor instances, G4
+  `NodeIndex.set_alias`, G5 the settings version step vs the reshape) and S1–S4 landed; the coordinated
+  `xml-refactor-merge-candidate` tag now waits on the **consumers' halves** (`cuems-editor` G1/G2/S1 and
+  the G3 cue construction, `cuems-nodeconf`'s `node_set`, `cuems-frontend`'s `toWireShape` deletion) —
+  `specs/015-consumer-gate-closure/consumers_works.md`, re-verified 2026-10-14.
+  - **S3: the writer indents, through ONE serializer.** `documents.serialize_tree` is the only place
+    an `ElementTree` is written (encoding, declaration, `cms` prefix, `ET.indent`); `write_tree`,
+    `cuems-init-node`'s `_serialize` (the `/etc/cuems` documents) and `XmlReaderWriter.write` all call it,
+    and `test_only_documents_serializes_an_element_tree` stops a fourth writer. Six XML goldens and
+    two API goldens were re-cut as **one** event (`migration-guide.md` §7); `config_accessors.json` was
+    edited **surgically**, not re-cut, because it is the pre-006 baseline other tests compare *against*,
+    and `outcomes.json` must never be a `--force` target.
+  - **Tag values: record the COMMIT, not the tag object.** `git rev-parse <tag>` prints an annotated tag's
+    object id; `<tag>^{commit}` is the commit. 015's first draft thought three candidate values had moved
+    — only `cuems-nodeconf` had (`b305c1c` → `5be6cf0`). `tests/support/sibling_tags.py` is the shared
+    resolver: cross-repository claims about *what the coordinated release contains* are asserted at the
+    tag, and *provenance pins* are dated, not asserted. `test_no_version_bump` was a third offender.
+  - **Measured exceptions, recorded as exceeded** (`baseline.md`, 2026-10-14, hatch interpreter,
+    contended box — a Chrome renderer held a core, load 2–3, so verdicts rest on **interleaved A/B**,
+    not absolutes): descriptor derivation **1.04 → 2.83 ms (+170%) vs ≤ 1.22** — ~80% is G3's eager
+    `_instance_for`, accepted and carried; suite **+4.3% per test** relative. Writer did not move the
+    reader (load +0.5%). The show-document load is now compared against its **band**
+    (16.465–17.750 ms), owned by `specs/planning/show-document-load-drift.md`.
+  - **The quality ratchet descended**: ruff **606 → 0**, mypy **80 → 72**, both tools now bounded;
+    goldens byte-identical across the sweep. Judgement calls worth keeping: `E721` → `type(x) is Y`
+    never `isinstance`; the 166 `W293` left after the safe fixes were all inside docstrings (checked by
+    AST) before applying the unsafe fix.
+  - **Sibling two-arm result**: `cuems-editor` 1 real regression (an indentation-sensitive assertion,
+    fixed in its checkout, uncommitted) + 3 intended `XPASS(strict)` flips; `cuems-nodeconf` 0;
+    `cuems-power-bridge` 0 of 57 pre-existing; `cuems-engine` (read on `feat/xml-refactor`; an earlier read on `format/module_extraction` was the wrong branch) 28 failures identical in both arms, but **against a mock `pyossia`** — needs a host with the real package. SC-012's
+    "four flips on landing" is **three** — the fourth (G3 cue) is a test-construction problem in the editor.
+  - Planning folder swept: nine documents deleted (T115), `refactor-sequencing` re-homed to
+    `adoption-liveness-ui-tier.md`, 010's eleven prompts **deletable but kept** until 010 closes.
+  - **Suite**: 3707 passed, 115 skipped, 2 xfailed; remint timing tests
+    (`test_remint_*`, `test_estimate_tolerance`) are flaky under box contention, not defects.
 
 - **`014-xs-boolean-and-media-elements` LANDED** on its own branch 2026-10-12 (scaffolded 2026-10-03
   off `feat/xml-refactor` at `84705b9`); merges into `feat/xml-refactor`, and nothing ships until the
@@ -233,7 +299,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   - **Renamed 2026-10-06 (plan.md decision 13, §10.5): `file_hash` → `file_md5`,
     `Md5HashType` → `Md5Type`.** 014 chose the original names when its input document specified
     only three elements and the fourth was its own; the successor document
-    (`specs/planning/stored-media-values-preimplementation.md`, D18) ships four and names the
+    (`specs/planning/stored-media-values-preimplementation.md` *(deleted 2026-10-14, feature 015; in git history)*, D18) ships four and names the
     fourth, and **rc15 has already shipped that name** — into rc15 plus back-patches to rc14 and
     `pre_release_1`. An element name is an **instance-document** name, so matching it is an
     obligation: two spellings would mean an rc15-written project carrying a `Media` child version 2
@@ -263,7 +329,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   `hardware_outputs` leaves the numbered sequence entirely for
   `specs/planning/hardware-outputs-capability-layer.md` — **deferred, unnumbered, and re-owned**
   — and the **015 slot now holds the consumer-gate closure**,
-  `specs/planning/upcoming-feature-requirements-2026-10-02.md` (its G1–G5 plus the §9 straggler
+  `specs/planning/upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)* (its G1–G5 plus the §9 straggler
   sweep). The coordinated `xml-refactor-merge-candidate` tag still comes after **011–015**; the
   capability layer is **outside** it and may ride a later one.
   - **`cuems-hardware-discovery` is not a repository and will not be one.** The probe role, the
@@ -331,7 +397,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     call lands); and `cuems-editor` **UR-4** — a duplicate node identity carries no structured
     identity, so a consumer is parsing `check_node_identities_unique`'s **prose** with an anchored
     regex. Collected with the release obligation in
-    `specs/planning/upcoming-feature-requirements-2026-10-02.md`.
+    `specs/planning/upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)*.
 
 - `013-device-class-reshape` (**landed on its local branch** 2026-10-01; merges into
   `feat/xml-refactor`; nothing ships until the coordinated `xml-refactor-merge-candidate` tag
@@ -549,6 +615,14 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     drift the lesson below warns about. Local tags verified in sync with `origin` on that date:
     `cuems-common` → `e3c9430`, `cuems-nodeconf` → `b305c1c`, `cuems-power-bridge` → `399baf7`;
     `cuems-engine`, `cuems-editor`, `cuems-frontend` and `cuems-utils` carry **no** tag yet.
+    **Re-verified 2026-10-14 against the tags themselves (feature 015, T102)**, as *commits*
+    (`<tag>^{commit}`): `cuems-common` → `e3c9430` and `cuems-power-bridge` → `399baf7` **hold**;
+    `cuems-nodeconf` **moved** `b305c1c` → `5be6cf0` (re-cut over four commits, `b305c1c` is its
+    ancestor); `cuems-frontend` now carries a tag, at `f5453a3`; `cuems-engine`, `cuems-editor` and
+    `cuems-utils` still carry none. ⚠ Feature 015's first draft read `91b2d25`/`c29c25c`/`cabbb3e`
+    as moved values — those are the **annotated tag objects**, not commits (`git rev-parse <tag>`
+    versus `<tag>^{commit}`), which is the mistake the shared resolver
+    (`tests/support/sibling_tags.py`) exists to make impossible.
     Tag messages are authored as files in `../.xml-refactor-tag-messages/` and applied with
     `git tag -a -F`. Dated before/after tables in
     `specs/011-etc-cuems-first-install/baseline.md` §"UX pass and announcements".

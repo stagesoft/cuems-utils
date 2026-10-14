@@ -69,7 +69,7 @@ SCHEMAS_DIR = REPO_ROOT / "src" / "cuemsutils" / "xml" / "schemas"
 #: back-patched into rc14 and ``pre_release_1``). The element name is an
 #: **instance-document** name, so this one is not cosmetic: a divergence here
 #: would mean an rc15-written project carried a child version 2 does not
-#: declare. See ``../../specs/planning/stored-media-values-preimplementation.md``.
+#: declare. See ``../../specs/014-xs-boolean-and-media-elements/plan.md (§10.5; the source note was deleted by feature 015)``.
 CURRENT_SCHEMA_HASHES = {
     "hardware_outputs.xsd": "e509dcee2ae8f461e3c25dfc680a73a0da31519159c1f0e3fb1199cc6dc46f5a",
     "network_map.xsd": "f1aecab856c49068197d064c8eb2309e972bc21ea508d4549e18277e1b55329b",

@@ -1,0 +1,93 @@
+# mypy — after the sweep (T136), src/cuemsutils only
+#
+# Captured      2026-10-14
+# Command       PYENV_VERSION=3.11.9 uvx hatch run types:check src/cuemsutils
+# mypy          2.4.0, now bounded `>=2.4.0,<3` (T127)
+# BASELINE      72 errors in 24 files  (was 80; 87 on the tree just before the sweep, the 7
+#               being this feature's own new code). THE GATE FROM HERE is 72.
+#
+# Removed: all 10 unused `# type: ignore` (T126); 13 `var-annotated` (annotated); `import-untyped`
+# and `import-not-found` stay (see residue). Residue, with reasons:
+#   - xml/documents.py, mapper.py, convert_documents.py, reshape_devices.py, versioning.py:
+#     `ElementTree[Element[str]]` vs `ElementTree[Element[str] | None]` — a typeshed invariance
+#     artefact, not a defect; no cast added because it would only silence it.
+#   - cues/*.py `assignment` (property-vs-annotated class attribute; `REQ_ITEMS` dict value
+#     types differing between subclasses): the dictionary-backed descriptor design, which a
+#     type annotation cannot express without changing the model.
+#   - tools/FadeCalculator.py return-value, HubServices.py override: pre-existing, unexamined by
+#     this feature's scope; behaviour-changing to fix.
+#   - import-untyped (json_fix, pynng), import-not-found (systemd): third-party packages with no stubs.
+#   - ConfigManager.py:530/584/609 `None`-initialised project_settings: pre-existing contract
+#     (`None` until a project is loaded).
+  src/cuemsutils/xml/versioning.py:91: error: Item "None" of "Element[str] | Any | None" has no attribute "attrib"  [union-attr]
+  src/cuemsutils/xml/versioning.py:157: error: Argument 1 has incompatible type "Element[str] | Any | None"; expected "Element[str]"  [arg-type]
+  src/cuemsutils/tools/CTimecode.py:30: error: Skipping analyzing "json_fix": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+  src/cuemsutils/tools/CTimecode.py:95: error: Unsupported operand types for * ("None" and "int")  [operator]
+  src/cuemsutils/tools/CTimecode.py:96: error: Unsupported operand types for * ("None" and "int")  [operator]
+  src/cuemsutils/tools/FadeCalculator.py:41: error: Incompatible return value type (got "zip[tuple[str, Any]]", expected "dict[str, float]")  [return-value]
+  src/cuemsutils/tools/FadeCalculator.py:93: error: Incompatible return value type (got "list[float]", expected "dict[str, float]")  [return-value]
+  src/cuemsutils/tools/FadeCalculator.py:101: error: Incompatible return value type (got "list[float]", expected "float")  [return-value]
+  src/cuemsutils/tools/SignalEngine.py:5: error: Cannot find implementation or library stub for module named "systemd.daemon"  [import-not-found]
+  src/cuemsutils/tools/HubServices.py:12: error: Skipping analyzing "pynng": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+  src/cuemsutils/tools/HubServices.py:221: error: Return type "Coroutine[Any, Any, Any]" of "send_message" incompatible with return type "None" in supertype "HubService"  [override]
+  src/cuemsutils/tools/HubServices.py:248: error: Return type "Coroutine[Any, Any, Message]" of "get_message" incompatible with return type "Message" in supertype "HubService"  [override]
+  src/cuemsutils/xml/validators.py:240: error: "object" not callable  [operator]
+  src/cuemsutils/xml/mapper.py:1135: error: Argument 1 to "read_version" has incompatible type "ElementTree[Element[str]]"; expected "ElementTree[Element[str] | None] | Element[str]"  [arg-type]
+  src/cuemsutils/xml/mapper.py:1139: error: Argument 2 to "convert" has incompatible type "ElementTree[Element[str]]"; expected "ElementTree[Element[str] | None] | Element[str]"  [arg-type]
+  src/cuemsutils/xml/mapper.py:1142: error: Argument 3 to "raise_if_old_device_shape" has incompatible type "ElementTree[Element[str]]"; expected "ElementTree[Element[str] | None]"  [arg-type]
+  src/cuemsutils/xml/mapper.py:1246: error: Item "None" of "Binding | None" has no attribute "key"  [union-attr]
+  src/cuemsutils/xml/documents.py:146: error: Argument 1 to "read_version" has incompatible type "ElementTree[Element[str]]"; expected "ElementTree[Element[str] | None] | Element[str]"  [arg-type]
+  src/cuemsutils/xml/documents.py:150: error: Argument 2 to "convert" has incompatible type "ElementTree[Element[str]]"; expected "ElementTree[Element[str] | None] | Element[str]"  [arg-type]
+  src/cuemsutils/xml/documents.py:151: error: Argument 3 to "raise_if_old_device_shape" has incompatible type "ElementTree[Element[str]]"; expected "ElementTree[Element[str] | None]"  [arg-type]
+  src/cuemsutils/xml/documents.py:152: error: Argument 1 has incompatible type "ElementTree[Element[str]]"; expected "str | bytes | Path | IO[str] | IO[bytes] | Element[str] | ElementTree[Element[str] | None] | XMLResource"  [arg-type]
+  src/cuemsutils/xml/documents.py:152: error: Argument 2 has incompatible type "**dict[str, object]"; expected "str | None"  [arg-type]
+  src/cuemsutils/xml/documents.py:152: error: Argument 2 has incompatible type "**dict[str, object]"; expected "str"  [arg-type]
+  src/cuemsutils/xml/documents.py:192: error: Argument 1 to "list" has incompatible type "Element[str] | None"; expected "Iterable[Element[str]]"  [arg-type]
+  src/cuemsutils/xml/documents.py:195: error: Item "None" of "Element[str] | None" has no attribute "iter"  [union-attr]
+  src/cuemsutils/xml/documents.py:209: error: Item "None" of "Element[str] | None" has no attribute "iter"  [union-attr]
+  src/cuemsutils/xml/documents.py:220: error: Item "None" of "Element[str] | None" has no attribute "iter"  [union-attr]
+  src/cuemsutils/cues/MediaCue.py:354: error: Incompatible types in assignment (expression has type "property", variable has type "list[Region]")  [assignment]
+  src/cuemsutils/cues/MediaCue.py:493: error: Incompatible types in assignment (expression has type "dict[str, _UnsetType | None]", base class "Cue" defined the type as "dict[str, type[CTimecode] | str | int | Callable[[], Any] | bool | None]")  [assignment]
+  src/cuemsutils/cues/MediaCue.py:526: error: Incompatible types in assignment (expression has type "property", variable has type "Media")  [assignment]
+  src/cuemsutils/cues/MediaCue.py:556: error: Signature of "localize_cue" incompatible with supertype "cuemsutils.cues.Cue.Cue"  [override]
+  src/cuemsutils/cues/DmxCue.py:52: error: Incompatible types in assignment (expression has type "dict[str, str | float | None]", base class "Cue" defined the type as "dict[str, type[CTimecode] | str | int | Callable[[], Any] | bool | None]")  [assignment]
+  src/cuemsutils/cues/ActionCue.py:18: error: Incompatible types in assignment (expression has type "dict[str, str | None]", base class "Cue" defined the type as "dict[str, type[CTimecode] | str | int | Callable[[], Any] | bool | None]")  [assignment]
+  src/cuemsutils/cues/ActionCue.py:27: error: Incompatible default for parameter "init_dict" (default has type "None", parameter has type "dict[Any, Any]")  [assignment]
+  src/cuemsutils/cues/VideoCue.py:21: error: Incompatible types in assignment (expression has type "dict[str, object]", base class "MediaCue" defined the type as "dict[str, _UnsetType | None]")  [assignment]
+  src/cuemsutils/cues/FadeCue.py:60: error: Incompatible types in assignment (expression has type "dict[str, object]", base class "ActionCue" defined the type as "dict[str, str | None]")  [assignment]
+  src/cuemsutils/cues/FadeCue.py:62: error: Incompatible default for parameter "init_dict" (default has type "None", parameter has type "dict[Any, Any]")  [assignment]
+  src/cuemsutils/cues/FadeCue.py:86: error: Argument 1 to "__init__" of "ActionCue" has incompatible type "None"; expected "dict[Any, Any]"  [arg-type]
+  src/cuemsutils/cues/CueList.py:52: error: Incompatible types in assignment (expression has type "property", variable has type "list[Cue]")  [assignment]
+  src/cuemsutils/cues/AudioCue.py:27: error: Incompatible types in assignment (expression has type "dict[str, object]", base class "MediaCue" defined the type as "dict[str, _UnsetType | None]")  [assignment]
+  src/cuemsutils/cues/CuemsScript.py:4: error: Skipping analyzing "json_fix": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+  src/cuemsutils/cues/CuemsScript.py:96: error: Incompatible types in assignment (expression has type "property", variable has type "Uuid")  [assignment]
+  src/cuemsutils/cues/CuemsScript.py:114: error: Incompatible types in assignment (expression has type "property", variable has type "str")  [assignment]
+  src/cuemsutils/cues/CuemsScript.py:132: error: Incompatible types in assignment (expression has type "property", variable has type "str")  [assignment]
+  src/cuemsutils/cues/CuemsScript.py:196: error: Incompatible types in assignment (expression has type "property", variable has type "CueList")  [assignment]
+  src/cuemsutils/cues/CuemsScript.py:213: error: Incompatible types in assignment (expression has type "CuemsDict | None", variable has type "dict[Any, Any] | CuemsDict")  [assignment]
+  src/cuemsutils/cues/CuemsScript.py:216: error: Incompatible types in assignment (expression has type "property", variable has type "CuemsDict")  [assignment]
+  src/cuemsutils/cues/CuemsScript.py:284: error: "dict[Any, Any]" has no attribute "node_conf"  [attr-defined]
+  src/cuemsutils/xml/reshape_devices.py:316: error: Argument 2 to "_as_the_load_path_sees_it" has incompatible type "ElementTree[Element[str]]"; expected "ElementTree[Element[str] | None]"  [arg-type]
+  src/cuemsutils/xml/reshape_devices.py:319: error: Argument 1 to "write_tree" has incompatible type "ElementTree[Element[str]]"; expected "ElementTree[Element[str] | None]"  [arg-type]
+  src/cuemsutils/xml/convert_documents.py:76: error: Argument 1 to "read_version" has incompatible type "ElementTree[Element[str]]"; expected "ElementTree[Element[str] | None] | Element[str]"  [arg-type]
+  src/cuemsutils/xml/convert_documents.py:87: error: Argument 2 to "convert" has incompatible type "ElementTree[Element[str]]"; expected "ElementTree[Element[str] | None] | Element[str]"  [arg-type]
+  src/cuemsutils/xml/convert_documents.py:94: error: Argument 1 to "validate" of "XMLSchemaBase" has incompatible type "ElementTree[Element[str]]"; expected "str | bytes | Path | IO[str] | IO[bytes] | Element[str] | ElementTree[Element[str] | None] | XMLResource"  [arg-type]
+  src/cuemsutils/xml/convert_documents.py:96: error: Argument 1 to "write_tree" has incompatible type "ElementTree[Element[str]]"; expected "ElementTree[Element[str] | None]"  [arg-type]
+  src/cuemsutils/xml/descriptor.py:157: error: Item "XsdComplexType" of "XsdSimpleType | XsdComplexType" has no attribute "enumeration"  [union-attr]
+  src/cuemsutils/xml/descriptor.py:189: error: "type" has no attribute "declared_defaults"  [attr-defined]
+  src/cuemsutils/xml/descriptor.py:321: error: Argument 1 to "get" of "dict" has incompatible type "Any | None"; expected "str"  [arg-type]
+  src/cuemsutils/xml/descriptor.py:344: error: Argument 1 to "get" of "dict" has incompatible type "Any | None"; expected "str"  [arg-type]
+  src/cuemsutils/xml/descriptor.py:399: error: Item "XsdComplexType" of "XsdSimpleType | XsdComplexType" has no attribute "enumeration"  [union-attr]
+  src/cuemsutils/xml/descriptor.py:400: error: Item "XsdComplexType" of "XsdSimpleType | XsdComplexType" has no attribute "enumeration"  [union-attr]
+  src/cuemsutils/xml/descriptor.py:674: error: Incompatible types in assignment (expression has type "dict[TypeKey, tuple[str, Any]]", target has type "dict[TypeKey, str]")  [assignment]
+  src/cuemsutils/xml/descriptor.py:675: error: Incompatible return value type (got "dict[TypeKey, str]", expected "dict[TypeKey, tuple[str, Any]]")  [return-value]
+  src/cuemsutils/xml/descriptor.py:955: error: Item "None" of "FieldSpec | None" has no attribute "alternatives"  [union-attr]
+  src/cuemsutils/tools/CommunicatorServices.py:10: error: Skipping analyzing "pynng": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+  src/cuemsutils/tools/CommunicatorServices.py:168: error: Incompatible default for parameter "communicator_service" (default has type "type[NngRequestResponse]", parameter has type "CommunicatorService")  [assignment]
+  src/cuemsutils/tools/CommunicatorServices.py:195: error: "CommunicatorService" not callable  [operator]
+  src/cuemsutils/xml/Parsers.py:205: error: Cannot assign to a method  [method-assign]
+  src/cuemsutils/tools/ConfigManager.py:530: error: Incompatible types in assignment (expression has type "CuemsProjectSettingsType", variable has type "None")  [assignment]
+  src/cuemsutils/tools/ConfigManager.py:584: error: Incompatible return value type (got "None", expected "CuemsProjectSettingsType")  [return-value]
+  src/cuemsutils/tools/ConfigManager.py:609: error: "None" has no attribute "save"  [attr-defined]
+  src/cuemsutils/tools/remint.py:627: error: Unsupported operand types for / ("None" and "int")  [operator]
+  src/cuemsutils/tools/init_node.py:306: error: Argument 1 to "write" of "BufferedWriter" has incompatible type "bytes | None"; expected "Buffer"  [arg-type]

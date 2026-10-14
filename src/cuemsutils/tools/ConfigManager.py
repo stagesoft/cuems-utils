@@ -5,16 +5,18 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:  # annotation only — no runtime import, so no cycle with xml/
     from ..config.network_map import CuemsNetworkMapType
 
-from .ConfigBase import ConfigBase, load_config_document
 from .._ingest import payload_as_mapping
+from ..config.settings import CuemsProjectSettingsType
 from ..log import Logger, logged
 from ..xml.descriptor import (
     SchemaDescriptor,
     generate_script_example,
     generate_settings_example,
 )
+
 # The concrete module, not the package root — see ConfigBase.
 from ..xml.settings import NetworkMap, ProjectMappings, ProjectSettings
+from .ConfigBase import ConfigBase, load_config_document
 
 CUEMS_CONF_PATH = '/etc/cuems/'
 
@@ -172,6 +174,7 @@ _PROJECTABLE_SECTIONS = frozenset({
     'node_conf',
     'project_mappings',
     'project_node_mappings',
+    'project_settings',
 })
 
 
@@ -246,7 +249,7 @@ class ConfigManager(ConfigBase):
         self.project_name = ''
         self.using_default_mappings = False
         self.network_map = {}
-        self.network_mappings = {}
+        self.network_mappings: Any = {}
         self.node_mappings = {}
         self.node_hw_outputs = HardwareOutputs()
         super().__init__(config_dir)
@@ -301,7 +304,7 @@ class ConfigManager(ConfigBase):
             ValueError: if no node in the map carries this node's uuid.
         """
         return self._node_network_map
-    
+
     @node_network_map.setter
     def node_network_map(self, value: NetworkMap | dict):
         if isinstance(value, NetworkMap):
@@ -331,7 +334,7 @@ class ConfigManager(ConfigBase):
     @mappings.setter
     def mappings(self, value: dict[str, Any]):
         self._mappings = value
-    
+
     @property
     def node_mappings(self):
         """**This** node's hardware mappings, resolved by uuid.
@@ -397,14 +400,26 @@ class ConfigManager(ConfigBase):
         (``manager.save_network_map()``) writes back where :meth:`load_network_map`
         read from.
 
+        ⚠ **This file has exactly one runtime writer** (G4, FR-045):
+        ``cuems-nodeconf``'s resident daemon. A call to this method from any
+        other process is reverted at that daemon's next write — see
+        :meth:`cuemsutils.config.network_map.CuemsNetworkMapType.save`'s own
+        docstring for why.
+
         Args:
             path (str | None): where to write. Defaults to
-                ``self.conf_path('network_map.xml')``.
+                ``self.conf_path('network_map.xml')`` — which **requires the
+                file to already exist** (G1, contract C1's declined "one call
+                that resolves and persists"): this default path is not where
+                a first write happens. Not a gap in practice — every
+                provisioned node has one from installation (feature 011).
 
         Raises:
             SchemaError: the in-memory map does not match ``network_map.xsd``
                 — a role value outside the enumeration, most commonly.
             AttributeError: before :meth:`load_network_map` has run.
+            FileNotFoundError: ``path`` is omitted and
+                ``network_map.xml`` does not exist yet.
         """
         self.network_map.save(path or self.conf_path('network_map.xml'))
 
@@ -416,7 +431,10 @@ class ConfigManager(ConfigBase):
 
         Args:
             path (str | None): where to write. Defaults to
-                ``self.conf_path('settings.xml')``.
+                ``self.conf_path('settings.xml')`` — **requires the file to
+                already exist** (G1), unchanged: this node's own
+                ``settings.xml`` already exists by the time any code can
+                reach here (``load_base_settings`` just read it).
 
         Raises:
             SchemaError: the in-memory settings do not match ``settings.xsd``.
@@ -432,13 +450,13 @@ class ConfigManager(ConfigBase):
         """
         try:
             mappings_file = self.project_path(self.project_name, 'mappings.xml')
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             mappings_file = self.conf_path('default_mappings.xml')
 
         project_mappings = load_config_document(
             ProjectMappings, mappings_file, 'project_mappings'
         )
-        self.mappings = project_mappings.processed # type: ignore[attr-defined]
+        self.mappings = project_mappings.processed
 
         self.node_mappings = project_mappings.get_node(self.node_conf['uuid'])
         Logger.debug(f"Node uuid is: {self.node_conf['uuid']}")
@@ -480,10 +498,10 @@ class ConfigManager(ConfigBase):
             project_uname (str): The name of the project.
         """
         ## Initialize with empty values
-        self.project_conf = {}
-        self.project_mappings = {}
-        self.project_node_mappings = {}
-        self.project_default_outputs = {}
+        self.project_conf: Any = {}
+        self.project_mappings: Any = {}
+        self.project_node_mappings: Any = {}
+        self.project_default_outputs: Any = {}
         self._project_settings_document = None
 
         self.project_name = project_uname
@@ -504,6 +522,12 @@ class ConfigManager(ConfigBase):
             Logger.info(
                 f'Project {project_uname} settings not found. Keeping default settings.'
             )
+            # G2 (FR-015): an empty, schema-valid document — not None — so
+            # "no file" and "never loaded" stay distinguishable (FR-015a) and
+            # the public read below has something to project. Its own first
+            # save becomes reachable as soon as G1 supplies the write target
+            # (research R6).
+            self._project_settings_document = CuemsProjectSettingsType()
             return
 
         # **Compensation #1, deleted** (T050, FR-016).
@@ -524,6 +548,10 @@ class ConfigManager(ConfigBase):
         # latent defect: fixing it would change ``project_conf`` from ``{}`` to
         # the settings the document carries, which is a behaviour change no
         # requirement in this feature enumerates. Left alone deliberately.
+        # ``project_conf`` stays ``{}`` here too (the ``main_key`` mismatch
+        # above): a separate, latent defect this feature deliberately does not
+        # repair (FR-016). The public read G2 adds is the ``project_settings``
+        # property below, which holds the real decoded object regardless.
         self.project_conf = conf.get_dict()
         # The root object (feature 008, T035) — ``conf.get_dict()`` is always
         # ``{}`` (the ``main_key`` mismatch above), so ``save_project_settings``
@@ -532,20 +560,51 @@ class ConfigManager(ConfigBase):
 
         Logger.info(f'Project {project_uname} settings loaded')
 
+    @property
+    def project_settings(self) -> CuemsProjectSettingsType:
+        """This project's settings document (G2, contract C2).
+
+        Returns:
+            cuemsutils.config.settings.CuemsProjectSettingsType: the decoded
+            document when ``load_project_settings`` found a file; an
+            **empty**, schema-valid instance when it found none — "no file"
+            projects ``{}`` through :meth:`to_wire`, the same way any other
+            optional-and-empty field does (FR-015, FR-015b). Never a raw
+            ``dict`` (FR-010): :meth:`to_wire` calls ``.to_wire()`` on
+            whatever this returns, so a dict would raise rather than project.
+
+        Raises:
+            AttributeError: before :meth:`load_project_settings` has run for
+                this project — the "never loaded" state, kept distinguishable
+                from "no file" on purpose (FR-015a). Existence is answered by
+                :meth:`project_path`'s own existence-checking form, not by this
+                property (FR-015b) — a project's first save is then reachable
+                through G1's tolerated write target, once edited.
+        """
+        return self._project_settings_document
+
     def save_project_settings(self, project_uname: str, path: str | None = None) -> None:
         """Write a project's ``settings.xml`` back to disk (feature 008, T035).
 
         Args:
             project_uname (str): the project whose settings to write.
             path (str | None): where to write. Defaults to
-                ``self.project_path(project_uname, 'settings.xml')``.
+                ``self.project_path(project_uname, 'settings.xml')`` — which
+                **requires the file to already exist** (G1, contract C1's
+                declined "one call that resolves and persists"): a project's
+                **first** save must pass its own tolerated target explicitly,
+                resolved with
+                ``self.project_path(project_uname, 'settings.xml', must_exist=False)``.
 
         Raises:
             SchemaError: the in-memory settings do not match
                 ``project_settings.xsd``.
-            AttributeError: before :meth:`load_project_settings` has loaded a
-                document for this project (``_project_settings_document`` is
-                ``None`` until then).
+            FileNotFoundError: ``path`` is omitted and this project's
+                ``settings.xml`` does not exist yet (the ordinary first-save
+                case — see above).
+            AttributeError: before :meth:`load_project_settings` has run for
+                this project at all (G2 — ``_project_settings_document`` is
+                never ``None`` once it has, "no file" included).
         """
         self._project_settings_document.save(
             path or self.project_path(project_uname, 'settings.xml')
@@ -567,15 +626,15 @@ class ConfigManager(ConfigBase):
                 Logger.warning(
                     f'No mappings assigned for this node in project {project_uname}'
                 )
-        except FileNotFoundError as e:
-            Logger.info(f'Project mappings not found. Adopting default mappings.')
+        except FileNotFoundError:
+            Logger.info('Project mappings not found. Adopting default mappings.')
             self.project_mappings = self.mappings
             self.project_node_mappings = self.node_mappings
         except Exception as e:
             Logger.exception(f'Exception in load_project_mappings: {e}')
             raise e
 
-        self.number_of_nodes = int(self.mappings['number_of_nodes']) # type: ignore[index]
+        self.number_of_nodes = int(self.mappings['number_of_nodes'])
         Logger.info(f'Project {project_uname} mappings loaded')
 
     def save_project_mappings(self, project_uname: str, path: str | None = None) -> None:
@@ -589,11 +648,17 @@ class ConfigManager(ConfigBase):
         Args:
             project_uname (str): the project whose mappings to write.
             path (str | None): where to write. Defaults to
-                ``self.project_path(project_uname, 'mappings.xml')``.
+                ``self.project_path(project_uname, 'mappings.xml')`` — which
+                **requires the file to already exist** (G1): a project's
+                first ``mappings.xml`` must pass its own tolerated target
+                explicitly, resolved with
+                ``self.project_path(project_uname, 'mappings.xml', must_exist=False)``.
 
         Raises:
             SchemaError: the in-memory mappings do not match
                 ``project_mappings.xsd``.
+            FileNotFoundError: ``path`` is omitted and this project's
+                ``mappings.xml`` does not exist yet.
             AttributeError: before :meth:`load_project_mappings` has run.
         """
         self.project_mappings.save(
@@ -732,6 +797,26 @@ class ConfigManager(ConfigBase):
         36.3 → 49.6 ms cold delta it recorded), which is why eager construction
         here is a design error rather than a budget overrun to accept.
 
+        **What a client may now rely on from each type's ``instance`` (G3).**
+        This is the rendered entry point for that contract — ``cuemsutils.xml``
+        stays private (``__all__ == []`` since feature 006), so this docstring
+        carries it rather than one on ``cuemsutils.xml.descriptor.TypeDescriptor``,
+        which renders nowhere:
+
+        * it is **wire-shaped by construction** — the same projection
+          ``to_wire()`` uses, so a repeated complex field nests as a list of
+          singly-keyed objects and a type reached only as such a field's
+          member carries that field's own wrapper (``CueOutput``, …);
+        * a root whose type has a single anonymous complex child is
+          **expanded**, never ``null``;
+        * every root instance, and every nested type instance a consumer
+          names, **saves** through this library's own write path unmodified —
+          every declared field, required and optional alike, carries a value
+          satisfying its type;
+        * a field whose model default is **callable** is still not invoked —
+          it is seeded from the field's declared type instead, and the
+          callable itself stays visible on the matching ``FieldDescriptor``.
+
         Args:
             schema: which of the six, as a :class:`SchemaName` member.
 
@@ -789,7 +874,7 @@ class ConfigManager(ConfigBase):
                         if mapping_name == each_map['mapped_to']:
                             return each_out['name']
 
-        raise Exception(f'Video output wrongly mapped')
+        raise Exception('Video output wrongly mapped')
 
     def get_audio_output_id(self, mapping_name: str):
         """
@@ -798,12 +883,12 @@ class ConfigManager(ConfigBase):
         if mapping_name == 'default':
             return self.node_conf['default_audio_output']
         else:
-            for each_out in self.project_mappings['audio']['outputs']: # type: ignore[index]
+            for each_out in self.project_mappings['audio']['outputs']:
                 for each_map in each_out[0]['mappings']:
                     if mapping_name == each_map['mapped_to']:
                         return each_out[0]['name']
 
-        raise Exception(f'Audio output wrongly mapped')
+        raise Exception('Audio output wrongly mapped')
 
     def check_project_mappings(self) -> bool:
         """Check that every port the project asks for exists on this node.
@@ -878,7 +963,11 @@ class ConfigManager(ConfigBase):
 
         Args:
             section: ``'settings'``, ``'network_map'``, ``'mappings'``,
-                ``'node_conf'``, ``'node_network_map'`` or ``'node_mappings'``.
+                ``'node_conf'``, ``'node_network_map'``, ``'node_mappings'``,
+                ``'project_mappings'``, ``'project_node_mappings'`` or
+                ``'project_settings'`` (G2) — the last projects ``{}`` when no
+                project settings file was found, never raising for that reason
+                alone (FR-015).
 
         Returns:
             dict: JSON-safe, in the wire format §W2 states.
@@ -904,21 +993,30 @@ class ConfigManager(ConfigBase):
         return project()
 
     ## helper functions
-    def project_path(self, project_uname: str, file_name: str) -> str:
+    def project_path(self, project_uname: str, file_name: str, *, must_exist: bool = True) -> str:
         """
-        Returns the path to the project file if it exists.
+        Returns the path to the project file, under this library's one
+        ``projects/<uname>/<file>`` convention.
 
         Args:
             project_uname (str): The name of the project.
             file_name (str): The name of the file to be checked.
+            must_exist (bool): keyword-only (contract C1). ``True`` (default)
+                is today's behaviour, unchanged. ``False`` returns the
+                canonical path whether or not the file exists yet, for a
+                caller about to **write** a project's first save there (G1)
+                — resolving a tolerated target creates no file and no
+                directory, and a target whose **parent** directory is absent
+                still fails at write time, unchanged.
 
         Returns:
             str: The path to the project file.
 
         Raises:
-            FileNotFoundError: If the project file does not exist.
+            FileNotFoundError: If ``must_exist`` is ``True`` (the default) and
+                the project file does not exist.
         """
         project_path = path.join(self.library_path, 'projects', project_uname, file_name)
-        if not path.exists(project_path):
+        if must_exist and not path.exists(project_path):
             raise FileNotFoundError(f'Project file {project_path} not found')
         return project_path

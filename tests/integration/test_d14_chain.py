@@ -188,7 +188,6 @@ def test_this_module_can_drive_the_chain_without_naming_the_xml_package():
     only the public one.
     """
     import tests.integration.test_public_chain as public_leg
-
     from tests.support.public_api import assert_no_xml_import
 
     assert_no_xml_import(public_leg)

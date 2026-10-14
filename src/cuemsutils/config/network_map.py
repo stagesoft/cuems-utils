@@ -53,7 +53,7 @@ from ..helpers import Unset
 from .base import ConfigDict, save_document
 
 
-class node(ConfigDict):  # noqa: N801 - the domain's name, not a class-name style
+class node(ConfigDict):  # the domain's name, not a class-name style
     """One node's identity in the network map.
 
     Lowercase on purpose: ``node`` is what the element is called, what
@@ -86,7 +86,7 @@ class node(ConfigDict):  # noqa: N801 - the domain's name, not a class-name styl
     }
 
 
-class node_list(ConfigDict):  # noqa: N801 - the element's name
+class node_list(ConfigDict):  # the element's name
     """``NodeDictType`` — the repeated ``<node>`` container.
 
     **The decoded value at this position is a Python list, not an instance of
@@ -135,6 +135,17 @@ class CuemsNetworkMapType(ConfigDict):
             SchemaError: the document does not match ``network_map.xsd`` —
                 carries the violation (FR-034b).
             OSError: propagated unwrapped, exactly as ``CuemsScript.save``.
+
+        ⚠ **This file has exactly one runtime writer** (G4, FR-045):
+        ``cuems-nodeconf``'s resident daemon, which refreshes and rewrites it
+        on every discovery pass, adopt, un-adopt and label change. Any other
+        process's write — including a call to this method from outside that
+        daemon — is **reverted at the daemon's next write**, because
+        ``CuemsNetworkMapType.refresh`` decides whether to rewrite by
+        comparing :meth:`cuemsutils.tools.NodeList.NodeIndex.signature`
+        before and after its own merge, never against the file on disk. Two
+        consumers have already read this call as *the* way to persist a UI
+        edit; it is not, outside the daemon itself.
         """
         save_document(self, "network_map", path)
 

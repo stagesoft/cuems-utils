@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
         path = Path(arg)
         try:
             status = convert_file(path)
-        except Exception as exc:  # noqa: BLE001 - reported, batch continues (FR-042)
+        except Exception as exc:  # reported, batch continues (FR-042)
             print(f"{path}: skipped ({exc})", file=sys.stderr)
             exit_code = 1
             continue
