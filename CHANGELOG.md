@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.1.1 — Unreleased
+
+The coordinated `xml-refactor` release
+(`specs/planning/coordinated-release-version-bump.md`). This section is being filled in as items
+land; the date goes on when the release is cut.
+
+### Fixed — another cluster's controller no longer joins this one's network map
+
+Several CUEMS clusters can share one LAN, and every controller announces itself over mDNS. A
+network-map refresh added every discovered node and marked every controller adopted, so a
+controller's `network_map.xml` picked up the **other** clusters' controllers as adopted members,
+and `cuems-engine` then counted them as part of its own cluster. This happened in the field on
+2026-10-01 and 2026-10-06.
+
+`cuems-nodeconf 0.1.0-8` fixed this inside its daemon. On this release line the map logic belongs
+to this library, so the fix is re-implemented here. Under rule 4 of the coordinated release
+(nothing already shipped is lost), it **must** be in `0.1.1`.
+
+- **`CuemsNetworkMapType.refresh(discovered, path, *, cluster=None)`**: the new keyword-only
+  `cluster` scopes a pass to one cluster. A discovered controller outside it is ignored, and one an
+  earlier pass saved is **removed** from the map (deleted, not marked offline: an offline row means
+  "ours, currently absent"). Without `cluster`, or with an empty one, behaviour is unchanged.
+- **`NodeIndex.cluster_controllers(own_uuid, own_role)`** computes that set. On a controller it is
+  the controller's own uuid; on any other node it is the controllers its map already records; on a
+  fresh node it is empty, which means no scoping. Compute it **before** calling `refresh`.
+- **`NodeIndex.foreign_controllers(cluster)`** lists what a scoped pass would remove, for logging.
+  **`NodeIndex.drop_foreign_controllers(cluster)`** and the static
+  **`NodeIndex.is_foreign_controller(n, cluster)`** are the underlying primitives.
+
+**Who needs to change**: `cuems-nodeconf` only. It passes `cluster=` and can drop its interim
+discovery filter. No other consumer calls `refresh`.
+
+**Known limitation**: a fresh node whose first discovery pass hears two clusters' controllers
+accepts both, because it has no recorded controller to scope by. The shipped daemon fix has the
+same limitation. Fixing it needs a join protocol, which belongs to `cuems-nodeconf`'s planned
+controller election.
+
 ## Unreleased — `outputs` renamed to `hardware_outputs`, and X14 resolved
 
 The sixth schema is renamed as the first step of making it the node's **hardware capability

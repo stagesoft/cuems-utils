@@ -221,8 +221,8 @@ correct pattern; the two literal sites above are the exceptions.
 | `debian/changelog` | 1 | `(0.1.0rc16) UNRELEASED` → `(0.1.1)`. It **cannot** keep `0.1.0rc16` — §2 |
 | `debian/changelog` | 94-95 | "REMOVED IN v0.1.1, which is why every consumer pins `<< 0.1.1~`" — both halves wrong |
 | `debian/control` | **23** | `Breaks: cuems-common (<< 1.3.1~)` + the comment at `:15-22` — §1.1, §4.2 |
-| `CHANGELOG.md` | 3 | the `## Unreleased` heading becomes the `0.1.1` release heading, dated |
-| `CHANGELOG.md` | 96 | "removed in `v0.1.1`" → `v0.1.2` |
+| `CHANGELOG.md` | 3 | **The `## 0.1.1 — Unreleased` section exists since 2026-10-14** (§10.4 opened it). Date it at the cut, and decide whether the two older `## Unreleased` sections below it (the `hardware_outputs` rename and feature 004), which ship in `0.1.1` too, fold into it or stay as they are |
+| `CHANGELOG.md` | feature 004's *Deprecated* section | "removed in `v0.1.1`" → `v0.1.2` (it was line 96 before §10.4's section was added above it; re-grep) |
 | `README.md` | 117 | `TimeoutLoop` note → `v0.1.2` |
 | `docs/index.md` | 103 | same note → `v0.1.2` |
 | `debian/README.source` | 11 | narrates the rc14→rc16 packaging gap; add the rc-line split (optional, recommended) |
@@ -370,17 +370,27 @@ already ships"), and it was fixed independently in `cuems-utils 0.1.0rc16+1` and
 `cuems-power-bridge 0.3.0-8`. If the merge drops either fix, `dpkg -i` breaks again at install
 time — which is the concrete form of "nothing is lost on the new versions".
 
-**A rule-4 item that lands in this library, not in a merge** (added 2026-10-14). `cuems-nodeconf`'s
-shipped `0.1.0-8` carries foreign-controller filtering (`80ccc83`), a fix inside the daemon's merge.
-On the refactor line that merge is this library's (D22), so the fix cannot arrive by merging the
-release line: it was re-implemented here, on `feat/xml-refactor`, as
-`CuemsNetworkMapType.refresh(..., *, cluster=)` plus `NodeIndex.cluster_controllers`,
-`is_foreign_controller`, `foreign_controllers` and `drop_foreign_controllers`
-(`../cuems-nodeconf/specs/upstream-reports/foreign-controller-scoping.md`). It must ship **inside
-`0.1.1`**: `cuems-nodeconf` passes `cluster=` with no feature detection, and no other consumer
-needs to. If it misses `0.1.1`, the release notes must say so, because rule 4 would then be broken
-for this item. Note that the `cuems-nodeconf` row above ("none") predates
-`coordinated-release-bump-corrections.md`, which records this collision.
+⚠ The `cuems-nodeconf` row above ("none") predates
+`../cuems-nodeconf/specs/upstream-reports/coordinated-release-bump-corrections.md`, which measures
+otherwise: a shipped `0.1.0-8` exists (foreign-controller filtering, `80ccc83`) and collides with the
+refactor branch's `0.1.0-8 UNRELEASED`. Re-derive the row with the `comm` command in §10.1 before
+merging. That fix's code half does **not** arrive by merge; see §10.4.
+
+### 10.4 Rule-4 items this library re-implements instead of absorbing by merge
+
+Some fixes shipped from a sibling's release line live in code that the refactor moved into this
+library. Merging that sibling's release line brings the changelog entry but not a working fix,
+because the code it patched is gone from the refactor branch. Each such fix is re-implemented here,
+and **`0.1.1` must contain it**. If one misses `0.1.1`, the release notes must say so, because rule 4
+is then broken for that item.
+
+| Shipped fix | Re-implemented here | Status | Consumer obligation |
+|---|---|---|---|
+| `cuems-nodeconf` `80ccc83` (`0.1.0-8`): foreign-controller filtering. A controller on a shared LAN adopted other clusters' controllers into its map | `CuemsNetworkMapType.refresh(..., *, cluster=)`; `NodeIndex.cluster_controllers`, `is_foreign_controller`, `foreign_controllers`, `drop_foreign_controllers`. Request: `../cuems-nodeconf/specs/upstream-reports/foreign-controller-scoping.md` (D22 puts the map mutation here) | ✅ **landed** on `feat/xml-refactor`, `38d2ede` (2026-10-14). Listed in `CHANGELOG.md`'s `0.1.1` section | `cuems-nodeconf` only: delete its interim discovery filter, pass `cluster=` computed with `cluster_controllers(settings_uuid, own_role)`, and log `foreign_controllers(cluster)`. Its strict `xfail` removal test turns `XPASS`. It needs no feature detection, because §4.1's floor is `>= 0.1.1` |
+
+Known limitation, carried as in the shipped fix: a fresh node that hears two clusters' controllers
+on its first pass accepts both. Fixing that is `cuems-nodeconf`'s controller-election work, not
+this release's.
 
 ### 10.3 The merge is also how the branches stop being behind
 
@@ -401,7 +411,9 @@ as debt, which also means **the relation edits in §4 should be made after the m
    `cuems-common`, `cuems-editor` and `cuems-nodeconf`; `main` for `cuems-power-bridge`;
    `cuems-engine` has none. Resolve `debian/changelog` per §10.1: released entries absorbed verbatim,
    the branch's `UNRELEASED` header dropped and its body folded upward. Suite green per repository
-   **before** anything is renumbered.
+   **before** anything is renumbered. Check every §10.4 row: the library half is landed, and the
+   consumer half has been applied on the consumer's refactor branch (for `cuems-nodeconf`, its
+   foreign-controller `xfail` reads `XPASS`).
 5. **Rename the removal document** (§7) and fix its 14 citations, including the two code/test ones.
 6. **The atomic set, on the merged trees.** Per repository: the new top changelog entry at the target
    version, the self-version sites (§3), §3.1's drift reconciles, and **every relation in §4** — the
