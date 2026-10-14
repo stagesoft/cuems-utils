@@ -49,7 +49,7 @@ All of these, before step 2.
 
 | Precondition | Why |
 |---|---|
-| **`cuems-engine 0.1.0rc7` or later on every node** | The re-mint ships in the same upgrade (FR-035). Verify with `cuems-controller-engine --version` or `dpkg -s cuems-engine`. **The originally stated reason no longer applies** — FR-035 cited an older engine's `cluster_status` being unable to sort the resulting identities, and this feature's FR-029 gives the identity type a total ordering, so that particular failure can no longer happen. rc7 carries other work and the coupling stands; see `sibling-repository-updates.md` §4.1 |
+| **`cuems-engine 0.1.0rc7` or later on every node** ⚠ *[Corrected 2026-10-14, feature 015, FR-080b — a documentation defect, not a rewrite of history: `cuems-engine`'s tree declares `__version__ = "0.1.0-rev1"`, a renamed scheme under which "rc7 or later" cannot be verified at all. Treat the coupling as "an engine release that carries the identity ordering and the sorted-identity handling", and confirm it from the release notes of the engine you are installing, not from this version string. The tree carries no `xml-refactor-merge-candidate` tag yet, so no tagged version can be named here.]* | The re-mint ships in the same upgrade (FR-035). Verify with `cuems-controller-engine --version` or `dpkg -s cuems-engine`. **The originally stated reason no longer applies** — FR-035 cited an older engine's `cluster_status` being unable to sort the resulting identities, and this feature's FR-029 gives the identity type a total ordering, so that particular failure can no longer happen. rc7 carries other work and the coupling stands; see `sibling-repository-updates.md` §4.1 |
 | **`cuemsutils` at the coordinated `xml-refactor-merge-candidate` tag** | Nothing ships from feature 012's branch alone (D27). The tag comes after features 011–014 and is cut across seven repositories |
 | **No pre-existing identity collision** | See [§7](#7-a-pre-existing-collision-must-be-resolved-first). This one is not optional and cannot be done later |
 | **A backup of `/etc/cuems` and the project library on the controller** | See [§6](#6-the-backup-hazard) for what a backup does *not* protect you from |
@@ -349,6 +349,13 @@ migration — find out which table it applied.
 ### 8c. The incomplete-re-mint detector (FR-036, M-e)
 
 The roll-call covers nodes. This covers **scripts the reach did not touch**.
+
+> ⚠ **Corrected 2026-10-14 (feature 015, FR-080b) — documentation defect.** `cluster_warning`
+> / `/engine/status/cluster_warning` and a `"missing"` list are **absent from `cuems-engine`'s
+> controller source** (`ControllerEngine.py` publishes `/engine/status/timecode`; no
+> `cluster_warning` anywhere under `src/`, measured at its tip `a197cac`). Until that
+> repository ships the signal, **do not rely on this detector**: the roll-call (§8a/§8b) and
+> loading every project and reading the engine log are the checks that exist.
 
 After re-minting, load each project on the controller and watch
 `cuems-engine`'s `cluster_warning` OSC status (`/engine/status/cluster_warning`,

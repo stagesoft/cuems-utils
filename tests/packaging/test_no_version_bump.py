@@ -33,7 +33,14 @@ def test_this_repository_stays_at_rc16():
 
 @pytest.mark.parametrize("name", ["cuems-common", "cuems-nodeconf"])
 def test_the_siblings_stay_at_their_unreleased_heads(name):
-    changelog = REPO_ROOT.parent / name / "debian" / "changelog"
-    if not changelog.exists():
-        pytest.skip(f"../{name} not checked out beside this repository")
-    assert _head_version(changelog) == PINNED[name]
+    """Asserted **at the sibling's coordinated tag**, not at its tip.
+
+    The tip moves on without this feature (``cuems-nodeconf`` reached
+    ``0.1.1-1`` after the tag was cut), and a claim about "what the coordinated
+    release contains" is a claim about the tag (feature 015, FR-080c). Skips
+    with a reason when the checkout or the tag is absent.
+    """
+    from tests.support.sibling_tags import tagged
+
+    first = tagged(name).read("debian/changelog").splitlines()[0]
+    assert re.match(r"^\S+ \(([^)]+)\)", first).group(1) == PINNED[name]

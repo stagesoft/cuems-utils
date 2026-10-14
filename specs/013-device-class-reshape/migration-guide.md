@@ -187,7 +187,7 @@ and no packaging relation expresses that.
 
 ## 4. `cuems-editor` — a pass-through, plus keyed access on its own paths
 
-Verified at `cuems-editor` `feat/xml-refactor` **`106015c`** (clean working tree).
+Verified at `cuems-editor` `feat/xml-refactor` **`106015c`** (clean working tree). *[Provenance, dated 2026-10-14 (feature 015, FR-080a): this commit is absent from `git log --all` in the sibling — a dead reference, not a moved one. The line numbers below are a dated measurement, not a resolvable claim.]*
 Research R8 measured `36260e2`; the branch has moved since, and the line numbers below are
 this commit's.
 
@@ -305,7 +305,7 @@ branch. Kept here because anyone measuring an older editor checkout will still m
 
 ## 5. `cuems-frontend` — the wire contract, written out
 
-Verified at `cuems-frontend` `feat/xml-refactor` **`3183845`** (clean working tree).
+Verified at `cuems-frontend` `feat/xml-refactor` **`3183845`** (clean working tree). *[Provenance, dated 2026-10-14 (feature 015, FR-080a): this commit is absent from `git log --all` in the sibling — a dead reference, not a moved one. The line numbers below are a dated measurement, not a resolvable claim.]*
 
 ### The contract, in one line (FR-032)
 

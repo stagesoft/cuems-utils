@@ -23,7 +23,6 @@ rather than a silent omission.
 from __future__ import annotations
 
 import re
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -139,23 +138,31 @@ def test_the_guide_pins_the_commit_each_line_number_was_checked_against(
     assert repo in guide
 
 
-@pytest.mark.parametrize("repo", sorted(PINNED_COMMITS))
-def test_each_pinned_commit_resolves_in_its_sibling_tree(repo: str):
-    """The resolution half. A pin that names nothing is worse than no pin."""
-    tree = SIBLINGS / repo
-    if not (tree / ".git").exists():
-        pytest.skip(f"{tree} is not checked out; the pin cannot be resolved here")
-    commit = PINNED_COMMITS[repo]
-    result = subprocess.run(
-        ["git", "-C", str(tree), "cat-file", "-e", f"{commit}^{{commit}}"],
-        capture_output=True,
+#: Pins measured **absent** from ``git log --all`` in their sibling on this
+#: date (feature 015, FR-080a). Provenance, not operator instruction: a pin
+#: records *where a line number was measured*, so whether it still resolves is a
+#: statement about the sibling's history rather than about this guide. It is
+#: therefore **not asserted** -- asserting it failed on a history rewrite nobody
+#: here controls, teaching readers to ignore the test. What is asserted instead
+#: is that the guide says so, dated, beside each dead pin.
+DEAD_PINS_MEASURED = "2026-10-14"
+DEAD_PINS = {"cuems-editor": "106015c", "cuems-frontend": "3183845"}
+
+
+@pytest.mark.parametrize("repo", sorted(DEAD_PINS))
+def test_a_pin_known_dead_is_marked_dead_and_dated_in_the_guide(guide: str, repo: str):
+    """The provenance half of FR-080's split. The *operator-instruction* half
+    (what a node's operator is told to check) is asserted at the sibling's
+    coordinated tag in ``test_migration_guide.py``."""
+    line = next(
+        (ln for ln in guide.splitlines() if DEAD_PINS[repo] in ln and "Provenance, dated" in ln),
+        None,
     )
-    assert result.returncode == 0, (
-        f"{repo}: the guide pins {commit}, which does not resolve in {tree}. "
-        f"Either the commit was never pushed to this checkout or the pin is "
-        f"wrong; a guide whose named commit does not exist sends a maintainer "
-        f"looking at the wrong lines."
+    assert line is not None, (
+        f"{repo}: pin {DEAD_PINS[repo]} is absent from the sibling's history "
+        f"(measured {DEAD_PINS_MEASURED}) and the guide does not say so"
     )
+    assert DEAD_PINS_MEASURED in line
 
 
 @pytest.mark.parametrize("fault", FAULT_CLASSES)
