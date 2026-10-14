@@ -201,6 +201,42 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
+- **Descriptor instance cache** (2026-10-14, `bed5d53`, directly on `feat/xml-refactor`, no feature
+  dir; the plan `specs/planning/descriptor-instance-cache.md` is deleted by this entry's commit and
+  lives in git history). It **clears 015's recorded descriptor-derivation exception**.
+  - **Mechanism, measured.** G3 rebuilt every instance on every call, and
+    `get_schema_descriptor` had no cache (015's baseline calling it "an `lru_cache`d path" was
+    wrong; only `derive` is cached). There was no single hotspot: each type re-expanded its whole
+    subtree (~105 builds for 29 types), and each node was walked twice (build, then
+    `encode_wire`), at ~7 µs per node.
+  - **Fix.** `SchemaDescriptor.describe()` caches per `TypeKey` and returns
+    `replace(cached, instance=_copy_instance(...))`. The structural copy is complete because every
+    leaf is exactly `str`/`int`/`float`/`bool`/`None`, which `_assert_scalar_leaves` enforces on a
+    cache miss (it raises naming key and path). The cache has no environment input:
+    `get_schema` reads the package's own `schemas/`, never `CUEMS_CONF_PATH`. No lock, by design;
+    the reason is in the docstring.
+  - **Result.** 16 interleaved A/B samples per arm, three windows, hatch interpreter: `script` warm
+    **2.850 → 0.165 ms (17×)**, 7.4× under the ≤ 1.22 ms budget and faster than pre-015's 1.052.
+    Other schemas 7–17×. First call unchanged (~260 ms, schema compilation). Suite ms/test
+    unchanged. Instances byte-identical (sha256 over all six schemas), no golden moved.
+  - **Reusable probe**: `python -m tests.support.perf_descriptor --arm A=<src> --arm B=<src>`
+    alternates arms in fresh processes and counts `_instance_for` calls per warm call, which must
+    be 0. It reproduces 015's 1.06 → 2.83 ms. 015's "slow state", where every path reads ~2×, is
+    the same operation measured on a slower box. GC and logging were ruled out; CPU frequency
+    scaling (governor `powersave`) is the **unproven** hypothesis. Check `scaling_cur_freq`
+    before trusting an absolute figure.
+  - **Guard lesson.** A mutation-isolation test must also assert that its marker never appears
+    in a fresh result. A before/after comparison alone passed against a deliberately broken
+    cache, because an earlier test had already vandalised the shared objects.
+  - ⚠ **Open, needs an owner — a pre-existing flake, not caused by this change.**
+    `test_descriptor_laziness.py::test_no_individual_schema_regresses_where_it_is_measurable[project_mappings]`
+    compares two ~2 ms first-call timings within 110%, just above its own 1 ms floor. It failed in
+    **2 of 12 runs on `9d2f337` without the cache** and 1 of 12 with it. The likely remedy is that
+    file's own precedent: raise the floor or compare a band. One more suite run reported two
+    failures that 8 reruns did not reproduce; probably two cases of this flake, but unconfirmed.
+  - `cuems-editor` needs no change. Its JSON round trip of instances is no longer needed for
+    isolation (`CHANGELOG.md` 0.1.1).
+
 - **Foreign-controller scoping** (2026-10-14, directly on `feat/xml-refactor`, no feature dir; the
   request is `../cuems-nodeconf/specs/upstream-reports/foreign-controller-scoping.md`). Several
   clusters on one LAN made `merge` + `set_controller_always_adopted` adopt *other* clusters'
