@@ -25,7 +25,7 @@ default to" — a question two of whose three inputs are not the schema at all.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Any
 
@@ -106,6 +106,10 @@ class TypeDescriptor:
     unmodified** (FR-023, FR-024, SC-005) — the property the retired
     position above could not offer, and the one four of
     ``cuems-editor``'s seven gate xfails assert directly.
+
+    **Each call returns an independent copy**, so a caller may mutate it
+    freely: the descriptor is cached per process, and only this field is
+    copied on the way out (:meth:`SchemaDescriptor.describe`).
     """
 
 
@@ -748,6 +752,34 @@ class SchemaDescriptor:
         return tuple(self.describe(key) for key in keys)
 
     def describe(self, key: TypeKey) -> TypeDescriptor:
+        """``key`` described, with an ``instance`` the caller owns.
+
+        **Cached per process, copied per call.** Everything a descriptor is
+        built from is fixed for the life of the process — the bundled XSDs
+        (read from the package, never from ``CUEMS_CONF_PATH``), the model
+        classes, the registries — so it is built once per ``TypeKey``; G3's
+        "wire-shaped by construction" holds unchanged, since the cached value
+        is still what ``Mapper.encode_wire`` produced. What is *not* shared is
+        ``instance``: callers fill it in, so each call gets its own
+        :func:`_copy_instance`. ``fields`` is shared — frozen dataclasses, and
+        their defaults were already the same objects on every call before
+        the cache existed. Rebuilding cost ~2.9 ms per ``types('script')``;
+        ``specs/planning/descriptor-instance-cache.md`` has the measurements.
+
+        **No lock.** Two threads missing on one key both build, both store an
+        equal value, and the later store wins; each still receives its own
+        copy. ``dict.get`` and item assignment are each atomic under the GIL,
+        so a lock would buy nothing but contention (``cuems-editor`` calls
+        this from an executor pool).
+        """
+        cached = _described_cache.get(key)
+        if cached is None:
+            cached = self._describe_uncached(key)
+            _assert_scalar_leaves(cached.instance, key)
+            _described_cache[key] = cached
+        return replace(cached, instance=_copy_instance(cached.instance))
+
+    def _describe_uncached(self, key: TypeKey) -> TypeDescriptor:
         spec = derive(key)
         defaults = _defaults_for(key)
         fields = tuple(
@@ -769,10 +801,56 @@ class SchemaDescriptor:
         return TypeDescriptor(key=key, fields=fields, instance=_instance_for(key))
 
 
+_described_cache: dict[TypeKey, TypeDescriptor] = {}
+
+#: The only leaf types an instance may carry. Exact types, matched with
+#: ``type(...) in``, never ``isinstance``: a ``CuemsDict`` is a ``dict``
+#: subclass and a ``Uuid``/``CTimecode`` is a value object, and either would be
+#: shared between callers by :func:`_copy_instance` rather than copied.
+_SCALAR_LEAVES = (str, int, float, bool, type(None))
+
+
+def _copy_instance(value):
+    """A structural copy of an instance — complete, because every leaf is an
+    immutable scalar (:func:`_assert_scalar_leaves` checks it when the cache is
+    filled), and ~3.5x cheaper than ``copy.deepcopy``, which keeps a memo and
+    dispatches per object."""
+    kind = type(value)
+    if kind is dict:
+        return {k: _copy_instance(v) for k, v in value.items()}
+    if kind is list:
+        return [_copy_instance(v) for v in value]
+    return value
+
+
+def _assert_scalar_leaves(value, key: TypeKey, path: str = "$") -> None:
+    """Refuse to cache an instance :func:`_copy_instance` could not fully copy.
+
+    Run once per key, on a cache miss, so it costs nothing on the warm path.
+    If a future seed ever yields a mutable or identity-carrying leaf, this
+    raises at the first ``describe()`` instead of letting the cache silently
+    alias that object across every caller.
+    """
+    kind = type(value)
+    if kind is dict:
+        for name, item in value.items():
+            _assert_scalar_leaves(item, key, f"{path}.{name}")
+    elif kind is list:
+        for index, item in enumerate(value):
+            _assert_scalar_leaves(item, key, f"{path}[{index}]")
+    elif kind not in _SCALAR_LEAVES:
+        raise TypeError(
+            f"{key}: the descriptor instance carries a {kind.__module__}."
+            f"{kind.__qualname__} at {path}; only str/int/float/bool/None leaves "
+            f"in plain dict/list containers can be cached and copied safely"
+        )
+
+
 def clear_cache() -> None:
     global _repairability_cache
     _repairability_cache = None
     _wrap_index_cache.clear()
+    _described_cache.clear()
 
 
 # --- example-document generation (T070, T078) -------------------------------

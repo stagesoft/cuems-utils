@@ -815,7 +815,11 @@ class ConfigManager(ConfigBase):
           satisfying its type;
         * a field whose model default is **callable** is still not invoked —
           it is seeded from the field's declared type instead, and the
-          callable itself stays visible on the matching ``FieldDescriptor``.
+          callable itself stays visible on the matching ``FieldDescriptor``;
+        * each call returns an **independent copy** of every ``instance``, so a
+          caller may fill one in without affecting any other caller. The
+          descriptor is built once per process and cached; repeated calls are
+          cheap.
 
         Args:
             schema: which of the six, as a :class:`SchemaName` member.

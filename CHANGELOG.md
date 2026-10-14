@@ -37,6 +37,23 @@ accepts both, because it has no recorded controller to scope by. The shipped dae
 same limitation. Fixing it needs a join protocol, which belongs to `cuems-nodeconf`'s planned
 controller election.
 
+### Changed — `get_schema_descriptor` is cached, and each call returns its own instances
+
+Feature 015 made every descriptor `instance` wire-shaped and fully populated. That tripled the
+cost of `ConfigManager.get_schema_descriptor`, because the whole descriptor was rebuilt on
+every call: about 2.9 ms for `script`, against 1.05 ms before 015. The descriptor depends only on
+the bundled schemas, so it is now built **once per process** and cached.
+
+- **Each call still returns its own `instance` objects**, copied out of the cache, so filling one
+  in never affects another caller. The `fields` are shared, as before; they are frozen.
+- A repeated call for `script` now takes **0.165 ms instead of 2.85 ms** (17×), faster than before
+  015. The other schemas improve by 7–17×. The first call in a process is unchanged, because
+  schema compilation dominates it.
+- **No change is required of any consumer.** One simplification becomes available to
+  `cuems-editor`: its `json.loads(json.dumps(instance, default=_json_safe))` round trip in
+  `_root_instance` and `schema_descriptor_value` is no longer needed to keep instances apart.
+  It is still needed if `_json_safe` converts anything.
+
 ## Unreleased — `outputs` renamed to `hardware_outputs`, and X14 resolved
 
 The sixth schema is renamed as the first step of making it the node's **hardware capability
