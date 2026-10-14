@@ -370,6 +370,18 @@ already ships"), and it was fixed independently in `cuems-utils 0.1.0rc16+1` and
 `cuems-power-bridge 0.3.0-8`. If the merge drops either fix, `dpkg -i` breaks again at install
 time — which is the concrete form of "nothing is lost on the new versions".
 
+**A rule-4 item that lands in this library, not in a merge** (added 2026-10-14). `cuems-nodeconf`'s
+shipped `0.1.0-8` carries foreign-controller filtering (`80ccc83`), a fix inside the daemon's merge.
+On the refactor line that merge is this library's (D22), so the fix cannot arrive by merging the
+release line: it was re-implemented here, on `feat/xml-refactor`, as
+`CuemsNetworkMapType.refresh(..., *, cluster=)` plus `NodeIndex.cluster_controllers`,
+`is_foreign_controller`, `foreign_controllers` and `drop_foreign_controllers`
+(`../cuems-nodeconf/specs/upstream-reports/foreign-controller-scoping.md`). It must ship **inside
+`0.1.1`**: `cuems-nodeconf` passes `cluster=` with no feature detection, and no other consumer
+needs to. If it misses `0.1.1`, the release notes must say so, because rule 4 would then be broken
+for this item. Note that the `cuems-nodeconf` row above ("none") predates
+`coordinated-release-bump-corrections.md`, which records this collision.
+
 ### 10.3 The merge is also how the branches stop being behind
 
 Every refactor branch except `cuems-engine`'s is behind its release line (§9: 73, 22, 43, 9 and 26

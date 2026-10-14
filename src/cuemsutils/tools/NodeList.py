@@ -312,6 +312,80 @@ class NodeIndex(dict):
             if n.get("node_role") is NodeRole.controller:
                 n["adopted"] = True
 
+    # -- foreign-controller scoping ---------------------------------------------
+    #
+    # Several clusters can share one LAN, and every controller announces itself,
+    # so ``merge`` + ``set_controller_always_adopted`` alone adopt the *other*
+    # clusters' controllers into this map (observed in the field 2026-10-01 and
+    # 2026-10-06). The rule is ``cuems-nodeconf``'s shipped fix (``80ccc83``),
+    # moved here because the map mutation is this library's (D22). Requested in
+    # ``cuems-nodeconf``'s ``specs/upstream-reports/foreign-controller-scoping.md``.
+    #
+    # **The rule.** A node's *cluster controllers* are, on a controller, exactly
+    # its own uuid; on any other node, every ``controller``-role uuid its map
+    # already records. An empty set means *no scoping* — today's first-come
+    # behaviour. A *foreign controller* is a ``controller``-role node whose uuid
+    # is outside a non-empty cluster set; it is ignored on discovery and
+    # **removed** from the map, never marked offline (an offline row means
+    # "ours, currently absent").
+    #
+    # **Known limitation, stated not fixed**: a *fresh* node whose first pass
+    # hears two clusters' controllers has an empty set, accepts both, and from
+    # then on both are its own. Fixing that needs a join protocol, which belongs
+    # to ``cuems-nodeconf``'s controller election, not to this index.
+
+    def cluster_controllers(self, own_uuid=None, own_role=None) -> frozenset:
+        """The uuids of the controller(s) this node belongs to.
+
+        Compute it **before** the pass's ``merge`` — computed after, the merge's
+        own additions would define the cluster. Read-only.
+
+        Args:
+            own_uuid: this node's identity.
+            own_role: this node's :class:`NodeRole`.
+
+        Returns:
+            frozenset: ``{own_uuid}`` on a controller with a uuid; otherwise the
+            uuid of every ``controller``-role node in ``self`` that has one.
+            Empty means "no scoping".
+        """
+        if own_role is NodeRole.controller and own_uuid:
+            return frozenset({own_uuid})
+        return frozenset(n["uuid"] for n in self.controllers if n.get("uuid"))
+
+    @staticmethod
+    def is_foreign_controller(n, cluster) -> bool:
+        """``n`` is a controller and ``cluster`` is non-empty and excludes it."""
+        return (
+            n.get("node_role") is NodeRole.controller
+            and bool(cluster)
+            and n.get("uuid") not in cluster
+        )
+
+    def foreign_controllers(self, cluster) -> tuple:
+        """The foreign controllers in ``self`` — the node objects themselves.
+
+        Read-only. Exists so a caller can **log** what a scoped
+        ``CuemsNetworkMapType.refresh`` is about to remove; ``refresh`` itself
+        returns only whether it wrote.
+        """
+        return tuple(
+            n for n in self.values() if self.is_foreign_controller(n, cluster)
+        )
+
+    def drop_foreign_controllers(self, cluster) -> tuple:
+        """Delete every foreign controller's **key** from ``self``.
+
+        Removal, not a flag flip, and no copying: every node that stays is the
+        object it was (the aliasing contract :meth:`adopt` documents). An empty
+        ``cluster`` removes nothing.
+
+        Returns:
+            tuple: the removed node objects.
+        """
+        doomed = [k for k, n in self.items() if self.is_foreign_controller(n, cluster)]
+        return tuple(self.pop(k) for k in doomed)
+
     def missing_adopted(self, discovered) -> tuple:
         """Adopted nodes not present among ``discovered`` — for reporting.
 

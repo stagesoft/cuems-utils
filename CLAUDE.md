@@ -201,6 +201,19 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
+- **Foreign-controller scoping** (2026-10-14, directly on `feat/xml-refactor`, no feature dir; the
+  request is `../cuems-nodeconf/specs/upstream-reports/foreign-controller-scoping.md`). Several
+  clusters on one LAN made `merge` + `set_controller_always_adopted` adopt *other* clusters'
+  controllers. `refresh(discovered, path, *, cluster=None)` now filters discovered foreign
+  controllers and **removes** saved ones (deletes the key; never marks it offline). The caller
+  computes `cluster` with the new `NodeIndex.cluster_controllers(own_uuid, own_role)` **before**
+  the pass. `foreign_controllers` is for logging, and `drop_foreign_controllers` /
+  `is_foreign_controller` are the primitives. Without `cluster` the behaviour is byte-for-byte the
+  old one (the characterization suite is unedited). Only `cuems-nodeconf` passes it, and it must
+  ship inside `0.1.1` (rule 4 of the bump document). Known limitation, kept on purpose: a fresh
+  node that hears two controllers accepts both. `api/public_api.json` was re-hashed once to add
+  four `NodeIndex` entries.
+
 - **`015-consumer-gate-closure` IMPLEMENTED** on its branch 2026-10-14 (all tasks ticked; **nothing
   committed from the final session — the working tree holds Phase 10–11**). The five gates
   (G1 `must_exist`, G2 public `project_settings`, G3 wire-shaped saveable descriptor instances, G4

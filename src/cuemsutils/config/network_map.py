@@ -149,7 +149,7 @@ class CuemsNetworkMapType(ConfigDict):
         """
         save_document(self, "network_map", path)
 
-    def refresh(self, discovered, path) -> bool:
+    def refresh(self, discovered, path, *, cluster=None) -> bool:
         """Merge discovery, keep the controller adopted, write if changed.
 
         Orchestrates :meth:`~cuemsutils.tools.NodeList.NodeIndex.merge` and
@@ -196,6 +196,23 @@ class CuemsNetworkMapType(ConfigDict):
                 and ``missing_adopted`` — never reached for internally,
                 research R7).
             path: where to write, if a write is needed.
+            cluster: this node's cluster controllers, which scope the pass to
+                one cluster on a LAN that carries several. ``None`` or empty
+                means **unscoped**, byte-for-byte the behaviour without the
+                argument. When given, a discovered *foreign controller* (a
+                ``controller``-role node whose uuid is not in ``cluster``) is
+                ignored, and one an earlier unscoped pass saved is **removed**
+                (not marked offline), so only this cluster's controllers are
+                left to adopt. The **caller** computes it, with
+                :meth:`~cuemsutils.tools.NodeList.NodeIndex.cluster_controllers`,
+                over the map **before** calling this: on a controller its own
+                uuid, on any other node the controllers its map records, empty
+                on a fresh node. That last case is a known limitation: a fresh
+                node hearing two clusters' controllers accepts both. To log
+                what will be removed, call
+                :meth:`~cuemsutils.tools.NodeList.NodeIndex.foreign_controllers`
+                first. Requested in ``cuems-nodeconf``'s
+                ``specs/upstream-reports/foreign-controller-scoping.md``.
 
         Returns:
             bool: whether a write happened.
@@ -208,7 +225,14 @@ class CuemsNetworkMapType(ConfigDict):
         })
         before = current.signature()
 
+        if cluster:
+            discovered = {
+                k: n for k, n in discovered.items()
+                if not NodeIndex.is_foreign_controller(n, cluster)
+            }
         current.merge(discovered)
+        if cluster:
+            current.drop_foreign_controllers(cluster)
         current.set_controller_always_adopted()
 
         if current.signature() == before:

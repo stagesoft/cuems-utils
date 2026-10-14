@@ -16,7 +16,7 @@ this file asserts is about the identities themselves.
 from __future__ import annotations
 
 from cuemsutils.config.network_map import CuemsNetworkMapType, node
-from cuemsutils.tools.NodeList import NodeRole
+from cuemsutils.tools.NodeList import NodeIndex, NodeRole
 from cuemsutils.xml.settings import NetworkMap
 
 
@@ -121,3 +121,132 @@ def test_refresh_persists_a_document_the_write_path_can_reload(tmp_path):
     assert reloaded["node_list"][0]["node"]["uuid"] == "11111111-1111-4111-8111-111111111111"
     assert reloaded["node_list"][0]["node"]["node_role"] is NodeRole.controller
     assert reloaded["node_list"][0]["node"]["adopted"] is True
+
+
+# -- foreign-controller scoping ------------------------------------------------
+#
+# The four regression tests of ``cuems-nodeconf``'s shipped fix (``80ccc83``),
+# translated to ``refresh(..., cluster=)`` — requested in
+# ``../cuems-nodeconf/specs/upstream-reports/foreign-controller-scoping.md`` §4
+# T4. The document's labels ``u-master``/``u-slave`` are uuid4s here because
+# ``refresh`` saves, and ``cms:NodeUuidType`` refuses anything else.
+
+U_MASTER = "11111111-1111-4111-8111-111111111111"
+U_SLAVE = "22222222-2222-4222-8222-222222222222"
+U_FOREIGN_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+U_FOREIGN_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+
+
+def _controller(uuid, mac, **kwargs):
+    return _node(uuid=uuid, mac=mac, name=mac, node_role=NodeRole.controller,
+                 ip="10.0.0.1", **kwargs)
+
+
+def _slave(**kwargs):
+    return _node(uuid=U_SLAVE, mac="bb:slave", name="slave", ip="10.0.0.2", **kwargs)
+
+
+def _uuids(netmap):
+    return {item["node"]["uuid"] for item in netmap["node_list"]}
+
+
+def _by_uuid(netmap, uuid):
+    return next(i["node"] for i in netmap["node_list"] if i["node"]["uuid"] == uuid)
+
+
+def test_scoped_refresh_on_a_controller_ignores_foreign_controllers(tmp_path):
+    netmap = _map_with(_controller(U_MASTER, "aa:master", adopted=True, online=True))
+    discovered = {
+        "aa:master": _controller(U_MASTER, "aa:master"),
+        "bb:slave": _slave(),
+        "fa:one": _controller(U_FOREIGN_A, "fa:one"),
+        "fb:two": _controller(U_FOREIGN_B, "fb:two"),
+    }
+
+    netmap.refresh(discovered, str(tmp_path / "nm.xml"), cluster=frozenset({U_MASTER}))
+
+    assert _uuids(netmap) == {U_MASTER, U_SLAVE}
+    assert _by_uuid(netmap, U_MASTER)["adopted"] is True
+    assert _by_uuid(netmap, U_SLAVE)["adopted"] is False
+
+
+def test_scoped_refresh_removes_a_foreign_controller_saved_earlier(tmp_path):
+    netmap = _map_with(
+        _controller(U_MASTER, "aa:master", adopted=True, online=True),
+        _controller(U_FOREIGN_A, "fa:one", adopted=True, online=True),
+    )
+    target = tmp_path / "nm.xml"
+
+    changed = netmap.refresh(
+        {"aa:master": _controller(U_MASTER, "aa:master")},
+        str(target), cluster=frozenset({U_MASTER}),
+    )
+
+    assert changed is True
+    written = target.read_text()
+    assert U_MASTER in written
+    assert U_FOREIGN_A not in written
+
+
+def test_scoped_refresh_on_a_node_keeps_its_recorded_controller(tmp_path):
+    netmap = _map_with(
+        _controller(U_MASTER, "aa:master", adopted=True, online=False),
+        _slave(online=True),
+    )
+    index = NodeIndex({i["node"]["mac"]: i["node"] for i in netmap["node_list"]})
+    cluster = index.cluster_controllers(own_uuid=U_SLAVE, own_role=NodeRole.node)
+    discovered = {
+        "aa:master": _controller(U_MASTER, "aa:master"),
+        "bb:slave": _slave(),
+        "fa:one": _controller(U_FOREIGN_A, "fa:one"),
+    }
+
+    netmap.refresh(discovered, str(tmp_path / "nm.xml"), cluster=cluster)
+
+    assert _uuids(netmap) == {U_MASTER, U_SLAVE}
+    assert _by_uuid(netmap, U_MASTER)["online"] is True
+
+
+def test_scoped_refresh_on_a_fresh_node_accepts_the_first_controller(tmp_path):
+    netmap = _map_with()
+    cluster = NodeIndex().cluster_controllers(own_uuid=U_SLAVE, own_role=NodeRole.node)
+    assert cluster == frozenset()
+
+    changed = netmap.refresh(
+        {"aa:master": _controller(U_MASTER, "aa:master")},
+        str(tmp_path / "nm.xml"), cluster=cluster,
+    )
+
+    assert changed is True
+    assert _uuids(netmap) == {U_MASTER}
+    assert _by_uuid(netmap, U_MASTER)["adopted"] is True
+
+
+def test_unscoped_refresh_still_adopts_every_controller(tmp_path):
+    """Today's behaviour, stated by a test: no ``cluster``, no scoping."""
+    netmap = _map_with()
+    discovered = {
+        "aa:master": _controller(U_MASTER, "aa:master"),
+        "fa:one": _controller(U_FOREIGN_A, "fa:one"),
+    }
+
+    netmap.refresh(discovered, str(tmp_path / "nm.xml"))
+
+    assert _uuids(netmap) == {U_MASTER, U_FOREIGN_A}
+    assert all(item["node"]["adopted"] is True for item in netmap["node_list"])
+
+
+def test_a_second_identical_scoped_refresh_writes_nothing(tmp_path):
+    netmap = _map_with(
+        _controller(U_MASTER, "aa:master", adopted=True, online=True),
+        _controller(U_FOREIGN_A, "fa:one", adopted=True, online=True),
+    )
+    target = str(tmp_path / "nm.xml")
+    cluster = frozenset({U_MASTER})
+
+    def discovered():
+        return {"aa:master": _controller(U_MASTER, "aa:master"),
+                "fa:one": _controller(U_FOREIGN_A, "fa:one")}
+
+    assert netmap.refresh(discovered(), target, cluster=cluster) is True
+    assert netmap.refresh(discovered(), target, cluster=cluster) is False

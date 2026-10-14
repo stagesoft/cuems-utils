@@ -80,6 +80,13 @@ error **type** (``AttributeError`` from a raw-dict write path to
 surfaces and it belongs to the config-write path, not to axis D; regenerating
 it here would record it without anyone having decided it.
 
+**Foreign-controller scoping re-hashes ``api/public_api.json`` once** — not a
+numbered feature; requested in ``cuems-nodeconf``'s
+``specs/upstream-reports/foreign-controller-scoping.md``. ``NodeIndex`` gains
+four method entries (``cluster_controllers``, ``is_foreign_controller``,
+``foreign_controllers``, ``drop_foreign_controllers``), inserted by hand in
+sorted position; every pre-existing entry is byte-identical.
+
 
 ``MANIFEST.sha256`` pins the hash of every file under this directory at the
 moment T002 ran (after T003b/T003c added the two new corpus documents' goldens,

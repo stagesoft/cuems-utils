@@ -154,6 +154,29 @@ def test_refresh_reaches_the_documents_own_node_objects(tmp_path):
     )
 
 
+
+def test_a_scoped_refresh_keeps_the_callers_node_objects(tmp_path):
+    """Scoping removes keys; it never copies the nodes that stay.
+
+    ``foreign-controller-scoping.md`` §3 (``../cuems-nodeconf/specs/
+    upstream-reports/``): a scoped ``refresh`` filters ``discovered`` and drops
+    foreign rows, and neither may substitute a copy for a node the caller holds.
+    """
+    document = _decoded()
+    index = _index_over(document)
+    held = list(index.values())
+    controller = next(n for n in held if n.get("node_role") is NodeRole.controller)
+    cluster = index.cluster_controllers(
+        own_uuid=controller["uuid"], own_role=NodeRole.controller
+    )
+    discovered = {n["mac"]: dict(n) for n in held}
+
+    document.refresh(discovered, str(tmp_path / "out.xml"), cluster=cluster)
+
+    remaining = [i["node"] for i in document["node_list"]]
+    assert len(remaining) == len(held)
+    assert all(a is b for a, b in zip(remaining, held))
+
 # -- feature 011, T013: ensure inserts the caller's own object -------------------
 
 
