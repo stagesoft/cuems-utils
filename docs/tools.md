@@ -12,3 +12,5 @@
 ::: cuemsutils.tools.StringSanitizer
 ::: cuemsutils.tools.TimeoutLoop
 ::: cuemsutils.tools.Uuid
+::: cuemsutils.tools.NodeList
+::: cuemsutils.config.network_map
