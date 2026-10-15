@@ -1,3 +1,16 @@
+cuems-utils (0.1.0rc17) unstable; urgency=medium
+
+  * Merge main into debian/bookworm (0.1.0rc17, 869fhjdq5, PR #19):
+    script.xsd ActionType gains stop_project, the first project-scope
+    action and the authored end of an unattended show (cuems-engine
+    stop_project ActionCue). Its action_target is written empty and parses
+    to None; the ActionCue constructor and setter still refuse None.
+  * Every box of a cluster needs >= 0.1.0rc17 before a project carrying
+    the cue is saved: older utils reject it at validation. A downgrade
+    strands such a project until the cue is removed from cue_script.xml.
+
+ -- Ion Reguera <ion@stagelab.coop>  Thu, 15 Oct 2026 18:42:29 +0200
+
 cuems-utils (0.1.0rc16+1) unstable; urgency=medium
 
   * packaging: stop shipping /usr/lib/cuems/CACHEDIR.TAG. The 0.1.0rc16 build
