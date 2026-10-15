@@ -5,13 +5,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # The coordinated xml-refactor landing cuts a stable minor release in **every** repository
 
-**Decided 2026-10-12** by the development team. Parallel bugfix and small-feature work is being
+**Decided 2026-10-12** by the development team; rule 5 added 2026-10-14 by the maintainer. Parallel bugfix and small-feature work is being
 released from every repository's own line, so the refactor cannot merge under a version number any
 of them still holds. **Status: decided, not executed.** This document is the work order — the
 measured target version for each repository, every versioned package relation that moves with it,
 and the file inventory in this repository.
 
-## The decision, in four rules
+## The decision, in five rules
 
 1. **Every affected repository moves to its own next stable minor at the coordinated
    `xml-refactor-merge-candidate` landing** — not just `cuems-utils`. The last component of the
@@ -26,6 +26,12 @@ and the file inventory in this repository.
    refactor branch before the new version is published, so nothing shipped is lost. The version entry
    becomes the newest/top changelog entry; everything the parallel lines keep adding until
    publication is absorbed as part of each repository's reconciliation — §10.
+5. **Validation runs on the re-cut tags, not on a published release** (maintainer decision,
+   2026-10-14). The coordinated set is validated against the coordinated re-cut of
+   `xml-refactor-merge-candidate` in **every** sibling repository, with each package built from its
+   tag and `cuemsutils` built from `cuems-utils`' tag. **Nothing waits for `0.1.1` on PyPI.**
+   Publishing (PyPI, the `.deb` archive) comes after validation and is a separate step. §11.1 is how
+   the validation runs. This answers §12 item 3, which assumed the opposite.
 
 **It reverses three standing decisions**, each recorded where it was made rather than quietly
 overwritten: §12/§12.1 of [`etc-cuems-first-install.md`](etc-cuems-first-install.md) ("the library
@@ -435,9 +441,84 @@ this release's.
    relations last, so a merge conflict cannot resolve them back to the parallel line's values
    (§10.3). A version move with the relations left behind is an ecosystem `dpkg` refuses to install,
    so these do not land as separate per-repository commits; they land as one coordinated set.
-7. **Re-cut every candidate tag** (§9), `cuems-utils` last.
+   **The packaging demonstrations are part of that set** (§11.1 step 2). Their stub versions and
+   scenario expectations name the versions and relations this step moves, so they move in the
+   same commit.
+7. **Re-cut every candidate tag** (§9), `cuems-utils` last. The re-cut tags are what step 9
+   validates (rule 5), so nothing below runs against a branch head.
 8. Suite green in each repository, and this one's `tests/packaging/test_no_version_bump.py` passing
    **in its rewritten form** — a green run of the old form would mean the bump did not happen.
+9. **Validate the set on the re-cut tags** (§11.1): the packaging demonstrations, with every
+   checkout at its tag, and their evidence recorded.
+10. **Publish only after step 9 passes**: `cuems-utils` `0.1.1` to PyPI, and the `.deb`s to the
+    archive. When that happens is §12 item 5; it does not gate anything above.
+
+### 11.1 Validating on the re-cut tags — the packaging demonstrations
+
+**What exists.** Two repositories have a **release-gate demonstration**, a script that builds the
+real packages and replays install scenarios in a disposable, unprivileged bookworm system
+(`mmdebstrap --mode=unshare`), recording whether `apt`/`dpkg` accepts or refuses each one:
+
+| Script | Builds for real | Stubs (equivs) | Proves |
+|---|---|---|---|
+| `../cuems-nodeconf/tests/packaging/release-gate-demo.sh` | `cuems-nodeconf` (new and previous release) **and** `cuems-common` (both sides of its cutover) | `cuems-utils` | every relation between those two packages, and their bounds on `cuems-utils` |
+| `../cuems-common/tests/packaging/release-gate-demo.sh` | `cuems-common` (new and previous) | `cuems-utils`, `cuems-nodeconf` | `cuems-common`'s relations |
+
+A third script, `../cuems-editor/tests/packaging/bookworm-build.sh`, builds the `cuems-editor`
+`.deb` in bookworm and checks its interpreter. It proves the package **builds**, not its relations.
+**`cuems-engine`, `cuems-power-bridge` and this library have no install demonstration.** Their §4
+edges are checked by `dpkg --compare-versions` only. The validation record must say so, not imply
+otherwise.
+
+**Why none of them needs PyPI for `cuemsutils`.** Each builds a `cuemsutils` wheel from the
+`cuems-utils` checkout named by `UTILS=` and hands it to dh-virtualenv's pip through
+`PIP_FIND_LINKS`. dh-virtualenv passes `os.environ` to pip unchanged (measured in the nodeconf
+script's §2 comment), so `debian/rules` is not edited. Network access is still needed: the Debian
+mirror for the chroots, and PyPI for **third-party** dependencies only.
+
+**Proper use at the coordinated re-cut:**
+
+1. **Every checkout at its re-cut tag, clean.** That covers the repository running the script, its
+   `COMMON=` and `UTILS=`. The evidence records each commit and flags `(+ uncommitted changes)`. A
+   dirty run is not validation evidence. Run it again from clean tags.
+2. **Update the scripts first, in step 6's commit.** Neither script reads versions from
+   `debian/control`; both hard-code them:
+   - `UTILS_VERSIONS` (the `cuems-utils` stubs) must straddle §4.1: one below the floor, one
+     admitted, one past the ceiling — `0.1.0rc16`, `0.1.1`, `0.1.2~rc1`. Today's sets
+     (`0.1.0rc15 0.1.0rc16 0.1.1~rc1` in nodeconf's, plus `0.1.0rc14` in common's) test the
+     **old** bounds;
+   - every scenario's expectation and title that names `0.1.0-8`, `1.3.0-23` or `1.3.0-22`, and the
+     `stubs/*.ctl` versions, move to the §3/§4 values. A scenario that still expects the old edge
+     will "pass" while testing nothing that ships.
+3. **Pass every ref explicitly. The defaults are stale.**
+   - nodeconf's `OLD_REF` defaults to `478bc49` (`0.1.0-7`). The field baseline is now **`0.1.0-9`**
+     (`origin/rc_1`), so pass that.
+   - nodeconf's `COMMON_NEW` defaults to `1a00159` (`1.3.0-23`). Pass `cuems-common`'s **re-cut
+     tag** (`1.3.1-1`).
+   - nodeconf's `COMMON_OLD`, and cuems-common's own `OLD_REF`, default to `rc_1`. The comments call
+     that `1.3.0-22`, but `cuems-common`'s `rc_1` is now `1.3.0-25`, and a default branch moves.
+     Pass the release you mean as a fixed ref.
+   - `UTILS=` points at `cuems-utils` checked out at **its** re-cut tag.
+4. **Write new evidence; don't overwrite the old.** `OUT=` defaults to the evidence of the feature
+   that wrote the script (nodeconf: `specs/001-network-map-object-adoption/evidence/out-of-order-refusal.txt`).
+   That file is the record of an earlier gate. Point `OUT=` at a new file for this validation.
+5. **Read the exit status and the evidence together.** Exit `0` means every scenario's observed
+   outcome matched its expectation, and the evidence lists each one with the tool that refused. A
+   non-zero exit names the scenario.
+6. **It is not part of any test suite.** It needs `mmdebstrap`, `uidmap`, `equivs`, `dpkg-dev`,
+   `debhelper`, `fakeroot`, `uv` or `pip3`, and `/etc/subuid`/`/etc/subgid` ranges for the calling
+   user. It takes about six minutes and runs by hand (nodeconf's `run-tests.sh` excludes it
+   deliberately).
+
+Example, from `cuems-nodeconf` at its re-cut tag, once the scripts carry step 2's values:
+
+```bash
+OLD_REF=origin/rc_1 \
+COMMON=../cuems-common COMMON_NEW=<cuems-common re-cut tag> COMMON_OLD=<cuems-common 1.3.0-25 commit> \
+UTILS=../cuems-utils \
+OUT=specs/<bump feature or record>/evidence/out-of-order-refusal-0.1.1.txt \
+tests/packaging/release-gate-demo.sh
+```
 
 ## 12. What this document does not settle
 
@@ -448,12 +529,13 @@ this release's.
    only the tag.** They were written as tag gates when the tag cut no version. Cutting seven stable
    releases from the same point raises the bar; this needs an explicit answer rather than an
    inherited one.
-3. **When `0.1.1` goes to PyPI, relative to the sibling `.deb` builds.** *Not* whether — that is
-   settled: `debian/bookworm`'s `0.1.0rc16+1` entry states "cuemsutils 0.1.0rc16 on PyPI", so the
-   parallel line already publishes. But `dh-virtualenv` resolves the editor's `cuemsutils` bound
-   from PyPI at build time (`stored-media-values-preimplementation.md` *(deleted 2026-10-14, feature 015; in git history)* §203), so **`0.1.1` must be on
-   PyPI before any sibling `.deb` that bounds `>= 0.1.1` can be built.** That orders step 6's
-   coordinated set internally, and nothing in §11 currently says so.
+3. ~~**When `0.1.1` goes to PyPI, relative to the sibling `.deb` builds.**~~ **Answered
+   2026-10-14 by the maintainer: after validation, not before** (rule 5, §11 steps 9–10). This item
+   said `0.1.1` *"must be on PyPI before any sibling `.deb` that bounds `>= 0.1.1` can be built"*,
+   because dh-virtualenv resolves `cuemsutils` from PyPI in a plain build. Validation builds don't
+   do that: they offer a wheel built from `cuems-utils`' re-cut tag through `PIP_FIND_LINKS`
+   (§11.1), as `cuems-nodeconf`'s and `cuems-editor`'s build scripts already do. Publishing to PyPI
+   still precedes any **archive** build that resolves from PyPI, but it no longer orders step 6.
 4. ~~How the branches behind their release lines catch up.~~ **Answered 2026-10-12: merge before
    bump** — §10. The lag is discharged as a precondition of the bump, not carried as debt.
 5. **When.** The decision is made; the schedule is not.
