@@ -155,3 +155,62 @@ def test_a_callable_default_is_not_invoked_and_stays_on_the_field():
     other = SchemaDescriptor().describe(TypeKey("script", "AudioCueType"))
     other_field = next(f for f in other.fields if f.name == "id")
     assert other_field.default is field.default
+
+
+# -- rule 0: the declaration's own XSD default ------------------------------
+#
+# Added after 015 (row 4 of specs/015-consumer-gate-closure/consumers_works.md):
+# the facet rules can only give "the zero of the type", and a new output at
+# volume 0 or scale 0 is silent or invisible. The schema states the starting
+# value; it stays a seed, never a FieldDescriptor.default (FR-026a).
+
+
+@pytest.mark.parametrize(
+    "type_name,field_name,expected",
+    [
+        ("AudioCueOutputsType", "output_vol", 80),
+        ("AudioChannelType", "channel_vol", 80),
+        ("VideoOutputGeometryType", "x_scale", 1.0),
+        ("VideoOutputGeometryType", "y_scale", 1.0),
+    ],
+)
+def test_rule_0_an_xsd_default_is_the_seed_and_never_the_default(type_name, field_name, expected):
+    from cuemsutils.helpers import Unset
+    from cuemsutils.xml.descriptor import Repairability, SchemaDescriptor
+    from cuemsutils.xml.spec import TypeKey
+
+    described = SchemaDescriptor().describe(TypeKey("script", type_name))
+    field = next(f for f in described.fields if f.name == field_name)
+    body = described.instance
+    if len(body) == 1 and field_name not in body:
+        # The wire wrapper a type reached through a container carries
+        # (``CueOutput``, ``channel``; FR-021).
+        (body,) = body.values()
+
+    seed = body[field_name]
+    assert seed == expected and type(seed) is type(expected), seed
+    # Promoting it would make a document that omits the field load repaired
+    # instead of refused — a read-path change this rule must not make.
+    assert field.default is Unset
+    assert field.repairability is Repairability.UNREPAIRABLE
+
+
+def test_rule_0_covers_exactly_the_declared_defaults():
+    """Every ``default=`` in the six schemas is one of rule 0's, so a new one
+    is a decision someone made in the schema, seen by this test."""
+    import re
+    from pathlib import Path
+
+    from cuemsutils.xml.schema import SCHEMAS_DIR
+
+    found = sorted(
+        (path.stem, name)
+        for path in Path(SCHEMAS_DIR).glob("*.xsd")
+        for name in re.findall(r'name="(\w+)"[^>]*\bdefault="', path.read_text())
+    )
+    assert found == [
+        ("script", "channel_vol"),
+        ("script", "output_vol"),
+        ("script", "x_scale"),
+        ("script", "y_scale"),
+    ]

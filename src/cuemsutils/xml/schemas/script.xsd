@@ -368,7 +368,13 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
         <xs:sequence minOccurs="0" maxOccurs="unbounded">
           <!-- <xs:element name="node_uuid" type="cms:UuidType" /> -->
           <xs:element name="output_name" type="cms:NameStringType" />
-          <xs:element name="output_vol" type="cms:PercentType" />
+          <!-- default="…" on this and the three elements below is the value a NEW
+               output starts at: the schema descriptor's instance seeds it (its
+               seeding rule 0). It does not make the element optional, and this
+               library still refuses a document that omits it or leaves it empty.
+               Literal defaults moving into the schemas in general:
+               specs/planning/xsd-literal-defaults.md. -->
+          <xs:element name="output_vol" type="cms:PercentType" default="80" />
           <xs:element name="channels" type="cms:AudioChannelsType" />
         </xs:sequence>
       </xs:extension>
@@ -384,7 +390,7 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
   <xs:complexType name="AudioChannelType">
     <xs:sequence>
         <xs:element name="channel_num" type="xs:integer" />
-        <xs:element name="channel_vol" type="xs:integer" />
+        <xs:element name="channel_vol" type="xs:integer" default="80" />
     </xs:sequence>
   </xs:complexType>
 
@@ -449,8 +455,8 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
   <xs:complexType name="VideoOutputGeometryType">
     <!-- Specs of the four corners of a media to display -->
     <xs:sequence minOccurs="0" maxOccurs="1">
-      <xs:element name="x_scale" type="xs:float" />
-      <xs:element name="y_scale" type="xs:float" />
+      <xs:element name="x_scale" type="xs:float" default="1" />
+      <xs:element name="y_scale" type="xs:float" default="1" />
       <xs:element name="corners" type="cms:VideoCornersType" />
     </xs:sequence>
   </xs:complexType>

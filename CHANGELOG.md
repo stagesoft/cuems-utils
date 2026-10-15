@@ -54,6 +54,22 @@ the bundled schemas, so it is now built **once per process** and cached.
   `_root_instance` and `schema_descriptor_value` is no longer needed to keep instances apart.
   It is still needed if `_json_safe` converts anything.
 
+### Changed — new outputs start at sensible values, stated by the schema
+
+A new audio output used to start at volume 0, and a new video output at scale 0, which is
+invisible. Those were the descriptor's generic seeds ("the zero of the type"), so
+`cuems-frontend` kept its own table of starting values to work around them.
+
+- `script.xsd` now declares `default="…"` on four elements: `output_vol` 80, `channel_vol` 80,
+  `x_scale` 1, `y_scale` 1. These are the first `default` attributes in any of the six schemas.
+- `get_schema_descriptor`'s instances use an element's XSD default as its starting value, ahead
+  of the generic seed.
+- **Nothing about loading changes.** These elements are still required, and a document that
+  omits them or leaves one empty is still refused. They are starting values, not defaults: the
+  matching `FieldDescriptor.default` stays unset, and the fields are still not repaired on load.
+- `cuems-frontend` can delete its `toWireShape` transform and `UR1_UI_STARTING_VALUES` table.
+  A new output then looks exactly as before.
+
 ## Unreleased — `outputs` renamed to `hardware_outputs`, and X14 resolved
 
 The sixth schema is renamed as the first step of making it the node's **hardware capability

@@ -32,7 +32,7 @@ from typing import Any
 from ..helpers import Unset
 from .registry import all_registries, get_registry
 from .schema import SCHEMA_NAMES, get_schema
-from .spec import FieldKind, TypeKey, derive
+from .spec import FieldKind, TypeKey, _resolve, derive
 
 
 class Repairability(Enum):
@@ -634,8 +634,55 @@ def _build_single(key: TypeKey, field_spec, defaults: dict, branch: frozenset) -
             inline = _inline_named_type_seed(key, field_spec)
             if inline is not None:
                 return inline
+        declared = _xsd_declared_default(key, field_spec)
+        if declared is not None:
+            return declared
         return _seed_for(key.schema, field_spec.xsd_type)
     return default
+
+
+def _xsd_declared_default(key: TypeKey, field_spec) -> Any:
+    """Seeding rule 0: the field's own ``default="…"`` in the XSD, typed.
+
+    Consulted after the model's declared default and before the type-derived
+    seed (:func:`_seed_for`'s rules 1–8). The rules after it can only say
+    "the zero of the type", which is wrong for a value an operator should
+    start at: a new video output at ``x_scale`` 0 is invisible, a new audio
+    channel at volume 0 is silent. So the schema states the starting value,
+    and every consumer reads it from the descriptor.
+
+    It stays a **seed**. It never becomes ``FieldDescriptor.default``, so it
+    never makes a field repairable on load (FR-026a). Moving model defaults
+    into the schemas as well is
+    ``specs/planning/xsd-literal-defaults.md``, which is where that would
+    change.
+
+    Read from the declaration rather than the type, because a default belongs
+    to one element declaration: ``channel`` is an integer in one type and a
+    complex type in another. ``None`` when the declaration carries none.
+    """
+    xsd_type = _resolve(key, get_schema(key.schema))
+    declaration = None
+    if field_spec.kind is FieldKind.ATTRIBUTE:
+        attributes = getattr(xsd_type, "attributes", None) or {}
+        declaration = next(
+            (a for a in attributes.values() if getattr(a, "local_name", None) == field_spec.name),
+            None,
+        )
+    else:
+        content = getattr(xsd_type, "content", None)
+        if content is not None and hasattr(content, "iter_elements"):
+            declaration = next(
+                (
+                    e
+                    for e in content.iter_elements()
+                    if getattr(e, "local_name", None) == field_spec.name
+                ),
+                None,
+            )
+    if declaration is None or getattr(declaration, "default", None) is None:
+        return None
+    return declaration.type.decode(declaration.default)
 
 
 _wrap_index_cache: dict[str, dict[TypeKey, str]] = {}

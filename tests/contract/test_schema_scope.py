@@ -70,12 +70,22 @@ SCHEMAS_DIR = REPO_ROOT / "src" / "cuemsutils" / "xml" / "schemas"
 #: **instance-document** name, so this one is not cosmetic: a divergence here
 #: would mean an rc15-written project carried a child version 2 does not
 #: declare. See ``../../specs/014-xs-boolean-and-media-elements/plan.md (§10.5; the source note was deleted by feature 015)``.
+#:
+#: Updated 2026-10-15 for ``script.xsd``: ``default="…"`` on ``output_vol`` (80),
+#: ``channel_vol`` (80), ``x_scale`` and ``y_scale`` (1) — the first ``default``
+#: attributes in any of the six schemas. They are the values a **new** output
+#: starts at, read by the descriptor's seeding rule 0, and they replace
+#: ``cuems-frontend``'s hand-written ``UR1_UI_STARTING_VALUES`` (015's
+#: ``consumers_works.md`` row 4). Every document valid before is valid after, and
+#: this library still refuses one that omits or empties these elements (measured
+#: with and without the attributes). Inside the unreleased ``script`` 1 -> 2 step,
+#: so no version marker moves.
 CURRENT_SCHEMA_HASHES = {
     "hardware_outputs.xsd": "e509dcee2ae8f461e3c25dfc680a73a0da31519159c1f0e3fb1199cc6dc46f5a",
     "network_map.xsd": "f1aecab856c49068197d064c8eb2309e972bc21ea508d4549e18277e1b55329b",
     "project_mappings.xsd": "c4a5e3504b32c961fe4b7ad49bfd22e17fd132f8e99be2c162c329385cdd13e8",
     "project_settings.xsd": "5cd80b9d2a5239365a764526a40c17426e158a9ec057acda2ffc97b552ea254f",
-    "script.xsd": "b6bdebb18ba9630018d6246d7d885a8e99518078ce10780e4a74f2eeb6885cf2",
+    "script.xsd": "638ffe13ad69eacf4658cccb31455cd6074f6bda3f05b1cc5b497330d5c4d434",
     "settings.xsd": "67ffe9ae1ae86a00f152b633b0ce9c9f9321d67eb9d9200b2f1467bb1fe0aa0b",
 }
 
