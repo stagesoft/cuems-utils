@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
 from .Cue import Cue
 from ..helpers import ensure_items
 
@@ -8,9 +11,21 @@ REQ_ITEMS = {
 
 class ActionCue(Cue):
     """A cue that represents an action to be performed on a target object.
-    
+
     This cue is used to trigger actions on other objects in the system, such as
-    playing, pausing, or stopping media cues.
+    playing, pausing, or stopping media cues (``action_target`` is that cue's
+    uuid).
+
+    Project-scope actions act on the whole loaded project and have no target.
+    The only implemented one is ``stop_project`` (since 0.1.0rc17): the
+    authored end of an unattended show, which the engine turns into its own
+    STOP (running = no, every cue reset, nodes re-armed). Its ``action_target``
+    is the empty string on write (``<action_target />``, allowed by the XSD
+    ``TargetType``) and comes back as ``None`` after parse, because the parser
+    maps the empty string to ``None`` and assigns without going through the
+    setter. The constructor and the setter still refuse an explicit ``None``.
+    ``pause_project``/``resume_project``/``load``/``unload``/``wait`` exist in
+    the schema but are not implemented anywhere.
     """
     
     def __init__(self, init_dict: dict = None):
