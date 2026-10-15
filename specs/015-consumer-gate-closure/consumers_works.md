@@ -252,3 +252,43 @@ being on `format/module_extraction`, a branch with no `xml-refactor` line. On **
   list (`ControllerEngine.py:1126`). The "corrections" this feature first made to that guide were
   therefore **wrong and have been reverted**; the tests that guard them skip only because the engine
   carries no `xml-refactor-merge-candidate` tag, not because the claims fail.
+
+---
+
+## Closed — 2026-10-15: every consumer half done, each row measured at its commit
+
+All ten obligations are now `verified done`, measured against each sibling's **committed** tree
+(GPG-signed local commits, not pushed when this was written; no tag was created or moved, since tags
+stay maintainer-only). Library half: `cuems-utils` `0b3690e`. The earlier tables above stay as
+written.
+
+| # | Row | Status | Closed by | Evidence |
+|---|---|---|---|---|
+| 1 | `cuems-editor` G1 | `verified done` | editor `6de91fb` | `_config_path(..., must_exist=False)` at the write site; `_save_config_document` treats a `None` revision as a create (no backup; a file that appeared meanwhile is `ConfigChanged`). G1 test XPASSed strictly, marker off; two new direct tests |
+| 2 | `cuems-editor` G2 | `verified done` | editor `35a79d1` | refusal removed, `load_project_settings` load step, early-out deleted. ⚠ **The editor's predicted shape was wrong**: the projection keys each item `{"SettingType": {…}}`, which is this library's single projection (contract C2, "a second projection is forbidden"). The G2 test now asserts that shape **and** C2's round trip through `config_save` |
+| 3 | `cuems-nodeconf` G4 | `verified done` | nodeconf `3d3601d` (already landed) | the editor's G4 test passes against nodeconf `82b0a69` and **fails** against `155fe6c` with `unknown action: node_set` (control arm, scratch worktrees, removed) |
+| 4 | `cuems-frontend` G3 | `verified done` | frontend `6b69b41`, on this library's `0b3690e` | `toWireShape` + `UR1_UI_STARTING_VALUES` deleted in one edit, no value authored on that side. That needed this library's **seeding rule 0**: `script.xsd` declares `default=` on `output_vol`/`channel_vol` (80) and `x_scale`/`y_scale` (1), which resolved row 4's ⚠ (the old seeds were 0 / 0 / 0.0: silent, invisible). A new output starts exactly as before (T016); only `output_name` moved (`null` → the placeholder `"x"`, overwritten by every caller). Descriptor fixtures re-recorded beside the old ones. 288 specs pass |
+| 5 | `cuems-editor` G3 docstring | `verified done` | editor `fc025a7` | `_root_instance`, `config_load` and `ws-command-responses.txt` now say the root instance is saveable |
+| 6 | `cuems-editor` S1 | `verified done` | editor `2360936` | `except NodeIdentityCollisionError`, `IdentityCollision.from_error`; pattern and `''` fallback deleted, and a source-grep test keeps them out |
+| 7 | `cuems-engine` dead-end doc | `verified done` | (2026-10-14) | unchanged |
+| 8 | control population | `verified done` | — | unchanged |
+| 9 | indenting-writer fixtures | `verified done` | editor `8c42e71` | the one fixture T108 found, now committed in that repository |
+| 10 | `cuems-editor` tag-readiness | `verified done` | editor `e5e6ac1` | **Status: READY**. Its three conditions measured: no xfail (271 passed, 3 skipped; the seven gate tests pass without markers), G5 `b43bc50` an ancestor of `0b3690e`, run recorded as `evidence/suite-tag-ready.txt` |
+
+**The G3 cue flip.** The fourth of SC-012's flips came from the editor rebuilding its own test
+construction (`fc025a7`: the output instance already carries its `CueOutput` wrapper and the test
+wrapped it again), not from a library change, as the table above predicted on 2026-10-14.
+
+**Three findings worth carrying:**
+- **The `SettingType` wire key.** `to_wire('project_settings')` keys repeated items by the bound
+  model class, where `network_map`'s `node` happens to match its element name only because its class
+  is named that. It is consistent, round-trips, and is contractually the shared projection, so it was
+  not changed. But it is a class name on the wire. Changing it would be a library-wide wire decision,
+  not a project_settings one.
+- **Media values in a new cue.** The descriptor now seeds `Media`'s four optional media values with
+  placeholders (`file_md5` `"000…0"`, sizes 1). A UI that sends them would put values in a script
+  that disagree with the library row, which the editor's media check reports as repairs. The frontend
+  drops them; any other client building cues from the descriptor must do the same.
+- **What remains is outside every repository's code**: pushing the four repositories, re-cutting the
+  candidate tags (maintainer-only), and the live quickstart run against a controller on the
+  coordinated tag (`cuems-frontend` `not-performed.md`).

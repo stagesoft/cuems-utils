@@ -201,6 +201,39 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
+- **015's consumer halves, all closed** (2026-10-15). Every row of
+  `specs/015-consumer-gate-closure/consumers_works.md` is `verified done`, measured at each sibling's
+  commit; that file's 2026-10-15 section has the table. The siblings' commits are GPG-signed and were
+  **local and unpushed** when this was written. No tag was cut or moved; that stays maintainer-only.
+  - **Library side, one commit (`0b3690e`): seeding rule 0.** `script.xsd` gains the first `default=`
+    attributes in any schema (`output_vol`/`channel_vol` 80, `x_scale`/`y_scale` 1), and the
+    descriptor seeds a field from its own declaration's XSD default, after the model default and
+    before the facet rules. It is a **seed, never a `FieldDescriptor.default`**, so repairability and
+    the read path are unchanged: the library refuses an omitted or empty element with and without the
+    attribute (measured). Read **per declaration**, never per name (`channel` is an integer in one
+    type and complex in another). This let `cuems-frontend` delete its starting-values table with no
+    value authored there.
+  - **Moving literal defaults into the schemas in general is planned, not done**:
+    `specs/planning/xsd-literal-defaults.md`. 22 of the 52 default declarations can move. Its cost is
+    semantic (an XSD element default means "when present and empty", never "when absent"), not
+    performance: cold start, construction and show-document decode were measured unchanged.
+  - **Siblings:**
+    - `cuems-editor` `6de91fb` (G1), `35a79d1` (G2), `fc025a7` (G3 cue + row 5), `2360936` (S1),
+      `e5e6ac1` (tag readiness **READY**). Suite 271 passed, 3 skipped, no xfail.
+    - `cuems-frontend` `6b69b41`: the transform is deleted, and the fixtures were re-recorded with its
+      own capture script beside the old ones. 288 specs pass.
+    - `cuems-nodeconf`'s `node_set` (`3d3601d`) was verified with a control arm, not just a pass.
+  - ⚠ **`to_wire('project_settings')` keys items by class, `{"SettingType": …}`.** The editor's G2
+    test had predicted bare items. The shape is the shared projection by contract and round-trips,
+    so it stays. But it is a class name on the wire, and changing it is a library-wide decision.
+  - ⚠ **A client building a media cue from the descriptor must drop `Media`'s four media values**:
+    they are seeded with placeholders and are the editor's to write from the library row.
+  - **Running a sibling's suite on this box**: `cuems-editor` has no hatch environment here. This
+    repository's `test.py3.11` interpreter has its runtime dependencies (`peewee`, `websockets`) and
+    resolves `cuemsutils` to this checkout. `cuems-nodeconf`'s own suite needs `zeroconf`, which is not
+    installed; its `node_set` is exercised through the editor's G4 test instead. `cuems-frontend`:
+    `CHROME_BIN=/usr/bin/google-chrome npm run test:ci`.
+
 - **Descriptor instance cache** (2026-10-14, `bed5d53`, directly on `feat/xml-refactor`, no feature
   dir; the plan `specs/planning/descriptor-instance-cache.md` is deleted by this entry's commit and
   lives in git history). It **clears 015's recorded descriptor-derivation exception**.
@@ -256,7 +289,8 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   `NodeIndex.set_alias`, G5 the settings version step vs the reshape) and S1–S4 landed; the coordinated
   `xml-refactor-merge-candidate` tag now waits on the **consumers' halves** (`cuems-editor` G1/G2/S1 and
   the G3 cue construction, `cuems-nodeconf`'s `node_set`, `cuems-frontend`'s `toWireShape` deletion) —
-  `specs/015-consumer-gate-closure/consumers_works.md`, re-verified 2026-10-14.
+  `specs/015-consumer-gate-closure/consumers_works.md`, re-verified 2026-10-14. **All closed
+  2026-10-15**: see "015's consumer halves" above.
   - **S3: the writer indents, through ONE serializer.** `documents.serialize_tree` is the only place
     an `ElementTree` is written (encoding, declaration, `cms` prefix, `ET.indent`); `write_tree`,
     `cuems-init-node`'s `_serialize` (the `/etc/cuems` documents) and `XmlReaderWriter.write` all call it,
