@@ -1,5 +1,13 @@
 # Feature Specification: Consumer migration — one public API, six repositories, one release
 
+> **Superseded versions, 2026-10-15 (feature 016).** The coordinated `xml-refactor` landing no
+> longer holds `0.1.0rc16`. It cuts **`cuems-utils 0.1.1`**, the deprecated surface goes in
+> **`v0.1.2`** (`REMOVAL_RELEASE`), and every consumer bounds the library **`>= 0.1.1`,
+> `<< 0.1.2~`** (`cuemsutils>=0.1.1,<0.1.2`), per
+> `specs/016-coordinated-minor-bump/contracts/relation-matrix.md`. Below, `0.1.0rc16`,
+> `<< 0.1.1~` and `v0.1.1` are left as **dated record** of what was true when written. Read any
+> *instruction* that names them with the new values.
+
 **Feature Branch**: `010-consumer-migration`
 **Created**: 2026-09-03
 **Status**: Draft — no open questions. Q1 (dev-fixture counting), Q2 (per-type constructible
@@ -42,7 +50,7 @@ the device-class reshape, and `hardware_outputs` becoming real — are a **hard 
 feature in exactly the sense this paragraph uses the term, and the shared
 `xml-refactor-merge-candidate` tag that marks the coordinated merge comes **after** them.
 **Re-counted 2026-10-03: the set is 011–015**, and it is `0.1.0rc16` throughout — the tag cuts no
-stable release, which is why this feature's removal-and-version block migrated to `specs/planning/deprecated-surface-removal-v0-1-1.md`.
+stable release, which is why this feature's removal-and-version block migrated to `specs/planning/deprecated-surface-removal-v0-1-2.md`.
 
 So "nothing in the ecosystem ships until this feature lands" remains true, and it is no longer
 sufficient. The full condition is: this feature's six flows, **then** 011–015, **then** the tag. Two of
@@ -530,7 +538,7 @@ across the ecosystem, and a guide maps every removed or changed entry point to i
 
 **⚠ Re-scoped 2026-10-03.** This story used to also delete the deprecated paths and move the
 version to the release its own warnings promise. Both are **migrated** to
-`specs/planning/deprecated-surface-removal-v0-1-1.md` (tasks R1–R12), because the refactor lands as `0.1.0rc16` and the coordinated tag
+`specs/planning/deprecated-surface-removal-v0-1-2.md` (tasks R1–R12), because the refactor lands as `0.1.0rc16` and the coordinated tag
 cuts no stable release — and because, measured with `dpkg`, deleting the surface *without* the
 version move leaves a library that satisfies every consumer's `<< 0.1.1~` bound while no longer
 carrying what that bound protects. The two are one step, at `v0.1.1`.
@@ -731,27 +739,27 @@ repositories on disk and show the count is zero; then delete and run the suite.
   imports across all six consumer repositories on disk returns zero. "The consumer flows are
   merged" is a different claim.
   **⚠ Split 2026-10-03**: the **measurement** is this feature's and is satisfied (T049); the
-  **removal** it gates is migrated to `specs/planning/deprecated-surface-removal-v0-1-1.md`, whose R1 re-runs the census immediately
+  **removal** it gates is migrated to `specs/planning/deprecated-surface-removal-v0-1-2.md`, whose R1 re-runs the census immediately
   before the first deletion.
-- **FR-029e** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-1.md` R1)*: The census MUST be **re-run
+- **FR-029e** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-2.md` R1)*: The census MUST be **re-run
   immediately before the deletions**, not once at the
   close of the preceding wave. A consumer can regress between merge and removal — reintroducing a
   deprecated import in a later commit — and a census dated before that commit certifies nothing.
   The census MUST record its own date and the last consumer merge it postdates.
-- **FR-029a** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-1.md` R2–R9)*: Removal MUST cover all five shim
+- **FR-029a** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-2.md` R2–R9)*: Removal MUST cover all five shim
   modules, the aliases in the XML package's
   namespace, and every remaining deprecated-symbol site. **"Every remaining" was under-enumerated
   here**: the task list named two sites and there are nine, in eight files — re-enumerated in that
   document, which also records that `_deprecation.py` itself survives.
-- **FR-029b** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-1.md` R10)*: The contract tests pinning the shims
+- **FR-029b** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-2.md` R10)*: The contract tests pinning the shims
   MUST be retired **deliberately**, with the
   spec and guide stating what replaces them and why deleting them is correct here.
-- **FR-029c** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-1.md` R11)*: The library version MUST move to the
+- **FR-029c** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-2.md` R11)*: The library version MUST move to the
   removal release its warnings have named since
   feature 006 — or the divergence MUST be recorded, because otherwise every one of those warnings
   was wrong. **The move is not a standalone task**: five siblings bound `<< 0.1.1~` must be
   re-bound in the same step, or the ecosystem will not install at all.
-- **FR-029d** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-1.md` R4)*: Before deleting either, the two
+- **FR-029d** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-2.md` R4)*: Before deleting either, the two
   similarly-named parser symbols MUST be
   distinguished: one is a retired alias, the other is a delegating façade contractually required
   to stay silent. They are different symbols.
@@ -1280,8 +1288,8 @@ repositories on disk and show the count is zero; then delete and run the suite.
   consumer repositories is **zero** before a single deletion, and the deprecated surface is gone
   after: five shim modules, the namespace aliases and every remaining deprecated-symbol site.
   **⚠ Split 2026-10-03**: the zero is this feature's and is measured; *"the surface is gone after"*
-  is migrated to `specs/planning/deprecated-surface-removal-v0-1-1.md`.
-- **SC-019** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-1.md`)*: The library's version equals the removal
+  is migrated to `specs/planning/deprecated-surface-removal-v0-1-2.md`.
+- **SC-019** *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-2.md`)*: The library's version equals the removal
   release its warnings have named since
   feature 006, or the divergence is recorded in the guide. **Not this feature's**: the refactor
   lands at `0.1.0rc16`.
@@ -1295,7 +1303,7 @@ repositories on disk and show the count is zero; then delete and run the suite.
   fixes.
 - **SC-PERF-001**: This repository's suite stays within budget derived from **20.73 ms/test**;
   the descriptor's publication costs nothing measurable; ~~the deprecated-surface removal does not
-  make the suite slower~~ *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-1.md` R12, which also corrects the
+  make the suite slower~~ *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-2.md` R12, which also corrects the
   retiring-test count from 22 to a measured 47)*; the engine's project-load time does not regress against **008's**
   post-landing figure; and network-map load is measured against **008's** post-landing
   10.14–10.49 ms rather than 007's ≤10.20 ms cap, which 008 already recorded as

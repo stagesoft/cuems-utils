@@ -135,7 +135,7 @@ def _as_bool(val: Any) -> bool:
     ``cms:BoolType`` decodes to. It stays callable with either shape rather
     than only the new one, because Assumption 8 keeps this method available
     until its last caller (``cuems-engine``) has migrated and the
-    deprecated surface is removed (``specs/planning/deprecated-surface-removal-v0-1-1.md``).
+    deprecated surface is removed (``specs/planning/deprecated-surface-removal-v0-1-2.md``).
     """
     return val if isinstance(val, bool) else strtobool(val)
 
@@ -217,7 +217,7 @@ class NetworkMap(Settings):
         """Deprecated (T083) — mutates its argument in place (FR-015's
         opposite), kept working until ``cuems-engine`` migrates its
         caller and the deprecated surface is removed (Assumption 8;
-        ``specs/planning/deprecated-surface-removal-v0-1-1.md``). See
+        ``specs/planning/deprecated-surface-removal-v0-1-2.md``). See
         :meth:`partition_by_adoption` for the non-mutating replacement."""
         nodes = []
         new_nodes = []

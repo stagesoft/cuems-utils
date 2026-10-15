@@ -20,7 +20,7 @@ and the file inventory in this repository.
 2. **`cuems-utils` cuts `0.1.1` directly** — no `0.1.1~rc1` (settled 2026-10-12). That is what makes
    a plain `>= 0.1.1` the correct consumer floor.
 3. **The deprecated-surface removal moves with it**, `v0.1.1` → **`v0.1.2`**. That work is
-   [`deprecated-surface-removal-v0-1-1.md`](deprecated-surface-removal-v0-1-1.md), which this
+   [`deprecated-surface-removal-v0-1-2.md`](deprecated-surface-removal-v0-1-2.md), which this
    decision renames (§7).
 4. **Merge before bump.** Every fix already released from a parallel line is absorbed into the
    refactor branch before the new version is published, so nothing shipped is lost. The version entry
@@ -161,7 +161,7 @@ Verified with `dpkg`: the pair refuses every `0.1.0rcN` (including the released 
 `0.1.2` is the removal release, so the ceiling still refuses exactly the library version that would
 break an unmigrated consumer at runtime.
 
-⚠ **`<< 0.2.0~` is wrong** — both `deprecated-surface-removal-v0-1-1.md` §3 and
+⚠ **`<< 0.2.0~` is wrong** — both `deprecated-surface-removal-v0-1-2.md` §3 and
 `upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)* §3 propose it, and it would admit `0.1.2`, the release
 that deletes the surface the ceiling exists to protect. It is `<< 0.1.2~`.
 
@@ -234,8 +234,8 @@ correct pattern; the two literal sites above are the exceptions.
 
 | File | Line(s) | Change |
 |---|---|---|
-| `specs/planning/deprecated-surface-removal-v0-1-1.md` | **21 sites** | `git mv` to `…-v0-1-2.md`; retitle; §1.1's `dpkg` table re-derived (§4.1 supersedes it); §1.2's "wrong in the other direction" argument rebased on `v0.1.2`; §3's atomic step **no longer belongs there** — it fires at this landing; §5 item 1's struck question re-opens as "is `0.1.2` the first release after a stable one?"; §7's rendered example message |
-| …the **14 files citing that filename** | 14 | `git grep -l deprecated-surface-removal-v0-1-1` — two are **not documents**: `src/cuemsutils/tools/CTimecode.py` and `tests/unit/test_ctimecode.py` |
+| `specs/planning/deprecated-surface-removal-v0-1-2.md` | **21 sites** | `git mv` to `…-v0-1-2.md`; retitle; §1.1's `dpkg` table re-derived (§4.1 supersedes it); §1.2's "wrong in the other direction" argument rebased on `v0.1.2`; §3's atomic step **no longer belongs there** — it fires at this landing; §5 item 1's struck question re-opens as "is `0.1.2` the first release after a stable one?"; §7's rendered example message |
+| …the **14 files citing that filename** | 14 | `git grep -l deprecated-surface-removal-v0-1-2` — two are **not documents**: `src/cuemsutils/tools/CTimecode.py` and `tests/unit/test_ctimecode.py` |
 | `debian/changelog` | 1 | `(0.1.0rc16) UNRELEASED` → `(0.1.1)`. It **cannot** keep `0.1.0rc16` — §2 |
 | `debian/changelog` | 94-95 | "REMOVED IN v0.1.1, which is why every consumer pins `<< 0.1.1~`" — both halves wrong |
 | `debian/control` | **23** | `Breaks: cuems-common (<< 1.3.1~)` + the comment at `:15-22` — §1.1, §4.2 |

@@ -20,6 +20,7 @@ import warnings
 
 import pytest
 
+from cuemsutils._deprecation import REMOVAL_RELEASE
 from cuemsutils.xml import XmlReaderWriter
 
 #: The four configuration schemas, which must be sent at the config validator.
@@ -88,4 +89,4 @@ def test_every_schema_still_names_the_removal_release(schema_name, tmp_path):
     second message format — which is the rule ``_deprecation.py``'s docstring
     exists to keep.
     """
-    assert "removed in v0.1.1" in _advice(schema_name, tmp_path)
+    assert f"removed in {REMOVAL_RELEASE}" in _advice(schema_name, tmp_path)

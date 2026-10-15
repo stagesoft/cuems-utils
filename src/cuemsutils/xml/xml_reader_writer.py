@@ -201,7 +201,7 @@ class XmlReaderWriter(CuemsXml):
         X1 made observable. Deprecating the method rather than teaching it to
         convert is the honest answer: 008 put conversion in the public path on
         purpose (D19/D21's three load outcomes are reported, which a raw decode
-        cannot do), and this surface is removed at ``v0.1.1`` regardless.
+        cannot do), and this surface is removed at ``v0.1.2`` regardless.
 
         Use :meth:`cuemsutils.cues.CuemsScript.CuemsScript.to_wire` for a show
         document, or the ``ConfigManager`` accessors for a configuration one.

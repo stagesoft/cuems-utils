@@ -1,7 +1,7 @@
 """Deprecated import path — use :mod:`cuemsutils.xml.xml_reader_writer`.
 
 Kept so that every consumer import written before the D9 rename keeps resolving
-(FR-026a, contract C9). Removed in ``v0.1.1``.
+(FR-026a, contract C9). Removed in ``v0.1.2``.
 
 **Importing this module is silent; using what it exports is not.** A
 module-level re-export cannot satisfy FR-027b — an import warns at most once,

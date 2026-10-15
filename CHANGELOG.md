@@ -6,6 +6,29 @@ The coordinated `xml-refactor` release
 (`specs/planning/coordinated-release-version-bump.md`). This section is being filled in as items
 land; the date goes on when the release is cut.
 
+### Coordinated release — every CUEMS repository moves to its next stable minor
+
+`cuems-utils` **0.1.1** is cut directly (no `0.1.1~rc1`), together with `cuems-common 1.3.1-1`,
+`cuems-engine 0.1.1-1`, `cuems-editor 0.1.1-1`, `cuems-nodeconf 0.1.1-1`, `cuems-power-bridge
+0.4.0-1` and `cuems-frontend 0.2.0` (feature 016). Every consumer now bounds this library
+`>= 0.1.1`, `<< 0.1.2~`. `0.1.0rc16`, the old floor, was released from another line without the
+public object API, so it no longer names this surface. The deprecated surface that `0.1.0` and
+`0.1.1` still ship now goes away in **`v0.1.2`**. The warnings say so, and the removal plan is
+`specs/planning/deprecated-surface-removal-v0-1-2.md`. `Breaks: cuems-common (<< 1.3.1~)` replaces
+`(<< 1.3.0-23~)`, which the released `1.3.0-23`…`-25` satisfied without carrying the `/etc/cuems`
+handover.
+
+### Not yet reconciled — do not publish until it is
+
+The parallel release line (`debian/bookworm`, 77 commits ahead on 2026-10-15) has shipped two
+builds whose content is **not** in this branch yet. They are absorbed before publication, and the
+package relations are re-verified after the merge:
+
+- **`0.1.0rc16+1`**: stops shipping `/usr/lib/cuems/CACHEDIR.TAG`, a file-overwrite conflict with
+  `cuems-power-bridge` and `cuems-engine` at `dpkg -i` time.
+- **`0.1.0rc17`**: `script.xsd`'s `ActionType` gains `stop_project`. A project saved by an rc17
+  cluster with a `stop_project` cue is **refused** by `0.1.1` until this is absorbed.
+
 ### Fixed — another cluster's controller no longer joins this one's network map
 
 Several CUEMS clusters can share one LAN, and every controller announces itself over mDNS. A
@@ -163,7 +186,7 @@ lookup that the explicit registry exists to delete.
 
 ### Deprecated
 
-All of the following keep working and will be **removed in `v0.1.1`**. Importing is silent;
+All of the following keep working and will be **removed in `v0.1.2`**. Importing is silent;
 each *call* warns, at the caller's line, naming its replacement. Full table with consumer
 call sites: `specs/004-xml-serialization-core/migration-map.md`.
 

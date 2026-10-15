@@ -219,7 +219,7 @@ class CTimecode(Timecode):
         silence this warning.
 
         **Deprecated since 0.1.0rc6; removed in** ``_deprecation.REMOVAL_RELEASE``
-        (``v0.1.1``), on the same schedule as every other retired surface.
+        (``v0.1.2``), on the same schedule as every other retired surface.
 
         The notice used to be hand-written here and promised removal "at the
         first stable release" — a different date from the one every *other*
@@ -233,7 +233,7 @@ class CTimecode(Timecode):
         original's in a way a caller would otherwise discover in production.
 
         Scheduled with the rest of the removal in
-        ``specs/planning/deprecated-surface-removal-v0-1-1.md`` (R8, item 5).
+        ``specs/planning/deprecated-surface-removal-v0-1-2.md`` (R8, item 5).
         """
         return self.milliseconds_rounded
 

@@ -1,5 +1,13 @@
 # Contract — the release gate
 
+> **Superseded versions, 2026-10-15 (feature 016).** The coordinated `xml-refactor` landing no
+> longer holds `0.1.0rc16`. It cuts **`cuems-utils 0.1.1`**, the deprecated surface goes in
+> **`v0.1.2`** (`REMOVAL_RELEASE`), and every consumer bounds the library **`>= 0.1.1`,
+> `<< 0.1.2~`** (`cuemsutils>=0.1.1,<0.1.2`), per
+> `specs/016-coordinated-minor-bump/contracts/relation-matrix.md`. Below, `0.1.0rc16`,
+> `<< 0.1.1~` and `v0.1.1` are left as **dated record** of what was true when written. Read any
+> *instruction* that names them with the new values.
+
 **Waves 4 and 5** | Governs FR-091–FR-097, FR-100–FR-108, FR-029–FR-029d
 
 ## The claim the gate makes
@@ -49,7 +57,7 @@ one this contract's opening claim rests on: a `>=` floor in `debian/control` is 
 enforces; a bound in `pyproject.toml` is not. **Closed 2026-09-29** (`../cuems-power-bridge`
 `399baf7`) by adding `cuems-utils (<< 0.1.1~)` at `:19`. Verified with `dpkg --compare-versions`:
 `0.1.0rc16` and `0.1.0rc17` satisfy both bounds; `0.1.1~rc1`, `0.1.1` and `0.2.0` are refused — and
-`0.1.1` is the release the deprecated surface is removed in (**R11** of `specs/planning/deprecated-surface-removal-v0-1-1.md`, migrated
+`0.1.1` is the release the deprecated surface is removed in (**R11** of `specs/planning/deprecated-surface-removal-v0-1-2.md`, migrated
 from T060 on 2026-10-03), so the bound now refuses exactly
 the library version that would break this consumer at runtime.
 
@@ -169,7 +177,7 @@ The two holdouts have both moved, and FR-091's enumeration is complete.
 
 ## ⚠️ What closing the gate obliges, which this contract did not say
 
-Five `debian/control` files now carry `cuems-utils (<< 0.1.1~)`. **R11 of `specs/planning/deprecated-surface-removal-v0-1-1.md` moves this
+Five `debian/control` files now carry `cuems-utils (<< 0.1.1~)`. **R11 of `specs/planning/deprecated-surface-removal-v0-1-2.md` moves this
 library to `v0.1.1`** — migrated from T060 on 2026-10-03, because this feature lands at
 `0.1.0rc16`. ⚠ **And the bound admits `0.1.0rc17`**, verified with `dpkg --compare-versions`: so
 deleting the surface at any `rc` would satisfy every consumer bound while no longer carrying what

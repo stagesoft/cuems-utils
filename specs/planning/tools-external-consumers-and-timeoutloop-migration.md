@@ -213,7 +213,7 @@ Original plan, for reference:
    `cuems-nodeconf` imports `from cuemsutils.timeoutloop import Timeoutloop` today and this repo
    does not get to edit that repository as part of this work. This repo already has a mechanism for
    exactly this — `xml/_deprecation.py`'s `deprecated_alias(target, replacement)` — used for the
-   feature-006 API retirement (`REMOVAL_RELEASE = "v0.1.1"`, warns on every call via `deprecated`,
+   feature-006 API retirement (`REMOVAL_RELEASE = "v0.1.1"` at the time; `"v0.1.2"` since feature 016, warns on every call via `deprecated`,
    keeps `isinstance` compatibility via subclassing rather than a bare re-export, which matters here
    because `Timeoutloop` is used as `for x in Timeoutloop(...)`, not just constructed once). Two
    options, worth deciding rather than defaulting silently:

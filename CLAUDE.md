@@ -455,7 +455,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   - **The deprecated-surface census over shipped source is zero across all six consumers.** The
     five module deletions, the seven aliases and the **`v0.1.1` version move** are no longer
     held by any consumer's *source*. **Re-scoped 2026-10-03**: they are no longer feature 010's at
-    all — T050–T061 migrated to `specs/planning/deprecated-surface-removal-v0-1-1.md` as R1–R12,
+    all — T050–T061 migrated to `specs/planning/deprecated-surface-removal-v0-1-2.md` as R1–R12,
     because this arc lands at `0.1.0rc16` and the coordinated tag cuts no stable release. Measured
     with `dpkg`, the siblings' `<< 0.1.1~` bound admits `0.1.0rc17`, so **deleting the surface
     without the version move defeats the gate** — the two are one step, at `v0.1.1`, which is

@@ -1,5 +1,13 @@
 # Baseline — feature 010, consumer migration
 
+> **Superseded versions, 2026-10-15 (feature 016).** The coordinated `xml-refactor` landing no
+> longer holds `0.1.0rc16`. It cuts **`cuems-utils 0.1.1`**, the deprecated surface goes in
+> **`v0.1.2`** (`REMOVAL_RELEASE`), and every consumer bounds the library **`>= 0.1.1`,
+> `<< 0.1.2~`** (`cuemsutils>=0.1.1,<0.1.2`), per
+> `specs/016-coordinated-minor-bump/contracts/relation-matrix.md`. Below, `0.1.0rc16`,
+> `<< 0.1.1~` and `v0.1.1` are left as **dated record** of what was true when written. Read any
+> *instruction* that names them with the new values.
+
 **Measured**: 2026-09-04 · **Branch**: `010-consumer-migration` @ `bcf1509`
 **Runner**: `hatch test` under **pyenv 3.11.9** (see the gotcha below)
 
@@ -779,7 +787,7 @@ The bound was verified rather than assumed, with `dpkg --compare-versions`:
 | `0.1.1` | satisfied | **refused** | ⛔ |
 | `0.2.0` | satisfied | **refused** | ⛔ |
 
-`0.1.1` is exactly the release the deprecated surface is removed in (**R11** of `specs/planning/deprecated-surface-removal-v0-1-1.md`,
+`0.1.1` is exactly the release the deprecated surface is removed in (**R11** of `specs/planning/deprecated-surface-removal-v0-1-2.md`,
 migrated from T060 on 2026-10-03). Before this, a host that
 upgraded the library alone satisfied `>= 0.1.0rc16` perfectly and broke the bridge at runtime —
 during a poweroff — with no packaging error anywhere. That is the failure a floor cannot express,
@@ -1464,7 +1472,7 @@ All four plus `cuems-common` now express it identically; `cuems-frontend` cannot
 uses the payload handshake instead (FR-108). **FR-091's enumeration is closed.**
 
 ⚠️ **And closing it creates one new obligation that no task in this file carries.** Every edge is
-`<< 0.1.1~`. **R11 of `specs/planning/deprecated-surface-removal-v0-1-1.md` moves this library's `__version__` to `v0.1.1`** (migrated
+`<< 0.1.1~`. **R11 of `specs/planning/deprecated-surface-removal-v0-1-2.md` moves this library's `__version__` to `v0.1.1`** (migrated
 from T060 on 2026-10-03; this feature lands at `0.1.0rc16`) — the release
 `_deprecation.REMOVAL_RELEASE` has promised since feature 006. On the day it does, all five
 `debian/control` upper bounds refuse the library that is supposed to ship beside them, and `dpkg`

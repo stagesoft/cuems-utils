@@ -11,7 +11,7 @@ it is machinery behind two public entry points:
 
 **Dotted access still works this release, and is unsupported** (FR-019a).
 ``from cuemsutils.xml import XmlReaderWriter`` resolves and warns; it is gone in
-``v0.1.1``. Keeping it functional is not an oversight — the deprecation shims
+``v0.1.2``. Keeping it functional is not an oversight — the deprecation shims
 below *resolve through it*, so emptying ``__all__`` and making the names
 unreachable are different changes. Genuine lockdown is feature 009's, together
 with the consumer migration the shims exist to buy time for.

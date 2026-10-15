@@ -114,7 +114,7 @@ Runtime utilities shared by all CueMS processes.
 
 * **`CopyMoveVersioned`** — atomic versioned file copy/move for project file management.
 
-* **`TimeoutLoop`** — iterator-based bounded polling loop; raises `TimeoutError` once elapsed time exceeds `timeout`. Formerly `timeoutloop.Timeoutloop` at the package root; that path still resolves but is deprecated (removed in `v0.1.1`).
+* **`TimeoutLoop`** — iterator-based bounded polling loop; raises `TimeoutError` once elapsed time exceeds `timeout`. Formerly `timeoutloop.Timeoutloop` at the package root; that path still resolves but is deprecated (removed in `v0.1.2`).
 
 ---
 

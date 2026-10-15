@@ -100,7 +100,7 @@ data models or utilities add it as a dependency and import the relevant classes.
   sanitization, and atomic versioned file management.
 - **`TimeoutLoop`** — iterator-based bounded polling loop; raises `TimeoutError` once
   elapsed time exceeds `timeout`. Formerly `timeoutloop.Timeoutloop` at the package root;
-  that path still resolves but is deprecated (removed in `v0.1.1`).
+  that path still resolves but is deprecated (removed in `v0.1.2`).
 
 ### XML layer
 

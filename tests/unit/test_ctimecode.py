@@ -399,11 +399,11 @@ class TestPrecisionSplit:
     def test_milliseconds_removal_release_matches_the_retired_surface(self):
         """It is scheduled with the rest, not on a date of its own.
 
-        ``specs/planning/deprecated-surface-removal-v0-1-1.md`` R8 item 5 is
+        ``specs/planning/deprecated-surface-removal-v0-1-2.md`` R8 item 5 is
         this property. If ``REMOVAL_RELEASE`` ever moves, this test is what
         says so here rather than leaving a second schedule in a docstring.
         """
-        assert REMOVAL_RELEASE == "v0.1.1"
+        assert REMOVAL_RELEASE == "v0.1.2"
 
     def test_milliseconds_rounded_at_integer_framerates_matches_exact_int(self, framerate):
         # At all integer-or-ms framerates in the matrix, _exact is a whole

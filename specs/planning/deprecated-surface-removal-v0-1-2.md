@@ -3,15 +3,25 @@ SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-# The deprecated surface comes out at `v0.1.1` — migrated out of feature 010
+# The deprecated surface comes out at `v0.1.2` — migrated out of feature 010
 
-**Status**: **not a feature, not scheduled.** `v0.1.1` is the next stable release and it is
-**unplanned**. This document holds the work until it is, so that feature 010 can close on what it
-actually delivers.
+**Status**: **not a feature, not scheduled.** Renamed from `…-v0-1-1.md` on 2026-10-15 by feature
+016. The coordinated `xml-refactor` landing now cuts **`0.1.1`** itself (its rule 3,
+`specs/planning/coordinated-release-version-bump.md`), so the removal moves to **`v0.1.2`**, the
+next stable release after it, which is **unplanned**. This document holds the work until it is, so
+that feature 010 can close on what it actually delivers.
+
+> **What moved with the rename.** `REMOVAL_RELEASE` is `"v0.1.2"`, so every warning now reads
+> *"removed in v0.1.2"*. The five consumers bound this package `(>= 0.1.1)`, `(<< 0.1.2~)`. §3's
+> atomic step, the version move together with the re-bound of five siblings, **fired at `0.1.1` in
+> 016**. The surface removal still needs its own version move, `0.1.2`, and its own re-bound to
+> `<< 0.1.3~`, as one step, by the same reasoning as §1.
 
 **Why it exists**: feature 010's **T051–T061** delete the deprecated surface and move
-`__version__` to `v0.1.1`. The `feat/xml-refactor` work lands as **`0.1.0rc16`** — the coordinated
-`xml-refactor-merge-candidate` tag cuts no stable release. So that block contradicts the versioning
+`__version__` to `v0.1.1`. When this was written, the `feat/xml-refactor` work was to land as
+**`0.1.0rc16`** and the coordinated tag cut no stable release. *(Superseded 2026-10-15: the tag
+now cuts `0.1.1` and the removal moves to `v0.1.2`. The argument below holds unchanged, one minor
+up.)* So that block contradicts the versioning
 the whole refactor is running under, and §1 shows the contradiction is **mechanical**, not
 stylistic.
 
@@ -29,38 +39,39 @@ the guide, the budgets and the `xml-rebuild` discharge. See §6.
 
 ### 1.1 Deleting the surface without the version move **defeats the release gate**
 
-Five sibling `debian/control` files carry `cuems-utils (>= 0.1.0rc16)`, `(<< 0.1.1~)` —
+*(Re-derived 2026-10-15, feature 016, from `specs/016-coordinated-minor-bump/contracts/relation-matrix.md`.)*
+Five sibling `debian/control` files carry `cuems-utils (>= 0.1.1)`, `(<< 0.1.2~)` —
 `cuems-common`, `cuems-engine`, `cuems-editor`, `cuems-nodeconf`, `cuems-power-bridge`. That bound
 exists for exactly one purpose: to stop a library that has **removed** the deprecated surface
 installing beside a consumer that still **imports** it.
 
 It expresses that by version number alone. Measured with `dpkg --compare-versions`:
 
-| library version | `>= 0.1.0rc16` | `<< 0.1.1~` | result |
+| library version | `>= 0.1.1` | `<< 0.1.2~` | result |
 |---|---|---|---|
-| `0.1.0rc16` | yes | yes | **installs** |
-| **`0.1.0rc17`** | yes | yes | **installs** |
-| **`0.1.0rc99`** | yes | yes | **installs** |
-| `0.1.1~rc1` | yes | no | refused |
-| `0.1.1` | yes | no | refused |
+| `0.1.0rc17` | no | yes | refused |
+| `0.1.1` | yes | yes | **installs** |
+| **`0.1.1-1`, `0.1.1+b1`** | yes | yes | **installs** |
+| `0.1.2~rc1` | yes | no | refused |
+| `0.1.2` | yes | no | refused |
 
-So a library at **any** `0.1.0rcN` with the surface deleted satisfies every consumer bound in the
-ecosystem. **Land the deletions under the coordinated tag and the gate becomes ornamental** — it
+So a library at **any** `0.1.1` revision with the surface deleted satisfies every consumer bound in
+the ecosystem. **Land the deletions under the coordinated tag and the gate becomes ornamental** — it
 would admit the one pairing it was built to refuse, and the failure would be an `ImportError` on a
 node rather than a refusal at `dpkg` time.
 
 The deletions and the version move are therefore **one indivisible step**, and that step is
-`v0.1.1`.
+`v0.1.2`.
 
 ### 1.2 Removing early makes every warning wrong in the *other* direction
 
-`_deprecation.REMOVAL_RELEASE` is `"v0.1.1"` (`src/cuemsutils/_deprecation.py:26`) and every
-warning this library emits reads *"use X instead; removed in v0.1.1"* (`:42`). 010's own T060 names
+`_deprecation.REMOVAL_RELEASE` is `"v0.1.2"` (`src/cuemsutils/_deprecation.py:26`) and every
+warning this library emits reads *"use X instead; removed in v0.1.2"* (`:42`). 010's own T060 names
 the hazard in one direction — move the version without the deletions and the warnings were wrong.
-The reverse holds too: **delete at `rc17` and the surface vanished before the release it was
-promised for**, which is the same contract broken from the other side.
+The reverse holds too: **delete in a `0.1.1` revision and the surface vanished before the release
+it was promised for**, which is the same contract broken from the other side.
 
-Either half alone is a broken promise. Together, at `v0.1.1`, both are kept.
+Either half alone is a broken promise. Together, at `v0.1.2`, both are kept.
 
 ---
 
@@ -187,6 +198,11 @@ obligations, and it is sequenced here because its subject is the five modules R2
 
 ## 3. The atomic step — R11 is five repositories, not one file
 
+> **Fired by feature 016 (2026-10-15) for `0.1.1`.** The coordinated landing moved the version and
+> re-bound all five siblings in one coordinated set (`specs/016-coordinated-minor-bump/`). What
+> remains for this document is the **same step one minor later**: `0.1.2` together with
+> `>= 0.1.2`, `<< 0.1.3~` in all five.
+
 Migrated from `upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)* §3, which is where this was first
 recorded. §1.1's table is the proof.
 
@@ -194,8 +210,8 @@ recorded. §1.1's table is the proof.
 > beside five packages bounded `<< 0.1.1~` is an ecosystem that will not install at all, and the
 > failure surfaces at `dpkg` time on a node.
 
-Each sibling needs the same two lines raised in lockstep (`>= 0.1.1`, `<< 0.2.0~` if the next break
-is minor) **plus** its `pyproject.toml` bound — which `dpkg` does not enforce but `pip`/`poetry`
+Each sibling needs the same two lines raised in lockstep (`>= 0.1.1`, `<< 0.1.2~` — **not**
+`<< 0.2.0~`, which would admit `0.1.2`, the removal release itself) **plus** its `pyproject.toml` bound — which `dpkg` does not enforce but `pip`/`poetry`
 resolves. `cuems-frontend` has no package and uses the payload handshake instead (010 FR-108); the
 editor already sends `payload_version: 1` as its first frame, so that half exists.
 
@@ -223,7 +239,10 @@ FR-UX-002's missing consumer; its T076's upper bound).
 *(One of the four was settled on 2026-10-03; it is struck rather than removed, because the
 reasoning is what makes the answer checkable.)*
 
-1. ~~**Is `v0.1.1` the first stable release?**~~ **Answered 2026-10-03 by normalising the notice
+1. **Is `v0.1.2` the first release after a stable one?** *Re-opened 2026-10-15 by 016.* `0.1.1`
+   is now the first stable release, and `0.1.2` is the first release after a stable one. The
+   2026-10-03 answer below still holds for the notice itself:
+   ~~**Is `v0.1.1` the first stable release?**~~ **Answered 2026-10-03 by normalising the notice
    — see §7.** `CTimecode.milliseconds` no longer makes a promise of its own; it reads
    `REMOVAL_RELEASE` like every other retired symbol, so R8's item 5 is due with the rest and needs
    no split.
@@ -237,7 +256,7 @@ reasoning is what makes the answer checkable.)*
 3. **Whether this becomes one feature or rides a release feature.** It is a coherent unit (one
    release, one promise kept) but it is small and entirely internal. Either shape is defensible; the
    constitution's requirements apply the same way.
-4. **When.** `v0.1.1` is unplanned. This document is the holding place, not a schedule.
+4. **When.** `v0.1.2` is unplanned. This document is the holding place, not a schedule.
 
 ---
 
@@ -312,7 +331,7 @@ review across ~20 sites"*; this site was outside that guarantee.
 )
 ```
 
-→ `use .milliseconds_rounded instead; removed in v0.1.1; note: the replacement rounds where this
+→ `use .milliseconds_rounded instead; removed in v0.1.2; note: the replacement rounds where this
 truncated…`
 
 Three things that change, each deliberate:
@@ -340,7 +359,7 @@ Two, in `tests/unit/test_ctimecode.py` beside the existing emission tests:
   that the caveat travels as a `note`. **It fails against the old message**, which contained
   neither — which is why it is worth pinning beyond "a warning is emitted", which two existing
   tests already cover.
-- `test_milliseconds_removal_release_matches_the_retired_surface` pins `REMOVAL_RELEASE == "v0.1.1"`
+- `test_milliseconds_removal_release_matches_the_retired_surface` pins `REMOVAL_RELEASE` (`"v0.1.2"` since 016)
   from this side, so a move shows up here rather than in a docstring nobody re-reads.
 
 Suite **3432 passed / 112 skipped / 2 xfailed**.

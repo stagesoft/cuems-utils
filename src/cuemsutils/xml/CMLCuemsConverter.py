@@ -1,7 +1,7 @@
 """Deprecated import path — use :mod:`cuemsutils.xml.converter`.
 
 Kept so that any consumer import written before this feature keeps resolving
-(FR-026a, contract C9). Removed in ``v0.1.1``.
+(FR-026a, contract C9). Removed in ``v0.1.2``.
 
 Importing is silent; using what it exports is not — see the note in
 :mod:`cuemsutils.xml.XmlReaderWriter`, which this module mirrors.

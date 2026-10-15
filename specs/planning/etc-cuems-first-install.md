@@ -971,7 +971,7 @@ being made.
    provenance per document — authored choice, already declared in `project_mappings`). Each
    schema moves to **document version 2** with a registered conversion, so documents in the
    field convert on read: a real production `settings.xml` carrying both counts loads clean.
-   The **library** version stays `0.1.0rc16` (§12).
+   The **library** version stays `0.1.0rc16` (§12) — *reversed 2026-10-15: `0.1.1`, feature 016.*
 
    Three things this cost, each recorded where it happened: the golden-capture harness had to
    be fixed first (it could no longer regenerate, and `--force` would have destroyed nine
@@ -1341,6 +1341,13 @@ baseline that no longer describes anything is how that state is reached.
 
 ## 12. The version this work merges under — `0.1.0rc16`
 
+> **REVERSED 2026-10-15 by feature 016**, recorded here where it was decided rather than silently
+> overwritten. The coordinated landing cuts **`0.1.1`**
+> (`specs/planning/coordinated-release-version-bump.md` rule 1–2). §12.1's two reasons are
+> **resolved, not wrong**: `REMOVAL_RELEASE` moved to `v0.1.2` with the version, and the consumers'
+> ceilings were re-bound to `<< 0.1.2~` in the same coordinated set. The text below is the
+> 2026-09-23 decision as it stood.
+
 **Decided 2026-09-23.** The library version **stays at `0.1.0rc16`** through the whole
 xml-refactor. It is the version the coordinated merge deploys, and the final state is tagged
 `xml-refactor-merge-candidate`.
@@ -1358,7 +1365,7 @@ the two apart is what lets a schema change ship inside an rc line without lying 
   emitted since feature 006 promises the deprecated surface is *gone* in v0.1.1. Releasing it
   with `Settings.py`, `XmlReaderWriter.py`, `Parsers.py`, `CMLCuemsConverter.py`,
   `timeoutloop.py` and the seven aliases still present makes all of them false — which is
-  exactly what feature 010's T060 — since 2026-10-03 **R11** of `specs/planning/deprecated-surface-removal-v0-1-1.md` — is written to
+  exactly what feature 010's T060 — since 2026-10-03 **R11** of `specs/planning/deprecated-surface-removal-v0-1-2.md` — is written to
 prevent. That removal is gated on T049/T050's
   **measured zero** import census, which is not met.
 - **Three consumers would refuse it outright**, by package relation rather than by convention:
