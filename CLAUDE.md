@@ -198,6 +198,13 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     a 2× regression"; 5 samples in one quiet window gave "exceeded by 2.0–4.9%" and a 110% tolerance;
     only 16 samples across three windows gave the stable answer. **Consistency within a window is
     not evidence — it is what makes a bad measurement persuasive.**
+- **Feature 016 (`016-coordinated-minor-bump`, planned 2026-10-15) adds no new technology.** It is
+  the first feature allowed to **commit in sibling repositories** (on their `feat/xml-refactor`,
+  never pushed, no tag moved). It bumps all seven repositories to their next stable minor and writes
+  the candidate-tag messages to `../.xml-refactor-tag-messages/`. Sibling suites run on **pyenv
+  3.11.9** from a per-repository `.venv` (excluded through `.git/info/exclude`). This repository
+  keeps its hatch matrix. Builds run in an `mmdebstrap` bookworm chroot (`equivs` and `debhelper`
+  are now on the host).
 
 ## Recent Changes
 
