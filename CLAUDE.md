@@ -27,6 +27,8 @@ All planning docs, implementation plans, agent prompts / reusable AI prompt temp
 
 ## Field notes / gotchas
 
+- **`script.xsd` `ActionType` has `stop_project` since 0.1.0rc17** (the engine's authored end-of-show cue, ClickUp 869fhjdq5). Project-scope: `action_target` is written empty and parses to `None` (the parsers bypass the setter; the constructor/setter still refuse `None`). **Skew rule:** every box of a cluster on ≥ rc17 before such a project is saved; ≤ rc16 rejects it at validation (editor cannot save or open, controller load fails early, a node fails its load after tearing the old project down → "Load stalled"). **Rollback hazard:** a utils downgrade strands such a project until the `stop_project` `<ActionCue>` is removed from `cue_script.xml` by hand.
+
 - **The shared venv `/usr/lib/cuems` is one-way**: it has `include-system-site-packages = true`, so the venv sees system packages but the system `/usr/bin/python3` **cannot** import `cuemsutils`. Any tool whose entry points live in `/usr/bin` (dh-python3) must not `import cuemsutils` — reimplement with stdlib. (See the portable-.deb notes in the cuems-thermalmon CLAUDE.md.)
 - Many packages populate that shared venv (`cuemsutils`, pynng, lxml, **websockets** from cuems-utils; **pythonosc** from cuems-engine; plus editor/nodeconf/midi-connector). A `.deb` must not bundle anything another package already ships, or `dpkg -i` aborts on a file-overwrite conflict. lxml is bundled at 5.3.0 (CVE-2026-41066 fixed in 6.1.0; audited across all components — zero parser call sites, reachable risk nil).
 
