@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.0rc17 — 2026-10-15
+
+New project-scope action for the authored end of an unattended show: the cuems-engine `stop_project` ActionCue (ClickUp 869fhjdq5). This package only carries the vocabulary; the behaviour is in the engine.
+
+### Added
+- `script.xsd` `ActionType` gains `stop_project`. It is the first project-scope action and needs no target, so its `action_target` is written empty (`<action_target />`), which `TargetType` already allowed. On parse that comes back as `None`: `str_to_value` maps the empty string to `None` and the parsers assign without going through the setter. The `ActionCue` constructor and setter still refuse an explicit `None`.
+- `tests/test_action_cue_stop_project.py`: writer → XSD → reader round trip, parsed target is falsy, the editor's JSON path (`CuemsParser` on a `null` target) gives the same, unknown action types are still rejected by the schema, the model still refuses `None`.
+
+### Notes
+- **Every box of a cluster needs ≥ rc17 before a project carrying the cue is saved.** A box on ≤ rc16 rejects such a project at validation: the editor cannot save or open it, the controller fails the load early, and a node fails the load after tearing down its previous project (no `armed_ready`, "Load stalled" at 120 s). **Rollback hazard:** downgrading utils on a box that holds such a project strands it until the `<ActionCue>` whose `<action_type>` is `stop_project` is removed from `cue_script.xml` by hand.
+- `pause_project`, `resume_project`, `load`, `unload` and `wait` stay in the enum and stay unimplemented.
+
 ## 0.1.0rc16 — 2026-10-08
 
 Media cues without a usable media block no longer crash the editor's save with a bare `KeyError 'file_name'`, and never make a project unloadable (ClickUp 869fej07m).
