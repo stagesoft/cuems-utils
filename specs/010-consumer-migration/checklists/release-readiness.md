@@ -46,19 +46,19 @@ written well enough to say what passing means. Where the requirement is not, tha
 - [x] CHK021 **RESOLVED 2026-09-04.** FR-072 now enumerates all sixteen sites as `<path>:<start_line>[-<end_line>]`, satisfying FR-071. The inherited audit numbers were **stale** and were re-measured 2026-09-04 [Resolved, Spec §FR-072]
 - [x] CHK022 **RESOLVED 2026-09-04.** FR-070a requires both groups labelled wherever the count is described [Resolved, Spec §FR-070a]
 - [x] CHK023 **RESOLVED 2026-09-04.** Resolved by decision: `cuems-editor` **acquires packaging** in this feature (FR-090a), so FR-091's four are real and now named rather than counted [Resolved, Spec §FR-090a, §FR-091]
-- [ ] CHK024 Are the payload constraint's statements consistent **everywhere it appears** — spec, contract and plan — as an enumerated two-delta rather than unconditional byte-identity? [Consistency, Spec §FR-010–FR-013]
+- [x] CHK024 **RESOLVED 2026-10-16 (re-review; analysis D1).** It had stopped being consistent: the spec said two deltas, the guide four, and the editor's live contract five. Every site now points at `cuems-editor`'s `tests/ws-command-responses.txt` as the definition rather than restating a count [Resolved, Spec §FR-010–FR-013, §FR-107, §SC-005]
 - [ ] CHK025 Is the distinction between the **document-version marker** and the **payload version** stated wherever either appears, so a reader cannot merge them? [Consistency, Spec §FR-012, §FR-106]
 - [ ] CHK026 Do FR-026's prohibition on descriptor growth and FR-022a's mandated addition read as a **stated exception** rather than a contradiction? [Consistency, Spec §FR-026, §FR-022b]
-- [ ] CHK027 Are the three cutover classes' release strategies stated **without collapsing** into one story — two admitting no dual state, one admitting it? [Consistency, Spec §FR-097]
+- [x] CHK027 **RESOLVED 2026-10-16 (re-review).** FR-097 stayed accurate for its three classes, but 012, 013 and 014 added three more hard cutovers, now assigned to the no-dual-state class. FR-095 now names the conversion as **two** ordered commands [Resolved, Spec §FR-095, §FR-097]
 - [ ] CHK028 Is the claim that `cuems-nodeconf`'s node model is "done, confirm not redo" consistent with the prohibition on consumer-side node-model tests? [Consistency, Spec §FR-003, §FR-069]
 
 ## Scenario Coverage
 
-- [ ] CHK029 Are requirements defined for all **three load outcomes** as consumer-visible behaviour — clean, repaired, unrepairable — rather than only the repaired one? [Coverage, Spec §FR-048–FR-049c]
+- [x] CHK029 **RESOLVED 2026-10-16 (re-review) — a real gap.** There is a fourth outcome, *document newer than the library*, which the spec never named. Measured: the show path carries a rule id for it, but the configuration path raises `ValidationError` with no violation. FR-049e requires both to carry the same rule id, and **T037c** implements it [Resolved, Spec §FR-049e]
 - [ ] CHK030 Are requirements defined for the **repeat** case: a repaired-but-unsaved document reporting the same repair on every open? [Coverage, Spec §FR-048c]
 - [ ] CHK031 Are requirements defined for both **upgrade orders** — nodes-first and controller-first — including which is prevented and which merely documented? [Coverage, Spec §FR-096]
 - [ ] CHK032 Are requirements defined for the **pre-conversion and post-conversion** rollback paths as distinct procedures with a checkable boundary between them? [Coverage, Spec §FR-100–FR-103]
-- [ ] CHK033 Are requirements defined for `repair_durations.py`'s primary purpose — reading **deliberately corrupt** documents — surviving the strict read path? [Coverage, Spec §FR-045]
+- [x] CHK033 **RESOLVED 2026-10-16 (re-review; analysis S5).** The premise moved: the tool repairs the DB and reads documents only to report. FR-044, FR-045 and SC-010 were amended, and T028 closed with 20 passing tests [Resolved, Spec §FR-044, §FR-045, §SC-010]
 - [ ] CHK034 Are requirements defined for all **five** show-parsing call sites, including the fifth outside the project store that the first audit pass missed? [Coverage, Spec §FR-041]
 - [ ] CHK035 Are requirements defined for the config-domain UI's **existing** behaviour surviving the port — adopt, unadopt, and the mixer screens' reads — rather than only for the new form renderer? [Coverage, Spec §FR-088]
 
@@ -66,21 +66,21 @@ written well enough to say what passing means. Where the requirement is not, tha
 
 - [ ] CHK036 Are requirements defined for a **cached UI bundle** — the one way a UI can lag an editor that serves it? [Edge Case, Spec §FR-108]
 - [x] CHK037 **RESOLVED 2026-09-04.** FR-029e promotes the re-run from a plan note to a requirement: the census records its own date and the last consumer merge it postdates [Resolved, Spec §FR-029e]
-- [ ] CHK038 Are requirements defined for a defect discovered **after backups were reclaimed**, when the post-conversion rollback's only protection is gone? [Edge Case, Spec §FR-102]
+- [x] CHK038 **RESOLVED 2026-10-16 (re-review) — a data-loss defect, found by measuring rather than reading.** The protection could be gone *before* reclaim. Both rewriters name backups at one-second resolution and overwrite each other, so the original was lost in 3 of 6 chained CLI runs. FR-102b forbids an overwrite and names the oldest backup as the restore point, and **T038c** fixes it [Resolved, Spec §FR-102b]
 - [ ] CHK039 Are requirements defined for the two owning repositories of the discovery vocabulary **merging at different times**? [Edge Case, Spec §FR-060]
 - [ ] CHK040 Is the "not shipped" exemption's **different lifetime** from the "detection code" exemption stated, so a future sweep does not treat a stale fixture as permanent? [Edge Case, Spec §FR-073a]
 
 ## Non-Functional Requirements
 
-- [ ] CHK041 Is the performance baseline stated as a **per-test** figure with its measurement date and commit, so a grown suite is not read as a regression? [Measurability, Spec §FR-PERF-001]
+- [x] CHK041 **RESOLVED 2026-10-16 (re-review).** FR-PERF-001a, written the same day, re-anchored the budgets but left the suite comparison's reference ambiguous. It now compares per test, each arm on its own suite, with arm A at `7a1893f` [Resolved, Spec §FR-PERF-001a]
 - [x] CHK042 **RESOLVED 2026-09-04.** **The finding was correct and the spec was wrong.** FR-PERF-001 and SC-PERF-001 both mandated 007's ≤10.20 ms cap, which 008 already recorded as exceeded. Both now measure against 008's post-landing 10.14–10.49 ms and record the position as inherited [Resolved, Spec §FR-PERF-001, §SC-PERF-001]
 - [ ] CHK043 Is the requirement that eager descriptor construction is a **design error rather than a budget overrun** stated normatively, not only as commentary? [Clarity, Spec §FR-PERF-001]
 
 ## Dependencies & Assumptions
 
 - [ ] CHK044 Is the assumption that the inherited 007/008 surfaces exist stated as something to **verify once** rather than assumed per story? [Assumption, Spec §"Assumptions" 3]
-- [ ] CHK045 Is the dependency on an **unmerged sibling branch** (the node-identity work landed but unreleased) documented with its consequence for the release gate? [Dependency, Spec §"Dependencies"]
-- [ ] CHK046 Are the two repositories with **no meaningful test coverage** identified as places where "each PR carries its own green suite" currently costs nothing? [Assumption, Spec §"Edge Cases"]
+- [x] CHK045 **RESOLVED 2026-10-16 (re-review).** The named branch is absorbed (`cuems-common` `fb450b5`). The live dependency is rule 4, so the gate has been exercised only on refactor-branch packages, and the spec now states the consequence [Resolved, Spec §"Dependencies"]
+- [x] CHK046 **RESOLVED 2026-10-16 (re-review).** The premise is stale: `cuems-power-bridge` runs 276 tests and `cuems-frontend` 288 specs, so SC-TEST-001 now binds all seven repositories without exception [Resolved, Spec §SC-TEST-001]
 - [ ] CHK047 Is the assumption that a green suite is **not evidence** for the semantically-wrong caller class stated as a normative constraint rather than advice? [Assumption, Spec §FR-004, §SC-QUALITY-001]
 
 ## Traceability
@@ -92,6 +92,22 @@ written well enough to say what passing means. Where the requirement is not, tha
 ---
 
 ## Notes
+
+**Re-review 2026-10-16** (before `/speckit.implement`, against the tree after features 011–016).
+Each item was re-evaluated against the current spec **and** measured where it makes a claim about
+code. **Eight verdicts changed** and are resolved above: CHK024, CHK027, CHK029, CHK033, CHK038,
+CHK041, CHK045 and CHK046. Two of them, CHK029 and CHK038, are code defects with tasks of their own
+(T037c, T038c). **Twenty-one re-confirm as passing**: CHK014, 019, 020, 025, 026, 028, 030, 031,
+032, 034, 035, 036, 039, 040, 043, 044, 047, 048, 049 and 050, plus CHK011 as the deliberate accept.
+CHK019 is now stronger than when written, because 016's demonstration evaluates it on real packages.
+They stay unticked, by this file's own convention below.
+
+⚠ **This convention collides with `/speckit.implement`'s gate**, which counts every unticked item
+as incomplete and reports FAIL. Read the FAIL against this paragraph: **the 21 are checked and
+fine, not outstanding.** The lesson of this re-review is that "confirmed passing" has a date.
+CHK038 passed on 2026-09-04 as a statement about the *requirements*, and became false when 013 added
+a second rewriter that the requirements never saw.
+
 
 **Status after the 2026-09-04 analysis pass: 21 items resolved, 29 confirmed passing, 0 open.**
 

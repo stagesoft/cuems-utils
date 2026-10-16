@@ -12,7 +12,9 @@
 > marked in place and keeps the original text as record: **FR-010/FR-011/FR-013/FR-107/SC-005**
 > and US6 (five payload deltas, defined by `cuems-editor`'s `tests/ws-command-responses.txt`);
 > **FR-PERF-001a** (new — budgets re-anchored by interleaved A/B, 115% or band); **FR-044/FR-045/
-> SC-010** (no consumer is a document rewriter); **FR-088e/FR-088f** (booleans after 014).
+> SC-010** (no consumer is a document rewriter); **FR-088e/FR-088f** (booleans after 014). The
+> checklist re-review the same day added **FR-049e** and **FR-102b** and amended **FR-095**,
+> **FR-097**, **SC-TEST-001** and the `cuems-common` dependency.
 
 **Feature Branch**: `010-consumer-migration`
 **Created**: 2026-09-03
@@ -912,6 +914,16 @@ repositories on disk and show the count is zero; then delete and run the suite.
   backup where one exists (FR-102), correct the named field by hand, or remove the document from
   the library. A failure that says only "this will not open" leaves an operator with a broken
   project and no next step.
+- **FR-049e** *(added 2026-10-16, checklist re-review CHK029)*: A document **newer than the
+  library** is a fourth consumer-visible outcome, beside clean, repaired and unrepairable, and MUST be
+  **distinguishable** from an unrepairable one on every load path, by a structured field and never
+  by the message's prose (the pattern `cuems-editor` UR-4 had to retire). Measured 2026-10-16: the
+  show path meets this, since `CuemsScript.load` raises `ValidationError` whose `violation.rule` is
+  `document_version_too_new`. The configuration path does **not**: `ConfigBase.load_config_document`
+  raises `ValidationError` with **no** violation, so a consumer can tell "upgrade the software" from
+  "repair the document" only by parsing the sentence. The two paths MUST carry the same rule id.
+  The recovery for this outcome is to upgrade the reader, never to edit the document — which is
+  what a node meets during a partial rollback (012's migration guide §9b).
 - **FR-049c**: The migration guide MUST record that this outcome is **new user-visible behaviour**
   introduced by 008's strictness reversal: a project that opened before this release can refuse to
   open after it. An operator meeting that for the first time needs it documented, not diagnosed.
@@ -1086,11 +1098,27 @@ repositories on disk and show the count is zero; then delete and run the suite.
   it runs over every document in every library, so the plan MUST still state what happens to a
   library mid-conversion, how backups are retained and reclaimed, and what an operator sees while
   it works.
+  ⚠ *Amended 2026-10-16 (checklist re-review CHK027)*: since 013 the show-document conversion is
+  **two** commands in a **required order** — `cuems-reshape-devices`, then `cuems-convert-documents`
+  (013: the reverse order deadlocks on a version-old, old-shape script). Both are explicit operator
+  commands under this requirement, and every "the conversion" in FR-095–FR-103 means **the pair**.
 - **FR-102a**: The conversion's **storage cost** MUST be stated as a requirement, not left to a
   measurement note: backups are written beside each document and never reclaimed automatically, so
   a converted library approximately **doubles** its own on-disk size until an operator reclaims
   them. The rollout plan MUST state this before the conversion runs, because a library that fills
   its volume mid-conversion is a failure the retention rule (FR-102) causes.
+- **FR-102b** *(added 2026-10-16, checklist re-review CHK038)*: **A backup MUST never overwrite
+  another backup**, and the rollback procedure MUST name which backup restores the pre-upgrade
+  state. Measured 2026-10-16, **this was violated**: both rewriters name a backup
+  `<name>.<YYYYMMDDTHHMMSS>.bak`, at one-second resolution, and copy with `shutil.copy2`, which
+  overwrites. When the pair runs in its required order within one second, the second tool's
+  backup (of the *reshaped* document) replaces the first tool's backup (of the *original*). The
+  pre-upgrade document is then on disk nowhere, both tools exit 0, and FR-102's post-conversion
+  rollback cannot be performed. Two `cuems-reshape-devices && cuems-convert-documents`
+  invocations over one `pre-013` script lost the original in **3 of 6** runs; the same pair
+  in-process with warm caches, in **9 of 10**. With collisions prevented, a document carries one
+  backup per rewriter that touched it, so the pre-upgrade state is its **oldest** backup, and
+  FR-102a's storage cost is up to **one extra copy per rewriter**, not "approximately doubles".
 - **FR-095a**: Because FR-095 leaves a library unconverted until an operator acts, the library's
   **convert-on-read** path — not the batch command — is what guarantees an unconverted document
   still opens. This MUST be verified rather than assumed, and stated in the rollout plan as the
@@ -1112,6 +1140,9 @@ repositories on disk and show the count is zero; then delete and run the suite.
   008's duration and strictness changes are **hard cutovers with no dual state**, so
   "the library releases first with both APIs live" does not apply to them; it applies only to
   006's show-API deprecations.
+  ⚠ *Amended 2026-10-16 (CHK027)*: three more hard cutovers joined the release after this was
+  written — 012's uuid4 narrowing, 013's device-class reshape and 014's `xs:boolean` retyping. All
+  three belong to the **first** class (no dual state), never to the third.
 
 #### The UI compatibility edge
 
@@ -1219,6 +1250,9 @@ repositories on disk and show the count is zero; then delete and run the suite.
     is not a build.
   - **The tolerance is 115%**, or a band comparison where one arm straddles its line (012's R14
     precedent, as 015 did for the show-document load). 110% is retired for this feature.
+  - **The suite budget compares per test, each arm running its own suite**: arm A is `7a1893f`,
+    where 20.73 ms/test was taken, and arm B is the tree under test. A grown suite is therefore
+    not a regression (CHK041, 2026-10-16).
   - The *shape* of each budget stands — the reference is still 008's post-landing tree, not 007's,
     and an exceeded budget is still recorded as exceeded. Only the anchor's **number** and the
     tolerance change. The old figures stay above as dated record.
@@ -1365,6 +1399,10 @@ repositories on disk and show the count is zero; then delete and run the suite.
   (`cuems-wsclient`, which has no test directory at all, and `cuems-frontend`, with 5 test files
   across 112 sources), the tests this feature adds are the first that could detect the defects it
   fixes.
+  ⚠ *Premise changed 2026-10-16 (CHK046)*: neither repository is uncovered any more.
+  `cuems-power-bridge` (formerly `cuems-wsclient`) ran **276** tests in both arms of 012's sibling
+  measurement, and `cuems-frontend` passes **288** specs (015). "Carries its own green suite" now
+  costs something in all seven repositories, so the criterion applies to each without exception.
 - **SC-PERF-001**: This repository's suite stays within budget derived from **20.73 ms/test**;
   the descriptor's publication costs nothing measurable; ~~the deprecated-surface removal does not
   make the suite slower~~ *(migrated 2026-10-03 → `specs/planning/deprecated-surface-removal-v0-1-2.md` R12, which also corrects the
@@ -1441,6 +1479,13 @@ repositories on disk and show the count is zero; then delete and run the suite.
   wiring, versioned dependencies and documentation pass that have been on its local
   `007-node-model-migration` branch since 2026-08-24. Unmerged and unreleased, but landed; this
   feature builds on it rather than redoing it.
+  ⚠ *Superseded 2026-10-16 (CHK045)*: absorbed. That work is on `cuems-common`'s
+  `feat/xml-refactor`, under its candidate tag (`fb450b5`). **The dependency that replaces it is
+  rule 4** of `specs/planning/coordinated-release-version-bump.md`: no refactor branch is merged
+  into its release line, so the release gate has been exercised only on packages built from the
+  refactor branches (T039's citation, 016's demonstrations). Its consequence for this feature:
+  every package-level verification must **re-run after rule 4**, and no production task (T042–T046)
+  is worth running before it.
 
 ## Out of Scope
 

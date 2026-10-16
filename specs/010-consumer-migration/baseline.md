@@ -1519,3 +1519,25 @@ apt/dpkg in a bookworm chroot. Re-run after rule 4 (§11.1 of the release docume
 enumerated by command), T065/T066 (FR-PERF-001a), T031a (booleans), T099 (two refs), T064 (FR-001,
 FR-002), T047 (real `pyossia`), T037 (static gates). **Added**: T068a. **Marked blocked on
 production hardware**: T025, T042, T043, T044, T046.
+
+### Checklist re-review — two defects measured (2026-10-16)
+
+**Backups overwrite one another (FR-102b, T038c).** `cuems-reshape-devices` names a backup with
+one clock for the whole run (`reshape_devices.py:388`), `cuems-convert-documents` with one per
+document (`convert_documents.py:81`). Both use `<name>.<YYYYMMDDTHHMMSS>.bak` and `shutil.copy2`,
+which overwrites. Fixture `tests/data/corpus/pre-013/script.xml`, which is old-shape and unversioned,
+so it needs both tools:
+
+| Method | Runs | Original lost | Both exit codes |
+|---|---|---|---|
+| `cuems-reshape-devices f && cuems-convert-documents f` (hatch `test.py3.11` entry points), 0.83–0.86 s per pair | 6 | **3** | 0, 0 |
+| `reshape_devices.main` then `convert_documents.main` in one process, warm, ~30 ms per pair | 10 | **9** (the cold first run crossed a second boundary) | 0, 0 |
+
+In every lost run exactly one backup remained, and it held the reshaped document.
+
+**A too-new configuration document carries no rule id (FR-049e, T037c).** `CuemsScript._load`
+(`cues/CuemsScript.py:397`) re-raises `DocumentTooNewError` as `ValidationError` with
+`Violation("T1", "document_version_too_new", …)`. `ConfigBase.load_config_document`
+(`tools/ConfigBase.py:64`) re-raises it with none. `DocumentTooNewError` itself subclasses `Exception` in the
+internal `xml.versioning` and is named by no consumer, so the public `ValidationError` is the only
+handle a consumer has.
