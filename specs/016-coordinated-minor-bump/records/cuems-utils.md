@@ -105,3 +105,18 @@ in each `evidence/<repo>/`.
   4. the `cuems-engine` `poetry.lock` relock (its strict-xfail test flags it), and engine CI under rule 5;
   5. pushing the eight local commits (seven repositories, plus this merge) and the tags;
   6. publication.
+
+## After the merge (2026-10-16)
+
+- `feat/xml-refactor` (merge `8a4bc42` and this follow-up docs commit) and all six siblings'
+  `feat/xml-refactor` were **pushed** on the maintainer's instruction. `cuems-power-bridge` was pushed
+  by the maintainer after switching its remote from HTTPS to SSH.
+- **Tag point moved** (maintainer): the `cuems-utils` candidate tag goes on the head of
+  `feat/xml-refactor`, not on the record commit, so all seven tags sit on the same integration
+  branch. Spec FR-016/SC-005, research R13, the tag-message contract, plan, planning document and
+  CLAUDE.md are amended accordingly by this docs commit, and the message is re-pointed to its hash.
+- The frontend message gained an explicit **NOT YET RECONCILED with `origin/dev`** (31 behind, 17
+  non-merge commits: the `stop_project` STOP chips and more). The owed lists now include it.
+- `../.xml-refactor-tag-messages/recut-and-push.sh`: the maintainer's re-cut + push script.
+  Preflight checks that every tag commit is on its `origin/feat/xml-refactor`; dry run passes for
+  all seven.

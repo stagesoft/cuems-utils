@@ -17,7 +17,7 @@ and the file inventory in this repository.
 >
 > | Repo | Version | Commit |
 > |---|---|---|
-> | cuems-utils | `0.1.1` | bump `8f6eede`, then the record commit (the candidate tag goes on it) |
+> | cuems-utils | `0.1.1` | bump `8f6eede`, record `67f18f7`, merged into `feat/xml-refactor` (the candidate tag goes on that branch's head) |
 > | cuems-common | `1.3.1-1` | `fb450b5` |
 > | cuems-nodeconf | `0.1.1-1` | `334db12` |
 > | cuems-power-bridge | **`0.4.0-1`** (not `0.3.1-1`) | `f0da390` |
@@ -45,8 +45,10 @@ and the file inventory in this repository.
 >
 > **NOT done, and still owed** (this document stays until all of it is):
 > 1. **Rule 4: release-line reconciliation**, deliberately deferred: `cuems-utils` 77, `cuems-common`
->    22, `cuems-engine` 119, `cuems-editor` 43, `cuems-power-bridge` 59 commits behind. That
->    includes `stop_project` and `CACHEDIR.TAG`. Re-verify every relation after each merge
+>    22, `cuems-engine` 119, `cuems-editor` 43, `cuems-power-bridge` 59 commits behind, and
+>    `cuems-frontend` 31 behind its own `origin/dev` (it tagged `v0.1.0-rc1` on 2026-10-16). That
+>    includes `stop_project` on every side (library rc17, engine rc6-5, frontend's STOP chips) and
+>    `CACHEDIR.TAG`. Re-verify every relation after each merge
 >    (`specs/016-coordinated-minor-bump/tools/verdicts.sh`).
 > 2. **The re-cut** of every `xml-refactor-merge-candidate` from
 >    `../.xml-refactor-tag-messages/` (maintainer).

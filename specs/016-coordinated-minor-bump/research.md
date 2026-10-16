@@ -378,7 +378,9 @@ commit + message**. Mandatory: FR-020 does not relax it (Clarifications).
 
   Splitting them keeps the bump commit's location clean, which is the purpose of FR-021, and is
   not a fix commit.
-- **The `cuems-utils` candidate tag goes on the record commit** (maintainer decision, analyze I2):
+- **The `cuems-utils` candidate tag goes on the record commit** (maintainer decision, analyze I2).
+  *Superseded 2026-10-16: after the maintainer merged 016 into `feat/xml-refactor`, the tag goes on that
+  branch's head, like every sibling's.* The original reasoning was:
   it is the head of `016-coordinated-minor-bump` and carries the complete record. The message also
   names the bump commit, for reference.
 - Merging `016-coordinated-minor-bump` into `feat/xml-refactor` in `cuems-utils` is the

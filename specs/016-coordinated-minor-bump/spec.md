@@ -39,7 +39,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
   built from the same commit, on Debian 12, as the `python3-pyossia` `.deb`. The suite runs against
   the **real** `pyossia`, in the engine's two CI passes (FR-020).
 - Q (analyze, I2): On which `cuems-utils` commit does its candidate tag go — the bump commit or the
-  later record commit? → A: **The record commit** (FR-016, SC-005).
+  later record commit? → A: **The record commit** (FR-016, SC-005). *Superseded 2026-10-16 when the
+  maintainer merged 016 into `feat/xml-refactor`: the tag goes on the merge, the branch head, so
+  all seven candidate tags sit on the same integration branch.*
 - Q (analyze, I3): May later repositories run ahead of `cuems-engine` while FR-020 is open? → A:
   **No — the order is mandatory** (FR-016); the `pyossia` question has since been resolved (FR-020).
 - Q (analyze, U1): Does an amend to a commit that later phases already used re-run them? → A:
@@ -385,7 +387,7 @@ search non-frozen documents for the old removal release.
   2. `cuems-common` → `cuems-nodeconf` → `cuems-power-bridge` → `cuems-engine` → `cuems-editor` →
      `cuems-frontend`;
   3. **`cuems-utils` record commit and its tag message** — last (D27), since the message names
-     every other repository. **The `cuems-utils` candidate tag goes on the record commit.**
+     every other repository. **The `cuems-utils` candidate tag goes on the head of this repository's `feat/xml-refactor` after 016's merge (maintainer decision 2026-10-16, superseding analyze I2).**
 - **FR-017**: The planning document MUST be updated, not deleted, at the end of this feature:
   its §3–§8 and §11 step 6 are done, but rule 4 (§10), the tag re-cut, validation on the re-cut
   tags (§11.1) and publication are not. Per this repository's deletion policy it is deleted only
@@ -474,8 +476,7 @@ search non-frozen documents for the old removal release.
   `(+ uncommitted changes)` flag in their evidence), with evidence that lists each scenario and its
   refusing tool, written to new files.
 - **SC-005**: 7 of 7 candidate-tag messages exist, each naming a commit that is its repository's
-  committed head — for `cuems-utils`, the record commit at the head of
-  `016-coordinated-minor-bump` — and every `Pairs with` commit equals the `Tag:` commit in that
+  committed `feat/xml-refactor` head (for `cuems-utils`, the head after 016's merge), and every `Pairs with` commit equals the `Tag:` commit in that
   repository's own message.
 - **SC-006**: 0 commits pushed and 0 tags created or moved by this feature, in any repository,
   measured as: `origin/<branch>` unchanged from FR-001's record, and every

@@ -23,8 +23,8 @@ This feature writes the files. **It never runs that command.**
    (<date>)`, with the reason, which is the coordinated minor bump. Use the tag's **commit**
    (`git rev-parse <tag>^{commit}`), never the tag object.
 3. **Commit to tag**: the full 40-character hash, on a line of its own, `Tag: <hash>`. For
-   `cuems-utils` this is the **record commit** at the head of `016-coordinated-minor-bump` (spec
-   FR-016), followed by `Branch: 016-coordinated-minor-bump (not yet merged into
+   `cuems-utils` this is the head of its `feat/xml-refactor` after 016's merge (spec FR-016, as
+   amended 2026-10-16; originally the record commit), followed by `Branch: 016-coordinated-minor-bump (not yet merged into
    feat/xml-refactor)` and `Bump commit: <hash>` for reference.
 4. **Version**: the target, and every self-version site that states it.
 5. **What the bump changed**: the relation-matrix rows this repository owns, old → new.
@@ -49,7 +49,7 @@ This feature writes the files. **It never runs that command.**
 ## Verification (run by the task that writes the file, and again before `cuems-utils`' message)
 
 - The `Tag:` hash exists and equals `git -C <repo> rev-parse feat/xml-refactor` (for `cuems-utils`:
-  `git rev-parse 016-coordinated-minor-bump`, the record commit).
+  the same: `git rev-parse feat/xml-refactor`, after 016's merge).
 - The version in the subject equals the changelog head at that commit (`package.json` for
   `cuems-frontend`).
 - Every `Pairs with` commit equals the `Tag:` hash in that repository's file.

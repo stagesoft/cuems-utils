@@ -129,7 +129,7 @@ cuems-utils/         src/cuemsutils/{__init__,_deprecation,timeoutloop}.py, tool
 **Structure Decision**: no new source module anywhere. Each sibling gets exactly one bump commit on
 `feat/xml-refactor`. `cuems-utils` gets a bump commit and a record commit on
 `016-coordinated-minor-bump` (R13); the bump commit is made **first** and the record commit
-**last**, and the candidate tag goes on the record commit. Builds and demos use a clean worktree of
+**last**. The candidate tag goes on the head of `feat/xml-refactor` once 016 is merged into it (2026-10-16; originally the record commit). Builds and demos use a clean worktree of
 the bump (`.016-utils-bump`). `.venv/` is excluded through `.git/info/exclude`, never `.gitignore`
 (R8).
 

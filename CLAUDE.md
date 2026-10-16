@@ -208,13 +208,14 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
-- **`016-coordinated-minor-bump` IMPLEMENTED** (2026-10-15/16; record commit on its branch, nothing
-  pushed, **no tag created or moved**). The first feature to **commit in sibling repositories**, each
+- **`016-coordinated-minor-bump` IMPLEMENTED and MERGED** (2026-10-15/16; merged into
+  `feat/xml-refactor` and pushed with the six siblings; **no tag created or moved by the feature**, and
+  the re-cut is left to the maintainer). The first feature to **commit in sibling repositories**, each
   on its own `feat/xml-refactor`. The coordinated set:
 
   | Repo | Version | Commit |
   |---|---|---|
-  | cuems-utils | **0.1.1** | bump `8f6eede` + the record commit |
+  | cuems-utils | **0.1.1** | bump `8f6eede`, record `67f18f7`, merge `8a4bc42` |
   | cuems-common | 1.3.1-1 | `fb450b5` |
   | cuems-nodeconf | 0.1.1-1 | `334db12` |
   | cuems-power-bridge | **0.4.0-1** | `f0da390` |
@@ -243,8 +244,9 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     two-armed and interleaved ×3, with no new failure and no library effect; the `cuems-common`
     (13/13) and `cuems-nodeconf` (9/9) install demonstrations, against the released field baseline.
   - **Rule 4 is NOT met.** No release line was merged: `cuems-utils` 77, `cuems-common` 22,
-    `cuems-engine` 119, `cuems-editor` 43, `cuems-power-bridge` 59 commits behind, including
-    `stop_project` (rc17) and `CACHEDIR.TAG`. **Do not publish** until they are reconciled and the
+    `cuems-engine` 119, `cuems-editor` 43, `cuems-power-bridge` 59 commits behind, and
+    `cuems-frontend` 31 behind its own `dev` (which tagged `v0.1.0-rc1`), including `stop_project`
+    on every side and `CACHEDIR.TAG`. **Do not publish** until they are reconciled and the
     relations re-verified. Every changelog and tag message says so.
   - **Found, out of scope, recorded**:
     - `cuems-engine` tracks `.venv/pyvenv.cfg` in git;
@@ -253,7 +255,9 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     - 011's `test_fresh_install_loads_and_is_unique` fails on its own since 012 (the XSDs carry the
       sentinel), which is pre-existing;
     - mypy measures 283 on this box against 015's 72, unchanged by 016.
-  - **Owed by the maintainer**: re-cut from `../.xml-refactor-tag-messages/` (`cuems-utils` last);
+  - **Owed by the maintainer**: re-cut with `../.xml-refactor-tag-messages/recut-and-push.sh`.
+    Every tag sits on its repository's `feat/xml-refactor` head, `cuems-utils`' on the head after 016's
+    merge, and `cuems-utils` is tagged last;
     §11.1 validation on the re-cut tags; rule 4; the engine relock; merging 016; publication.
     `specs/planning/coordinated-release-version-bump.md` holds this list.
 
