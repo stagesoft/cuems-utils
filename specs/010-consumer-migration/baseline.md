@@ -1481,3 +1481,41 @@ that breaks a consumer still on the deprecated surface — but it means **the ve
 coordinated re-bound of five sibling packages are one atomic step, not two**. Recorded in
 `specs/planning/upcoming-feature-requirements-2026-10-02.md`; it belongs to whichever feature cuts
 the release, and R11 must not be executed without it.
+
+## 2026-10-16 — analysis remediation
+
+A consistency pass over `spec.md`, `plan.md` and `tasks.md` against the current tree, run before
+`/speckit.implement`. Each finding was measured, not inferred; the edits are marked in place with
+their finding id. What follows is the evidence that closed or re-scoped a task.
+
+**T028 — closed** against the amended FR-044/FR-045/SC-010. `cuems-editor` at `a2431f0` (its
+`xml-refactor-merge-candidate`), run with this repository's hatch `test.py3.11` interpreter, which
+resolves `cuemsutils` to this checkout (`0.1.1`):
+
+```
+PYTHONPATH=src python -m pytest -q tests/test_repair_durations.py \
+    tests/test_repair_gate_durable.py tests/test_no_repair_state.py
+20 passed
+```
+
+The fixture set is the `library` fixture in `test_repair_durations.py`. The two properties the amended
+criteria name are each pinned by a test: **no script written** —
+`test_apply_fixes_the_db_and_writes_no_script`, `test_dry_run_changes_nothing`; **a refused document is
+reported, never fatal** — `test_skipped_invalid_xml_does_not_abort`,
+`test_pre_013_script_is_skipped_invalid_and_untouched`.
+
+**T039 — closed by citation.** `specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/release-gate-demo-3.txt`,
+2026-10-16T16:57Z: nine outcomes, nine matches; N1, N2, N5 and N6 are real packages refused by
+apt/dpkg in a bookworm chroot. Re-run after rule 4 (§11.1 of the release document).
+
+**T070 — closed.** (b) `cuems-frontend` `2445a92`; (c) needs no fix after 014 — see the task.
+
+**Candidate tags, as commits** (`<tag>^{commit}`, all with a matching `origin` tag ref):
+`cuems-utils` `4b336cd`, `cuems-common` `fb450b5`, `cuems-nodeconf` `334db12`,
+`cuems-power-bridge` `666cb25`, `cuems-engine` `e994a5e`, `cuems-editor` `a2431f0`,
+`cuems-frontend` `9e91464`. Every sibling's tag equals its `feat/xml-refactor` head.
+
+**Re-scoped, not closed**: T063 (one target left, `cuems-common` `CLAUDE.md:94`), T069c (referrers
+enumerated by command), T065/T066 (FR-PERF-001a), T031a (booleans), T099 (two refs), T064 (FR-001,
+FR-002), T047 (real `pyossia`), T037 (static gates). **Added**: T068a. **Marked blocked on
+production hardware**: T025, T042, T043, T044, T046.

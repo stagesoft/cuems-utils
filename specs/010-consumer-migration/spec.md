@@ -7,6 +7,12 @@
 > `specs/016-coordinated-minor-bump/contracts/relation-matrix.md`. Below, `0.1.0rc16`,
 > `<< 0.1.1~` and `v0.1.1` are left as **dated record** of what was true when written. Read any
 > *instruction* that names them with the new values.
+>
+> **Amended 2026-10-16 (consistency analysis, before `/speckit.implement`).** Each amendment is
+> marked in place and keeps the original text as record: **FR-010/FR-011/FR-013/FR-107/SC-005**
+> and US6 (five payload deltas, defined by `cuems-editor`'s `tests/ws-command-responses.txt`);
+> **FR-PERF-001a** (new — budgets re-anchored by interleaved A/B, 115% or band); **FR-044/FR-045/
+> SC-010** (no consumer is a document rewriter); **FR-088e/FR-088f** (booleans after 014).
 
 **Feature Branch**: `010-consumer-migration`
 **Created**: 2026-09-03
@@ -380,7 +386,7 @@ channel between the library and the UI. It carries five parser call sites, four 
 that predate a now-strict read path, and the repair report's only route to a human.
 
 **Independent Test**: save a project through the editor and reload it; assert the payload matches
-today's except for the two enumerated deltas, and assert a document requiring repair produces a
+today's except for the enumerated deltas (five since 014; see FR-010), and assert a document requiring repair produces a
 report the client receives.
 
 **Depends on**: Stories 2 and 3.
@@ -641,11 +647,21 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **FR-010**: The editor's project-load payload MUST remain byte-identical to today's **except**
   for exactly two changes: `schemaLocation` absent, and the media duration carried as a wrapped
   timecode rather than a bare string.
+  ⚠ **Corrected 2026-10-16 (analysis D1): five deltas, not two, and the count is no longer this
+  spec's to state.** 008, 013 and 014 each added one and (d) was ruled: (a) `schemaLocation` absent,
+  (b) the wrapped duration, (c) 013's `Cue`/`CueOutput` key with `class`, (d) a model default
+  projected for an absent optional element, (e) 014's **native JSON booleans**. The definition is
+  `cuems-editor`'s `tests/ws-command-responses.txt` ("project (reply to project_load)"), pinned
+  by its `tests/test_project_payload.py`. Read every "two deltas" in this feature as "the deltas
+  that contract enumerates".
 - **FR-011**: Every other key, the key ordering, and the **string** boolean form MUST be
   unchanged. The UI's dual boolean read stays valid and continues to write the string form back.
+  ⚠ **Superseded 2026-10-16 (analysis D1)**: the string boolean form does **not** hold. 014 retyped
+  `cms:BoolType` to `xs:boolean`, and the payload carries JSON `true`/`false` — delta (e) above.
+  Every other key and the key ordering still hold.
 - **FR-012**: The document-version marker MUST NOT appear in the payload. It is a document
   property, excluded from every wire projection.
-- **FR-013**: Payload equality MUST be verified against the **two-delta** statement above, not
+- **FR-013**: Payload equality MUST be verified against the **enumerated-delta** statement above (five deltas since 014, FR-010), not
   against unconditional byte-identity — which has not held since 008 landed.
 - **FR-013a**: The baseline for that comparison is this repository's **golden corpus**
   (`tests/golden/`), not a payload captured at migration time. The goldens were deliberately re-cut
@@ -843,8 +859,17 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **FR-044**: The duration-repair tool MUST move off the deprecated reader/parser paths and off
   its private timecode regex; its document-rewriting pass MUST be folded into the library's
   conversion tool rather than kept as a second rewriter; and its media-probing pass stays local.
+  ⚠ *Amended 2026-10-16 (analysis S5, T028)*: **superseded by a stronger answer** — the editor
+  (`bf57d95`) retired the rewriting pass instead of folding it in. The tool repairs
+  `project-manager.db`, the source of truth, and **lists** disagreeing projects as `NEEDS_SAVE`;
+  it writes no script under any flag. What this requirement protects now reads: **no consumer is
+  a document rewriter**; the editor's save path is the only writer of a script outside this library.
 - **FR-045**: That tool MUST still be able to read the deliberately corrupt documents it exists to
   repair. This MUST be **verified** against the library's repair contract, not assumed.
+  ⚠ *Amended 2026-10-16 (analysis S5)*: the corruption lives in the DB, and the documents are read
+  **only to report**. The requirement now reads: the tool reads every document it could read
+  before **for reporting**, and a document the strict path refuses is reported `SKIPPED_INVALID`
+  with the library's own reason while the run continues — never an abort, never a write.
 - **FR-046**: The editor's node field list and network-map reads MUST consume the typed role, the
   boolean adoption and online flags, and the typed identifier.
 - **FR-047**: The editor MUST serve the schema descriptor over its websocket, and MUST accept
@@ -1018,8 +1043,14 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **FR-088d**: The required response field nothing reads MUST be deleted.
 - **FR-088e**: The dual boolean check's simplification is an **optional follow-up**, not a
   blocker for this feature.
+  ⚠ *Premise changed 2026-10-16 (analysis S4)*: since 014 the UI **writes** native booleans only
+  (`cuems-frontend` T046, `ff9dc3b`) and the dual check survives purely as a **read** — write
+  native, read either — guarding payloads from an editor older than `payload_version` 1. It
+  becomes removable once no such editor can be reached (the handshake, FR-105, already refuses
+  one). Still optional, still not a blocker.
 - **FR-088f**: The descriptor-driven forms MUST be checked against **every restricted enumeration
-  and every model-layer default the six schemas declare** — not a hand-picked subset, and not only
+  and every model-layer default the six schemas declare** *(2026-10-16: since 014 a boolean is
+  `xs:boolean`, not an enumeration — it is checked as a checkbox, see T031a)* — not a hand-picked subset, and not only
   the three value-reading sites FR-086 names. A form that renders the right shape while offering
   the wrong legal values, or seeding the wrong default, is wrong in the way the template cutover
   exists to prevent. This is the **consumer half** of the obligation; SC-003 covers the library
@@ -1092,6 +1123,10 @@ repositories on disk and show the count is zero; then delete and run the suite.
   (FR-012); this one describes the editor↔UI message contract and appears only on that link.
 - **FR-107**: The payload version MUST change when this feature's two enumerated payload deltas
   land (FR-010), because those are exactly the changes a stale UI mis-renders.
+  ⚠ **Corrected 2026-10-16 (analysis D1)**: the deltas are the five FR-010 now names. The
+  editor restated `payload_version` **1** to include (d) and (e) rather than bumping, because the
+  version-1 wire had not shipped; its bump rule (`tests/ws-command-responses.txt`, "Payload
+  version") is what binds from here on.
 - **FR-108**: FR-105 exists because `cuems-frontend` carries no packaging and therefore **cannot**
   hold a release-gate edge — FR-091 covers four packaged consumers (`cuems-editor` among them
   only because FR-090a packages it) and the UI is not among them, nor made so by this feature.
@@ -1165,6 +1200,28 @@ repositories on disk and show the count is zero; then delete and run the suite.
     measurement** and MUST record it as inherited: restating 007's cap would mandate a budget that
     is already unmet, charge this feature for 008's deliberate decision, and hide a known overrun
     behind a pass.
+- **FR-PERF-001a** *(added 2026-10-16, analysis P1 — amends FR-PERF-001 and SC-PERF-001 before
+  T065 runs)*: **The anchors above are not comparable with anything measurable today, and the
+  tolerance is below the instrument's resolution.** Every figure FR-PERF-001 names — 20.73 ms/test,
+  008's 18.673 ms engine project load, 008's 10.14–10.49 ms network-map load, the descriptor's
+  319.0/309.6 ms — was taken on conda-built CPython 3.11.2, which the box no longer has (015's
+  migration, `CLAUDE.md` "Active Technologies"). 014's `get_schema` fix also moved the
+  configuration loads by −80% to −89%, so the network-map anchor describes a code path that no
+  longer exists. And 014 and 015 measured run-to-run spread on one unchanged tree at ±4–8% (pooled
+  7.8% over 16 samples), so a **110%** budget measures the afternoon, not the code. Therefore:
+  - **Re-anchor by interleaved A/B, never against a recorded absolute.** Arm A is the tree each
+    budget names as its reference (008's post-landing commit, as `specs/008-rebuild-extension/baseline.md`
+    records it; for the descriptor, the internal path at the same commit as arm B). Arm B is the tree
+    under test. Alternate arms in fresh processes (`tests/support/perf_descriptor.py`'s method), at
+    least **16 samples per arm across three windows**, on the **hatch-resolved interpreter**.
+  - **Record the interpreter build** (hatch's python-build-standalone, or a pyenv build with
+    `--enable-optimizations --with-lto`) and `scaling_cur_freq` beside every figure. "3.11.9" alone
+    is not a build.
+  - **The tolerance is 115%**, or a band comparison where one arm straddles its line (012's R14
+    precedent, as 015 did for the show-document load). 110% is retired for this feature.
+  - The *shape* of each budget stands — the reference is still 008's post-landing tree, not 007's,
+    and an exceeded budget is still recorded as exceeded. Only the anchor's **number** and the
+    tolerance change. The old figures stay above as dated record.
 
 ### Key Entities
 
@@ -1222,6 +1279,8 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **SC-005**: A project saved by the editor loads in the engine and renders in the UI unchanged —
   end to end, with the payload differing from today's in exactly **two** enumerated ways and in no
   other key, order or value form.
+  ⚠ **Corrected 2026-10-16 (analysis D1)**: in exactly the ways FR-010's correction enumerates
+  (five), not two.
 - **SC-006**: **Zero** occurrences of the retired element name or type prefix remain across the
   ecosystem outside the enumerated exempt set, counted rather than reviewed; and the exempt set is
   enumerated site by site, with this repository's sixteen intact.
@@ -1240,6 +1299,11 @@ repositories on disk and show the count is zero; then delete and run the suite.
 - **SC-010**: The duration-repair tool still reads **100%** of the corrupt documents it could read
   before, verified against a fixture set rather than assumed, and the ecosystem contains exactly
   **one** document rewriter.
+  ⚠ *Amended 2026-10-16 (analysis S5)*: "exactly one rewriter" is the wrong count. This library
+  ships four document-writing entry points by design (`cuems-convert-documents`,
+  `cuems-reshape-devices` — run in that order, reshape then convert — `cuems-init-node` and
+  `--remint`). The criterion is: **zero consumer-side document rewriters**, and every `script.xml`
+  checksum unchanged after the repair tool's `--apply`.
 - **SC-005a**: The payload comparison runs against the **golden corpus**, and the goldens used are
   identified by their checksums — zero payload baselines are captured at migration time.
 - **SC-005b**: **Zero** consumer code paths manipulate the wire dict to achieve an object-level
@@ -1307,7 +1371,7 @@ repositories on disk and show the count is zero; then delete and run the suite.
   retiring-test count from 22 to a measured 47)*; the engine's project-load time does not regress against **008's**
   post-landing figure; and network-map load is measured against **008's** post-landing
   10.14–10.49 ms rather than 007's ≤10.20 ms cap, which 008 already recorded as
-  exceeded-or-marginal. Each is measured and recorded, including any that is exceeded — recorded
+  exceeded-or-marginal. ⚠ *(2026-10-16: anchors and tolerance re-set by **FR-PERF-001a** — interleaved A/B against the named reference tree, 115% or band, interpreter build recorded.)* Each is measured and recorded, including any that is exceeded — recorded
   as exceeded rather than restated as passing.
 
 ---

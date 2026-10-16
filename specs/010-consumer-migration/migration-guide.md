@@ -281,7 +281,16 @@ The replacement's delta list against the `v0.1.0rc14` `create_script()` baseline
 The wire projection appears **once**, at the UI edge: `CuemsDBProject.load` returns
 `script.to_wire()` and `send_project` puts it in the frame without walking it (FR-013b).
 
-### The payload: **four** sanctioned deltas, not two (FR-010, FR-011, T027)
+### The payload: **five** sanctioned deltas, not two (FR-010, FR-011, T027)
+
+> ⚠ **Corrected 2026-10-16 (analysis D1).** This section counted four on 2026-10-02 and said the
+> **string** boolean form still held. It does not: 014 retyped `cms:BoolType` to `xs:boolean`, and
+> the payload now carries JSON `true`/`false` — delta **(e)**, folded into the editor's
+> `payload_version` 1 rather than bumped, because that wire had not shipped. The list consumers
+> must hold is no longer the editor's frozen `specs/001-cuems-utils-migration/contracts/project-payload.md`
+> (which still says string booleans) but its live `tests/ws-command-responses.txt`, "project (reply
+> to project_load)", pinned by `tests/test_project_payload.py`. Stop counting in this document; cite
+> that one. (The paragraph below cites SC-004; the count is in **SC-005**.)
 
 This guide and 010's FR-010/FR-011/SC-004 said *two*. Two was right when they were written and is
 wrong now; features 008 and 013 each added one, and the fourth was ruled rather than introduced.
@@ -294,9 +303,10 @@ The list consumers must hold is the editor's
 | (b) | each `Media.duration` is `{"CTimecode": "HH:MM:SS.mmm"}`, not a bare string | 008 ITEM A |
 | (c) | a hardware cue's key is `Cue` with `class` inside; its output's is `CueOutput` likewise. `ActionCue`, `FadeCue` and `CueList` keep their own keys | **013 axis D** |
 | (d) | a video cue whose document carries no `<opacity>` arrives with `"opacity": 100`, before `class` | ruled 2026-10-02 — reported as that repository's UR-3 and **withdrawn**: `opacity` is a `script.xsd` field of `VideoCue`, so a document that omits it carries the default and projecting it is the library doing its work |
+| (e) | `autoload`, `enabled` and `timecode` are JSON booleans, not `"True"`/`"False"` | **014** (`xs:boolean`); editor `8f8b46e` |
 
 Everything else holds and is still verified, not assumed: every other key, key order aside from the
-absent and renamed keys, the **string** boolean form (`"True"`/`"False"`), and `doc_version` absent
+absent and renamed keys, ~~the **string** boolean form (`"True"`/`"False"`)~~ *(no longer holds — delta (e), 2026-10-16)*, and `doc_version` absent
 from the wire. Re-measured in this repository 2026-10-02 against two goldens — see
 [baseline.md](baseline.md) §"The editor's landing, measured here".
 
@@ -964,6 +974,9 @@ That is the same move FR-025 made for `CuemsNetworkMapType` and FR-030 made for 
 
 ### `cuems-editor`'s two, from flow 02 *(added 2026-10-02)*
 
+> **Both closed, re-verified 2026-10-16 (analysis S2)**: UR-5 by 014, UR-4 by 015's S1. The
+> paragraph after the table is the 2026-10-02 reading and is kept as record.
+
 ⚠️ **The numbers collide across repositories, and the reports are not the same reports.** Each
 consumer numbers its findings in its own `upstream-reports/` directory, so `cuems-editor`'s UR-5 is
 a *different* finding from `cuems-engine`'s UR-5 directly above — which 013 closed. Cite them as
@@ -971,8 +984,8 @@ a *different* finding from `cuems-engine`'s UR-5 directly above — which 013 cl
 
 | Report | Asks for | State |
 |---|---|---|
-| **`cuems-editor` UR-5** no public way to build a configuration document from JSON | one public ingestion per configuration domain, symmetric with `CuemsScript.from_json` — e.g. `ConfigManager.from_json(SchemaName, payload)` or `set_document(SchemaName, payload)`, decoding through the same mapper and adapters as `load_*` | **OPEN, and it blocks a consumer task.** 008 gave every configuration domain a `save_*`, but each writes the object the `ConfigManager` already holds, and nothing public turns a client's JSON document into that object. `ConfigDict.from_decoded` is on an internal class, takes the *decoded* shape rather than the wire shape, and stores values verbatim — so a wire `"node_role": "node"` would stay a string where `save_network_map` expects a `NodeRole`. `validate_config_document` validates a path, not a payload. The editor's `config_save` therefore answers the four configuration domains with an error naming this report, and its test is `xfail(strict=True)`: it turns **XPASS** the day the call exists. This is `cuems-editor` 001 **T059** — the one task of 63 that did not land |
-| **`cuems-editor` UR-4** a duplicate node identity carries no structured identity | the colliding identities (and their MACs) *on the exception* — a `Violation` with `location=(identity, "uuid")`, or an attribute on a dedicated subclass | **OPEN, worked around.** `ConfigManager.load_network_map()` on a map with one identity on two rows raises `ValidationError` whose `violation` is `None` and whose `__cause__` is a plain `ValueError`; the identities exist only inside `check_node_identities_unique`'s sentence. `cuemsutils.errors.node_identity_collision_message` recognises the case and also returns a string. The editor's `network_map_error` frame needs `{"kind": "duplicate_identity", "identity": …}` as *data*, so it lifts the first identity out of this library's own prose with one anchored pattern (`node_reads.py`, `collided_identity`) and sends `"identity": ""` if the sentence ever changes. **A consumer parsing this library's prose is a contract nobody declared** — and this library can change that sentence in a patch release without knowing it broke anything |
+| **`cuems-editor` UR-5** no public way to build a configuration document from JSON | one public ingestion per configuration domain, symmetric with `CuemsScript.from_json` — e.g. `ConfigManager.from_json(SchemaName, payload)` or `set_document(SchemaName, payload)`, decoding through the same mapper and adapters as `load_*` | ✅ **CLOSED 2026-10-12 by feature 014** (`ConfigManager.from_json(SchemaName, payload)`), and the consumer task closed with it: `cuems-editor` 001 T059 is ticked (63/63). *The rest of this cell is the dated record of the gap as it stood on 2026-10-02:* **OPEN, and it blocks a consumer task.** 008 gave every configuration domain a `save_*`, but each writes the object the `ConfigManager` already holds, and nothing public turns a client's JSON document into that object. `ConfigDict.from_decoded` is on an internal class, takes the *decoded* shape rather than the wire shape, and stores values verbatim — so a wire `"node_role": "node"` would stay a string where `save_network_map` expects a `NodeRole`. `validate_config_document` validates a path, not a payload. The editor's `config_save` therefore answers the four configuration domains with an error naming this report, and its test is `xfail(strict=True)`: it turns **XPASS** the day the call exists. This is `cuems-editor` 001 **T059** — the one task of 63 that did not land |
+| **`cuems-editor` UR-4** a duplicate node identity carries no structured identity | the colliding identities (and their MACs) *on the exception* — a `Violation` with `location=(identity, "uuid")`, or an attribute on a dedicated subclass | ✅ **CLOSED by feature 015 (S1)**: the library raises `cuemsutils.errors.NodeIdentityCollisionError` carrying the identity; `cuems-editor` `2360936` catches it, deletes the anchored regex and its `''` fallback, and a source-grep test keeps them out. *Dated record of the gap as it stood on 2026-10-02:* **OPEN, worked around.** `ConfigManager.load_network_map()` on a map with one identity on two rows raises `ValidationError` whose `violation` is `None` and whose `__cause__` is a plain `ValueError`; the identities exist only inside `check_node_identities_unique`'s sentence. `cuemsutils.errors.node_identity_collision_message` recognises the case and also returns a string. The editor's `network_map_error` frame needs `{"kind": "duplicate_identity", "identity": …}` as *data*, so it lifts the first identity out of this library's own prose with one anchored pattern (`node_reads.py`, `collided_identity`) and sends `"identity": ""` if the sentence ever changes. **A consumer parsing this library's prose is a contract nobody declared** — and this library can change that sentence in a patch release without knowing it broke anything |
 
 **Both are the same shape as the six already closed** — a fact the library holds and does not hand
 out. Neither is a defect in behaviour; both are gaps in the public surface, and both belong in the

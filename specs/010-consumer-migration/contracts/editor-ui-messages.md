@@ -70,14 +70,14 @@ says so** rather than rendering a payload it cannot interpret (FR-105).
 |---|---|
 | Scope | this contract only — the editor↔UI link |
 | **Not** | the document-version marker, which describes a file on disk (FR-106) |
-| Changes when | the two payload deltas above land (FR-107) |
+| Changes when | an existing message loses, renames or reorders a key, or changes a value's form — the editor's bump rule in `tests/ws-command-responses.txt`. Version **1** already contains all five project deltas (a)–(e); it was restated, not bumped, because it had not shipped (FR-107, corrected 2026-10-16) |
 | Exists because | `cuems-frontend` has no packaging and cannot hold a release-gate edge (FR-108) |
 
 The concrete failure it catches, which "they deploy together" does not: a **cached browser bundle**.
 
 ## Verification
 
-- Payload compared against the **two-delta** statement, not unconditional identity (FR-013).
+- Payload compared against the **enumerated-delta** statement (five since 014), not unconditional identity (FR-013).
 - All three load outcomes reachable and distinguishable from the UI (SC-011a).
 - A deliberately stale bundle is refused at connect, and says why (SC-015a).
 - Adopt/unadopt end to end after the port, proven by characterization tests written **before** it

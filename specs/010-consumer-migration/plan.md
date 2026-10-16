@@ -46,7 +46,7 @@ no worse than **008's post-landing 18.673 ms**; `network_map` config load no wor
 post-landing 10.14–10.49 ms** (see the Constitution check — this is *not* 007's 10.20 ms cap, and
 the difference matters).
 **Constraints**: no `.xsd` edits (D3, already relaxed three times by 007/008 and not further here);
-the editor→UI payload changes in exactly two enumerated ways and no other (FR-010/FR-011), verified
+the editor→UI payload changes in exactly the enumerated ways and no other (FR-010/FR-011 — **five** since 014, corrected 2026-10-16; the definition is `cuems-editor`'s `tests/ws-command-responses.txt`), verified
 against this repository's **golden corpus** rather than a payload captured at migration time
 (FR-013a) — the goldens already carry `doc_version="2"` and the wrapped duration, verified
 2026-09-03; consumers implement **object-to-object**, with the projection produced once at the UI
@@ -132,6 +132,14 @@ commits landed.
 | Deprecated-surface removal | 22 contract tests retire | suite should get **faster**; if not, explain |
 | Show-document load | **008's post-landing 18.673 ms** | no regression against *that*, not 007's |
 | `network_map` config load | **008's post-landing 10.14–10.49 ms** | see the correction below |
+
+> ⚠ **Re-anchored 2026-10-16 (spec FR-PERF-001a, analysis P1).** Every *Source* figure in this
+> table is conda-built CPython 3.11.2, and the configuration loads predate 014's `get_schema` fix
+> (−80% to −89%). None of them is comparable with a measurement taken today, and **110% is below
+> the instrument's resolution** (±4–8% run to run, 014; 7.8% pooled, 015). T065 and T066 therefore
+> measure each budget as **interleaved A/B against its reference tree in the same session**, on the
+> hatch interpreter with the build and `scaling_cur_freq` recorded, and judge at **115%** or by
+> band. The table keeps its references (which tree is the baseline) and loses only its numbers.
 
 **The `network_map` budget is corrected here rather than inherited.** The instruction to this plan
 said "network-map load stays within 007's recorded budget". It does not, and has not since 008
@@ -291,7 +299,7 @@ valid intermediate state to merge into.
 - **2a `cuems-editor`** (US6), gated on 1b and wave 0. All five `CuemsParser` sites —
   `CuemsDBProject.py` `update`:356, `new`:489, `duplicate`:571,
   `update_projects_existed_media`:808, plus `repair_durations.py`:230 — move to the public show
-  object (FR-041). `load()` returns `to_wire()`, subject to FR-010's two-delta constraint. The
+  object (FR-041). `load()` returns `to_wire()`, subject to FR-010's enumerated-delta constraint (five since 014). The
   raw-dict pre-parse fixups are **split by responsibility** (FR-043–FR-043d): the dangling-reference
   code is **deleted**, its job having moved to wave 0's library rule, and the database-sourced
   duration correction **stays** — the library has no database and must not gain one — but becomes an

@@ -64,13 +64,19 @@ cd /disk/Projects/StageLab/cuems-nodeconf && pytest   # 008's characterization t
 cd /disk/Projects/StageLab/cuems-editor && pytest
 ```
 
-Payload check — against the **two-delta** statement, never unconditional identity:
+Payload check — against the **enumerated-delta** statement, never unconditional identity. It was
+two deltas when written; it is **five** since 014 (corrected 2026-10-16). The definition is
+`cuems-editor`'s `tests/ws-command-responses.txt`, "project" frame, pinned by its
+`tests/test_project_payload.py`:
 
 ```
-1. schemaLocation absent
-2. Media.duration == {"CTimecode": "HH:MM:SS.mmm"}
-3. everything else identical, INCLUDING key order and the STRING boolean form
-4. doc_version absent  (it is not a third delta)
+(a) schemaLocation absent                                              006
+(b) Media.duration == {"CTimecode": "HH:MM:SS.mmm"}                    008
+(c) hardware cue key "Cue" / "CueOutput" with "class"                  013
+(d) a model default projected for an absent optional (e.g. opacity)   ruled 2026-10-02
+(e) autoload, enabled, timecode are JSON booleans, not "True"/"False"  014
+everything else identical, INCLUDING key order
+doc_version absent  (it is not a delta)
 ```
 
 ## Wave 3 — the UI
@@ -177,5 +183,6 @@ to make a number reach zero. Everything outside this list counts.
 
 1. Save a project in the editor.
 2. Load it in the engine.
-3. Render it in the UI — unchanged but for the two deltas.
+3. Render it in the UI — unchanged but for the enumerated deltas: **five** since 014 ((a)–(e) in
+   `cuems-editor`'s `tests/ws-command-responses.txt`, "project" frame; corrected 2026-10-16).
 4. Upgrade a controller and at least one node; the cluster comes back with its topology intact.
