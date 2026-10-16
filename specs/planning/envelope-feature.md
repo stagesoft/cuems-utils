@@ -141,11 +141,10 @@ constrain §4.
 
 ## 6. Adjacent cleanup this feature should absorb
 
-- **`_handle_fade_in` / `_handle_fade_out` in `cuems-engine`.** Feature 008 removes `fade_in` and
-  `fade_out` from `ActionType` (FR-029a), making both handlers and their dispatch entries unreachable.
-  Their deletion is feature 009's (FR-053b). Note that `_handle_fade_out` carries a recorded
-  zombie-process defect — it bumps the generation counter without disarming — which disappears with the
-  handler rather than needing a separate fix.
+- ✅ **`_handle_fade_in` / `_handle_fade_out` in `cuems-engine`: done.** Feature 008 removed `fade_in`
+  and `fade_out` from `ActionType` (FR-029a), and the engine deleted both handlers and their dispatch
+  entries (`cuems-engine` `9f83654`). `_handle_fade_out`'s recorded zombie-process defect went with
+  them. Nothing for this feature to absorb.
 - **`MediaCue.get_fade_profile`'s `'fade_in'`/`'fade_out'` aliases** go with the deletion in 008. If a
   replacement reintroduces a direction accessor, it should **not** reintroduce those aliases: they are
   the source of the original collision.

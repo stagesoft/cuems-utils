@@ -34,7 +34,7 @@ discrepancy, not a deliberate safety margin, because peewee's actual
 relies on the truncated length being 254 rather than 255 (grepped: no
 consumer inspects ``len()`` of a sanitized name/description). Fixed in the
 same change as these tests, per the correction in
-``specs/planning/tools-external-consumers-and-timeoutloop-migration.md``: real
+``specs/planning/tools-external-consumers-and-timeoutloop-migration.md (deleted 2026-10-16, done; in git history)``: real
 testing confirmed the inaccuracy, so the source was corrected to match its own
 documented intent rather than the test being written to pin the bug.
 

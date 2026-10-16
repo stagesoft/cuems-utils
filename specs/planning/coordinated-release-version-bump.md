@@ -12,15 +12,16 @@ measured target version for each repository, every versioned package relation th
 and the file inventory in this repository.
 
 > **Status 2026-10-16 — §3–§8 and §11 step 6 EXECUTED by feature 016**
-> (`specs/016-coordinated-minor-bump/`, records and evidence there). Local, signed, **unpushed**
-> commits on each `feat/xml-refactor` (`cuems-utils`: `016-coordinated-minor-bump`):
+> (`specs/016-coordinated-minor-bump/`, records and evidence there). Signed commits on each
+> `feat/xml-refactor`, **pushed 2026-10-16**, and **every `xml-refactor-merge-candidate` re-cut and
+> pushed by the maintainer the same day**, each on its repository's `feat/xml-refactor` head:
 >
 > | Repo | Version | Commit |
 > |---|---|---|
-> | cuems-utils | `0.1.1` | bump `8f6eede`, record `67f18f7`, merged into `feat/xml-refactor` (the candidate tag goes on that branch's head) |
+> | cuems-utils | `0.1.1` | bump `8f6eede`, record `67f18f7`, merge `8a4bc42`; **tag at `4b336cd`** (016's docs follow-up, the branch head at the re-cut) |
 > | cuems-common | `1.3.1-1` | `fb450b5` |
 > | cuems-nodeconf | `0.1.1-1` | `334db12` |
-> | cuems-power-bridge | **`0.4.0-1`** (not `0.3.1-1`) | `f0da390` |
+> | cuems-power-bridge | **`0.4.0-1`** (not `0.3.1-1`) | `666cb25` (re-signed by the maintainer from `f0da390`, same tree) |
 > | cuems-engine | `0.1.1-1` | `e994a5e` |
 > | cuems-editor | `0.1.1-1` | `a2431f0` |
 > | cuems-frontend | **`0.2.0`** (not `0.1.0`, §9.1 answered) | `9e91464` |
@@ -50,11 +51,15 @@ and the file inventory in this repository.
 >    includes `stop_project` on every side (library rc17, engine rc6-5, frontend's STOP chips) and
 >    `CACHEDIR.TAG`. Re-verify every relation after each merge
 >    (`specs/016-coordinated-minor-bump/tools/verdicts.sh`).
-> 2. **The re-cut** of every `xml-refactor-merge-candidate` from
->    `../.xml-refactor-tag-messages/` (maintainer).
-> 3. **§11.1 validation on the re-cut tags.**
+> 2. ~~**The re-cut** of every `xml-refactor-merge-candidate`~~: ✅ **done 2026-10-16** by the
+>    maintainer (`../.xml-refactor-tag-messages/recut-and-push.sh`); all seven verified on the remotes.
+> 3. **§11.1 validation on the re-cut tags.** It is now unblocked. ⚠ It validates the set **as
+>    tagged**, so it says nothing about the release-line content of item 1, which has to be validated
+>    again after that reconciliation.
 > 4. **`cuems-engine`'s `poetry.lock` relock** (FR-022), and engine CI under rule 5.
-> 5. **Merging `016-coordinated-minor-bump`** into this repository's `feat/xml-refactor`.
+> 5. ~~**Merging `016-coordinated-minor-bump`** into this repository's `feat/xml-refactor`~~: ✅ done
+>    2026-10-16 (`8a4bc42`). Before publication, also tell the `cuems-power-bridge` and `cuems-frontend`
+>    maintainers the refactor's numbers (`0.4.0-1`, `0.2.0`), so their release lines stay below them.
 > 6. **Publication** (§11 step 10).
 
 ## The decision, in five rules
@@ -306,7 +311,7 @@ line there gets *run*, not merely read.
 | `specs/planning/refactor-sequencing-2026-10-01.md` *(deleted 2026-10-14 by feature 015, T110; its residue is `adoption-liveness-ui-tier.md`; recoverable from git history)* | 30, 77, 108, 223 | §2's hostage argument and "if `v0.1.1` is not wanted soon" both resolve |
 | `specs/planning/editor-001-amend-after-013-prompt.md` *(deleted 2026-10-14, feature 015; in git history)* | 279 | "Do not lower `cuemsutils>=0.1.0rc16,<0.1.1`" → it is now *raised* |
 | `specs/planning/editor-specify-prompt.md` *(deleted 2026-10-14, feature 015; in git history)* | 156 | the `v0.1.1` move reference |
-| `specs/planning/tools-external-consumers-and-timeoutloop-migration.md` | 216 | `REMOVAL_RELEASE` quote; R6's coordination point |
+| `specs/planning/tools-external-consumers-and-timeoutloop-migration.md` *(deleted 2026-10-16, done; corrected by 016 before deletion)* | 216 | `REMOVAL_RELEASE` quote; R6's coordination point |
 | `specs/planning/stored-media-values-preimplementation.md` *(deleted 2026-10-14, feature 015; in git history)* | 142, 203, 237 | quoted sibling pins; the "rc15 must be on PyPI first" precondition now reads against `0.1.1` |
 | `specs/planning/media-pixel-dimensions-for-xml-refactor.md` *(deleted 2026-10-14, feature 015; in git history)* | 156 | engine pin quote (low) |
 | `specs/planning/xml-rebuild/010-consumer-prompts/00-cuems-utils.md` | 28, 119, 245 | plus single-line hits in `01`, `02`, `03`, `04`, `04a`, `04b`, `07`, `README.md` |
@@ -490,7 +495,7 @@ this release's.
    **The packaging demonstrations are part of that set** (§11.1 step 2). Their stub versions and
    scenario expectations name the versions and relations this step moves, so they move in the
    same commit.
-7. **Re-cut every candidate tag** (§9), `cuems-utils` last. The re-cut tags are what step 9
+7. ✅ *Done 2026-10-16.* **Re-cut every candidate tag** (§9), `cuems-utils` last. The re-cut tags are what step 9
    validates (rule 5), so nothing below runs against a branch head.
 8. Suite green in each repository, and this one's `tests/packaging/test_no_version_bump.py` passing
    **in its rewritten form** — a green run of the old form would mean the bump did not happen.

@@ -1,7 +1,7 @@
 """``cuemsutils.timeoutloop.Timeoutloop`` — the compatibility shim for
 ``cuems-nodeconf``'s pre-existing ``from cuemsutils.timeoutloop import
 Timeoutloop`` (see
-``specs/planning/tools-external-consumers-and-timeoutloop-migration.md``,
+``specs/planning/tools-external-consumers-and-timeoutloop-migration.md (deleted 2026-10-16, done; in git history)``,
 Track 2). Kept separate from ``tests/contract/test_deprecation_shims.py``,
 which pins feature 006's specific twelve-call-site retirement contract; this
 shim is unrelated to that feature.

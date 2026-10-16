@@ -357,7 +357,7 @@ carry consumer impact §8 predates:
   with a `deprecated_alias` shim at `cuemsutils.timeoutloop`.
   `cuems-nodeconf/cuemsnodeconf/CuemsNodeConf.py:26` still imports the old
   path and uses it at `:309, :617, :629`. Recorded as an open follow-up in
-  `specs/planning/tools-external-consumers-and-timeoutloop-migration.md`
+  `specs/planning/tools-external-consumers-and-timeoutloop-migration.md` *(deleted 2026-10-16: done; in git history)*
   (Track 2, item 5) — the only remaining open item in that document.
 - **`573daa0`** — `xml/_deprecation.py` promoted to `cuemsutils/_deprecation.py`.
   No consumer imports it directly (checked); recorded so the shim's own import

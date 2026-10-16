@@ -218,7 +218,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   | cuems-utils | **0.1.1** | bump `8f6eede`, record `67f18f7`, merge `8a4bc42` |
   | cuems-common | 1.3.1-1 | `fb450b5` |
   | cuems-nodeconf | 0.1.1-1 | `334db12` |
-  | cuems-power-bridge | **0.4.0-1** | `f0da390` |
+  | cuems-power-bridge | **0.4.0-1** | `666cb25` (re-signed from `f0da390`, same tree) |
   | cuems-engine | 0.1.1-1 | `e994a5e` |
   | cuems-editor | 0.1.1-1 | `a2431f0` |
   | cuems-frontend | **0.2.0** | `9e91464` |
@@ -255,10 +255,11 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     - 011's `test_fresh_install_loads_and_is_unique` fails on its own since 012 (the XSDs carry the
       sentinel), which is pre-existing;
     - mypy measures 283 on this box against 015's 72, unchanged by 016.
-  - **Owed by the maintainer**: re-cut with `../.xml-refactor-tag-messages/recut-and-push.sh`.
-    Every tag sits on its repository's `feat/xml-refactor` head, `cuems-utils`' on the head after 016's
-    merge, and `cuems-utils` is tagged last;
-    §11.1 validation on the re-cut tags; rule 4; the engine relock; merging 016; publication.
+  - **Re-cut and pushed 2026-10-16** by the maintainer (`../.xml-refactor-tag-messages/recut-and-push.sh`).
+    Every tag sits on its repository's `feat/xml-refactor` head, `cuems-utils`' at `4b336cd`.
+    **Still owed by the maintainer**:
+    tell the power-bridge and frontend maintainers the refactor's numbers; rule 4; §11.1 validation
+    on the re-cut tags (then again after rule 4); the engine relock; publication.
     `specs/planning/coordinated-release-version-bump.md` holds this list.
 
 - **015's consumer halves, all closed** (2026-10-15). Every row of

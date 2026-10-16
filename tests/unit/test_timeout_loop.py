@@ -1,6 +1,6 @@
 """``tools.TimeoutLoop`` — new home for the class formerly at
 ``cuemsutils.timeoutloop.Timeoutloop`` (see
-``specs/planning/tools-external-consumers-and-timeoutloop-migration.md``,
+``specs/planning/tools-external-consumers-and-timeoutloop-migration.md (deleted 2026-10-16, done; in git history)``,
 Track 2). Uses a fake clock (monkeypatching the module's ``time``/``sleep``
 names) throughout, so nothing here waits in real time.
 

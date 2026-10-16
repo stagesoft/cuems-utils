@@ -36,5 +36,5 @@ Nothing the UI would need is missing from this library:
 ## What a decision needs
 
 An owner and a repository (`cuems-frontend` for the tier; `cuems-editor` for any new WebSocket
-action; `cuems-nodeconf` for liveness data), and whether it ships before or after the coordinated
-`xml-refactor-merge-candidate` tag. It is **not** a precondition of that tag.
+action; `cuems-nodeconf` for liveness data). The coordinated `xml-refactor-merge-candidate` tags were
+cut on 2026-10-16 (feature 016) **without** it, as intended, so it ships in a later release.

@@ -5,7 +5,8 @@ day when the requirement that motivated it was narrowed. **Recorded here for out
 recovery** — the code below is the exact implementation and its exact tests, both green when
 removed.
 **Removed from**: `src/cuemsutils/xml/spec.py` and `tests/contract/test_xsd_type_resolution.py`
-**Written per** this repo's `specs/planning/` convention (see `nodeconf-atomization.md`).
+**Written per** this repo's `specs/planning/` convention (see `CLAUDE.md`, *"specs/planning and
+specs/agreements"*).
 
 ## Why it existed
 

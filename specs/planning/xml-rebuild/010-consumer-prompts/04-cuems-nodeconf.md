@@ -109,6 +109,7 @@ CONTEXT — read these before writing anything. They live in the SIBLING checkou
   .../cuems-utils/specs/008-rebuild-extension/data-model.md §5        the ported API's shape
   .../cuems-utils/tests/contract/test_nodeindex_characterization.py   THE YARDSTICK — read it
   .../cuems-utils/specs/planning/nodeconf-atomization.md              the ten-responsibility basis
+      (deleted 2026-10-16; superseded by ../cuems-nodeconf/specs/planning/13-atomization-remeasured.md)
   .../cuems-utils/specs/planning/xml-rebuild/xml-rebuild-09-consumer-audit.md   C4, C6, C9, C10 are this repo's
   .../cuems-utils/specs/planning/xml-rebuild/xml-rebuild-07-speckit-prompts.md  §2 = the FULL decision list
 

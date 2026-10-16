@@ -98,10 +98,10 @@ the eventual spec must carry, because it looks like two writers and is not.
 
 **Three obligations this creates, none of which exist yet:**
 
-1. **`cuems-nodeconf` has no record of any of it.** Its `specs/` must acquire the obligation before
-   this is a gate. Its [`nodeconf-atomization.md`](nodeconf-atomization.md) is the natural place to
-   state where a probe/transcribe responsibility sits among its ten — it is already written as *"the
-   target-design basis for a future, dedicated `cuems-nodeconf` feature"*.
+1. ✅ **Met 2026-10-13.** `cuems-nodeconf` owns its atomization basis now:
+   `../cuems-nodeconf/specs/planning/13-atomization-remeasured.md` assigns **row 13** (hardware probe
+   → `hardware_outputs.xml`) and **row 14** (`display.conf` transcription) to that repository. This
+   repository's copy, `specs/planning/nodeconf-atomization.md` *(deleted 2026-10-16: superseded by `cuems-nodeconf`'s own `specs/planning/13-atomization-remeasured.md`; in git history)*, said only where the obligation *should* be recorded.
 2. **`cuems-common` must agree that generation stays its own** while a second consumer reads the
    generated file. Today nothing but videocomposer and the engine read it.
 3. **Every reference to `cuems-hardware-discovery` as a repository is now wrong** — this library's
@@ -173,7 +173,8 @@ sequence and §6 brief.
    zero-caller evidence, but the structure pass may give them a real read. Decide in the spec, not
    before.
 3. **How `cuems-nodeconf` splits probe from transcribe** among its ten responsibilities, and whether
-   that is one feature there or two. `nodeconf-atomization.md` is the basis; the split is theirs.
+   that is one feature there or two. Its `13-atomization-remeasured.md` (rows 13–14) is the basis;
+   the split is theirs.
 4. **Whether the geometry is transcribed on every start or on change.** `display.conf` is regenerated
    by videocomposer's `ExecStartPre`; the durable copy's refresh policy is a nodeconf design question
    with a cost this document has not measured.

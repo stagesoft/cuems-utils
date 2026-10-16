@@ -101,9 +101,9 @@ obligations, and it is sequenced here because its subject is the five modules R2
       silent; they are two different symbols (010 FR-029d) — blocked by R1
 - [ ] **R5** [P] Delete `src/cuemsutils/xml/CMLCuemsConverter.py` — blocked by R1
 - [ ] **R6** [P] Delete `src/cuemsutils/timeoutloop.py` — blocked by R1.
-      ⚠ Coordinate with `specs/planning/tools-external-consumers-and-timeoutloop-migration.md`,
-      which proposes the `TimeoutLoop` relocation; that document is the authority on where the
-      replacement lives
+      The relocation that document proposed is **done**: the replacement is
+      `cuemsutils.tools.TimeoutLoop`, and `timeoutloop.py` is only its warning shim, which is what R6
+      deletes. Its record is `specs/planning/tools-external-consumers-and-timeoutloop-migration.md` *(deleted 2026-10-16: done; in git history)*
 - [ ] **R7** Remove the seven aliases at `src/cuemsutils/xml/__init__.py:81-91`, keeping
       `__all__ = []` (010 FR-029a, FR-024) — depends on R2–R6
 
