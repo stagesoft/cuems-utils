@@ -1,0 +1,32 @@
+## npm ci
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+## build
+▲ [WARNING] Module 'crypto-js' used by 'src/app/services/media/upload.service.ts' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+Output location: /disk/Projects/StageLab/cuems-frontend/dist/formitgo-tw
+
+## test:ci
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 278 of 288 SUCCESS (0 secs / 0.874 secs)
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 279 of 288 SUCCESS (0 secs / 0.875 secs)
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 280 of 288 SUCCESS (0 secs / 0.876 secs)
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 281 of 288 SUCCESS (0 secs / 0.877 secs)
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 282 of 288 SUCCESS (0 secs / 0.878 secs)
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 283 of 288 SUCCESS (0 secs / 0.878 secs)
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 284 of 288 SUCCESS (0 secs / 0.885 secs)
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 285 of 288 SUCCESS (0 secs / 0.886 secs)
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 286 of 288 SUCCESS (0 secs / 0.886 secs)
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 287 of 288 SUCCESS (0 secs / 0.886 secs)
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 288 of 288 SUCCESS (0 secs / 0.886 secs)
+[1A[2KChrome Headless 155.0.0.0 (Linux x86_64): Executed 288 of 288 SUCCESS (1.109 secs / 0.886 secs)
+TOTAL: 288 SUCCESS
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+## status

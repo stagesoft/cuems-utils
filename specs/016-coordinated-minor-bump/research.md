@@ -74,6 +74,36 @@ the `Breaks:` at `<< 0.3.1-1` (admits a bridge that `cuems-cluster-poweroff` can
 
 ---
 
+### R2a — and again, the next day: `0.4.0-1` (maintainer decision, 2026-10-16)
+
+At Phase 6's measurement, `origin/main` had released **`v0.3.2-1`** (2026-10-15 20:28, the Companion
+cue-status relay, "contains 0.3.1-2") and **`v0.3.2-2`** (2026-10-16 14:12, the relay on/off
+switch). Neither contains the refactor: both still read `node_type` and have no
+`cluster_poweroff`. So the confirmed `0.3.2-1` collided exactly, and `cuems-common`'s just-committed
+`Breaks: (<< 0.3.2~)` admitted both. The release line advances `0.3.x`'s last component almost
+daily, so following rule 1 literally means chasing it. **Decision (maintainer): `0.4.0-1`**, and
+`cuems-common`'s `Breaks: cuems-power-bridge (<< 0.4.0~)`. That leaves the `0.3.x` series to the
+release line. It is a **recorded exception** to rule 1's "last component advances" for this
+package, justified by its real compatibility break (`node_role`, `cluster_poweroff`, the
+`cuemsutils 0.1.1` floor). Verified with `dpkg`: `<< 0.4.0~` breaks `0.3.0-11` … `0.3.2-2` and
+`0.3.9-1`, and admits `0.4.0~rc1` and `0.4.0-1`. Because `901a5ba` (common) and `055ec52` (utils:
+`CHANGELOG.md`, `test_release_matrix.py`) named `0.3.2-1`, both were **amended** under FR-021, and
+their dependents re-ran. ⚠ The power-bridge maintainers must be told the refactor's number. That is
+outward-facing, so it is the maintainer's to send.
+
+### R2b — the same race in `cuems-frontend`: `0.2.0` (maintainer decision, 2026-10-16)
+
+At Phase 9, after `npm version 0.1.0 --no-git-tag-version` and before the commit, the tag list showed
+**`v0.1.0-rc1`**, created on 2026-10-16 by the frontend's own line on **`origin/dev`**
+(`6dc775c`, "stop-project show badge"). It is pushed and is not an ancestor of the refactor. Its
+`package.json` still says `0.0.0`. The planning document's "no tag history" was true until that day.
+`0.1.0` sorts above `0.1.0-rc1`, but `dev`'s next cut is plainly `v0.1.0`, which would be a second,
+different `0.1.0`. **Decision (maintainer): `0.2.0`**, leaving `0.1.x` to `dev`, the same remedy as
+R2a. No package relation names the frontend, so nothing else moves. Because `67df8bc` named
+`0.1.0` (`CHANGELOG.md`, `test_release_matrix.py`), the `cuems-utils` bump was amended again, and
+every dependent build, suite and demo re-ran (FR-021). ⚠ The frontend maintainers must be told the
+refactor's version. That is outward-facing, so it is the maintainer's to send.
+
 ## R3 — `cuems-utils 0.1.0rc17` is released, and 0.1.1 is behind it in content
 
 `origin/release/0.1.0rc17` (`ee3de82`, 2026-10-15) adds `stop_project` to `script.xsd`'s

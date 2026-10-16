@@ -54,7 +54,7 @@ def test_custody_transfer_both_orders(chroot, built_deb, sibling_deb, tmp_path):
         assert siblings == ["network_map.xml", "network_map.xsd"], (order, siblings)
         assert chroot.read("/etc/cuems/network_map.xsd") == (XSD_DIR / "network_map.xsd").read_bytes()
         status = chroot.run(["dpkg-query", "-W", "-f=${Status} ${Version}", "cuems-common"]).stdout
-        assert status.startswith("install ok installed 1.3.0-23"), (order, status)
+        assert status.startswith("install ok installed 1.3.1-1"), (order, status)
         r = chroot.run(["dpkg", "--purge", "cuems-common"], check=False)
         assert r.returncode == 0, r.stderr
         assert chroot.read("/etc/cuems/network_map.xml") == live_map, "purge of cuems-common removed the live map"
@@ -105,7 +105,12 @@ def test_live_defects_resolve(chroot, built_deb):
 
 
 def _build_old_common_stub(tmp_path):
-    """A minimal ``cuems-common`` that ships the two paths as conffiles."""
+    """A minimal ``cuems-common`` that ships the two paths as conffiles.
+
+    At ``1.3.0-25`` since feature 016: the newest RELEASED version that still owns the
+    map as a conffile, so the upgrade exercises ``rm_conffile``'s prior-version
+    (``1.3.1~``). At ``1.3.0-22`` the old ``1.3.0-23~`` would also have passed.
+    """
     import subprocess
 
     root = tmp_path / "old-common"
@@ -114,11 +119,11 @@ def _build_old_common_stub(tmp_path):
     (root / "etc/cuems/network_map.xml").write_bytes(b"<node_list/>\n")
     (root / "etc/cuems/network_map.xsd").write_bytes(b"<stale schema/>\n")
     (root / "DEBIAN/control").write_text(
-        "Package: cuems-common\nVersion: 1.3.0-22\nArchitecture: all\nMaintainer: test\n"
+        "Package: cuems-common\nVersion: 1.3.0-25\nArchitecture: all\nMaintainer: test\n"
         "Description: stub of the pre-handover cuems-common\n"
     )
     (root / "DEBIAN/conffiles").write_text("/etc/cuems/network_map.xml\n/etc/cuems/network_map.xsd\n")
-    out = tmp_path / "cuems-common_1.3.0-22_all.deb"
+    out = tmp_path / "cuems-common_1.3.0-25_all.deb"
     subprocess.run(["dpkg-deb", "--root-owner-group", "-b", str(root), str(out)], check=True, capture_output=True)
     return out
 

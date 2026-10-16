@@ -1,0 +1,12 @@
+# T122 / SC-006 — nothing pushed, no tag created or moved; 2026-10-16T19:10:06+02:00
+| Repo | branch | origin/<branch> now | baseline (T011) | local ahead | candidate tag ^{commit} now | baseline |
+|---|---|---|---|---|---|---|
+| cuems-utils | 016-coordinated-minor-bump | b83d5c2 (016 on origin: 0) | b83d5c2 | 2 | none | none |
+| cuems-common | feat/xml-refactor | e595e67 | e595e67 | 1 | e3c9430 | e3c9430 |
+| cuems-nodeconf | feat/xml-refactor | 82b0a69 | 82b0a69 | 1 | 5be6cf0 | 5be6cf0 |
+| cuems-power-bridge | feat/xml-refactor | dd1256f | dd1256f | 1 | 399baf7 | 399baf7 |
+| cuems-engine | feat/xml-refactor | 7d0bda3 | 7d0bda3 | 1 | none | none |
+| cuems-editor | feat/xml-refactor | e5e6ac1 | e5e6ac1 | 1 | none | none |
+| cuems-frontend | feat/xml-refactor | 6b69b41 | 6b69b41 | 1 | f5453a3 | f5453a3 |
+
+Every origin/<branch> equals its T011 baseline, 016 is not on origin, and every candidate-tag commit equals its baseline (none created).

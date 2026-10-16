@@ -1,0 +1,7 @@
+# npm run build @ 9e91464 2026-10-16T18:52:12+02:00
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+Output location: /disk/Projects/StageLab/cuems-frontend/dist/formitgo-tw
+

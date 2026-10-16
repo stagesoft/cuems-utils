@@ -1,0 +1,28 @@
+# 016 bookworm build — .016-utils-bump (mmdebstrap --mode=unshare; tools/bookworm-build.sh)
+date: 2026-10-16T18:30:32+02:00
+host: Debian GNU/Linux 13 (trixie), mmdebstrap 1.5.7
+repo: .016-utils-bump @ 8f6eede0ebf8a1acb2af390d65dc8a7bc82e851c, changelog version 0.1.1
+cuemsutils wheel: cuemsutils-0.1.1-py3-none-any.whl from /disk/Projects/StageLab/.016-utils-bump @ 8f6eede0ebf8a1acb2af390d65dc8a7bc82e851c (clean)
+
+## chroot
+os: Debian GNU/Linux 12 (bookworm)
+python3: /usr/bin/python3 -> /usr/bin/python3.11 Python 3.11.2
+dh-virtualenv 1.2.2-1.3
+debhelper 13.11.4
+
+## result
+pass1 OK
+build OK
+
+## packages
+cuems-utils_0.1.1_amd64.deb  sha256 2f902d06258ed4e80ea6c6ecbe564936bc9e343a9ef1f2d1fe45ab5b7a76944e
+  Package: cuems-utils
+  Version: 0.1.1
+  Architecture: amd64
+  Depends: python3 (>= 3.11), python3 (<< 3.12), libc6 (>= 2.34), python3-systemd, python3-daemon
+  Breaks: cuems-common (<< 1.3.1~)
+
+## venv interpreter
+pyvenv.cfg: home = /usr/bin
+
+## verdict: OK

@@ -71,3 +71,31 @@ def test_siblings_at_their_candidate_tags(name):
 
     tree = tagged(name)
     assert _sibling_version(tree.read, name) == PINNED[name]
+
+
+@pytest.mark.parametrize("name", SIBLINGS)
+def test_siblings_at_feat_xml_refactor(name):
+    """What feature 016 itself guarantees: each sibling's ``feat/xml-refactor`` head.
+
+    Added in 016's record commit, once those heads exist; in its bump commit this
+    would have failed by construction. Read with ``git show``, so the working tree's
+    checked-out branch does not matter. Skips with a reason when the checkout or
+    the branch is absent.
+    """
+    import subprocess
+
+    checkout = REPO_ROOT.parent / name
+    if not (checkout / ".git").exists():
+        pytest.skip(f"no sibling checkout at {checkout}")
+
+    def read(relpath: str) -> str:
+        result = subprocess.run(
+            ["git", "-C", str(checkout), "show", f"feat/xml-refactor:{relpath}"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            pytest.skip(f"{name}: feat/xml-refactor:{relpath} not readable ({result.stderr.strip()})")
+        return result.stdout
+
+    assert _sibling_version(read, name) == PINNED[name]

@@ -1,0 +1,16 @@
+# T116 — final sibling suites at every bump commit, on cuemsutils 0.1.1 (.016-utils-bump @ 8f6eede)
+
+Satisfied by re-run 3 (2026-10-16 18:38–18:57), whose B arms ran after all seven commits existed and
+none moved afterwards (common fb450b5, nodeconf 334db12, power-bridge f0da390, engine e994a5e,
+editor a2431f0, frontend 9e91464, utils 8f6eede). Repeating them would measure the same trees.
+
+| Repo | Arm B (×3) | Evidence |
+|---|---|---|
+| cuems-common | 103 passed, 3 skipped | cuems-common/suite-B-3.txt |
+| cuems-nodeconf | 206 passed + yardstick 15 | cuems-nodeconf/suite-B-3.txt |
+| cuems-power-bridge | 276 passed | cuems-power-bridge/suite-B-2.txt |
+| cuems-engine | 885 passed + 1 xfailed (lock test, FR-022) + 32 passed | cuems-engine/suite-B-2.txt |
+| cuems-editor | 271 passed, 3 skipped | cuems-editor/suite-B-2.txt |
+| cuems-frontend | 288 SUCCESS | cuems-frontend/suite-B.txt |
+
+No new failures against any arm A. No library effect in any sibling (start run = arm A counts).

@@ -1,0 +1,13 @@
+# arm B test.py3.11 @ 055ec52 2026-10-15T22:07:13+02:00 wall=32.921456525s
+FAILED tests/contract/test_descriptor_laziness.py::test_no_individual_schema_regresses_where_it_is_measurable[settings]
+1 failed, 3753 passed, 116 skipped, 6 xfailed, 277 warnings in 31.73s
+# arm B test.py3.11 @ 055ec52 2026-10-15T22:08:18+02:00 wall=32.866541469s
+3754 passed, 116 skipped, 6 xfailed, 277 warnings in 31.75s
+# arm B test.py3.11 @ 055ec52 2026-10-15T22:09:24+02:00 wall=32.858517895s
+3754 passed, 116 skipped, 6 xfailed, 277 warnings in 31.69s
+# arm B test.py3.12 @ 055ec52 2026-10-15T22:11:00+02:00 wall=44.138304414s
+3754 passed, 116 skipped, 6 xfailed, 277 warnings in 34.69s
+# arm B test.py3.13 @ 055ec52 2026-10-15T22:12:25+02:00 wall=41.906735477s
+FAILED tests/contract/test_public_api_surface.py::test_public_api_matches_the_snapshot
+FAILED tests/integration/test_remint_fixture_ceiling.py::test_the_named_fixture_is_rewritten_within_the_ceiling
+2 failed, 3752 passed, 116 skipped, 6 xfailed, 277 warnings in 32.79s

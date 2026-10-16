@@ -13,8 +13,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 Move all seven CUEMS repositories to their next stable minor in one coordinated, unpushed set:
 `cuems-utils 0.1.1`, `cuems-common 1.3.1-1`, `cuems-engine 0.1.1-1`, `cuems-editor 0.1.1-1`,
-`cuems-nodeconf 0.1.1-1`, **`cuems-power-bridge 0.3.2-1`** (re-derived today, research R2) and
-`cuems-frontend 0.1.0`, every changelog head `UNRELEASED`. **`cuems-utils` commits its bump
+`cuems-nodeconf 0.1.1-1`, **`cuems-power-bridge 0.4.0-1`** (re-derived twice, research R2, R2a) and
+`cuems-frontend 0.2.0` (research R2b), every changelog head `UNRELEASED`. **`cuems-utils` commits its bump
 first** (every sibling build resolves `cuemsutils>=0.1.1`, which exists nowhere else), and its record
 commit, where its candidate tag goes, and its tag message **last**. All 24 versioned package relations move
 in the same commits. Each package is built in a disposable bookworm chroot against a `cuemsutils`

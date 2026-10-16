@@ -1,0 +1,9 @@
+# rerun-3 arm A @ b83d5c2 wall=31.896205942s
+FAILED tests/packaging/test_ordering_premise.py::test_cuems_common_still_configures_after_this_package
+1 failed, 3755 passed, 114 skipped, 2 xfailed, 379 warnings in 30.83s
+# rerun-3 arm A @ b83d5c2 wall=31.690250688s
+FAILED tests/packaging/test_ordering_premise.py::test_cuems_common_still_configures_after_this_package
+1 failed, 3755 passed, 114 skipped, 2 xfailed, 379 warnings in 30.62s
+# rerun-3 arm A @ b83d5c2 wall=32.487461668s
+FAILED tests/packaging/test_ordering_premise.py::test_cuems_common_still_configures_after_this_package
+1 failed, 3755 passed, 114 skipped, 2 xfailed, 379 warnings in 31.38s

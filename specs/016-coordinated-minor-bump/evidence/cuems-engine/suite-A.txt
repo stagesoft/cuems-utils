@@ -1,0 +1,9 @@
+# arm A @ 7d0bda3 2026-10-16T17:35:29+02:00 wall=21.797821950s cuemsutils 0.1.1 pyossia 2.0.0rc6+124.cuems.3
+====================== 885 passed, 102 warnings in 13.39s ======================
+=============== 32 passed, 891 deselected, 102 warnings in 7.57s ===============
+# arm A @ 7d0bda3 2026-10-16T17:36:14+02:00 wall=23.174339947s cuemsutils 0.1.1 pyossia 2.0.0rc6+124.cuems.3
+====================== 885 passed, 102 warnings in 14.72s ======================
+=============== 32 passed, 891 deselected, 102 warnings in 7.62s ===============
+# arm A @ 7d0bda3 2026-10-16T17:37:00+02:00 wall=22.373450898s cuemsutils 0.1.1 pyossia 2.0.0rc6+124.cuems.3
+====================== 885 passed, 102 warnings in 13.95s ======================
+=============== 32 passed, 891 deselected, 102 warnings in 7.58s ===============

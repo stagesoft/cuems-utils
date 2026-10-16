@@ -23,7 +23,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
   code coordination with the release lines (cherry-pick, merge or direct adoption) is a later step,
   after this feature. Rule 4 of the planning document is recorded as **not yet met**.
 - Q: `cuems-frontend` has no package, no tag history and `package.json` at `0.0.0`. → A: It takes
-  its **first real version, `0.1.0`**, at this landing.
+  its **first real version, `0.1.0`**, at this landing. *Moved to **`0.2.0`** on 2026-10-16: `origin/dev`
+  tagged `v0.1.0-rc1` that day, so the refactor leaves `0.1.x` to that line (research R2b).*
 - Q: How are the suites run, given pyenv 3.11.9 must stay the development interpreter? → A: **Every
   sibling Python suite runs on pyenv 3.11.9**, in its own git-ignored `.venv` created from
   `~/.pyenv/versions/3.11.9/bin/python`. **`cuems-utils` is the exception**: it is the only
@@ -119,8 +120,8 @@ node receives the packages.
 
 The maintainer looks at any repository's `feat/xml-refactor` head and finds its package at its
 own next stable minor (`cuems-utils 0.1.1`, `cuems-common 1.3.1-1`, `cuems-engine 0.1.1-1`,
-`cuems-editor 0.1.1-1`, `cuems-nodeconf 0.1.1-1`, `cuems-power-bridge 0.3.2-1` — re-derived
-2026-10-15, see research R2), marked
+`cuems-editor 0.1.1-1`, `cuems-nodeconf 0.1.1-1`, `cuems-power-bridge 0.4.0-1` — re-derived
+2026-10-15/16, see research R2, R2a), marked
 `UNRELEASED`, with every place that states the package's own version agreeing.
 
 **Why this priority**: four of the six packaged repositories hold a version number a parallel
@@ -169,7 +170,8 @@ demonstration exists for a repository, it is run.
    released `0.1.0-8` and `0.1.0-9`, **Then** both are refused.
 4. **Given** `cuems-common`'s `Breaks:` on `cuems-power-bridge`, **When** evaluated against the
    released `0.3.0-11` and `0.3.1-2` (released 2026-10-15, still reading `node_type` and without
-   the cluster-poweroff module), **Then** both are refused, and `0.3.2-1` is admitted.
+   the cluster-poweroff module), **Then** both are refused, as are the since-released `0.3.2-1` and `0.3.2-2`, and `0.4.0-1` is
+   admitted (research R2a).
 5. **Given** the two existing install demonstrations (`cuems-common`, `cuems-nodeconf`), **When**
    run with every checkout at its committed `feat/xml-refactor` head, **Then** every scenario's
    observed outcome matches its expectation, and the evidence is written to a new file, never
@@ -264,7 +266,8 @@ search non-frozen documents for the old removal release.
 - **`cuems-engine`'s suite needs the real `pyossia`**: provided by the pinned `cuems3` wheel
   (FR-020). Its one known full-suite failure, `test_project_go_from_controller` (marked slow), is
   outside the two CI passes and pre-existing.
-- **`cuems-frontend` has no package and no tag history**: it takes `0.1.0` (FR-014) and is
+- **`cuems-frontend` has no package and, until 2026-10-16, no tag history**: it takes `0.2.0`
+  (FR-014, research R2b — `dev` tagged `v0.1.0-rc1` that day) and is
   neither built as a `.deb` nor subject to any package relation.
 - **An install demonstration still hard-codes the old versions** (it does today): it is updated in
   the same commit as the relations it tests, or it would "pass" while testing nothing that ships
@@ -366,7 +369,8 @@ search non-frozen documents for the old removal release.
   feature MUST be impossible. Its assertion on this repository lands with the bump commit; its
   assertions on the siblings' `feat/xml-refactor` heads land with the record commit, once those
   heads exist.
-- **FR-014**: `cuems-frontend` MUST take its first real version, **`0.1.0`**, at every version
+- **FR-014**: `cuems-frontend` MUST take its first real version, **`0.2.0`** (was `0.1.0`; research
+  R2b), at every version
   site it has (`package.json` and any lock file that records the project's own version), without
   creating a git tag, and receive a candidate-tag message. It has no `debian/` and no package
   relation, so FR-005 and FR-006 do not apply to it; its build check is its own production build,
@@ -457,7 +461,7 @@ search non-frozen documents for the old removal release.
 ### Measurable Outcomes
 
 - **SC-001**: 7 of 7 repositories state their target version at every self-version site
-  (`cuems-frontend` at `0.1.0`), and 0 targets collide with a version released on any remote
+  (`cuems-frontend` at `0.2.0`), and 0 targets collide with a version released on any remote
   branch.
 - **SC-002**: All 25 versioned relation sites of `contracts/relation-matrix.md` (24 moved + the new
   `libmtcmaster` declaration) hold their new value; 100% of its verdicts give the expected admit/refuse result, and the same verdicts
@@ -501,7 +505,9 @@ search non-frozen documents for the old removal release.
 - **The target table is the planning document's §3**, re-derived by FR-002's measurement. The
   2026-10-15 measurement moved one target: `cuems-power-bridge` released `0.3.1-2` from
   `release/0.3.1-2` that day, numbered "above the open xml-refactor line", so the refactor line
-  takes **`0.3.2-1`** (research R2).
+  takes `0.3.2-1` (research R2), and after `0.3.2-1`/`0.3.2-2` were also released on 2026-10-15/16 the
+  maintainer moved it to **`0.4.0-1`** (research R2a) — a recorded exception to rule 1's "last
+  component advances".
 - **The six siblings are all clean and level with their remotes today** (measured 2026-10-15), so
   FR-001 starts from a known state.
 - **Publication** (PyPI, the `.deb` archive) and **the tag re-cut itself** are out of scope:

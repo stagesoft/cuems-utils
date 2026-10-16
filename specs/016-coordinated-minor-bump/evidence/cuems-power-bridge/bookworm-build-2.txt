@@ -1,0 +1,28 @@
+# 016 bookworm build — cuems-power-bridge (mmdebstrap --mode=unshare; tools/bookworm-build.sh)
+date: 2026-10-16T18:34:50+02:00
+host: Debian GNU/Linux 13 (trixie), mmdebstrap 1.5.7
+repo: cuems-power-bridge @ f0da39036779b4d3b5976207db8b09c56fed4b6a, changelog version 0.4.0-1
+cuemsutils wheel: cuemsutils-0.1.1-py3-none-any.whl from /disk/Projects/StageLab/.016-utils-bump @ 8f6eede0ebf8a1acb2af390d65dc8a7bc82e851c (clean)
+
+## chroot
+os: Debian GNU/Linux 12 (bookworm)
+python3: /usr/bin/python3 -> /usr/bin/python3.11 Python 3.11.2
+dh-virtualenv 1.2.2-1.3
+debhelper 13.11.4
+
+## result
+pass1 OK
+build OK
+
+## packages
+cuems-power-bridge_0.4.0-1_all.deb  sha256 b9159de01da770c62be47b9d5cf5669204dedb773774b698f4bc1da039be7417
+  Package: cuems-power-bridge
+  Version: 0.4.0-1
+  Architecture: all
+  Depends: cuems-utils (>= 0.1.1), cuems-utils (<< 0.1.2~), cuems-common (>= 1.3.1~), python3 (>= 3.11), python3-systemd (>= 235), openssh-client, iputils-ping
+  Breaks: cuems-common (<< 1.3.1~)
+
+## venv interpreter
+pyvenv.cfg: home = /usr/bin
+
+## verdict: OK

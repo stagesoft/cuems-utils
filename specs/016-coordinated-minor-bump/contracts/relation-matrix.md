@@ -17,10 +17,10 @@ document's §4, re-measured, and amended by research R2.
 | `cuems-utils` | `0.1.1` | `>= 0.1.1`, ceiling `<< 0.1.2~` |
 | `cuems-common` | `1.3.1-1` | `>= 1.3.1~`; `Breaks: << 1.3.1~` |
 | `cuems-nodeconf` | `0.1.1-1` | `Breaks: << 0.1.1~` |
-| `cuems-power-bridge` | `0.3.2-1` | `Breaks: << 0.3.2~` |
+| `cuems-power-bridge` | **`0.4.0-1`** (2026-10-16; was `0.3.2-1`, research R2a) | `Breaks: << 0.4.0~` |
 | `cuems-engine` | `0.1.1-1` | `>= 0.1.1` (its own `-mock` package) |
 | `cuems-editor` | `0.1.1-1` | — (no package depends on it) |
-| `cuems-frontend` | `0.1.0` | — (not packaged) |
+| `cuems-frontend` | **`0.2.0`** (2026-10-16; was `0.1.0`, research R2b) | — (not packaged) |
 
 Row 25 is not a version move. It is a missing relation declared at the released version, so it
 has no "Today" value and no fail-before verdict: it is absent before.
@@ -33,11 +33,11 @@ has no "Today" value and no fail-before verdict: it is absent before.
 | 2 | `cuems-common` | `debian/control:12` | `cuems-utils (>= 0.1.0rc16)` | `(>= 0.1.1)` |
 | 3 | `cuems-common` | `debian/control:13` | `cuems-utils (<< 0.1.1~)` | `(<< 0.1.2~)` |
 | 4 | `cuems-common` | `debian/control:57` | `Breaks: cuems-nodeconf (<< 0.1.0-8)` | `(<< 0.1.1~)` |
-| 5 | `cuems-common` | `debian/control:58` | `cuems-power-bridge (<< 0.3.1-1)` | `(<< 0.3.2~)` — research R2 |
-| 6 | `cuems-engine` | `debian/control:26` | `cuems-utils (>= 0.1.0rc16)` | `(>= 0.1.1)` |
-| 7 | `cuems-engine` | `debian/control:27` | `cuems-utils (<< 0.1.1~)` | `(<< 0.1.2~)` |
-| 8 | `cuems-engine` | `debian/control:28` | `cuems-common (>= 1.3.0-23~)` | `(>= 1.3.1~)` + comment `:20-21` |
-| 9 | `cuems-engine` | `debian/control:49` (`:50` after row 25 is inserted) | `cuems-engine (>= 0.1.0rc2)` (the `-mock` binary) | `(>= 0.1.1)` |
+| 5 | `cuems-common` | `debian/control:58` | `cuems-power-bridge (<< 0.3.1-1)` | `(<< 0.4.0~)` — research R2, R2a |
+| 6 | `cuems-engine` | `debian/control:26` (`:30` at `e994a5e`) | `cuems-utils (>= 0.1.0rc16)` | `(>= 0.1.1)` |
+| 7 | `cuems-engine` | `debian/control:27` (`:31` at `e994a5e`) | `cuems-utils (<< 0.1.1~)` | `(<< 0.1.2~)` |
+| 8 | `cuems-engine` | `debian/control:28` (`:32` at `e994a5e`) | `cuems-common (>= 1.3.0-23~)` | `(>= 1.3.1~)` + comment `:20-21` |
+| 9 | `cuems-engine` | `debian/control:49` (`:54` at `e994a5e`) | `cuems-engine (>= 0.1.0rc2)` (the `-mock` binary) | `(>= 0.1.1)` |
 | 10 | `cuems-engine` | `pyproject.toml:50` | `cuemsutils = ">=0.1.0rc16,<0.1.1"` | `">=0.1.1,<0.1.2"` |
 | 11 | `cuems-editor` | `debian/control:18` | `cuems-utils (>= 0.1.0rc16)` | `(>= 0.1.1)` |
 | 12 | `cuems-editor` | `debian/control:19` | `cuems-utils (<< 0.1.1~)` | `(<< 0.1.2~)` |
@@ -53,7 +53,7 @@ has no "Today" value and no fail-before verdict: it is absent before.
 | 22 | `cuems-power-bridge` | `debian/control:20` | `cuems-common (>= 1.3.0-23)` | `(>= 1.3.1~)` |
 | 23 | `cuems-power-bridge` | `debian/control:25` | `Breaks: cuems-common (<< 1.3.0-23)` | `(<< 1.3.1~)` |
 | 24 | `cuems-power-bridge` | `pyproject.toml:38` | `cuemsutils = ">=0.1.0rc16,<0.1.1"` | `">=0.1.1,<0.1.2"` |
-| 25 | `cuems-engine` | `debian/control`, new line after `:30` | — (undeclared; `libmtc.py` loads `libmtcmaster.so.0`) | `libmtcmaster (>= 0.0.2-0)` — the published release, no bump (spec FR-023) |
+| 25 | `cuems-engine` | `debian/control:35` at `e994a5e` (inserted after `python3-pyossia`) | — (undeclared; `libmtc.py` loads `libmtcmaster.so.0`) | `libmtcmaster (>= 0.0.2-0)` — the published release, no bump (spec FR-023) |
 
 **Unchanged on purpose** (recorded, not edited), each with an owner:
 
@@ -81,7 +81,7 @@ document §11 step 6), so the version and its relations land in one commit.
 | consumers → `cuems-common` (8, 13, 17, 22) | `1.0.0`, `1.3.0-23`, `1.3.0-25` | `1.3.1-1` |
 | `Breaks:` `cuems-common` (18, 23) | breaks `1.3.0-25` | does not break `1.3.1-1` |
 | `cuems-common` `Breaks:` `cuems-nodeconf` (4) | breaks `0.1.0-8`, `0.1.0-9` | does not break `0.1.1~rc1`, `0.1.1-1` |
-| `cuems-common` `Breaks:` `cuems-power-bridge` (5) | breaks `0.3.0-11`, `0.3.1-1`, `0.3.1-2` | does not break `0.3.2-1` |
+| `cuems-common` `Breaks:` `cuems-power-bridge` (5) | breaks `0.3.0-11`, `0.3.1-1`, `0.3.1-2`, `0.3.2-1`, `0.3.2-2` | does not break `0.4.0-1` |
 | `cuems-engine-mock` → `cuems-engine` (9) | `0.1.0rc6-5` | `0.1.1-1` |
 | `cuems-engine` → `libmtcmaster` (25) | `0.0.1-1`, `0.0.2~rc1` | `0.0.2-0`, `0.0.2-1` |
 

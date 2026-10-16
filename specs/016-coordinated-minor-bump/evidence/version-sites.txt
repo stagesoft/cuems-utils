@@ -1,0 +1,10 @@
+# T123 / SC-001 — every self-version site at its final commit; 2026-10-16T19:10:34+02:00
+| Repo | sites (value) | target | highest released on any other remote branch | target above it? |
+|---|---|---|---|---|
+| cuems-utils | init 0.1.1, changelog 0.1.1 | 0.1.1 | 0.1.0rc17 | yes |
+| cuems-common | changelog 1.3.1-1 | 1.3.1-1 | 1.3.0-25 | yes |
+| cuems-nodeconf | pyproject 0.1.1, changelog 0.1.1-1 | 0.1.1-1 | 0.1.0-9 | yes |
+| cuems-power-bridge | pyproject 0.4.0, init 0.4.0, changelog 0.4.0-1 | 0.4.0-1 | 0.3.2-2 | yes |
+| cuems-engine | pyproject 0.1.1, init 0.1.1, CHANGELOG.md ## v0.1.1, changelog 0.1.1-1 | 0.1.1-1 | 0.1.0rc6-5 | yes |
+| cuems-editor | pyproject 0.1.1, init 0.1.1, CHANGELOG.md ## 0.1.1, changelog 0.1.1-1 | 0.1.1-1 | 0.1.0rc1-7 | yes |
+| cuems-frontend | package.json 0.2.0, lock 0.2.0 0.2.0 | 0.2.0 | tags: v0.1.0-rc1  | yes (0.2.0 > 0.1.0-rc1, semver) |

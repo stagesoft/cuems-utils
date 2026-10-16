@@ -1,0 +1,9 @@
+# arm B @ e994a5e 2026-10-16T17:35:51+02:00 wall=21.820590140s cuemsutils 0.1.1 pyossia 2.0.0rc6+124.cuems.3
+================ 885 passed, 1 xfailed, 102 warnings in 13.39s =================
+=============== 32 passed, 892 deselected, 102 warnings in 7.58s ===============
+# arm B @ e994a5e 2026-10-16T17:36:37+02:00 wall=23.279276474s cuemsutils 0.1.1 pyossia 2.0.0rc6+124.cuems.3
+================ 885 passed, 1 xfailed, 102 warnings in 14.71s =================
+=============== 32 passed, 892 deselected, 102 warnings in 7.66s ===============
+# arm B @ e994a5e 2026-10-16T17:37:23+02:00 wall=23.681692084s cuemsutils 0.1.1 pyossia 2.0.0rc6+124.cuems.3
+================ 885 passed, 1 xfailed, 102 warnings in 15.24s =================
+=============== 32 passed, 892 deselected, 102 warnings in 7.59s ===============
