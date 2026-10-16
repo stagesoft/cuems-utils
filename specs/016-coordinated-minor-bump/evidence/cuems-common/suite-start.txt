@@ -1,0 +1,20 @@
+# start run — cuems-common @ e595e67, 2026-10-15T21:53:59+02:00
+# cmd: bash -c cd cuems-common && .venv/bin/python -c "import sys;print(\"# python\",sys.executable,sys.version.split()[0])" && .venv/bin/python -m pytest -q -p no:cacheprovider -rfE
+# python /disk/Projects/StageLab/cuems-common/.venv/bin/python 3.11.9
+
+==================================== ERRORS ====================================
+_______ ERROR collecting cuems-common/tests/test_network_map_example.py ________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-common/tests/test_network_map_example.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_network_map_example.py:17: in <module>
+    from lxml import etree
+E   ModuleNotFoundError: No module named 'lxml'
+=========================== short test summary info ============================
+ERROR tests/test_network_map_example.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.24s
+# exit=2 wall=.447750917s

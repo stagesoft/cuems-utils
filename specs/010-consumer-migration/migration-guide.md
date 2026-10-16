@@ -1,5 +1,13 @@
 # Migration guide — feature 010, consumer migration
 
+> **Superseded versions, 2026-10-15 (feature 016).** The coordinated `xml-refactor` landing no
+> longer holds `0.1.0rc16`. It cuts **`cuems-utils 0.1.1`**, the deprecated surface goes in
+> **`v0.1.2`** (`REMOVAL_RELEASE`), and every consumer bounds the library **`>= 0.1.1`,
+> `<< 0.1.2~`** (`cuemsutils>=0.1.1,<0.1.2`), per
+> `specs/016-coordinated-minor-bump/contracts/relation-matrix.md`. Below, `0.1.0rc16`,
+> `<< 0.1.1~` and `v0.1.1` are left as **dated record** of what was true when written. Read any
+> *instruction* that names them with the new values.
+
 **Status**: accumulating. This document is written **as the work lands**, not retrofitted at the
 end (FR-002, FR-005). Sections are stubs until their wave closes.
 **Audience**: the six consumer repositories' spec-kit flows, and whoever runs the next
@@ -29,7 +37,7 @@ library source.)*
 
 ## 2. The public descriptor path *(wave 0)*
 
-**Requires `cuemsutils >= 0.1.0rc16`.** The surface below landed *after* `0.1.0rc15`, which is what
+**Requires `cuemsutils >= 0.1.1`** *(was `>= 0.1.0rc16` until feature 016; `0.1.0rc16` was later released from another line without this surface, so it no longer names it)*. The surface below landed *after* `0.1.0rc15`, which is what
 every consumer currently pins, so `rc15` cannot express "I need the descriptor". The library was
 bumped to `0.1.0rc16` on 2026-09-07 for exactly this reason: an API nobody can name a version for
 is an API nobody can depend on, and wave 0 is not usable until its consumers can pin it.

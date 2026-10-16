@@ -1,0 +1,9 @@
+# rerun-2 arm B @ 67df8bc 2026-10-16T17:52:32+02:00 wall=32.918859305s
+FAILED tests/packaging/test_ordering_premise.py::test_cuems_common_still_configures_after_this_package
+1 failed, 3753 passed, 116 skipped, 6 xfailed, 277 warnings in 31.78s
+# rerun-2 arm B @ 67df8bc 2026-10-16T17:53:37+02:00 wall=32.519545628s
+FAILED tests/packaging/test_ordering_premise.py::test_cuems_common_still_configures_after_this_package
+1 failed, 3753 passed, 116 skipped, 6 xfailed, 277 warnings in 31.39s
+# rerun-2 arm B @ 67df8bc 2026-10-16T17:54:42+02:00 wall=32.368261900s
+FAILED tests/packaging/test_ordering_premise.py::test_cuems_common_still_configures_after_this_package
+1 failed, 3753 passed, 116 skipped, 6 xfailed, 277 warnings in 31.27s

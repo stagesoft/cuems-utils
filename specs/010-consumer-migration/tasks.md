@@ -4,6 +4,14 @@ description: "Task list for feature 010 — consumer migration"
 
 # Tasks: Consumer migration
 
+> **Superseded versions, 2026-10-15 (feature 016).** The coordinated `xml-refactor` landing no
+> longer holds `0.1.0rc16`. It cuts **`cuems-utils 0.1.1`**, the deprecated surface goes in
+> **`v0.1.2`** (`REMOVAL_RELEASE`), and every consumer bounds the library **`>= 0.1.1`,
+> `<< 0.1.2~`** (`cuemsutils>=0.1.1,<0.1.2`), per
+> `specs/016-coordinated-minor-bump/contracts/relation-matrix.md`. Below, `0.1.0rc16`,
+> `<< 0.1.1~` and `v0.1.1` are left as **dated record** of what was true when written. Read any
+> *instruction* that names them with the new values.
+
 **Input**: Design documents from `/specs/010-consumer-migration/`
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md),
 [data-model.md](data-model.md), [contracts/](contracts/)
@@ -29,7 +37,7 @@ repository's `tasks.md` contains"):
 |---|---|
 | US3 in full (wave 0 — the public descriptor path) | The per-call-site edits in the six consumer repositories |
 | US9 in full (wave 4 — rollout, release gate, data migration) | Anything each consumer already tracks in its own `tasks.md` |
-| US10 (wave 5 — the census, the count, the corrections, the guide) | **The removal and the version move** — migrated 2026-10-03 to `specs/planning/deprecated-surface-removal-v0-1-1.md` as R1–R12 |
+| US10 (wave 5 — the census, the count, the corrections, the guide) | **The removal and the version move** — migrated 2026-10-03 to `specs/planning/deprecated-surface-removal-v0-1-2.md` as R1–R12 |
 | For US1/US2/US4/US5/US6/US7/US8/**US11**: **gate references only** — the guide entry each one owes, and the verification that it actually landed | |
 | **US11's flow prompt** (T070) — every other flow's prompt lives in this repository, so this one's does too | The bridge's own parser edits, its fixtures and its packaging |
 
@@ -473,7 +481,7 @@ them later.
 - [X] T074 [US11] Verify the **empty-selection invariant** the findings document asks for in §2: a stage-2 run that selects zero targets is an **error**, not a success. This is the check that would have made the original failure loud, and it is the only item here that survives the vocabulary question entirely — a future field rename breaks the selection the same silent way. Record where it landed (the tool, the bridge, or both) in `specs/010-consumer-migration/baseline.md`
 - [X] T075 [US11] Verify **both** broken features recover, separately measured, because they fail and recover independently (T071(b)): (i) orderly cluster power-off selects the expected nodes from a converted map, and (ii) the autoload / NNG-hub readiness gate does too. Record both in `specs/010-consumer-migration/baseline.md`; a single "the bridge works now" is not this task's answer
 - [X] T076 [US11] Verify the bridge's `cuemsutils` dependency is **non-optional and bounded**: `pyproject.toml:36` moved out of `[tool.poetry.extras]` and bounded like `cuems-nodeconf`'s (`>=0.1.0rc16,<0.1.1`), and `debian/control:18`'s floor raised and bounded. **Corrected 2026-09-18 on two points.** First, FR-053's "`cuems-wsclient`'s identical pin" is not an analogy — it is the *same line of the same file*, since the two names are one repository. Second, this task's premise that `debian/control` has **no** `cuems-utils` relation is **wrong**: `:18` declares `cuems-utils (>= 0.1.0rc5)` and `:19` declares `cuems-common (>= 1.0.0)`. The defect is a stale, unbounded floor, not an absent edge — which changes the fix from *add a relation* to *raise and bound one*. Record in `specs/010-consumer-migration/contracts/release-gate.md` as that table's **sixth** row, not a seventh — depends on T038.
-  **CLOSED 2026-09-29.** `pyproject.toml:38` was already right — non-optional, `>=0.1.0rc16,<0.1.1`, out of `[tool.poetry.extras]`. `debian/control` carried only the raised floor, so the **package** did not express the gate while the **source** did. Fixed in `../cuems-power-bridge` at `399baf7`: `:19` `cuems-utils (<< 0.1.1~)` added, the same pair `cuems-nodeconf` (`:18-19`) and `cuems-common` (`:12-13`) carry. Verified with `dpkg --compare-versions`: `0.1.0rc16` satisfies both bounds; `0.1.1`, `0.1.1~rc1` and `0.2.0` are refused; `0.1.0rc17` still passes — and `0.1.1` is precisely the release **R11** of `specs/planning/deprecated-surface-removal-v0-1-1.md` removes the deprecated surface in (migrated from T060, 2026-10-03), so the bound now refuses the library version that would break this consumer at runtime. No version moved (`0.3.1-1`); suite unchanged at 276 passed. The re-cut this forces is recorded in `baseline.md`.
+  **CLOSED 2026-09-29.** `pyproject.toml:38` was already right — non-optional, `>=0.1.0rc16,<0.1.1`, out of `[tool.poetry.extras]`. `debian/control` carried only the raised floor, so the **package** did not express the gate while the **source** did. Fixed in `../cuems-power-bridge` at `399baf7`: `:19` `cuems-utils (<< 0.1.1~)` added, the same pair `cuems-nodeconf` (`:18-19`) and `cuems-common` (`:12-13`) carry. Verified with `dpkg --compare-versions`: `0.1.0rc16` satisfies both bounds; `0.1.1`, `0.1.1~rc1` and `0.2.0` are refused; `0.1.0rc17` still passes — and `0.1.1` is precisely the release **R11** of `specs/planning/deprecated-surface-removal-v0-1-2.md` removes the deprecated surface in (migrated from T060, 2026-10-03), so the bound now refuses the library version that would break this consumer at runtime. No version moved (`0.3.1-1`); suite unchanged at 276 passed. The re-cut this forces is recorded in `baseline.md`.
   **Why it was missed, which outlives the fix**: that repository's own feature 001 **T040** specified only `cuems-utils (>= 0.1.0rc16)`, `cuems-common (>= 1.3.0-23)` and the `Breaks:`. It was executed exactly as written. The upper bound existed only in *this* task, in *this* repository — a cross-repo requirement carried by one side's task list alone, which is a requirement that gets built on one side. Same shape as FR-UX-002's finding, one layer down.
 - [X] T077 [US11] Decide and record the `cuems-common` ↔ `cuems-power-bridge` packaging edge (findings §8): `Suggests:` carries no version, so nothing today refuses a new tool beside an old bridge or the reverse. Whichever side changes first acquires a `Breaks:` against the versions of the other that cannot work with it. **`Suggests:` MUST be preserved as-is** — it is deliberately not `Depends:`/`Recommends:` so `cuems-common` stays functional on a host with no bridge, and both scripts already log one ERROR and exit 0 when the venv interpreter is absent. Record in `specs/010-consumer-migration/contracts/release-gate.md` (FR-091's pattern, applied to an edge FR-091 did not enumerate)
 - [X] T078 [P] [US11] Record the two secondary findings so they are decided rather than inherited (findings §5): (i) `own_uuid()` reads `/etc/cuems/settings.xml`, which **no package ships** — it swallows every exception and returns `None`, silently disabling uuid-based self-exclusion on any host lacking it; and (ii) `cuems-cluster-poweroff:240`'s docstring still says "matches the network_map `NodeType.master` entry" — stale prose in the same family as the defect. Record in `specs/010-consumer-migration/migration-guide.md`; (i) is a **decision**, not a bug to fix silently
@@ -535,7 +543,7 @@ replacement.
 
 **⚠ Re-scoped 2026-10-03 — the removal itself is no longer here.** This story used to also delete
 the deprecated surface and move `__version__` to `v0.1.1`. Those twelve tasks (T050–T061) are
-**migrated to `specs/planning/deprecated-surface-removal-v0-1-1.md`** and renumbered R1–R12 there. Two reasons, the first mechanical:
+**migrated to `specs/planning/deprecated-surface-removal-v0-1-2.md`** and renumbered R1–R12 there. Two reasons, the first mechanical:
 
 1. **The refactor lands as `0.1.0rc16`.** The coordinated `xml-refactor-merge-candidate` tag cuts
    no stable release, so a task that moves the version to `v0.1.1` contradicts the versioning this
@@ -554,19 +562,19 @@ vocabulary count (T062), the stale-document corrections (T063) and the guide (T0
 ### 🛑 GATE — the census, and what it now gates
 
 FR-090 requires this ordering to be structural, and after the 2026-10-03 re-scope it is **stronger
-than a task ordering**: the deletions are not in this file at all. They are R2–R9 of `specs/planning/deprecated-surface-removal-v0-1-1.md`,
+than a task ordering**: the deletions are not in this file at all. They are R2–R9 of `specs/planning/deprecated-surface-removal-v0-1-2.md`,
 and R1 there re-runs this census immediately before the first of them.
 
 T049 below is this feature's own obligation — measure that the consumers are off the deprecated
 paths. "The consumer flows are merged" is a different claim from "the imports are gone", and the
 difference is a broken daemon; FR-029 requires the measurement either way, and it is satisfied.
 
-- [X] T049 [US10] Re-run the import census across all **six** consumer checkouts beside this one (`../*`) — **corrected 2026-09-18 from seven**: `cuems-power-bridge` is the sixth under its current name, not a seventh beside `cuems-wsclient`. Census the **live** checkout; `../cuems-wsclient` is a stale clone of the same remote, 30 commits behind, and censusing it would both double-count and measure a tree nobody ships from — and write the result — per repository, per path, with the command that produced it — to `specs/010-consumer-migration/import-census.md`. **Required value: zero** (FR-029). Note the census greps **deprecated** paths, not **internal** ones, so a zero here does not carry the claim "reaches the library through public paths only" — that gap is recorded against `cuems-nodeconf` in `migration-guide.md` §4a and is not T049's to close  **Run 2026-10-02 and the required value is reached: zero over shipped source across all six consumers**, recorded in `import-census.md` with the command, the remote-de-duplicated denominator and the exempt set under its two separate reasons. `cuems-editor`'s five live imports — the last in the ecosystem — are gone at `bf57d95`. ⚠️ **This is the precondition record, not a gate clearance**: a census for the deletions must postdate the last consumer *merge*, and nothing is merged. **Re-scoped 2026-10-03** — the deletions are no longer this feature's, so what this run certifies is exactly what FR-029 asks of feature 010: the consumers are off the deprecated paths. Re-running it before a deletion is R1 of `specs/planning/deprecated-surface-removal-v0-1-1.md`.
+- [X] T049 [US10] Re-run the import census across all **six** consumer checkouts beside this one (`../*`) — **corrected 2026-09-18 from seven**: `cuems-power-bridge` is the sixth under its current name, not a seventh beside `cuems-wsclient`. Census the **live** checkout; `../cuems-wsclient` is a stale clone of the same remote, 30 commits behind, and censusing it would both double-count and measure a tree nobody ships from — and write the result — per repository, per path, with the command that produced it — to `specs/010-consumer-migration/import-census.md`. **Required value: zero** (FR-029). Note the census greps **deprecated** paths, not **internal** ones, so a zero here does not carry the claim "reaches the library through public paths only" — that gap is recorded against `cuems-nodeconf` in `migration-guide.md` §4a and is not T049's to close  **Run 2026-10-02 and the required value is reached: zero over shipped source across all six consumers**, recorded in `import-census.md` with the command, the remote-de-duplicated denominator and the exempt set under its two separate reasons. `cuems-editor`'s five live imports — the last in the ecosystem — are gone at `bf57d95`. ⚠️ **This is the precondition record, not a gate clearance**: a census for the deletions must postdate the last consumer *merge*, and nothing is merged. **Re-scoped 2026-10-03** — the deletions are no longer this feature's, so what this run certifies is exactly what FR-029 asks of feature 010: the consumers are off the deprecated paths. Re-running it before a deletion is R1 of `specs/planning/deprecated-surface-removal-v0-1-2.md`.
 
 > **T050–T061 → migrated** *(not a task: there is nothing here to tick)*. The gate's second half (re-run the census immediately before the
 > first deletion), the five module deletions, the seven namespace aliases, the deprecated-symbol
 > sites, the shim contract tests' retirement, the `v0.1.1` version move and the post-removal suite
-> measurement are **R1–R12 of `specs/planning/deprecated-surface-removal-v0-1-1.md`**. Do not re-create them here: a library at `rc16`
+> measurement are **R1–R12 of `specs/planning/deprecated-surface-removal-v0-1-2.md`**. Do not re-create them here: a library at `rc16`
 > with the surface deleted satisfies every consumer's `<< 0.1.1~` bound, so landing them under the
 > coordinated tag would make that bound ornamental (Phase 6's note above).
 
@@ -611,7 +619,7 @@ difference is a broken daemon; FR-029 requires the measurement either way, and i
 - **Phase 3 (US3)**: after Phase 2 — **blocks consumer flows 02 and 05**, so it is first in wall-clock terms as well as priority
 - **Phase 4 (consumer gates)**: each task blocked by its own consumer flow; the four wave-1 tracks are independent of US3 and of each other
 - **Phase 5 (US9)**: after Phase 4 complete — **including US11**, whose T076/T077 feed T038's package edges and whose T075 is re-run on real hardware by T046
-- **Phase 6 (US10)**: after a measured zero (T049) — not after Phase 5 merges. Since 2026-10-03 it no longer contains the deletions, so it no longer gates on their precondition; the re-run-before-deleting gate is R1 of `specs/planning/deprecated-surface-removal-v0-1-1.md`
+- **Phase 6 (US10)**: after a measured zero (T049) — not after Phase 5 merges. Since 2026-10-03 it no longer contains the deletions, so it no longer gates on their precondition; the re-run-before-deleting gate is R1 of `specs/planning/deprecated-surface-removal-v0-1-2.md`
 - **Phase 7 (Polish)**: after Phase 6. One ordering inside it is not cosmetic: **T069 → T069b → T069c**. The durable material is compiled into `specs/agreements/` first, the per-document verdict is recorded second, and only the third task deletes anything — after relocating scheduled-but-unexecuted residue and fixing the four active referrers. Reversed, the deletion destroys exactly what the compilation exists to preserve, and git history is not a substitute for a document an active file still cites. T069b deliberately holds no destructive step: the decision and the irreversible action are separate tasks so the decision can be reviewed before it is executed
 
 ### Story dependencies
@@ -628,7 +636,7 @@ difference is a broken daemon; FR-029 requires the measurement either way, and i
 | US8 `cuems-frontend` | US3, US6 | characterization tests **before** the port |
 | **US11 `cuems-power-bridge`** | nothing | **added 2026-09-17; absorbed US1 2026-09-18.** Independent of every other story — it neither imports the library's deprecated surface nor touches the descriptor. **Run it first**: it is a live silent failure, the failure is *physical*, and it has now gone unfixed across two features and two names. Its one coupling is that `cuems-common`'s `cuems-cluster-poweroff` must merge **simultaneously**, the way US5's two halves do — that tool calls this repository's parser directly |
 | US9 rollout and gate | US2–US8, **US11** (which absorbed US1) | |
-| US10 count and guide | a **measured** zero | the removal and the version move migrated out 2026-10-03 — `specs/planning/deprecated-surface-removal-v0-1-1.md` |
+| US10 count and guide | a **measured** zero | the removal and the version move migrated out 2026-10-03 — `specs/planning/deprecated-surface-removal-v0-1-2.md` |
 
 ### Within each story
 
@@ -656,7 +664,7 @@ itself, T072–T075 wait on that flow landing, and T076 waits on T038.
 
 **Phase 6** is now the census, the count, the corrections and the guide — T049 and T062–T064.
 The deletions' own parallelism (separate files; the parser-symbol distinction first; the aliases
-last) is recorded with them, in `specs/planning/deprecated-surface-removal-v0-1-1.md` §2.
+last) is recorded with them, in `specs/planning/deprecated-surface-removal-v0-1-2.md` §2.
 
 **Across repositories**: the four wave-1 tracks (`cuems-power-bridge`, editor start-up, `cuems-engine`,
 the discovery cutover) run in parallel with each other **and** with US3, since none depends on the

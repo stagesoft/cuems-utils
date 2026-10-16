@@ -8,7 +8,7 @@ warning system.
 
 The one thing it cannot supply is FR-027a. Its ``version=`` renders as
 *"Deprecated since version X"* (`deprecated/classic.py:71-72,151-153`) — that is
-"deprecated since", not "removed in", so passing ``v0.1.1`` there would emit a
+"deprecated since", not "removed in", so passing ``v0.1.2`` there would emit a
 false statement on a shim that ships in ``v0.1.0``. The removal release and the
 replacement pointer therefore live in ``reason=``, and fixing that string once
 here is what makes FR-027's "one message format" true by construction rather
@@ -22,8 +22,8 @@ import warnings
 from deprecated import deprecated
 
 #: The release that removes these shims (FR-027a). ``v0.1.0`` ships them with
-#: warnings intact; they are gone in ``v0.1.1``.
-REMOVAL_RELEASE = "v0.1.1"
+#: warnings intact, and 0.1.1 too; they are gone in ``v0.1.2``.
+REMOVAL_RELEASE = "v0.1.2"
 
 
 def deprecation_reason(replacement: str, note: str | None = None) -> str:

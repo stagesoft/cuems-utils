@@ -1,0 +1,8 @@
+FAILED tests/packaging/test_release_matrix.py::test_this_repository_is_at_0_1_1
+XFAIL tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-common] - until the maintainer re-cuts xml-refactor-merge-candidate (016)
+XFAIL tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-nodeconf] - until the maintainer re-cuts xml-refactor-merge-candidate (016)
+XFAIL tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-power-bridge] - until the maintainer re-cuts xml-refactor-merge-candidate (016)
+XFAIL tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-frontend] - until the maintainer re-cuts xml-refactor-merge-candidate (016)
+SKIPPED [1] tests/support/sibling_tags.py:89: cuems-engine carries no xml-refactor-merge-candidate tag; the cross-repository claim cannot be verified here. Skipped rather than passed, so a partial tag set does not read as evidence.
+SKIPPED [1] tests/support/sibling_tags.py:89: cuems-editor carries no xml-refactor-merge-candidate tag; the cross-repository claim cannot be verified here. Skipped rather than passed, so a partial tag set does not read as evidence.
+1 failed, 2 skipped, 4 xfailed in 0.77s

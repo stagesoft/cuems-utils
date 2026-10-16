@@ -1,0 +1,6 @@
+# start run (2, after env fix) — cuems-common @ e595e67, 2026-10-15T21:56:50+02:00
+# cmd: bash -c cd cuems-common && .venv/bin/python -m pytest -q -p no:cacheprovider -rfE
+.............................................sss........................ [ 69%]
+................................                                         [100%]
+101 passed, 3 skipped in 0.84s
+# exit=0 wall=1.034581890s

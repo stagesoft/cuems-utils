@@ -7,9 +7,53 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 **Decided 2026-10-12** by the development team; rule 5 added 2026-10-14 by the maintainer. Parallel bugfix and small-feature work is being
 released from every repository's own line, so the refactor cannot merge under a version number any
-of them still holds. **Status: decided, not executed.** This document is the work order — the
+of them still holds. **Status: decided; §3–§8 executed by feature 016 (2026-10-16), the rest owed — see below.** This document is the work order — the
 measured target version for each repository, every versioned package relation that moves with it,
 and the file inventory in this repository.
+
+> **Status 2026-10-16 — §3–§8 and §11 step 6 EXECUTED by feature 016**
+> (`specs/016-coordinated-minor-bump/`, records and evidence there). Local, signed, **unpushed**
+> commits on each `feat/xml-refactor` (`cuems-utils`: `016-coordinated-minor-bump`):
+>
+> | Repo | Version | Commit |
+> |---|---|---|
+> | cuems-utils | `0.1.1` | bump `8f6eede`, then the record commit (the candidate tag goes on it) |
+> | cuems-common | `1.3.1-1` | `fb450b5` |
+> | cuems-nodeconf | `0.1.1-1` | `334db12` |
+> | cuems-power-bridge | **`0.4.0-1`** (not `0.3.1-1`) | `f0da390` |
+> | cuems-engine | `0.1.1-1` | `e994a5e` |
+> | cuems-editor | `0.1.1-1` | `a2431f0` |
+> | cuems-frontend | **`0.2.0`** (not `0.1.0`, §9.1 answered) | `9e91464` |
+>
+> **Corrections to this document, measured by 016** (its research R1–R3, R2a, R2b, R16):
+> - **`cuems-engine` has a release line** (§1, §3, §9, §10.2 say none): `debian/bookworm` at
+>   `0.1.0rc6-5`, 119 commits ahead of the refactor.
+> - **`cuems-power-bridge`'s release line released `0.3.1-2`, `0.3.2-1` and `0.3.2-2`** after this
+>   document, so its target moved to **`0.4.0-1`**, and §4.4's "unchanged"
+>   `cuems-common Breaks: cuems-power-bridge` became **`(<< 0.4.0~)`**. This is a recorded exception
+>   to rule 1 (maintainer, 2026-10-16).
+> - **`cuems-frontend`'s `dev` tagged `v0.1.0-rc1`** on 2026-10-16, so its first version is
+>   **`0.2.0`**.
+> - **`cuems-utils 0.1.0rc17` released `stop_project`**, which `0.1.1` does not accept. It is part of
+>   rule 4's backlog.
+> - **The maintainer scripts were a fifth defeated relation**: `cuems-common`'s `rm_conffile`
+>   prior-versions `1.3.0-23~` would have skipped the network-map handover and left the retired
+>   `99-cuems` sudo rules active when upgrading from the released `1.3.0-23`…`-25`. They are now
+>   `1.3.1~`.
+> - `cuems-engine` now declares `libmtcmaster (>= 0.0.2-0)` (relation row 25); libossia stays an
+>   independent input.
+>
+> **NOT done, and still owed** (this document stays until all of it is):
+> 1. **Rule 4: release-line reconciliation**, deliberately deferred: `cuems-utils` 77, `cuems-common`
+>    22, `cuems-engine` 119, `cuems-editor` 43, `cuems-power-bridge` 59 commits behind. That
+>    includes `stop_project` and `CACHEDIR.TAG`. Re-verify every relation after each merge
+>    (`specs/016-coordinated-minor-bump/tools/verdicts.sh`).
+> 2. **The re-cut** of every `xml-refactor-merge-candidate` from
+>    `../.xml-refactor-tag-messages/` (maintainer).
+> 3. **§11.1 validation on the re-cut tags.**
+> 4. **`cuems-engine`'s `poetry.lock` relock** (FR-022), and engine CI under rule 5.
+> 5. **Merging `016-coordinated-minor-bump`** into this repository's `feat/xml-refactor`.
+> 6. **Publication** (§11 step 10).
 
 ## The decision, in five rules
 
@@ -20,7 +64,7 @@ and the file inventory in this repository.
 2. **`cuems-utils` cuts `0.1.1` directly** — no `0.1.1~rc1` (settled 2026-10-12). That is what makes
    a plain `>= 0.1.1` the correct consumer floor.
 3. **The deprecated-surface removal moves with it**, `v0.1.1` → **`v0.1.2`**. That work is
-   [`deprecated-surface-removal-v0-1-1.md`](deprecated-surface-removal-v0-1-1.md), which this
+   [`deprecated-surface-removal-v0-1-2.md`](deprecated-surface-removal-v0-1-2.md), which this
    decision renames (§7).
 4. **Merge before bump.** Every fix already released from a parallel line is absorbed into the
    refactor branch before the new version is published, so nothing shipped is lost. The version entry
@@ -161,7 +205,7 @@ Verified with `dpkg`: the pair refuses every `0.1.0rcN` (including the released 
 `0.1.2` is the removal release, so the ceiling still refuses exactly the library version that would
 break an unmigrated consumer at runtime.
 
-⚠ **`<< 0.2.0~` is wrong** — both `deprecated-surface-removal-v0-1-1.md` §3 and
+⚠ **`<< 0.2.0~` is wrong** — both `deprecated-surface-removal-v0-1-2.md` §3 and
 `upcoming-feature-requirements-2026-10-02.md` *(deleted 2026-10-14, feature 015; in git history)* §3 propose it, and it would admit `0.1.2`, the release
 that deletes the surface the ceiling exists to protect. It is `<< 0.1.2~`.
 
@@ -234,8 +278,8 @@ correct pattern; the two literal sites above are the exceptions.
 
 | File | Line(s) | Change |
 |---|---|---|
-| `specs/planning/deprecated-surface-removal-v0-1-1.md` | **21 sites** | `git mv` to `…-v0-1-2.md`; retitle; §1.1's `dpkg` table re-derived (§4.1 supersedes it); §1.2's "wrong in the other direction" argument rebased on `v0.1.2`; §3's atomic step **no longer belongs there** — it fires at this landing; §5 item 1's struck question re-opens as "is `0.1.2` the first release after a stable one?"; §7's rendered example message |
-| …the **14 files citing that filename** | 14 | `git grep -l deprecated-surface-removal-v0-1-1` — two are **not documents**: `src/cuemsutils/tools/CTimecode.py` and `tests/unit/test_ctimecode.py` |
+| `specs/planning/deprecated-surface-removal-v0-1-2.md` | **21 sites** | `git mv` to `…-v0-1-2.md`; retitle; §1.1's `dpkg` table re-derived (§4.1 supersedes it); §1.2's "wrong in the other direction" argument rebased on `v0.1.2`; §3's atomic step **no longer belongs there** — it fires at this landing; §5 item 1's struck question re-opens as "is `0.1.2` the first release after a stable one?"; §7's rendered example message |
+| …the **14 files citing that filename** | 14 | `git grep -l deprecated-surface-removal-v0-1-2` — two are **not documents**: `src/cuemsutils/tools/CTimecode.py` and `tests/unit/test_ctimecode.py` |
 | `debian/changelog` | 1 | `(0.1.0rc16) UNRELEASED` → `(0.1.1)`. It **cannot** keep `0.1.0rc16` — §2 |
 | `debian/changelog` | 94-95 | "REMOVED IN v0.1.1, which is why every consumer pins `<< 0.1.1~`" — both halves wrong |
 | `debian/control` | **23** | `Breaks: cuems-common (<< 1.3.1~)` + the comment at `:15-22` — §1.1, §4.2 |

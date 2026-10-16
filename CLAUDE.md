@@ -56,7 +56,7 @@ that file later moves, any more than a past git commit message would be.
 
 ### Building the `.deb` — verify the venv interpreter before shipping
 
-Built from **`debian/` on the working branch** — add a `debian/changelog` entry, then `dpkg-buildpackage -us -uc -b`; artifacts land in the parent dir. **Changed 2026-09-24**: packaging used to live on a separate `debian/bookworm` branch whose workflow was "merge `main` in first", and that merge stopped happening — the branch sat seven weeks and 132 commits behind at `0.1.0rc14` while the source reached rc16, so two release candidates left the tree with no changelog entry at all (both written retrospectively, marked NOT BUILT). The branch is preserved and tagged `packaging-rc14`; nothing new lands on it. This also matches `cuems-common`, `cuems-power-bridge` and `cuems-nodeconf`, which all keep `debian/` on the working branch. See `debian/README.source` for the trixie and CI/CD intentions.
+Built from **`debian/` on the working branch** — add a `debian/changelog` entry, then `dpkg-buildpackage -us -uc -b`; artifacts land in the parent dir. **Changed 2026-09-24**: packaging used to live on a separate `debian/bookworm` branch whose workflow was "merge `main` in first", and that merge stopped happening — the branch sat seven weeks and 132 commits behind at `0.1.0rc14` while the source reached rc16, so two release candidates left the tree with no changelog entry at all (both written retrospectively, marked NOT BUILT). ⚠ **Corrected 2026-10-16 (feature 016):** that note was wrong. `origin/debian/bookworm` is **still the active release line**: it cut `0.1.0rc16+1` and `0.1.0rc17` by exactly the merge-`main`-in workflow, and **no `packaging-rc14` tag exists**. So this repository has two packaging lines. The refactor's `debian/` lives on the working branch, and the release line keeps shipping `0.1.0rcN` from `debian/bookworm` until rule 4's reconciliation (`specs/planning/coordinated-release-version-bump.md`). Measure against `debian/bookworm`, never `main`. This also matches `cuems-common`, `cuems-power-bridge` and `cuems-nodeconf`, which all keep `debian/` on the working branch. See `debian/README.source` for the trixie and CI/CD intentions.
 
 `debian/rules` pins `dh_virtualenv --python /usr/bin/python3` **by absolute path on purpose**. It used to say `--python python3`, which resolves through `PATH` — so building on a dev box with **pyenv** active baked the builder's private interpreter into the package:
 
@@ -198,8 +198,64 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     a 2× regression"; 5 samples in one quiet window gave "exceeded by 2.0–4.9%" and a 110% tolerance;
     only 16 samples across three windows gave the stable answer. **Consistency within a window is
     not evidence — it is what makes a bad measurement persuasive.**
+- **Feature 016 (`016-coordinated-minor-bump`, planned 2026-10-15, implemented 2026-10-16) adds no new technology.** It is
+  the first feature allowed to **commit in sibling repositories** (on their `feat/xml-refactor`,
+  never pushed, no tag moved). It bumps all seven repositories to their next stable minor and writes
+  the candidate-tag messages to `../.xml-refactor-tag-messages/`. Sibling suites run on **pyenv
+  3.11.9** from a per-repository `.venv` (excluded through `.git/info/exclude`). This repository
+  keeps its hatch matrix. Builds run in an `mmdebstrap` bookworm chroot (`equivs` and `debhelper`
+  are now on the host).
 
 ## Recent Changes
+
+- **`016-coordinated-minor-bump` IMPLEMENTED** (2026-10-15/16; record commit on its branch, nothing
+  pushed, **no tag created or moved**). The first feature to **commit in sibling repositories**, each
+  on its own `feat/xml-refactor`. The coordinated set:
+
+  | Repo | Version | Commit |
+  |---|---|---|
+  | cuems-utils | **0.1.1** | bump `8f6eede` + the record commit |
+  | cuems-common | 1.3.1-1 | `fb450b5` |
+  | cuems-nodeconf | 0.1.1-1 | `334db12` |
+  | cuems-power-bridge | **0.4.0-1** | `f0da390` |
+  | cuems-engine | 0.1.1-1 | `e994a5e` |
+  | cuems-editor | 0.1.1-1 | `a2431f0` |
+  | cuems-frontend | **0.2.0** | `9e91464` |
+
+  - **`REMOVAL_RELEASE` is `v0.1.2`**, and every consumer bounds this library `>= 0.1.1`, `<< 0.1.2~`.
+    The removal plan is now `specs/planning/deprecated-surface-removal-v0-1-2.md`. All 25 relation
+    sites hold: `specs/016-coordinated-minor-bump/tools/verdicts.sh` is **121/121**, and it failed
+    70/119 before.
+  - **The parallel release lines kept taking our numbers *during* the feature**, twice in one day:
+    `cuems-power-bridge` released `0.3.1-2`, `0.3.2-1` and `0.3.2-2`, and `cuems-frontend`'s `dev`
+    tagged `v0.1.0-rc1`. Hence `0.4.0-1` and `0.2.0`, recorded exceptions to "the last component
+    advances" (research R2a, R2b). ⚠ **Both teams must be told the refactor's numbers.** Each
+    renumbering amended the `cuems-utils` bump (`055ec52` → `67df8bc` → `8f6eede`) and re-ran every
+    dependent build, suite and demo (FR-021).
+  - **A fifth defeated relation, in maintainer scripts**: `cuems-common`'s `rm_conffile`
+    prior-version `1.3.0-23~` would have skipped the network-map handover and left the retired
+    `99-cuems` sudo rules active on upgrade from the released `1.3.0-23`…`-25`. Now `1.3.1~`, proven
+    by its demo (G2–G4) and by this repository's chroot custody test from a `1.3.0-25` stub.
+  - `cuems-engine` declares `libmtcmaster (>= 0.0.2-0)` (never declared before). Its `poetry.lock` is
+    **not** relocked (`0.1.1` unresolvable until published); `tests/test_lock_is_current.py` is a
+    strict xfail that turns red the day it is.
+  - **Evidence**: every package built in a bookworm chroot (`tools/bookworm-build.sh`); every suite
+    two-armed and interleaved ×3, with no new failure and no library effect; the `cuems-common`
+    (13/13) and `cuems-nodeconf` (9/9) install demonstrations, against the released field baseline.
+  - **Rule 4 is NOT met.** No release line was merged: `cuems-utils` 77, `cuems-common` 22,
+    `cuems-engine` 119, `cuems-editor` 43, `cuems-power-bridge` 59 commits behind, including
+    `stop_project` (rc17) and `CACHEDIR.TAG`. **Do not publish** until they are reconciled and the
+    relations re-verified. Every changelog and tag message says so.
+  - **Found, out of scope, recorded**:
+    - `cuems-engine` tracks `.venv/pyvenv.cfg` in git;
+    - `cuems-nodeconf`'s demo rejects a `git worktree` (`[ -d .git ]`) and labels a ref with the tag
+      object, not the commit;
+    - 011's `test_fresh_install_loads_and_is_unique` fails on its own since 012 (the XSDs carry the
+      sentinel), which is pre-existing;
+    - mypy measures 283 on this box against 015's 72, unchanged by 016.
+  - **Owed by the maintainer**: re-cut from `../.xml-refactor-tag-messages/` (`cuems-utils` last);
+    §11.1 validation on the re-cut tags; rule 4; the engine relock; merging 016; publication.
+    `specs/planning/coordinated-release-version-bump.md` holds this list.
 
 - **015's consumer halves, all closed** (2026-10-15). Every row of
   `specs/015-consumer-gate-closure/consumers_works.md` is `verified done`, measured at each sibling's
@@ -448,7 +504,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   - **The deprecated-surface census over shipped source is zero across all six consumers.** The
     five module deletions, the seven aliases and the **`v0.1.1` version move** are no longer
     held by any consumer's *source*. **Re-scoped 2026-10-03**: they are no longer feature 010's at
-    all — T050–T061 migrated to `specs/planning/deprecated-surface-removal-v0-1-1.md` as R1–R12,
+    all — T050–T061 migrated to `specs/planning/deprecated-surface-removal-v0-1-2.md` as R1–R12,
     because this arc lands at `0.1.0rc16` and the coordinated tag cuts no stable release. Measured
     with `dpkg`, the siblings' `<< 0.1.1~` bound admits `0.1.0rc17`, so **deleting the surface
     without the version move defeats the gate** — the two are one step, at `v0.1.1`, which is

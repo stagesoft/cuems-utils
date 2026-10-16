@@ -5,6 +5,14 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # `/etc/cuems` first install — execution status and SDD sequencing
 
+> **Superseded versions, 2026-10-15 (feature 016).** The coordinated `xml-refactor` landing no
+> longer holds `0.1.0rc16`. It cuts **`cuems-utils 0.1.1`**, the deprecated surface goes in
+> **`v0.1.2`** (`REMOVAL_RELEASE`), and every consumer bounds the library **`>= 0.1.1`,
+> `<< 0.1.2~`** (`cuemsutils>=0.1.1,<0.1.2`), per
+> `specs/016-coordinated-minor-bump/contracts/relation-matrix.md`. Below, `0.1.0rc16`,
+> `<< 0.1.1~` and `v0.1.1` are left as **dated record** of what was true when written. Read any
+> *instruction* that names them with the new values.
+
 **Companion to** [`etc-cuems-first-install.md`](etc-cuems-first-install.md). That document holds
 the *design*: seventeen decisions, the identity invariant, the splitting basis and the
 duplication-avoidance flags. **This one holds the state of the build** — what is actually in the
@@ -681,7 +689,7 @@ reported all six schemas as show-layer violations for that reason alone. See
 
 - **Do not narrow `UuidType` before `cuems-init-node` exists.** It invalidates every node
   identity in the field with nothing able to repair them.
-- **Do not move the library version off `0.1.0rc16`.** `0.1.1` is reserved by
+- ~~**Do not move the library version off `0.1.0rc16`.**~~ *Reversed 2026-10-15: feature 016 moves it to `0.1.1`, re-binds the ceilings to `<< 0.1.2~` and moves `REMOVAL_RELEASE` to `v0.1.2` in one coordinated set.*  `0.1.1` is reserved by
   `_deprecation.REMOVAL_RELEASE` and refused by three consumers' `<< 0.1.1~` ceilings; `rc17`
   would say nothing true. Schema changes are signalled by `doc_version`, not by the library
   version (§12).

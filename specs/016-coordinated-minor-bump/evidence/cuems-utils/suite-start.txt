@@ -1,0 +1,515 @@
+# start run — cuems-utils @ b65a213, 2026-10-15T21:55:15+02:00
+# cmd: bash -c cd cuems-utils && uvx hatch run test.py3.11:run -- -q -p no:cacheprovider -rfE
+........................................s.s.sssssss.ssssss......s.....ss [  1%]
+.sssssssss.ss...ss..........s.s.sssssss.ssssss.......................... [  3%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+...........sssssss.ss................................................... [  9%]
+.................................................................sssssss [ 11%]
+s.sssss.sss..ssssss..ss.......sssssssss.s.sss........................... [ 13%]
+........................................................................ [ 14%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+..............................................................s.ss...... [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+.................................................ss..................... [ 26%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+..........................................s............................. [ 42%]
+.................s....s....s............................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+...............................s........................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 53%]
+x.....................................x................................. [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 61%]
+........................................................s............... [ 63%]
+.ssssssssss............................................................. [ 65%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................s............................... [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+........................................................                 [100%]
+=============================== warnings summary ===============================
+tests/contract/test_config_errors.py::test_the_internal_reader_keeps_its_raw_verdict
+  /disk/Projects/StageLab/cuems-utils/tests/contract/test_config_errors.py:176: DeprecationWarning: Call to deprecated class Settings. (use cuemsutils.tools.ConfigManager.ConfigManager instead; removed in v0.1.1)
+    Settings(str(doc.path))
+
+tests/contract/test_config_errors.py::test_the_internal_reader_keeps_its_raw_verdict
+tests/test_xml.py::test_settings
+tests/test_xml.py::test_output_latency_ms_type_round_trip
+tests/test_xml.py::test_auto_rejected_on_dmxplayer
+tests/test_xml.py::test_networkmap
+tests/test_xml.py::test_projectmappings
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/settings.py:40: DeprecationWarning: Call to deprecated method read. (use cuemsutils.tools.ConfigManager.ConfigManager.read instead; removed in v0.1.1)
+    self.read()
+
+tests/contract/test_config_parity.py::test_get_dict_is_stable[cuems-utils/settings.xml]
+tests/contract/test_config_parity.py::test_get_dict_is_stable[cuems-utils/network_map.xml]
+tests/contract/test_config_parity.py::test_get_dict_is_stable[cuems-utils/project_mappings.xml]
+tests/contract/test_config_parity.py::test_get_dict_is_stable[cuems-utils/default_mappings.xml]
+tests/contract/test_config_parity.py::test_get_dict_is_stable[cuems-engine/settings.xml]
+tests/contract/test_config_parity.py::test_get_dict_is_stable[cuems-engine/network_map.xml]
+tests/contract/test_config_parity.py::test_get_dict_is_stable[cuems-engine/project_mappings.xml]
+tests/contract/test_config_parity.py::test_get_dict_is_stable[cuems-engine/default_mappings.xml]
+tests/contract/test_config_parity.py::test_get_dict_is_stable[cuems-engine/project_settings.xml]
+  /disk/Projects/StageLab/cuems-utils/tests/contract/test_config_parity.py:167: DeprecationWarning: Call to deprecated method get_dict. (use cuemsutils.tools.ConfigManager.ConfigManager.get_dict instead; removed in v0.1.1)
+    result = obj.get_dict()
+
+tests/contract/test_config_parity.py::test_network_map_get_node_returns_the_named_node
+  /disk/Projects/StageLab/cuems-utils/tests/contract/test_config_parity.py:195: DeprecationWarning: Call to deprecated method get_dict. (use cuemsutils.tools.ConfigManager.ConfigManager.get_dict instead; removed in v0.1.1)
+    node_list = network.get_dict()["node_list"]
+
+tests/contract/test_config_parity.py::test_network_map_get_node_returns_the_named_node
+  /disk/Projects/StageLab/cuems-utils/tests/contract/test_config_parity.py:197: DeprecationWarning: Call to deprecated method get_node. (use cuemsutils.tools.ConfigManager.ConfigManager.get_node instead; removed in v0.1.1)
+    assert network.get_node(uuid)["uuid"] == uuid
+
+tests/contract/test_config_parity.py::test_network_map_get_node_returns_the_named_node
+tests/contract/test_config_parity.py::test_network_map_get_node_raises_for_an_unknown_uuid
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/settings.py:186: DeprecationWarning: Call to deprecated method get_dict. (use cuemsutils.tools.ConfigManager.ConfigManager.get_dict instead; removed in v0.1.1)
+    network_dict = self.get_dict()
+
+tests/contract/test_config_parity.py::test_network_map_get_node_raises_for_an_unknown_uuid
+  /disk/Projects/StageLab/cuems-utils/tests/contract/test_config_parity.py:208: DeprecationWarning: Call to deprecated method get_node. (use cuemsutils.tools.ConfigManager.ConfigManager.get_node instead; removed in v0.1.1)
+    _load(doc).get_node("00000000-0000-4000-8000-000000000000")
+
+tests/contract/test_config_parity.py::test_network_map_nodes_by_adoption_splits_and_coerces
+  /disk/Projects/StageLab/cuems-utils/tests/contract/test_config_parity.py:219: DeprecationWarning: Call to deprecated method get_dict. (use cuemsutils.tools.ConfigManager.ConfigManager.get_dict instead; removed in v0.1.1)
+    nodes, new_nodes = NetworkMap.get_nodes_by_adoption(_load(doc).get_dict())
+
+tests/contract/test_config_parity.py::test_network_map_nodes_by_adoption_splits_and_coerces
+  /disk/Projects/StageLab/cuems-utils/tests/contract/test_config_parity.py:219: DeprecationWarning: Call to deprecated function (or staticmethod) get_nodes_by_adoption. (use cuemsutils.xml.settings.NetworkMap.partition_by_adoption instead; removed in v0.1.1; note: the replacement returns node objects, not {'node': ...}-wrapped dicts, and does not mutate its argument)
+    nodes, new_nodes = NetworkMap.get_nodes_by_adoption(_load(doc).get_dict())
+
+tests/contract/test_config_parity.py::test_project_mappings_get_node_returns_the_named_node
+  /disk/Projects/StageLab/cuems-utils/tests/contract/test_config_parity.py:245: DeprecationWarning: Call to deprecated method get_node. (use cuemsutils.tools.ConfigManager.ConfigManager.get_node instead; removed in v0.1.1)
+    assert mappings.get_node(uuid)["uuid"] == uuid
+
+tests/contract/test_shim_import_order.py::test_instantiating_through_the_package_still_warns_and_works
+  /disk/Projects/StageLab/cuems-utils/tests/contract/test_shim_import_order.py:131: DeprecationWarning: Call to deprecated method get_dict. (use cuemsutils.tools.ConfigManager.ConfigManager.get_dict instead; removed in v0.1.1)
+    assert settings.get_dict()["library_path"]
+
+tests/integration/test_construction_parity.py::test_built_and_xml_decoded_have_identical_internal_types
+  /disk/Projects/StageLab/cuems-utils/tests/integration/test_construction_parity.py:134: DeprecationWarning: Call to deprecated method read_to_objects. (use cuemsutils.cues.CuemsScript.CuemsScript.load instead; removed in v0.1.1; note: this path applies no version conversion; the public load converts in memory and returns a LoadReport saying what it did)
+    ).read_to_objects()
+
+tests/integration/test_construction_performance.py::test_decode_stays_within_the_stated_budget
+  /disk/Projects/StageLab/cuems-utils/tests/integration/test_construction_performance.py:68: DeprecationWarning: Call to deprecated method read_to_objects. (use cuemsutils.cues.CuemsScript.CuemsScript.load instead; removed in v0.1.1; note: this path applies no version conversion; the public load converts in memory and returns a LoadReport saying what it did)
+    reader.read_to_objects()
+
+tests/integration/test_d14_chain.py::test_a_built_object_and_a_loaded_one_agree_on_the_enumerated_types
+tests/integration/test_d14_chain.py::test_a_built_object_and_a_loaded_one_have_identical_internal_types
+  /disk/Projects/StageLab/cuems-utils/tests/integration/test_d14_chain.py:137: DeprecationWarning: Call to deprecated method read_to_objects. (use cuemsutils.cues.CuemsScript.CuemsScript.load instead; removed in v0.1.1; note: this path applies no version conversion; the public load converts in memory and returns a LoadReport saying what it did)
+    ).read_to_objects()
+
+tests/integration/test_default_mappings_valid.py::test_default_mappings_validates_against_schema
+  /disk/Projects/StageLab/cuems-utils/tests/integration/test_default_mappings_valid.py:15: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    reader = XmlReaderWriter(
+
+tests/integration/test_default_mappings_valid.py::test_default_mappings_validates_against_schema
+  /disk/Projects/StageLab/cuems-utils/tests/integration/test_default_mappings_valid.py:19: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.cues.CuemsScript.CuemsScript.validate instead; removed in v0.1.1)
+    reader.validate()
+
+tests/test_canvas_region_roundtrip.py::test_script_roundtrip_preserves_canvas_region
+  /disk/Projects/StageLab/cuems-utils/tests/test_canvas_region_roundtrip.py:77: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    writer = XmlReaderWriter(schema_name="script", xmlfile=str(tmp))
+
+tests/test_canvas_region_roundtrip.py::test_script_roundtrip_preserves_canvas_region
+  /disk/Projects/StageLab/cuems-utils/tests/test_canvas_region_roundtrip.py:78: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.1)
+    writer.write_from_object(script)
+
+tests/test_canvas_region_roundtrip.py: 2 warnings
+tests/test_fade_cue.py: 6 warnings
+tests/test_name_coercion.py: 12 warnings
+tests/test_xml.py: 2 warnings
+tests/unit/test_media_duration.py: 2 warnings
+  /home/adria/.local/share/hatch/env/virtual/cuemsutils/KPtCKENL/test.py3.11/lib/python3.11/site-packages/deprecated/classic.py:199: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.1; note: this path writes without applying a version conversion; the public save validates and reports)
+    return wrapped_(*args_, **kwargs_)
+
+tests/test_canvas_region_roundtrip.py: 2 warnings
+tests/test_fade_cue.py: 6 warnings
+tests/test_name_coercion.py: 12 warnings
+tests/test_xml.py: 2 warnings
+tests/unit/test_media_duration.py: 2 warnings
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/xml_reader_writer.py:147: DeprecationWarning: Call to deprecated method build_xml_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.build_xml_from_object instead; removed in v0.1.1)
+    self.write(self.build_xml_from_object(project_object))
+
+tests/test_canvas_region_roundtrip.py: 2 warnings
+tests/test_fade_cue.py: 6 warnings
+tests/test_name_coercion.py: 12 warnings
+tests/test_xml.py: 2 warnings
+tests/unit/test_media_duration.py: 2 warnings
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/xml_reader_writer.py:147: DeprecationWarning: Call to deprecated method write. (use cuemsutils.cues.CuemsScript.CuemsScript.write instead; removed in v0.1.1)
+    self.write(self.build_xml_from_object(project_object))
+
+tests/test_canvas_region_roundtrip.py::test_script_roundtrip_preserves_canvas_region
+  /disk/Projects/StageLab/cuems-utils/tests/test_canvas_region_roundtrip.py:79: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.cues.CuemsScript.CuemsScript.validate instead; removed in v0.1.1)
+    assert writer.validate() is None
+
+tests/test_canvas_region_roundtrip.py::test_script_roundtrip_preserves_canvas_region
+  /disk/Projects/StageLab/cuems-utils/tests/test_canvas_region_roundtrip.py:81: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    reader = XmlReaderWriter(schema_name="script", xmlfile=str(tmp))
+
+tests/test_canvas_region_roundtrip.py::test_script_roundtrip_preserves_canvas_region
+  /disk/Projects/StageLab/cuems-utils/tests/test_canvas_region_roundtrip.py:82: DeprecationWarning: Call to deprecated method read_to_objects. (use cuemsutils.cues.CuemsScript.CuemsScript.load instead; removed in v0.1.1)
+    loaded = reader.read_to_objects()
+
+tests/test_canvas_region_roundtrip.py: 2 warnings
+tests/test_fade_cue.py: 5 warnings
+tests/test_name_coercion.py: 12 warnings
+tests/test_xml.py: 1 warning
+  /home/adria/.local/share/hatch/env/virtual/cuemsutils/KPtCKENL/test.py3.11/lib/python3.11/site-packages/deprecated/classic.py:199: DeprecationWarning: Call to deprecated method read_to_objects. (use cuemsutils.cues.CuemsScript.CuemsScript.load instead; removed in v0.1.1; note: this path applies no version conversion; the public load converts in memory and returns a LoadReport saying what it did)
+    return wrapped_(*args_, **kwargs_)
+
+tests/test_canvas_region_roundtrip.py::test_script_roundtrip_non_trivial_float
+  /disk/Projects/StageLab/cuems-utils/tests/test_canvas_region_roundtrip.py:104: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    writer = XmlReaderWriter(schema_name="script", xmlfile=str(tmp))
+
+tests/test_canvas_region_roundtrip.py::test_script_roundtrip_non_trivial_float
+  /disk/Projects/StageLab/cuems-utils/tests/test_canvas_region_roundtrip.py:105: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.1)
+    writer.write_from_object(script)
+
+tests/test_canvas_region_roundtrip.py::test_script_roundtrip_non_trivial_float
+  /disk/Projects/StageLab/cuems-utils/tests/test_canvas_region_roundtrip.py:106: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.cues.CuemsScript.CuemsScript.validate instead; removed in v0.1.1)
+    assert writer.validate() is None
+
+tests/test_canvas_region_roundtrip.py::test_script_roundtrip_non_trivial_float
+  /disk/Projects/StageLab/cuems-utils/tests/test_canvas_region_roundtrip.py:108: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    reader = XmlReaderWriter(schema_name="script", xmlfile=str(tmp))
+
+tests/test_canvas_region_roundtrip.py::test_script_roundtrip_non_trivial_float
+  /disk/Projects/StageLab/cuems-utils/tests/test_canvas_region_roundtrip.py:109: DeprecationWarning: Call to deprecated method read_to_objects. (use cuemsutils.cues.CuemsScript.CuemsScript.load instead; removed in v0.1.1)
+    loaded = reader.read_to_objects()
+
+tests/test_fade_cue.py::test_fade_cue_xml_serialisation
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:69: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    writer = XmlReaderWriter(schema_name='script', xmlfile=TMP_FILE)
+
+tests/test_fade_cue.py::test_fade_cue_xml_serialisation
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:70: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.1)
+    writer.write_from_object(script)
+
+tests/test_fade_cue.py::test_fade_cue_xml_serialisation
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:74: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.cues.CuemsScript.CuemsScript.validate instead; removed in v0.1.1)
+    assert writer.validate() is None
+
+tests/test_fade_cue.py::test_fade_cue_xml_round_trip
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:97: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    writer = XmlReaderWriter(schema_name='script', xmlfile=TMP_FILE)
+
+tests/test_fade_cue.py::test_fade_cue_xml_round_trip
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:98: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.1)
+    writer.write_from_object(script)
+
+tests/test_fade_cue.py::test_fade_cue_xml_round_trip
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:99: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.cues.CuemsScript.CuemsScript.validate instead; removed in v0.1.1)
+    assert writer.validate() is None
+
+tests/test_fade_cue.py::test_fade_cue_xml_round_trip
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:101: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    reader = XmlReaderWriter(schema_name='script', xmlfile=TMP_FILE)
+
+tests/test_fade_cue.py::test_fade_cue_xml_round_trip
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:102: DeprecationWarning: Call to deprecated method read_to_objects. (use cuemsutils.cues.CuemsScript.CuemsScript.load instead; removed in v0.1.1)
+    loaded_script = reader.read_to_objects()
+
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[linear]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[sigmoid]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[ease_in]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[ease_out]
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:144: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    writer = XmlReaderWriter(schema_name='script', xmlfile=TMP_FILE)
+
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[linear]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[sigmoid]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[ease_in]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[ease_out]
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:145: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.1)
+    writer.write_from_object(script)
+
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[linear]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[sigmoid]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[ease_in]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[ease_out]
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:146: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.cues.CuemsScript.CuemsScript.validate instead; removed in v0.1.1)
+    assert writer.validate() is None
+
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[linear]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[sigmoid]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[ease_in]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[ease_out]
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:148: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    reader = XmlReaderWriter(schema_name='script', xmlfile=TMP_FILE)
+
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[linear]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[sigmoid]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[ease_in]
+tests/test_fade_cue.py::test_engine_native_curve_type_round_trip[ease_out]
+  /disk/Projects/StageLab/cuems-utils/tests/test_fade_cue.py:149: DeprecationWarning: Call to deprecated method read_to_objects. (use cuemsutils.cues.CuemsScript.CuemsScript.load instead; removed in v0.1.1)
+    loaded_fc = reader.read_to_objects().cuelist.contents[0]
+
+tests/test_name_coercion.py: 12 warnings
+  /disk/Projects/StageLab/cuems-utils/tests/test_name_coercion.py:69: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    writer = XmlReaderWriter(schema_name="script", xmlfile=path)
+
+tests/test_name_coercion.py: 12 warnings
+  /disk/Projects/StageLab/cuems-utils/tests/test_name_coercion.py:70: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.1)
+    writer.write_from_object(_script(name))
+
+tests/test_name_coercion.py: 12 warnings
+  /disk/Projects/StageLab/cuems-utils/tests/test_name_coercion.py:71: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.cues.CuemsScript.CuemsScript.validate instead; removed in v0.1.1)
+    assert writer.validate() is None
+
+tests/test_name_coercion.py: 12 warnings
+  /disk/Projects/StageLab/cuems-utils/tests/test_name_coercion.py:72: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    loaded = XmlReaderWriter(schema_name="script", xmlfile=path).read_to_objects()
+
+tests/test_name_coercion.py: 12 warnings
+  /disk/Projects/StageLab/cuems-utils/tests/test_name_coercion.py:72: DeprecationWarning: Call to deprecated method read_to_objects. (use cuemsutils.cues.CuemsScript.CuemsScript.load instead; removed in v0.1.1)
+    loaded = XmlReaderWriter(schema_name="script", xmlfile=path).read_to_objects()
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:113: DeprecationWarning: Call to deprecated class XmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    xml_data = XmlBuilder(
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:44: DeprecationWarning: Call to deprecated class CuemsScriptXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    self.xml_tree = builder_class(self._object, xml_tree = xml_root).build()
+
+tests/test_xml.py::test_XmlBuilder
+  /home/adria/.local/share/hatch/env/virtual/cuemsutils/KPtCKENL/test.py3.11/lib/python3.11/site-packages/deprecated/classic.py:184: DeprecationWarning: Call to deprecated class XmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    return old_new1(cls, *args, **kwargs)
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:58: DeprecationWarning: Call to deprecated class CueListXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    _ = CueListXmlBuilder(value, xml_tree = cue_element).build()
+
+tests/test_xml.py::test_XmlBuilder
+  /home/adria/.local/share/hatch/env/virtual/cuemsutils/KPtCKENL/test.py3.11/lib/python3.11/site-packages/deprecated/classic.py:184: DeprecationWarning: Call to deprecated class CuemsScriptXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    return old_new1(cls, *args, **kwargs)
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:88: DeprecationWarning: Call to deprecated class CTimecodeXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    sub_object_element = builder_class(value, xml_tree = cue_subelement).build()
+
+tests/test_xml.py::test_XmlBuilder
+  /home/adria/.local/share/hatch/env/virtual/cuemsutils/KPtCKENL/test.py3.11/lib/python3.11/site-packages/deprecated/classic.py:184: DeprecationWarning: Call to deprecated class GenericSimpleSubObjectXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    return old_new1(cls, *args, **kwargs)
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:85: DeprecationWarning: Call to deprecated class GenericCueXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    sub_object_element = builder_class(cuelist_item, xml_tree = cue_subelement).build()
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:120: DeprecationWarning: Call to deprecated class CTimecodeXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    sub_object_element = builder_class(value, xml_tree = cue_subelement).build()
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:120: DeprecationWarning: Call to deprecated class GenericCueXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    sub_object_element = builder_class(value, xml_tree = cue_subelement).build()
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:85: DeprecationWarning: Call to deprecated class VideoCueXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    sub_object_element = builder_class(cuelist_item, xml_tree = cue_subelement).build()
+
+tests/test_xml.py::test_XmlBuilder
+  /home/adria/.local/share/hatch/env/virtual/cuemsutils/KPtCKENL/test.py3.11/lib/python3.11/site-packages/deprecated/classic.py:184: DeprecationWarning: Call to deprecated class MediaCueXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    return old_new1(cls, *args, **kwargs)
+
+tests/test_xml.py::test_XmlBuilder
+  /home/adria/.local/share/hatch/env/virtual/cuemsutils/KPtCKENL/test.py3.11/lib/python3.11/site-packages/deprecated/classic.py:184: DeprecationWarning: Call to deprecated class GenericCueXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    return old_new1(cls, *args, **kwargs)
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:305: DeprecationWarning: Call to deprecated class CTimecodeXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    builder_class(value, xml_tree=cue_subelement).build()
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:305: DeprecationWarning: Call to deprecated class MediaXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    builder_class(value, xml_tree=cue_subelement).build()
+
+tests/test_xml.py::test_XmlBuilder
+  /home/adria/.local/share/hatch/env/virtual/cuemsutils/KPtCKENL/test.py3.11/lib/python3.11/site-packages/deprecated/classic.py:184: DeprecationWarning: Call to deprecated class GenericComplexSubObjectXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    return old_new1(cls, *args, **kwargs)
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:180: DeprecationWarning: Call to deprecated class GenericCueXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    sub_object_element = builder_class(list_item, xml_tree =cue_subelement).build()
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:85: DeprecationWarning: Call to deprecated class AudioCueXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    sub_object_element = builder_class(cuelist_item, xml_tree = cue_subelement).build()
+
+tests/test_xml.py::test_XmlBuilder
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/XmlBuilder.py:70: DeprecationWarning: Call to deprecated class GenericCueXmlBuilder. (use the schema-derived engine (see specs/004-xml-serialization-core/migration-map.md) instead; removed in v0.1.1)
+    sub_object_element = builder_class(value, xml_tree = cue_subelement).build()
+
+tests/test_xml.py::test_XmlWriter
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:162: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    writer = XmlReaderWriter(
+
+tests/test_xml.py::test_XmlWriter
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:167: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.1)
+    writer.write_from_object(reloaded_script)
+
+tests/test_xml.py::test_XmlWriter
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:169: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.cues.CuemsScript.CuemsScript.validate instead; removed in v0.1.1)
+    assert writer.validate() is None
+
+tests/test_xml.py::test_XmlReader
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:177: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    reader = XmlReaderWriter(
+
+tests/test_xml.py::test_XmlReader
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:181: DeprecationWarning: Call to deprecated method read_to_objects. (use cuemsutils.cues.CuemsScript.CuemsScript.load instead; removed in v0.1.1)
+    readed = reader.read_to_objects()
+
+tests/test_xml.py::test_jsonload
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:244: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    writer = XmlReaderWriter(
+
+tests/test_xml.py::test_jsonload
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:248: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.1)
+    writer.write_from_object(parsed)
+
+tests/test_xml.py::test_jsonload
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:251: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.cues.CuemsScript.CuemsScript.validate instead; removed in v0.1.1)
+    assert writer.validate() is None
+
+tests/test_xml.py::test_settings
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:402: DeprecationWarning: Call to deprecated class Settings. (use cuemsutils.tools.ConfigManager.ConfigManager instead; removed in v0.1.1)
+    settings = Settings(SETTINGS_PATH)
+
+tests/test_xml.py::test_settings
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:403: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.tools.ConfigManager.ConfigManager.validate instead; removed in v0.1.1)
+    assert settings.validate() is None
+
+tests/test_xml.py::test_settings
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:404: DeprecationWarning: Call to deprecated method read. (use cuemsutils.tools.ConfigManager.ConfigManager.read instead; removed in v0.1.1)
+    assert settings.read() is None
+
+tests/test_xml.py::test_settings
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:406: DeprecationWarning: Call to deprecated method get_dict. (use cuemsutils.tools.ConfigManager.ConfigManager.get_dict instead; removed in v0.1.1)
+    assert isinstance(settings.get_dict(), dict)
+
+tests/test_xml.py::test_output_latency_ms_type_round_trip
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:422: DeprecationWarning: Call to deprecated class Settings. (use cuemsutils.tools.ConfigManager.ConfigManager instead; removed in v0.1.1)
+    settings = Settings(SETTINGS_PATH)
+
+tests/test_xml.py::test_output_latency_ms_type_round_trip
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:423: DeprecationWarning: Call to deprecated method read. (use cuemsutils.tools.ConfigManager.ConfigManager.read instead; removed in v0.1.1)
+    settings.read()
+
+tests/test_xml.py::test_output_latency_ms_type_round_trip
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:424: DeprecationWarning: Call to deprecated method get_dict. (use cuemsutils.tools.ConfigManager.ConfigManager.get_dict instead; removed in v0.1.1)
+    d = settings.get_dict()
+
+tests/test_xml.py::test_auto_rejected_on_dmxplayer
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:459: DeprecationWarning: Call to deprecated class Settings. (use cuemsutils.tools.ConfigManager.ConfigManager instead; removed in v0.1.1)
+    settings = Settings(BAD_PATH)
+
+tests/test_xml.py::test_networkmap
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:471: DeprecationWarning: Call to deprecated class NetworkMap. (use cuemsutils.tools.ConfigManager.ConfigManager instead; removed in v0.1.1)
+    networkmap = NetworkMap(NETWORKMAP_PATH)
+
+tests/test_xml.py::test_networkmap
+tests/test_xml.py::test_projectmappings
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/settings.py:112: DeprecationWarning: Call to deprecated method process_xml_dict. (use cuemsutils.tools.ConfigManager.ConfigManager.process_xml_dict instead; removed in v0.1.1)
+    self.process_xml_dict()
+
+tests/test_xml.py::test_networkmap
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/settings.py:174: DeprecationWarning: Call to deprecated method get_dict. (use cuemsutils.tools.ConfigManager.ConfigManager.get_dict instead; removed in v0.1.1)
+    validate_node_identities(self.get_dict())
+
+tests/test_xml.py::test_networkmap
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:472: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.tools.ConfigManager.ConfigManager.validate instead; removed in v0.1.1)
+    assert networkmap.validate() is None
+
+tests/test_xml.py::test_networkmap
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:473: DeprecationWarning: Call to deprecated method read. (use cuemsutils.tools.ConfigManager.ConfigManager.read instead; removed in v0.1.1)
+    assert networkmap.read() is None
+
+tests/test_xml.py::test_networkmap
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:475: DeprecationWarning: Call to deprecated method get_dict. (use cuemsutils.tools.ConfigManager.ConfigManager.get_dict instead; removed in v0.1.1)
+    network_dict = networkmap.get_dict()
+
+tests/test_xml.py::test_projectmappings
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:485: DeprecationWarning: Call to deprecated class ProjectMappings. (use cuemsutils.tools.ConfigManager.ConfigManager instead; removed in v0.1.1)
+    projectmappings = ProjectMappings(PROJECTMAPPINGS_PATH)
+
+tests/test_xml.py::test_projectmappings
+  /disk/Projects/StageLab/cuems-utils/src/cuemsutils/xml/settings.py:321: DeprecationWarning: Call to deprecated method get_dict. (use cuemsutils.tools.ConfigManager.ConfigManager.get_dict instead; removed in v0.1.1)
+    self.processed = self.get_dict()
+
+tests/test_xml.py::test_projectmappings
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:486: DeprecationWarning: Call to deprecated method validate. (use cuemsutils.tools.ConfigManager.ConfigManager.validate instead; removed in v0.1.1)
+    assert projectmappings.validate() is None
+
+tests/test_xml.py::test_projectmappings
+  /disk/Projects/StageLab/cuems-utils/tests/test_xml.py:487: DeprecationWarning: Call to deprecated method read. (use cuemsutils.tools.ConfigManager.ConfigManager.read instead; removed in v0.1.1)
+    assert projectmappings.read() is None
+
+tests/unit/test_media_duration.py::test_xsd_accepts_corrected_duration
+  /disk/Projects/StageLab/cuems-utils/tests/unit/test_media_duration.py:92: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    XmlReaderWriter(schema_name='script', xmlfile=f).write_from_object(script)
+
+tests/unit/test_media_duration.py::test_xsd_accepts_corrected_duration
+  /disk/Projects/StageLab/cuems-utils/tests/unit/test_media_duration.py:92: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.1)
+    XmlReaderWriter(schema_name='script', xmlfile=f).write_from_object(script)
+
+tests/unit/test_media_duration.py::test_xsd_accepts_corrected_duration
+  /disk/Projects/StageLab/cuems-utils/tests/unit/test_media_duration.py:94: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    data = XmlReaderWriter(schema_name='script', xmlfile=f).read()
+
+tests/unit/test_media_duration.py::test_xsd_accepts_corrected_duration
+  /disk/Projects/StageLab/cuems-utils/tests/unit/test_media_duration.py:94: DeprecationWarning: Call to deprecated method read. (use cuemsutils.cues.CuemsScript.CuemsScript.to_wire instead; removed in v0.1.1; note: the returned dict no longer contains the schemaLocation key)
+    data = XmlReaderWriter(schema_name='script', xmlfile=f).read()
+
+tests/unit/test_media_duration.py::test_xsd_accepts_corrected_duration
+tests/unit/test_media_duration.py::test_xsd_rejects_malformed_duration
+  /home/adria/.local/share/hatch/env/virtual/cuemsutils/KPtCKENL/test.py3.11/lib/python3.11/site-packages/deprecated/classic.py:199: DeprecationWarning: Call to deprecated method read. (use cuemsutils.cues.CuemsScript.CuemsScript.to_wire instead; removed in v0.1.1; note: the returned dict no longer contains the schemaLocation key, and this path applies **no version conversion** — a document written for an older schema version is refused here and converted in memory by the public load)
+    return wrapped_(*args_, **kwargs_)
+
+tests/unit/test_media_duration.py::test_xsd_rejects_malformed_duration
+  /disk/Projects/StageLab/cuems-utils/tests/unit/test_media_duration.py:103: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    XmlReaderWriter(schema_name='script', xmlfile=f).write_from_object(script)
+
+tests/unit/test_media_duration.py::test_xsd_rejects_malformed_duration
+  /disk/Projects/StageLab/cuems-utils/tests/unit/test_media_duration.py:103: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.1)
+    XmlReaderWriter(schema_name='script', xmlfile=f).write_from_object(script)
+
+tests/unit/test_media_duration.py::test_xsd_rejects_malformed_duration
+  /disk/Projects/StageLab/cuems-utils/tests/unit/test_media_duration.py:115: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.1)
+    XmlReaderWriter(schema_name='script', xmlfile=f).read()
+
+tests/unit/test_media_duration.py::test_xsd_rejects_malformed_duration
+  /disk/Projects/StageLab/cuems-utils/tests/unit/test_media_duration.py:115: DeprecationWarning: Call to deprecated method read. (use cuemsutils.cues.CuemsScript.CuemsScript.to_wire instead; removed in v0.1.1; note: the returned dict no longer contains the schemaLocation key)
+    XmlReaderWriter(schema_name='script', xmlfile=f).read()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+3756 passed, 114 skipped, 2 xfailed, 277 warnings in 30.84s
+# exit=0 wall=31.936520147s

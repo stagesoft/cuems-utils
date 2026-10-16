@@ -1,0 +1,38 @@
+# start run — cuems-power-bridge @ dd1256f, 2026-10-15T21:54:00+02:00
+# cmd: bash -c cd cuems-power-bridge && .venv/bin/python -c "import sys,cuemsutils;print(\"# python\",sys.executable,sys.version.split()[0],\"cuemsutils\",cuemsutils.__file__)" && .venv/bin/python -m pytest -q -p no:cacheprovider -rfE
+# python /disk/Projects/StageLab/cuems-power-bridge/.venv/bin/python 3.11.9 cuemsutils /disk/Projects/StageLab/.016-utils-start/src/cuemsutils/__init__.py
+============================= test session starts ==============================
+platform linux -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0
+rootdir: /disk/Projects/StageLab/cuems-power-bridge
+configfile: pyproject.toml
+testpaths: tests
+plugins: mock-3.16.0, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 276 items
+
+tests/test_autoload.py ..............                                    [  5%]
+tests/test_bridge_autoplay.py .........                                  [  8%]
+tests/test_bridge_gocue.py .................                             [ 14%]
+tests/test_bridge_poweron.py ..........                                  [ 18%]
+tests/test_brightness.py .................                               [ 24%]
+tests/test_cli_poweroff.py ...........................                   [ 34%]
+tests/test_cluster_bus.py ..........                                     [ 37%]
+tests/test_cluster_shutdown.py .....................                     [ 45%]
+tests/test_config_autoload.py ..............                             [ 50%]
+tests/test_config_projectors.py ....                                     [ 51%]
+tests/test_displays_config.py ....                                       [ 53%]
+tests/test_engine_state_ready.py ....                                    [ 54%]
+tests/test_escvp.py ............                                         [ 59%]
+tests/test_install_mjs.py .........                                      [ 62%]
+tests/test_manager.py ......                                             [ 64%]
+tests/test_network_map_adapter.py ...........................            [ 74%]
+tests/test_network_map_ips.py ......                                     [ 76%]
+tests/test_node_executor.py ...                                          [ 77%]
+tests/test_pjlink.py .........                                           [ 80%]
+tests/test_shutdown_cases.py .............                               [ 85%]
+tests/test_shutdown_equivalence.py .........................             [ 94%]
+tests/test_shutdown_lock.py ........                                     [ 97%]
+tests/test_sibling_decoupling.py .......                                 [100%]
+
+============================= 276 passed in 43.30s =============================
+# exit=0 wall=43.711762912s

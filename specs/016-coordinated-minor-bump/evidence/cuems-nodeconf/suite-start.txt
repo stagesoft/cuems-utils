@@ -1,0 +1,272 @@
+# start run — cuems-nodeconf @ 82b0a69, 2026-10-15T21:53:59+02:00
+# cmd: bash -c cd cuems-nodeconf && .venv/bin/python -c "import sys,cuemsutils;print(\"# python\",sys.executable,sys.version.split()[0],\"cuemsutils\",cuemsutils.__file__)" && .venv/bin/python -m pytest -q -p no:cacheprovider -rfE; echo "# yardstick"; .venv/bin/python -m pytest specs/planning/yardstick/ -q -p no:cacheprovider -rfE
+# python /disk/Projects/StageLab/cuems-nodeconf/.venv/bin/python 3.11.9 cuemsutils /disk/Projects/StageLab/.016-utils-start/src/cuemsutils/__init__.py
+
+==================================== ERRORS ====================================
+_________________ ERROR collecting tests/test_adoption_flow.py _________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_adoption_flow.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_adoption_flow.py:7: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+________________ ERROR collecting tests/test_engine_callback.py ________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_engine_callback.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_engine_callback.py:6: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+________________ ERROR collecting tests/test_error_handling.py _________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_error_handling.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_error_handling.py:8: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+______________ ERROR collecting tests/test_foreign_controllers.py ______________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_foreign_controllers.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_foreign_controllers.py:23: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+________________ ERROR collecting tests/test_fresh_node_boot.py ________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_fresh_node_boot.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_fresh_node_boot.py:25: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+__________________ ERROR collecting tests/test_integration.py __________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_integration.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_integration.py:8: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+______________ ERROR collecting tests/test_interface_detection.py ______________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_interface_detection.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_interface_detection.py:9: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+_________________ ERROR collecting tests/test_missing_nodes.py _________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_missing_nodes.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_missing_nodes.py:11: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+__________________ ERROR collecting tests/test_network_map.py __________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_network_map.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_network_map.py:19: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+_________________ ERROR collecting tests/test_node_adoption.py _________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_node_adoption.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_node_adoption.py:6: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+_________________ ERROR collecting tests/test_node_aliasing.py _________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_node_aliasing.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_node_aliasing.py:37: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+___________________ ERROR collecting tests/test_node_role.py ___________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_node_role.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_node_role.py:12: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+___________________ ERROR collecting tests/test_node_set.py ____________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_node_set.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_node_set.py:20: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+_________________ ERROR collecting tests/test_nodeconf_init.py _________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_nodeconf_init.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_nodeconf_init.py:5: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+________________ ERROR collecting tests/test_phase1_changes.py _________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_phase1_changes.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_phase1_changes.py:15: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+___________________ ERROR collecting tests/test_self_seed.py ___________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_self_seed.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_self_seed.py:14: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+_______________ ERROR collecting tests/test_service_discovery.py _______________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_service_discovery.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_service_discovery.py:5: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+________________ ERROR collecting tests/test_service_record.py _________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_service_record.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_service_record.py:19: in <module>
+    import cuemsnodeconf.CuemsNodeConf as daemon_module
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+________________ ERROR collecting tests/test_startup_config.py _________________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_startup_config.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_startup_config.py:12: in <module>
+    import cuemsnodeconf.CuemsNodeConf as daemon_module
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+_______________ ERROR collecting tests/test_startup_readiness.py _______________
+ImportError while importing test module '/disk/Projects/StageLab/cuems-nodeconf/tests/test_startup_readiness.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/adria/.pyenv/versions/3.11.9/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_startup_readiness.py:18: in <module>
+    from cuemsnodeconf.CuemsNodeConf import CuemsNodeConf
+cuemsnodeconf/CuemsNodeConf.py:13: in <module>
+    from zeroconf import IPVersion, ServiceInfo, ServiceListener, ServiceBrowser, Zeroconf, ZeroconfServiceTypes
+E   ModuleNotFoundError: No module named 'zeroconf'
+=========================== short test summary info ============================
+ERROR tests/test_adoption_flow.py
+ERROR tests/test_engine_callback.py
+ERROR tests/test_error_handling.py
+ERROR tests/test_foreign_controllers.py
+ERROR tests/test_fresh_node_boot.py
+ERROR tests/test_integration.py
+ERROR tests/test_interface_detection.py
+ERROR tests/test_missing_nodes.py
+ERROR tests/test_network_map.py
+ERROR tests/test_node_adoption.py
+ERROR tests/test_node_aliasing.py
+ERROR tests/test_node_role.py
+ERROR tests/test_node_set.py
+ERROR tests/test_nodeconf_init.py
+ERROR tests/test_phase1_changes.py
+ERROR tests/test_self_seed.py
+ERROR tests/test_service_discovery.py
+ERROR tests/test_service_record.py
+ERROR tests/test_startup_config.py
+ERROR tests/test_startup_readiness.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 20 errors during collection !!!!!!!!!!!!!!!!!!!
+20 errors in 0.72s
+# yardstick
+...............                                                          [100%]
+15 passed in 0.04s
+# exit=0 wall=1.300174353s

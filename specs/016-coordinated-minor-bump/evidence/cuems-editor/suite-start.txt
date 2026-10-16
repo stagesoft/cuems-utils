@@ -1,0 +1,15 @@
+# start run — cuems-editor @ e5e6ac1, 2026-10-15T21:55:08+02:00
+# cmd: bash -c cd cuems-editor && .venv/bin/python -c "import sys,cuemsutils;print(\"# python\",sys.executable,sys.version.split()[0],\"cuemsutils\",cuemsutils.__file__)" && .venv/bin/python -m pytest -q -p no:cacheprovider -rfE
+# python /disk/Projects/StageLab/cuems-editor/.venv/bin/python 3.11.9 cuemsutils /disk/Projects/StageLab/.016-utils-start/src/cuemsutils/__init__.py
+................................s...................................s... [ 26%]
+........................................................................ [ 52%]
+.......................................s................................ [ 78%]
+..........................................................               [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/peewee.py:281
+  /disk/Projects/StageLab/cuems-editor/.venv/lib/python3.11/site-packages/peewee.py:281: DeprecationWarning: "PrimaryKeyField" has been renamed to "AutoField". Please update your code accordingly as this will be completely removed in a subsequent release.
+    warnings.warn(s, DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+271 passed, 3 skipped, 1 warning in 6.55s
+# exit=0 wall=6.961706513s

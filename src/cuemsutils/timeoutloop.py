@@ -2,7 +2,7 @@
 
 Kept so that ``cuems-nodeconf``'s pre-existing import
 (``from cuemsutils.timeoutloop import Timeoutloop``) keeps resolving. Removed
-in ``v0.1.1``.
+in ``v0.1.2``.
 
 **Importing this module is silent; using what it exports is not.** A
 module-level re-export cannot satisfy "warn on every use" — an import warns

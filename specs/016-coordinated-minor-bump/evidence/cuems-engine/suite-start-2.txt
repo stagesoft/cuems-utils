@@ -1,0 +1,43 @@
+# start run (2, after env fix) — cuems-engine @ 7d0bda3, 2026-10-15T21:57:25+02:00
+# cmd: env LD_LIBRARY_PATH=/disk/Projects/StageLab/.016-native/root/usr/lib:/disk/Projects/StageLab/.016-native/root/usr/lib/x86_64-linux-gnu bash -c cd cuems-engine && echo "# LD_LIBRARY_PATH=$LD_LIBRARY_PATH (libmtcmaster 0.0.2-0 + bookworm librtmidi6, extracted, not installed)" && echo "# pass 1: not integration" && .venv-016/bin/python -m pytest -m "not integration" -n auto -q -p no:cacheprovider -rfE; echo "# pass 2: integration and not slow"; .venv-016/bin/python -m pytest -m "integration and not slow" -q -p no:cacheprovider -rfE
+# LD_LIBRARY_PATH=/disk/Projects/StageLab/.016-native/root/usr/lib:/disk/Projects/StageLab/.016-native/root/usr/lib/x86_64-linux-gnu (libmtcmaster 0.0.2-0 + bookworm librtmidi6, extracted, not installed)
+# pass 1: not integration
+============================= test session starts ==============================
+platform linux -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0
+rootdir: /disk/Projects/StageLab/cuems-engine
+configfile: pyproject.toml
+testpaths: tests
+plugins: platformdirs-4.13.0, mock-3.16.0, xdist-3.8.0, cov-7.1.0, anyio-4.15.1
+created: 6/6 workers
+6 workers [885 items]
+
+........................................................................ [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 24%]
+........................................................................ [ 32%]
+........................................................................ [ 40%]
+........................................................................ [ 48%]
+........................................................................ [ 56%]
+........................................................................ [ 65%]
+........................................................................ [ 73%]
+........................................................................ [ 81%]
+........................................................................ [ 89%]
+........................................................................ [ 97%]
+.....................                                                    [100%]
+============================= 885 passed in 13.92s =============================
+# pass 2: integration and not slow
+============================= test session starts ==============================
+platform linux -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0
+rootdir: /disk/Projects/StageLab/cuems-engine
+configfile: pyproject.toml
+testpaths: tests
+plugins: platformdirs-4.13.0, mock-3.16.0, xdist-3.8.0, cov-7.1.0, anyio-4.15.1
+collected 923 items / 891 deselected / 32 selected
+
+tests/test_core_baseengine.py .....                                      [ 15%]
+tests/test_cuems_deploy_integration.py .                                 [ 18%]
+tests/test_project_load.py .....................                         [ 84%]
+tests/test_pythonosc.py .....                                            [100%]
+
+====================== 32 passed, 891 deselected in 7.59s ======================
+# exit=0 wall=22.344073601s

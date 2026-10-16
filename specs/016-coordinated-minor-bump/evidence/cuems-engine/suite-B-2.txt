@@ -1,0 +1,9 @@
+# rerun-3 arm B @ e994a5e 2026-10-16T18:50:42+02:00 wall=22.836300373s lib=8f6eede
+================ 885 passed, 1 xfailed, 102 warnings in 14.89s =================
+=============== 32 passed, 892 deselected, 102 warnings in 7.09s ===============
+# rerun-3 arm B @ e994a5e 2026-10-16T18:51:29+02:00 wall=23.225411970s lib=8f6eede
+================ 885 passed, 1 xfailed, 102 warnings in 14.78s =================
+=============== 32 passed, 892 deselected, 102 warnings in 7.59s ===============
+# rerun-3 arm B @ e994a5e 2026-10-16T18:52:12+02:00 wall=21.877212239s lib=8f6eede
+================ 885 passed, 1 xfailed, 102 warnings in 13.42s =================
+=============== 32 passed, 892 deselected, 102 warnings in 7.61s ===============

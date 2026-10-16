@@ -168,7 +168,7 @@ def test_message_names_the_replacement_and_the_removal_release():
 
 def test_removal_release_is_a_version_not_a_feature_id():
     """FR-027a — a consumer cannot act on "removed in feature 007"."""
-    assert REMOVAL_RELEASE == "v0.1.1"
+    assert REMOVAL_RELEASE == "v0.1.2"
 
 
 def test_warning_is_reported_at_the_callers_line():

@@ -1,0 +1,6 @@
+# rerun-3 arm B @ 8f6eede wall=32.241708887s
+3754 passed, 116 skipped, 6 xfailed, 379 warnings in 31.08s
+# rerun-3 arm B @ 8f6eede wall=32.364120935s
+3754 passed, 116 skipped, 6 xfailed, 379 warnings in 31.26s
+# rerun-3 arm B @ 8f6eede wall=32.943300359s
+3754 passed, 116 skipped, 6 xfailed, 379 warnings in 31.83s

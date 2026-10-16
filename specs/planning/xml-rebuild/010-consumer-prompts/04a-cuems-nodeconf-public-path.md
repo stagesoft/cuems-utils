@@ -1,5 +1,13 @@
 # Feature 010 — `cuems-nodeconf`: close the last internal import
 
+> **Superseded versions, 2026-10-15 (feature 016).** The coordinated `xml-refactor` landing no
+> longer holds `0.1.0rc16`. It cuts **`cuems-utils 0.1.1`**, the deprecated surface goes in
+> **`v0.1.2`** (`REMOVAL_RELEASE`), and every consumer bounds the library **`>= 0.1.1`,
+> `<< 0.1.2~`** (`cuemsutils>=0.1.1,<0.1.2`), per
+> `specs/016-coordinated-minor-bump/contracts/relation-matrix.md`. Below, `0.1.0rc16`,
+> `<< 0.1.1~` and `v0.1.1` are left as **dated record** of what was true when written. Read any
+> *instruction* that names them with the new values.
+
 **Status:** ready to run — **follow-up to [04-cuems-nodeconf](04-cuems-nodeconf.md)**, not a new flow
 **Date:** 2026-09-17
 **Repository:** `/disk/Projects/StageLab/cuems-nodeconf`

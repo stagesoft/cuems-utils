@@ -1,0 +1,27 @@
+# 016 bookworm build — cuems-common (mmdebstrap --mode=unshare; tools/bookworm-build.sh)
+date: 2026-10-16T17:49:56+02:00
+host: Debian GNU/Linux 13 (trixie), mmdebstrap 1.5.7
+repo: cuems-common @ fb450b5d68ea719bbe97b810e070da39d47d53cd, changelog version 1.3.1-1
+cuemsutils wheel: cuemsutils-0.1.1-py3-none-any.whl from /disk/Projects/StageLab/.016-utils-bump @ 67df8bc6641c4f66d0e958a6221a3bc68564baa7 (clean)
+
+## chroot
+os: Debian GNU/Linux 12 (bookworm)
+python3: /usr/bin/python3 -> /usr/bin/python3.11 Python 3.11.2
+dh-virtualenv 1.2.2-1.3
+debhelper 13.11.4
+
+## result
+build OK
+
+## packages
+cuems-common_1.3.1-1_all.deb  sha256 448e135e9c8a0f47838442918a03b55c717652734c80fe9e0d785a4a670f0773
+  Package: cuems-common
+  Version: 1.3.1-1
+  Architecture: all
+  Depends: cuems-utils (>= 0.1.1), cuems-utils (<< 0.1.2~), systemd, systemd-journal-remote (>= 247), python3, apache2, libapache2-mod-dnssd, openssl, openssh-server, sudo, avahi-daemon, avahi-autoipd, libnss-mdns, isc-dhcp-server, hostapd, nftables, rsync, ifenslave, net-tools, iproute2, ethtool, chrony (>= 4.0), edid-decode, cpufrequtils, ddcutil, zita-ajbridge
+  Breaks: cuems-nodeconf (<< 0.1.1~), cuems-power-bridge (<< 0.4.0~)
+
+## venv interpreter
+no venv (package does not use dh-virtualenv)
+
+## verdict: OK
