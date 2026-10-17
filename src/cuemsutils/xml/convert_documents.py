@@ -153,10 +153,14 @@ def _check(paths: list[Path]) -> int:
         else:
             print(f"{path}: version {version}, current {current} — needs conversion")
             counts["needs conversion"] += 1
-    total = len(paths)
-    parts = ", ".join(f"{count} {name}" for name, count in counts.items() if count)
-    print(f"{total} document{'' if total == 1 else 's'}: {parts or 'nothing to check'}")
+    _print_summary(len(paths), counts)
     return 0 if counts["needs conversion"] == 0 and counts["skipped"] == 0 else 1
+
+
+def _print_summary(total: int, counts: dict[str, int]) -> None:
+    """The last line of both modes, in one form (T068): ``N documents: X a, Y b``."""
+    parts = ", ".join(f"{count} {name}" for name, count in counts.items() if count)
+    print(f"{total} document{'' if total == 1 else 's'}: {parts or 'nothing to do'}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -184,25 +188,32 @@ def main(argv: list[str] | None = None) -> int:
         return _check([Path(arg) for arg in args.paths])
 
     exit_code = 0
+    counts = {"converted": 0, "current": 0, "skipped": 0}
     for arg in args.paths:
         path = Path(arg)
         try:
             status = convert_file(path)
         except Exception as exc:  # reported, batch continues (FR-042)
             print(f"{path}: skipped ({exc})", file=sys.stderr)
+            counts["skipped"] += 1
             exit_code = 1
             continue
 
         if status == ConversionOutcome.BACKUP_FAILED:
             print(f"{path}: skipped (backup failed; document left unrewritten)", file=sys.stderr)
+            counts["skipped"] += 1
             exit_code = 1
         elif status == ConversionOutcome.UNRECOGNISED:
             print(f"{path}: skipped (root element names no bundled schema)", file=sys.stderr)
+            counts["skipped"] += 1
             exit_code = 1
         elif status == ConversionOutcome.CONVERTED:
             print(f"{path}: converted")
+            counts["converted"] += 1
         else:
             print(f"{path}: already current")
+            counts["current"] += 1
+    _print_summary(len(args.paths), counts)
     return exit_code
 
 

@@ -111,3 +111,20 @@ def test_an_unrecognised_document_is_skipped_not_crashed(tmp_path):
     status = convert_file(target)
 
     assert status == ConversionOutcome.UNRECOGNISED
+
+
+def test_the_rewrite_mode_summarises_like_the_check_mode(tmp_path, capsys):
+    """010 T068: one reporting idiom across the tool's two modes, so an operator
+    reads ``--check`` and the conversion it predicts the same way."""
+    old = tmp_path / "old.xml"
+    current = tmp_path / "current.xml"
+    shutil.copy2(ALL_TRANSFORMS, old)
+    shutil.copy2(ALL_TRANSFORMS, current)
+    main([str(current)])
+    capsys.readouterr()
+
+    assert main([str(old), str(current)]) == 0
+    assert capsys.readouterr().out.strip().splitlines()[-1] == "2 documents: 1 converted, 1 current"
+
+    main(["--check", str(old), str(current)])
+    assert capsys.readouterr().out.strip().splitlines()[-1] == "2 documents: 2 current"

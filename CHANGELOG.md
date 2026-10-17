@@ -46,6 +46,8 @@ writes nothing. Exit `0` when everything is current, `1` when anything needs con
 skipped. It answers "has this library been converted?" for a rollback, so no document has to be
 opened by hand. Since the device-class reshape, the complete answer also needs
 `cuems-reshape-devices --check`.
+A conversion run now ends with the same summary line, `N documents: X converted, Y current`, so
+the check and the run it predicts read alike.
 
 ### Changed — a too-new configuration document says so in a field
 
@@ -286,7 +288,8 @@ They have one commit each and have never been edited.
   goldens showed that two of four captured `CuemsScript` roots are not sorted, so a sorted
   rule would have rewritten the root element of every hand-authored script. See FR-001b.
 - Five schema defects and two code defects are recorded and deferred, not fixed — see
-  `specs/planning/xml-rebuild/xml-rebuild-01-audit.md` §6, X13–X17. The two worth knowing about:
+  `specs/agreements/schema-evolution-convention.md`, "Recorded schema debt", X13–X17 (relocated
+  from the deleted planning audit in 010 T069c). The two worth knowing about:
   `outputs.xsd` declares an `OutputsType` that collides with `script.xsd`'s, **and** the
   only `outputs.xml` in existence has a namespace missing its trailing slash. Between them,
   nothing has ever validated against `outputs.xsd`.
