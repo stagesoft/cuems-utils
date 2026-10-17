@@ -54,7 +54,8 @@ SCRIPT_ROOT = "CuemsProject"
 MAPPINGS_ROOT = "CuemsProjectMappings"
 
 #: Backups, in every spelling this project makes them.
-#: ``xml/convert_documents.py`` writes ``<name>.<timestamp>.bak``; the migration
+#: ``xml/documents.backup_document`` writes ``<name>.<timestamp>[.<n>].bak`` for
+#: both rewriters (the ``.<n>`` only when the name is taken); the migration
 #: procedure tells an operator to take ``.bak-<date>`` copies. Neither is
 #: rewritten (FR-015) — and the migration guide must say that restoring one
 #: reintroduces a stale identity, because nothing here can stop that.

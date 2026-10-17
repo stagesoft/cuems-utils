@@ -1123,6 +1123,17 @@ repositories on disk and show the count is zero; then delete and run the suite.
   **convert-on-read** path — not the batch command — is what guarantees an unconverted document
   still opens. This MUST be verified rather than assumed, and stated in the rollout plan as the
   reason an unconverted library is not a broken one.
+  ⚠ *Verified 2026-10-17 (T037a) — and true for **one axis only**.* Version-old documents open,
+  converted in memory, with the disk byte-unchanged and no backup written
+  (`tests/integration/test_convert_on_read_library.py`). A **pre-013-shape** document does not: the
+  device-class reshape has no version step, so there is nothing for the load path to convert, and
+  the document is refused with a `SchemaError` naming `cuems-reshape-devices`, for scripts and
+  configuration documents alike. **An un-reshaped library is a broken one.** For `/etc/cuems` that
+  matters at **upgrade**, not at the operator's leisure: a field node's `settings.xml` and
+  `project_mappings.xml` are in the pre-013 shape, nothing in `postinst` reshapes them, and the
+  services read them at start. This is FR-094's decision (T040), and FR-095b's split still holds:
+  the **configuration** reshape belongs in the upgrade path, while the **show-library** pair stays
+  an operator command.
 - **FR-095b**: FR-094's configuration-document ordering and FR-095's show-document trigger MUST be
   kept as **separate decisions with separate answers**. The configuration conversion stays in the
   upgrade path; the show conversion leaves it.

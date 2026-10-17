@@ -15,14 +15,13 @@ from __future__ import annotations
 import argparse
 import copy
 import os
-import shutil
 import sys
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from ..tools.library_reach import is_backup, library_path_from_settings
-from .documents import write_tree
+from .documents import backup_document, backup_path, write_tree
 from .schema import SCHEMA_ROOTS, get_schema
 
 #: Old element names being deleted. Not a vocabulary the library supports.
@@ -233,10 +232,6 @@ def reshape_output_groups(root: ET.Element) -> None:
     root.insert(first, groups)
 
 
-def _backup_path(path: Path, clock: str) -> Path:
-    return path.with_name(f"{path.name}.{clock}.bak")
-
-
 def _as_the_load_path_sees_it(schema_name: str, tree: ET.ElementTree) -> ET.ElementTree:
     """``tree`` with any registered version conversion applied, on a **copy**.
 
@@ -295,11 +290,10 @@ def reshape_file(path: Path, *, write: bool, dry_run: bool, clock: str) -> str:
         return "already current"
     if not write:
         return "old-shape"
-    backup = _backup_path(path, clock)
     if dry_run:
-        return f"would reshape (backup {backup})"
+        return f"would reshape (backup {backup_path(path, clock)})"
     try:
-        shutil.copy2(path, backup)
+        backup_document(path, clock)
     except OSError:
         return "skipped (backup failed; document left unrewritten)"
     if schema_name == "project_mappings":
@@ -358,7 +352,7 @@ def _summary(verdicts: list[str]) -> str:
         return "nothing to do (" + ", ".join(parts) + ")"
     line = ", ".join(parts)
     if counts.get("reshaped"):
-        line += "; backups are <name>.<YYYYMMDDTHHMMSS>.bak beside each rewritten file"
+        line += "; backups are <name>.<YYYYMMDDTHHMMSS>[.<n>].bak beside each rewritten file"
     return line
 
 

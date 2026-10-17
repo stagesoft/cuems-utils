@@ -26,7 +26,7 @@ def test_each_rewrite_is_preceded_by_a_timestamped_backup(tmp_path, monkeypatch)
         copied.append((Path(src), Path(dst)))
         return real(src, dst)
 
-    monkeypatch.setattr(reshape_devices.shutil, "copy2", _copy)
+    monkeypatch.setattr(shutil, "copy2", _copy)
     assert reshape_devices.main([str(target)]) == 0
     assert copied == [(target, target.with_name("mappings.xml.20261001T120000.bak"))]
     assert target.with_name("mappings.xml.20261001T120000.bak").read_bytes() == _OLD.read_bytes()
@@ -46,7 +46,7 @@ def test_a_backup_failure_leaves_that_document_and_continues(tmp_path, monkeypat
             raise OSError("disk full")
         return real(src, dst)
 
-    monkeypatch.setattr(reshape_devices.shutil, "copy2", _copy)
+    monkeypatch.setattr(shutil, "copy2", _copy)
     code = reshape_devices.main([str(first), str(second)])
     assert code == 1
     assert second.read_bytes() == original

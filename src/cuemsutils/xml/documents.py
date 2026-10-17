@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import io
 import os
+import shutil
 import stat
 import tempfile
 from os import PathLike
@@ -366,3 +367,63 @@ def write_tree(tree: ElementTree, target: str | PathLike) -> None:
             pass
         raise
     Logger.info(f"Wrote document {target}")
+
+
+def backup_path(target: str | PathLike, clock: str) -> Path:
+    """The name :func:`backup_document` would take for ``target`` now.
+
+    ``<name>.<clock>.bak``, or ``<name>.<clock>.<n>.bak`` with the smallest
+    ``n`` not yet on disk. A prediction only: nothing is reserved, so a
+    ``--dry-run`` can name the backup without creating one.
+    """
+    target = Path(os.fspath(target))
+    for attempt in _backup_names(target, clock):
+        if not os.path.lexists(attempt):
+            return attempt
+    raise AssertionError("unreachable")  # pragma: no cover - the generator is unbounded
+
+
+def backup_document(target: str | PathLike, clock: str) -> Path:
+    """Copy ``target`` to a backup that **never replaces an existing file**.
+
+    Returns the backup's path: ``<name>.<clock>.bak``, or
+    ``<name>.<clock>.<n>.bak`` when that name is already taken (010 FR-102b).
+    Both rewriters, ``cuems-reshape-devices`` and ``cuems-convert-documents``,
+    back up through here. Run in their required order inside one second, they
+    used to name the same file, so the second backup (of the *reshaped*
+    document) overwrote the first (of the *original*), and the pre-upgrade
+    document was on disk nowhere while both exited 0. A document therefore
+    carries one backup per rewriter that touched it, and its **oldest** backup
+    is its pre-upgrade state.
+
+    The name is **reserved** with ``O_CREAT | O_EXCL`` and only then filled by
+    ``shutil.copy2``, so two processes cannot claim it twice, and the copy keeps
+    the source's mode and times like it always did. If the copy fails, the
+    reservation is removed and the ``OSError`` propagates: a reserved but empty
+    file must not pose as a backup.
+    """
+    target = Path(os.fspath(target))
+    for attempt in _backup_names(target, clock):
+        try:
+            handle = os.open(attempt, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            continue
+        os.close(handle)
+        try:
+            shutil.copy2(target, attempt)
+        except BaseException:
+            try:
+                os.unlink(attempt)
+            except OSError:  # pragma: no cover - nothing left to remove
+                pass
+            raise
+        return attempt
+    raise AssertionError("unreachable")  # pragma: no cover - the generator is unbounded
+
+
+def _backup_names(target: Path, clock: str):
+    yield target.with_name(f"{target.name}.{clock}.bak")
+    n = 1
+    while True:
+        yield target.with_name(f"{target.name}.{clock}.{n}.bak")
+        n += 1

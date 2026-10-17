@@ -29,6 +29,31 @@ package relations are re-verified after the merge:
 - **`0.1.0rc17`**: `script.xsd`'s `ActionType` gains `stop_project`. A project saved by an rc17
   cluster with a `stop_project` cue is **refused** by `0.1.1` until this is absorbed.
 
+### Fixed — migrating a library no longer destroys the backup of the original
+
+`cuems-reshape-devices` and `cuems-convert-documents` both named their backup
+`<name>.<YYYYMMDDTHHMMSS>.bak` and overwrote an existing file. Run in their required order inside
+one second, which a small library does, the second backup replaced the first. The pre-upgrade
+document was then on disk nowhere, and both tools still exited 0. A backup now never replaces another file:
+a taken name gets a `.<n>` suffix (`<name>.<YYYYMMDDTHHMMSS>.1.bak`), and a document's **oldest**
+backup is its pre-upgrade state. **If you migrated before this fix**, check each migrated document
+for two backups. One backup alone may already be the reshaped one.
+
+### Added — `cuems-convert-documents --check`
+
+Reports each document's version and a summary (`N documents: X current, Y needs conversion`) and
+writes nothing. Exit `0` when everything is current, `1` when anything needs conversion or was
+skipped. It answers "has this library been converted?" for a rollback, so no document has to be
+opened by hand. Since the device-class reshape, the complete answer also needs
+`cuems-reshape-devices --check`.
+
+### Changed — a too-new configuration document says so in a field
+
+A configuration document whose `doc_version` is newer than this library raised `ValidationError`
+with no `violation`, so a consumer could tell it from a broken document only by the message. It now
+carries `violation.rule == "document_version_too_new"`, as a show document already did. The fix
+for it is to upgrade the software, not to edit the document.
+
 ### Fixed — another cluster's controller no longer joins this one's network map
 
 Several CUEMS clusters can share one LAN, and every controller announces itself over mDNS. A

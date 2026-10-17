@@ -75,7 +75,7 @@ def test_backup_failure_is_fatal_only_for_that_document(tmp_path, monkeypatch):
             raise OSError("simulated backup failure")
         return original_copy2(src, dst, *a, **kw)
 
-    monkeypatch.setattr("cuemsutils.xml.convert_documents.shutil.copy2", _fail_for_bad)
+    monkeypatch.setattr("shutil.copy2", _fail_for_bad)
 
     bad_before = bad.read_bytes()
     exit_code = main([str(good), str(bad)])
@@ -94,7 +94,7 @@ def test_never_rewrites_without_a_successful_backup_first(tmp_path, monkeypatch)
     before = target.read_bytes()
 
     monkeypatch.setattr(
-        "cuemsutils.xml.convert_documents.shutil.copy2",
+        "shutil.copy2",
         lambda *a, **kw: (_ for _ in ()).throw(OSError("no backup possible")),
     )
 

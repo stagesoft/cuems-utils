@@ -63,7 +63,13 @@ def load_config_document(cls, xmlfile: str, schema_name: str):
         raise
     except DocumentTooNewError as exc:
         Logger.error(str(exc))
-        raise ValidationError(str(exc)) from exc
+        # The same structured rule the show path raises (``CuemsScript._load``),
+        # so a consumer tells "upgrade the reader" from "repair the document"
+        # by a field, not by the sentence (010 FR-049e).
+        raise ValidationError(
+            str(exc),
+            violation=Violation("T1", "document_version_too_new", (None, None), str(exc)),
+        ) from exc
     except Exception as exc:
         # ``project_mappings``' one T2 rule violation checked **first**, and
         # matched on exact wording rather than by exception type: it raises a
