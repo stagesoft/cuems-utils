@@ -35,6 +35,9 @@ CUEMS_SHARE="${CUEMS_SHARE:-/usr/share/cuems}"
 CUEMS_STATE="${CUEMS_STATE:-/var/lib/cuems-utils}"
 CUEMS_INIT_NODE="${CUEMS_INIT_NODE-/usr/lib/cuems/bin/cuems-init-node}"
 CUEMS_INIT_TIMEOUT="${CUEMS_INIT_TIMEOUT:-60s}"
+# An EMPTY CUEMS_RESHAPE skips the reshape step (tests), as for CUEMS_INIT_NODE.
+CUEMS_RESHAPE="${CUEMS_RESHAPE-/usr/lib/cuems/bin/cuems-reshape-devices}"
+CUEMS_RESHAPE_TIMEOUT="${CUEMS_RESHAPE_TIMEOUT:-60s}"
 
 warn() {
     echo "WARNING: cuems-utils postinst: $*" >&2
@@ -52,6 +55,30 @@ install_schemas() {
             warn "$src is missing; $CUEMS_ETC/$name.xsd left as it is"
         fi
     done
+}
+
+reshape_configuration() {
+    # 010 T040 (FR-094): a field node's /etc/cuems documents are in the pre-013
+    # device shape, which the load path refuses — the reshape has no version
+    # step, so convert-on-read cannot cover it — and the services read them at
+    # start. Reshape them here, before cuems-init-node reads settings.xml, and
+    # before any dependent package restarts a service (dpkg configures this
+    # package first). EXPLICIT PATHS, the documents directly in $CUEMS_ETC
+    # only: the tool's own discovery would follow settings.xml's library_path
+    # into the show library, and that stays an operator command (FR-095b).
+    # The tool backs up each document it rewrites and leaves current ones alone.
+    [ -n "$CUEMS_RESHAPE" ] || return 0
+    set --
+    for doc in "$CUEMS_ETC"/*.xml; do
+        [ -f "$doc" ] && set -- "$@" "$doc"
+    done
+    [ "$#" -gt 0 ] || return 0
+    if [ ! -x "$CUEMS_RESHAPE" ]; then
+        warn "$CUEMS_RESHAPE is not executable; $CUEMS_ETC not reshaped. Run: cuems-reshape-devices --check"
+        return 0
+    fi
+    timeout "$CUEMS_RESHAPE_TIMEOUT" "$CUEMS_RESHAPE" "$@" \
+        || warn "cuems-reshape-devices did not complete over $CUEMS_ETC ($CUEMS_RESHAPE_TIMEOUT limit); services may refuse an old-shape document. Run: cuems-reshape-devices --check"
 }
 
 #: The one wording for the sentinel state, shared with cuems-init-node --check.
@@ -78,6 +105,7 @@ case "$1" in
     configure)
         install -d -m 0755 "$CUEMS_ETC" || warn "could not create $CUEMS_ETC"
         install_schemas
+        reshape_configuration
         # D13: mint an identity and write a coherent triple — only where absent
         # (--install-missing), reading no operator input (--no-overlay), under a
         # hard timeout: a hang here blocks the stack as surely as a non-zero

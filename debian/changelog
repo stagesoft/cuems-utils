@@ -13,6 +13,15 @@ cuems-utils (0.1.1) UNRELEASED; urgency=medium
   * Breaks: cuems-common (<< 1.3.1~), was (<< 1.3.0-23~): cuems-common
     1.3.0-23, -24 and -25 were released without the /etc/cuems handover, so
     the old bound admitted them.
+  * postinst reshapes /etc/cuems before anything reads it: a field node's
+    settings.xml and mappings are in the pre-013 device shape, which the
+    load path refuses, and the services read them at start. Runs
+    cuems-reshape-devices over the documents directly in /etc/cuems only
+    (never the show library), before cuems-init-node, under a 60 s timeout,
+    and warns instead of failing (cuems-utils 010 T040).
+  * Migration backups never overwrite each other: cuems-reshape-devices and
+    cuems-convert-documents, run in order inside one second, used to lose
+    the backup of the original. cuems-convert-documents gains --check.
   * NOT YET RECONCILED with the release lines — do not publish until it is,
     then re-verify the package relations:
     the release line debian/bookworm is 77 commits ahead and carries
