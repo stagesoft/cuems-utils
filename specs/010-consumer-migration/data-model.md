@@ -142,6 +142,10 @@ hand-maintained; the descriptor is derived, so it cannot drift from the schema.
 **Owns**: `cuems-editor`, projected from `CuemsScript.to_wire()`. Contract in
 [`contracts/editor-ui-messages.md`](contracts/editor-ui-messages.md).
 
+> ⚠ *Superseded 2026-10-17: five deltas since 014, (a)–(e), defined by `cuems-editor`'s
+> `tests/ws-command-responses.txt` (see FR-010's correction); the string boolean form no longer
+> holds — booleans are native JSON.*
+
 **Byte-identical to today's except for exactly two changes** — this is the constraint most often
 misremembered, so it is stated as a delta and never as unconditional identity:
 

@@ -760,7 +760,7 @@ This keeps videocomposer's generation authoritative at run time while giving the
 a durable, schema-described copy.
 
 Its natural writer is already named in this library's own schema comments: **`cuems-hardware-discovery`**
-(`settings.xsd:16`, `xml-rebuild-08` §444, `../cuems-common/docs/latency-tuning.md:15`), which
+(`settings.xsd:16`, `xml-rebuild-08` §444 (deleted 2026-10-17, in git history), `../cuems-common/docs/latency-tuning.md:15`), which
 has no checkout yet. `hardware_outputs.xml` is the document it was always going to write.
 
 ⚠ **Superseded 2026-10-12 — there is no such repository, and there will not be one.** The probe

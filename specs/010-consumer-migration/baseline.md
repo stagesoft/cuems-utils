@@ -1541,3 +1541,167 @@ In every lost run exactly one backup remained, and it held the reshaped document
 (`tools/ConfigBase.py:64`) re-raises it with none. `DocumentTooNewError` itself subclasses `Exception` in the
 internal `xml.versioning` and is named by no consumer, so the public `ValidationError` is the only
 handle a consumer has.
+
+## 2026-10-17 — implementation evidence (`/speckit.implement`, step 2)
+
+Each sibling measured at its `xml-refactor-merge-candidate` commit (`<tag>^{commit}`), which on this
+date equals its `feat/xml-refactor` head: `cuems-engine` `e994a5e`, `cuems-editor` `a2431f0`,
+`cuems-frontend` `9e91464`, `cuems-nodeconf` `334db12`.
+
+### T047 — end to end, with the real `pyossia` (SC-005)
+
+`specs/010-consumer-migration/tools/e2e_check.py`. It runs in `cuems-engine/.venv-016`, which carries
+the **real** `pyossia` (`2.0.0rc6+124.cuems.3`, a compiled `ossia_python` extension) and resolves
+`cuemsutils` to this checkout. `libmtcmaster.so.0` was built **out of tree** from `../libmtcmaster` into
+the session scratchpad (`g++ -shared … -lrtmidi`) and supplied through `LD_LIBRARY_PATH`; nothing was
+installed, and the sibling tree has no build products.
+
+```
+1. editor saved script.xml (6079 bytes)
+2. engine loaded it: 4 cues, media durations ['00:00:00.000', '00:00:00.000', '00:00:00.000']
+3. editor reopened it: outcome CLEAN
+   equal to the UI's recorded frame
+4. every difference from the pre-migration payload is one of (a)-(e)
+PASS
+```
+
+1. The UI's frame (`cuems-frontend`'s recorded tip `project-013.frame.json`, which its specs
+   render) goes through the editor's document save (`validate_fade_durations_in_contents`,
+   `CuemsScript.from_json`, `save`).
+2. The engine's real `BaseEngine.read_script` loads it, and its `media_duration` reads every media
+   cue.
+3. The editor's open path re-projects it, and the result is **equal** to the frame the UI renders.
+4. The result is compared with the same project on the pre-migration wire
+   (`project-pre001.frame.json`, rc14). Every difference is one of (a)–(e).
+
+**Control arm.** Three injected changes that are **not** deltas were each reported: a renamed cue,
+a wrong `class`, an extra key. A boolean left as `"True"` passes step 4, since an unchanged value is
+not a difference, and fails step 3, since the UI's frame carries `true`. So the two steps are needed
+together.
+
+### T048 — a stale UI bundle is refused, and says why (FR-105, SC-015a)
+
+- **UI half**: `cuems-frontend` passes **288/288** at `9e91464`
+  (`CHROME_BIN=/usr/bin/google-chrome npm run test:ci`). `payload-version.service.spec.ts` pins
+  both directions. An editor announcing a newer version (`announced: 2, implemented: 1`) is
+  refused with `version_mismatch`. One that never announces is inferred as version 0 and refused.
+  In both cases nothing later is attempted. `payload-gate.component.spec.ts` pins that the refusal
+  **renders**: both versions, a note when the editor is older, and what to do.
+- **Editor half**: `tests/test_payload_version.py`, **2 passed**. `payload_version` is the first
+  frame on connect, and the advertised integer has a bump row.
+
+### T032 — characterization before the port, green after (FR-084, D35, SC-013)
+
+- `b96883b` (characterization) **is an ancestor of** `2445a92` (the first port commit), one commit
+  apart. The author dates are equal after a re-authoring, so the order is proved by ancestry, as
+  `cuems-frontend`'s T025 records.
+- `b96883b` touched only specs, the test harness and fixtures, and **no production file**.
+- All three characterizations exist at `9e91464` and are green (288/288).
+  `settings.component.spec.ts` was **renamed**, not lost: `51cbb73` moved it to
+  `node-adoption.component.spec.ts` with the screen. The moved expectations are the two sanctioned
+  ones (FR-057's `canAdopt` flip and T078's absent flag), marked in the spec.
+
+### T031a — the forms against every enumeration and default (FR-088f)
+
+Inventory from the library's descriptor over all six schemas: **327 fields**, **91 with a default**,
+**5 distinct enumerations** over 15 fields, and **5 boolean fields** (`adopted`, `autoload`,
+`enabled`, `online`, `timecode`).
+
+- **Defaults** hold by construction. A new cue's and a new output's body is the script descriptor's
+  instance as served (`sequence.component.ts:1100`, `:1638`). The configuration pages are read-only
+  and never send `config_save`.
+- **Booleans**: the one edited (`enabled`) is a checkbox. `autoload` and the cue list's `timecode`
+  are not edited, and `adopted`/`online` are read-only. No boolean is a two-option dropdown.
+- **Enumerations**: the cue form's lists are **hardcoded**, not descriptor-driven. `post_go` is
+  complete. `curve_type` is a deliberate engine-capability subset. **`action_type` omits `pause`**,
+  which is schema-valid and engine-supported. The table is in `migration-guide.md` §2. `node_role`
+  and `direction` appear only on read-only pages.
+
+### T033 — 008's consumer changes at each live call site (FR-080–FR-083)
+
+| Change | Site | Result |
+|---|---|---|
+| duration is a `CTimecode` | `cuems-engine` `cues/helpers.py:15` (`media_duration`) | reads `cue.media.duration` as a `CTimecode`; an empty `<duration/>` (→ `None`) is warned and treated as zero |
+| duration on the wire | `cuems-editor` `CuemsDBProject.py:208, 271-274` | object-level `Media` reads compared against `CTimecode`; no raw-dict string read remains |
+| validating load | `cuems-engine` `core/BaseEngine.py:498` (`read_script`) | `CuemsScript.load`; a refusal propagates, so the load aborts. This is the behaviour 008's guide judged appropriate |
+| validating load | `cuems-editor` `CuemsDBProject.py:534-539` | `load_with_report`; `ValidationError` → `DocumentLoadFailed`, `SchemaError` re-raised |
+| validating load | `cuems-editor` `repair_durations.py:228` | `load_with_report`; a refused document is `SKIPPED_INVALID` (T028) |
+| version marker present | `cuems-editor` `CuemsDBProject.py:1176` (`save_xml`) | `CuemsScript.save`, which always writes `doc_version`. The editor is the only consumer that writes a script; the engine distributes by `rsync` and writes none |
+
+### T065 / T066 — the budgets, by FR-PERF-001a's method
+
+**Instrument.** `tools/perf_ab.py`: interleaved A/B in fresh processes, three windows five minutes
+apart (11:24–11:59, 2026-10-17), **18 samples per arm per operation** and **16 suite runs per arm**.
+Interpreter: hatch's python-build-standalone CPython 3.11.9 (Clang 18.1.8,
+`~/.local/share/uv/python/cpython-3.11.9-linux-x86_64-gnu`). Governor `powersave`; each sample's
+`scaling_cur_freq` is in the raw log (medians 1.49–2.28 GHz). Load 0.98–1.33 on 12 cores, which is
+quiet. Raw samples: the session scratchpad's `perf/` (`*.jsonl`), summarised here.
+
+**References.** 008's post-landing tree is **`f740711`** (its Phase 2 close-out). The suite's
+FR-PERF-001 reference, `7a1893f`, is **no longer reachable** in this repository (history was
+rewritten), so arm A is **`9a8eb0f^`** (`4d32960`, 2026-09-04), the tree just before 010's first
+commit. Each arm loads **its own** copy of the fixture at the same path. No single document is
+readable by both a pre-013 and a post-013 library.
+
+| Budget | Arm A | Arm B (`HEAD` + working tree) | B/A | Tolerance | Verdict |
+|---|---|---|---|---|---|
+| show-document load, `complex_test/script.xml` | 18.601 ms (`f740711`), band 13.634–28.018 | 17.448 ms, band 16.464–32.812 | **0.938** | ≤ 1.15 | **met** |
+| `network_map` config load, `tests/data/network_map.xml` | 7.742 ms (`f740711`), band 7.565–7.854 | 0.835 ms, band 0.807–0.893 | **0.108** | ≤ 1.15 | **met**: 9× faster, 014's `get_schema` fix |
+| descriptor publication, first `script` call, public vs internal | 105.078 ms (internal) | 103.886 ms (public) | **0.989** | ≤ 1.15 | **met**. **7 schemas built on both paths**, so the accessor adds no builds (FR-PERF-001's second clause) |
+| suite, ms per test (each arm on its own suite) | 16.372 (`9a8eb0f^`, 2725 tests), band 16.253–16.741 | 9.759 (3,899 tests), band 9.170–10.018 | **0.596** | ≤ 1.15 | **met** |
+
+T066's inherited position is **no longer marginal**. 008 recorded `network_map` at the edge of its
+budget; on the same tree measured today it is 7.742 ms, and the current tree is 0.835 ms. The
+"inherited, already-marginal" note in the plan is history.
+
+**Caveats, stated beside the numbers they qualify.**
+- Arm A's suite has **14 failed and 26 errors**, all in the descriptor and contract tests that 010's
+  wave 0 wrote **first**, red by design at that commit (`test_descriptor_instances`,
+  `test_public_descriptor`, `test_descriptor_laziness`, `test_dangling_reference_rule`,
+  `test_public_surface`). Failing tests run fast, so this biases arm A **faster**: the comparison is
+  conservative against arm B.
+- Arm B's suite has the **7 failures recorded on `HEAD`** (six strict-XPASS tripwires for the tag
+  re-cut, one engine-version pin in 012's guide). None is a performance effect.
+- Per-window medians agree within 10% for every operation (raw log), so no single window carries
+  a verdict.
+
+### T068a — the quality gate (SC-QUALITY-001, SC-TEST-001)
+
+**The mypy discrepancy is the instrument, not the code.** `hatch run types:check src/cuemsutils`
+reports **71** errors, against 015's 72 with that exact invocation; the one fewer is T037's
+annotation fix. With **no** argument, the script's default `src/cuemsutils tests` reports **286**:
+**71 in `src/`, 215 in `tests/`**, of which **174 are `import-not-found` for `pytest`**, which the `types`
+environment does not install. 016's 283 was the second invocation. **Re-registered gate: 71 over
+`src/cuemsutils`**, invoked with the path. ruff: **0** over `src/ tests/`.
+
+**Siblings, two-armed** (`ruff` 0.17.0, each at its candidate tag against its merge-base with
+`origin/main`):
+
+| Repository | Branch point → tag | ruff findings |
+|---|---|---|
+| `cuems-common` | `81636dd` → `ba19317` | 0 → **13** |
+| `cuems-editor` | `45e6cba` → `a2431f0` | 242 → **440** |
+| `cuems-engine` | `eb6f0de` → `e994a5e` | 917 → **924** |
+| `cuems-nodeconf` | `ac62b3a` → `334db12` | 134 → **148** |
+| `cuems-power-bridge` | `dd29876` → `666cb25` | 59 → **84** |
+
+**SC-QUALITY-001 is therefore NOT met for the siblings, and it is recorded as exceeded, not restated
+as passing.** No sibling configures `ruff` (no `[tool.ruff]` in any of them, nor in the parent
+directory's `pyproject.toml`), so these counts use **`ruff` 0.17's own built-in default**. That is a
+broad set (`PYI`, `UP`, `F`, `RUF`, `PLE`, `B`, `SIM`, `PLW`, `FURB`, …, measured with
+`--show-settings` in an empty directory), not the `E`/`F` of older releases, which is why the leading
+rules are `BLE001`, `UP032`, `B023`, `F811`, `FA102`, `F401` and `I001`. They are comparable
+between arms, but they are not a gate either repository has agreed to. Two readings follow, and the
+second is the actionable one: (1) every sibling **added** findings across the refactor, while this
+library went from 606 to 0; (2) a "no new warnings" criterion needs a **configured, bounded
+instrument per repository**, as 015 gave this one, before it can be held. That is a per-repository
+decision, recorded here and not taken for them. The frontend's lint is out of this table (no
+`ruff`); its suite is 288/288.
+
+**SC-TEST-001** (every behaviour change carries a test that failed first): this repository's
+changes in 010 are each test-first, red before the fix (T035, T037c, T038c, T040; T036 and T037a
+verify properties that already held, by design). For the siblings, each repository's own
+`tasks.md` carries its changes with their tests: `cuems-engine` 008 (64/64), `cuems-editor` 001
+and 002 (63/63, 80/80), `cuems-frontend` 001 (138/138, characterization first, T032),
+`cuems-nodeconf` 001–003, `cuems-power-bridge` 001–002 and `cuems-common` 001. They are cited, not
+re-derived.

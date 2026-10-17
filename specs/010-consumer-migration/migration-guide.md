@@ -33,7 +33,32 @@ library source.)*
 | `cuemsutils.xml.mapper.read_config_document` (internal) | **nothing — delete the import**, same measurement | wave 0 |
 | `cuemsutils.timeoutloop.Timeoutloop` (deprecated) | `cuemsutils.tools.TimeoutLoop.TimeoutLoop` — note the class also changes spelling, `Timeoutloop` → `TimeoutLoop` | wave 3 |
 | `cuemsutils.config.network_map.CuemsNetworkMapType` (internal) | **`ConfigManager.network_map`** — it already returns a live one, `.save`/`.refresh` included. Retain the document that `load_network_map()` returns and refill its `node_list`; do not construct one. See [§4a](#️-one-finding-the-gate-caught-a-third-internal-import) | **closed** 2026-09-21 by `cuems-nodeconf` feature 002 |
-| _(accumulates)_ | | |
+| `cuemsutils.xml.XmlReaderWriter(schema_name=…, xmlfile=…).read()` (deprecated alias) | `CuemsScript.load(path).to_wire()`. **The dict no longer has the `schemaLocation` key** (payload delta (a)) | 006; warns now, gone in `v0.1.2` |
+| `XmlReaderWriter(…).read_to_objects()` | `CuemsScript.load(path)`; `CuemsScript.load_with_report(path)` when the repair report is needed | 006 / 008 |
+| `XmlReaderWriter(…).write_from_object(obj)` | `script.save(path)` | 006 |
+| `XmlReaderWriter(…).write_from_dict(d)` | `CuemsScript.from_json(d).save(path)` | 006 |
+| `XmlReaderWriter(…).validate_object(obj)` | **per schema**: a show document → `CuemsScript.validate`; a configuration document → `cuemsutils.tools.validate_config_document(path)`. The warning names the right one for the instance | 006 / 013 |
+| `cuemsutils.xml.CuemsParser(d).parse()` | `CuemsScript.from_json(d)` | 006 |
+| `cuemsutils.xml.Settings` / `NetworkMap` / `ProjectMappings` / `ProjectSettings` | `ConfigManager` and its accessors (`.network_map`, `.mappings`, `.node_mappings`, `.project_settings`, …); `ConfigManager.from_json(SchemaName, payload)` to build one from JSON | 006 / 014 |
+| `import cuemsutils.xml.Settings as m` (the module path) | `cuemsutils.xml.settings` internally; consumers use `ConfigManager` | 006 |
+| `cuemsutils.xml.XmlWriter`, `XmlReader` | as `XmlReaderWriter` above | 0.0.7 |
+| `NetworkMap.partition_by_adoption` | `cuemsutils.tools.NodeList.partition_by_adoption`, non-mutating | 013 |
+| `<node_type>NodeType.master</node_type>` and string role comparisons | `<node_role>controller</node_role>`; `NodeRole.controller` from `cuemsutils.tools.NodeList`. Compare enums, not strings | 007 |
+| `node.online == "True"`, `node.adopted == "True"` | real `bool`s: `node.online is True` | 007 |
+| `media.duration` as a bare string | a `CTimecode`; on the wire `{"CTimecode": "HH:MM:SS.mmm"}` (payload delta (b)) | 008 |
+| `{"AudioCue": {…}}`, `{"VideoCueOutput": {…}}`, … | `{"Cue": {…, "class": "audio"}}`, `{"CueOutput": {…, "class": "video"}}` (payload delta (c)). The Python classes are unchanged | 013 |
+| `"True"` / `"False"` element text and wire strings | `true` / `false` (`xs:boolean`); JSON booleans on the wire (payload delta (e)) | 014 |
+| `cuemsutils.create_script()`, `templates/settings.xml` | `ConfigManager.get_schema_descriptor(SchemaName.…)`: each type's instance, seeded from the schema | 008 / 015 |
+| parsing `check_node_identities_unique`'s message | `except NodeIdentityCollisionError as e: e.collisions` | 015 |
+| a too-new document recognised by its sentence | `ValidationError.violation.rule == "document_version_too_new"`, on show **and** configuration documents | 008 / 010 |
+| `CTimecode.milliseconds` | `.milliseconds_rounded` (or `.milliseconds_exact`, wrap-accumulated) | 0.1.0rc6 |
+| `Cue.check_mappings`, `AudioCue.audio_media_loop` | `localize_cue`; `CueHandler.loop_cue` | 0.1.0rc4 / 0.0.9rc5 |
+| `Nng_request_response`, `Nng_bus_hub` | `NngRequestResponse`, `NngBusHub` | 0.1.0rc1 |
+| `cuems-convert-documents <path>…` (rewrite only) | unchanged, plus **`--check`**, which writes nothing; and since 013, run **after** `cuems-reshape-devices` | 010 |
+
+**Every deprecated name above still resolves in `0.1.1` and warns on use. All are removed together in
+`v0.1.2`** (`specs/planning/deprecated-surface-removal-v0-1-2.md`, R1–R12, which carries the
+symbol-level census each deletion needs).
 
 ## 2. The public descriptor path *(wave 0)*
 
@@ -97,6 +122,39 @@ enumeration), `default` — plus `repairability`.
 `|| 20`. `dmx_channels` likewise. `getTemplateOutputStructure` reads `TypeDescriptor.instance`
 instead of cloning `initial_template`'s first output.
 
+**Landed** as `cuems-frontend`'s `001-schema-descriptor-migration` (138/138; its last task commit `a3ef0c8`, 2026-10-12; tag
+`9e91464`; 288 specs pass at that tag, 2026-10-17). Its operator-facing account is that
+repository's `specs/001-schema-descriptor-migration/release-notes.md`. What moved (T031,
+FR-085–FR-088d):
+
+- **The template port.** A new cue's body and a new output's body are the script descriptor's
+  instance as served (`sequence.component.ts:1100`, `:1638`). The editor no longer sends
+  `initial_template`, and the cached copy is evicted (`core/payload-cache.ts`'s retired keys).
+  The defaults are therefore the schema's, not the component's. **A new audio cue starts at volume
+  100**, where the old fallback gave 20, so operators must check levels before a show. Outputs keep 80 and
+  geometry scale 1, the values 015's seeding rule 0 moved into `script.xsd`.
+- **The configuration-domain port.** New `/config` pages render `settings` and a project's
+  `project_mappings` from the descriptor: each field with its file value, type, allowed values and
+  default. They are **read-only by design**: no editing is offered and `config_save` is never sent
+  (`schema-document-view.component.spec.ts`). An absent file shows as absent, not as defaults.
+- **The media-duration unwrapping.** The UI reads `Media.duration` as `{"CTimecode": "…"}` (payload
+  delta (b)), so the show view's duration column shows a time instead of `[object Object]`.
+- **The adoption screen** moved to `/nodes` and reads `node_list` (§4a-iii). Adoption works again:
+  `online === true` is right now that the wire carries real booleans.
+
+**One gap measured, for `cuems-frontend` (T031a, 2026-10-17).** The cue form's three enumerations
+are **hardcoded** lists in `sequence.component.html/.ts` and `core/utils.ts`, not read from the
+descriptor. Against the schema and the engine (`cuems-engine` `ActionHandler.SUPPORTED_CUE_ACTIONS`):
+
+| Enumeration | Schema | UI offers | Verdict |
+|---|---|---|---|
+| `post_go` | `pause`, `go`, `go_at_end` | all three | complete |
+| `curve_type` | 6 values | `linear`, `ease_in`, `ease_out`, `sigmoid` | **deliberate subset**: the motion engine implements no other, and stored `exponential`/`logarithmic` are mapped to `ease_in`/`ease_out` on load |
+| `action_type` | 12 values | `play`, `stop`, `enable`, `disable`, `go_to` (+ `fade_action`, set internally) | **`pause` is missing**: schema-valid and engine-supported, but never offered. The other five (`load`, `unload`, `wait`, `pause_project`, `resume_project`) are not implemented by the engine, so the UI is right not to offer them |
+
+A hardcoded list is how the next schema value goes unseen. `stop_project` (rc17, rule 4) will
+need adding by hand for exactly that reason.
+
 ### For the editor (flow 02)
 
 Serve `get_schema_descriptor` over the websocket. The descriptor and its instances are plain
@@ -106,23 +164,32 @@ send; `instance` is already safe.
 
 ## 3. Per-repository obligations
 
-*(FR-UX-004 — which obligation landed in which repository. Seven flows produce seven task lists and
-no single view of the whole; this is that view.)*
+*(FR-UX-004: which obligation landed in which repository. Seven flows produce seven task lists and
+no single view of the whole; this is that view. **Re-measured 2026-10-17**. The table as it stood on
+2026-09-25 is in git history; it listed `cuems-wsclient` and `cuems-power-bridge` as two
+repositories, which they are not.)*
 
-| Repository | Obligation | State |
-|---|---|---|
-| `cuems-utils` | descriptor path · deprecated-surface removal · this guide | **wave 0 landed** 2026-09-04 |
-| `cuems-engine` | typed node map (role · online · adopted) · identity coercion at every ingress · the script version change · release-gate bounds | **landed** 2026-09-30 as its own feature `008-cuems-utils-migration` (64/64), **unmerged**; tag `1662a99` (2026-10-01, local). See [§4c](#4c-cuems-engine--the-typed-node-map-wave-1-landed-2026-09-30) |
-| `cuems-editor` | the five show-parsing sites onto `CuemsScript` · the wire projection at one boundary · the fixup split · the descriptor and configuration-domain messages · the payload-version handshake · release-gate bounds | **landed** 2026-10-02 as its own feature `001-cuems-utils-migration` (**62/63**), **unmerged**; no tag (its message is written and held unready, T046/T061). The one open task is blocked on this library — `cuems-editor` UR-5. See [§4d](#4d-cuems-editor--the-wire-boundary-wave-2-landed-2026-10-02) |
-| `cuems-common` | Avahi templates and their filenames · the live-file migration tool · conversion ordering · release-gate demonstration | **landed** 2026-09-17 (`1a00159`), **unmerged** — holds a merge gate with `cuems-nodeconf` |
-| `cuems-nodeconf` | network-map object swap · relocated timing helper · Avahi vocabulary (its half) · packaging bounds | **all three stories landed** 2026-09-17 (`8ce7552`), **unmerged** — holds a merge gate with `cuems-common` |
-| `cuems-frontend` | | not started |
-| **`cuems-wsclient`** | | not started |
-| *(`cuems-power-bridge`)* | **not in D32's six** — found carrying the retired vocabulary in shipped code; see [§5](#️-the-denominator-is-wrong-a-seventh-consumer-carries-the-retired-vocabulary) | **landed** 2026-09-24 as its own features `001-node-role-parser` (54/60) and `002-cluster-poweroff-cli` (69/69); tag **`399baf7`** (re-cut 2026-09-29 from `13a9af4` for T076's upper bound). *(Said "unscheduled" until 2026-09-29 — scheduled as US11 on 2026-09-17 and landed on 2026-09-24, so this cell lagged the repository twice.)* |
+| Repository | Obligation | Landed as | Candidate tag (commit) |
+|---|---|---|---|
+| `cuems-utils` | descriptor path · this guide · the count · rollout tooling (`--check`, backups that never collide, the postinst reshape) | 010 here; 011–016 | `4b336cd` |
+| `cuems-engine` | typed node map (role · online · adopted) · identity coercion at every ingress · the script version change · release-gate bounds | its `008-cuems-utils-migration`, 64/64 | `e994a5e` |
+| `cuems-editor` | the five show-parsing sites onto `CuemsScript` · the wire projection at one boundary · the fixup split · the descriptor and configuration messages · the payload-version handshake · packaging (FR-090a) | its `001-cuems-utils-migration` (63/63) and `002-config-round-trip` (80/80) | `a2431f0` |
+| `cuems-common` | Avahi templates and their filenames · the live-file migration tools · conversion ordering · the `/etc/cuems` handover | its `001-node-role-and-conversion-ordering`, 46/48. **Open**: T019 merge gate, T035 hardware | `fb450b5` |
+| `cuems-nodeconf` | network-map object swap · relocated timing helper · Avahi vocabulary (its half) · start-up readiness · packaging bounds | its 001 (51/54), 002 (18/18), 003 (48/48). **Open**: 001 T042 merge gate, T050/T051 hardware | `334db12` |
+| `cuems-frontend` | descriptor-driven forms · configuration-domain port · media-duration unwrapping · payload cache · the payload-version handshake's client half | its `001-schema-descriptor-migration`, 138/138 | `9e91464` |
+| `cuems-power-bridge` *(was `cuems-wsclient`, renamed 2026-06, `83d4f5d`)* | the fourth copy of the node model, **deleted** (option C) · orderly power-off on the library's map | its `001-node-role-parser` (54/60) and `002-cluster-poweroff-cli` (69/69). **Open**: T045, T053, T054, T056–T058, all hardware or build host | `666cb25` |
 
-**`cuems-wsclient` is listed deliberately** (FR-UX-002). It was absent from 007's guide, 008's
-guide and the cross-repo plan's repository list, and that absence is why a silently broken shutdown
-path survived two features. The next sweep must reach it by construction, not by memory.
+**`cuems-power-bridge` is listed under its current name, with the old one beside it** (FR-UX-002), so a
+search for either finds it. It was absent from 007's guide, 008's guide and the cross-repo plan's
+list, and that absence is why a silently broken shutdown path survived two features (§5a).
+
+**FR-001, one coordinated version bump across seven repositories, was discharged by feature 016**:
+`cuems-utils 0.1.1` and the six siblings at their next stable minor, every consumer bounding this
+library `>= 0.1.1`, `<< 0.1.2~`, with `verdicts.sh` at 121/121. **With one exception stated rather than
+smoothed over**: rule 4 of `specs/planning/coordinated-release-version-bump.md` is **not met**. No
+refactor branch is merged into its release line, so the bump exists but is not yet releasable.
+**FR-002**: every consumer-repository change is described here, in §4a–§5a, by the repository
+that made it.
 
 ## 4. Behaviour that changes for everyone
 
@@ -139,7 +206,46 @@ were corrected, and the engine could dispatch against a reference to a cue that 
 The editor's own implementation is **deleted, not ported**: two implementations of one repair is
 how they drift.
 
-*(FR-049c and the `action_target` half are recorded here as they land.)*
+### …and a dangling `action_target` now refuses the load (FR-043a, T028a)
+
+The other half is deliberately **asymmetric**. An `ActionCue`'s `action_target` naming a cue that is
+not in the document is **unrepairable**: the load raises `ValidationError`, naming the document, the
+field and the unresolved value (`tests/contract/test_dangling_reference_rule.py`). Repairing means
+substituting the declared default, and `action_target`'s default is `None`, which
+`action_target_required` rejects. So a required reference has no valid default, and
+inventing a uuid would be worse, because it would look resolvable. The editor used to clear both
+fields before parsing. That produced documents this library now rejects, and they would have
+failed at show time anyway.
+
+### A project that opened before the upgrade can refuse to open after it (FR-049c)
+
+This is **new behaviour an operator will see**, and it comes from 008's strict read path. Every
+document is now checked on every load. One that breaks a rule which cannot be repaired is
+refused, where it used to open with the fault inside. Nothing about the document changed. The
+library got stricter about what it accepts.
+
+### What to do with a document that will not open (FR-049d, T026a)
+
+The message names the document and the failing field, and the exception carries a structured
+`violation` naming its rule. Three routes, in this order:
+
+1. **Restore it from a conversion backup**, if one exists (`<name>.<YYYYMMDDTHHMMSS>[.<n>].bak`
+   beside it). This is right when the fault came from the migration. Take the **oldest** backup;
+   the newer ones are intermediates (§6.4).
+2. **Correct the named field by hand.** The message says which field and which value. For a
+   dangling `action_target`, point it at a cue that exists, or delete the `ActionCue`.
+3. **Remove the document from the library.** This is the answer when the project is not worth
+   repairing. Everything else in the library still loads.
+
+### A document newer than this software says so (FR-049e)
+
+The fourth outcome, beside clean, repaired and refused. A document whose `doc_version` is newer than
+the installed library is refused with `violation.rule == "document_version_too_new"`. This holds for
+show and configuration documents alike since 2026-10-17; configuration documents used to carry no
+rule. **The fix is to upgrade the software that read it, never to edit the document.** A node meets
+this during a partial rollback, when its library is older than a document the controller or
+`cuems-nodeconf` has already rewritten (012's guide §9b). A consumer should match on the rule,
+never on the sentence.
 
 ## 4c. `cuems-engine` — the typed node map *(wave 1, landed 2026-09-30)*
 
@@ -643,6 +749,68 @@ not a shape anything ships** — `cuems-common` ships `<node_list/>`. `get_node`
 either way. Recorded here rather than fixed, because widening it would touch the decode path for
 all six schemas, which this report does not license.
 
+## 4a-iii. The node-adoption work of 2026-09-04, three branches under three names *(T095, T098–T100, recorded 2026-10-17)*
+
+### A readiness gap between two repositories, now closed by a refusal (T095)
+
+`cuems-engine`'s `cf5c4ad` replaced a 15 s stall with an instant refusal. Before it asks
+`cuems-nodeconf` to adopt a node, it checks that **`/tmp/nodeconf.ipc` exists**
+(`ControllerEngine.py:24`). That was right, and it is **not to be reverted**: the stall was the
+worse failure on a fleet where nodeconf ships disabled, and it was measured on the rig. The trouble
+was the signal it trusts. `set_comms()` creates the socket **before** the daemon has read its
+network map, so for that window the probe reported nodeconf available, and nodeconf answered
+*"Node not found"*. The operator read a confident, wrong answer where they used to get a stall.
+
+Neither repository could see this alone, so it is recorded as a **gap in the readiness
+contract between them**, not as a defect in either. It closed on nodeconf's side in its feature
+`003-startup-readiness`. A readiness flag is set as the last statement of `read_network_map`, and
+until then every RPC answers `{'OK': False, 'error': 'nodeconf is still starting up'}`
+(`CuemsNodeConf.py:394`, `:900`). That keeps the existing response shape, and **adds no lock**:
+`_map_lock` would serialise the threads without making an empty index less empty. The engine's
+probe still checks only the socket, and that is now enough, because what answers on it during the
+window is a distinguishable "not ready". Neither side may add a heuristic to compensate (T096's
+prohibitions, verified).
+
+### Why a documentation line was a release item (T098)
+
+How fresh `<online>` is underlies two consumer designs. `cuems-editor`'s `node_status` and
+`cuems-frontend`'s node inventory both rely on it to separate nodeconf's **discovery** view from
+the engine's sub-second ping/pong. `cuems-nodeconf`'s `CLAUDE.md` said the daemon runs *"at boot and
+on explicit reconfigure — not continuously"*, which read as "`<online>` is stale between boots".
+That understates it enough to change the design of the screen operators use to adopt hardware.
+The daemon has been resident since `3e100bb` (`_dirty.wait(timeout=30)`), so `<online>` is a
+**≤ 30 s-stale discovery proxy**. Corrected in that file (T097). The part that matters most was right
+on both branches and is not in question: `<online>` is **not** runtime liveness, and only the
+engine's probe gates GO.
+
+### The branches: retired, not merged (T099)
+
+**Decided 2026-10-17: retire both.**
+
+| Ref | State, measured | Disposition |
+|---|---|---|
+| `cuems-nodeconf` `origin/feat/nodelist-modify-hardening` | 3 commits ahead of its `feat/xml-refactor` and 47 behind when measured, predating the NodeList refactor | **Retired, not merged.** Defect A was ported verbatim (`21c2875`). B is superseded by construction (`write_tree` uses `mkstemp`). C1 is superseded by aliasing, now pinned on both sides. C2 is fixed by 003's readiness flag. Merging would reintroduce a mutex for a hazard that no longer exists, would not fix C2, and would auto-merge tests against imports that no longer define `CuemsNodeDict` |
+| `cuems-editor` `origin/feat/nodelist-adoption-api` | **0 commits ahead**, 63 behind its `feat/xml-refactor` | **Fully contained.** The ref is stale and may be deleted |
+| `cuems-engine` `feat/nodelist-modify-dispatch` | **no ref left**, local or remote (`git for-each-ref`, 2026-10-17) | nothing to decide |
+
+Deleting a remote branch is the maintainer's action. This guide records the decision, not the
+deletion.
+
+### The method lesson: find a feature's branches by content, not by name (T100)
+
+This is the **fourth** time a hand-maintained list in this feature was wrong:
+
+1. `cuems-wsclient` was absent.
+2. `cuems-power-bridge` was absent.
+3. The two were counted as separate repositories, when they are one repository, renamed.
+4. Three branches of one feature were invisible, because they carry three different names and two
+   were never checked out locally.
+
+The `feat/xml-refactor`-everywhere convention exists to prevent this, but it **does not extend to work
+that predates it**. An ecosystem sweep must therefore enumerate branches **by content** (`git cherry`,
+commit subjects, symbol names), never by expected name, and it must include remote-only refs.
+`git rev-list --left-right --count <branch>...<ref>` is how the table above was measured.
+
 ## 4b. The discovery vocabulary cutover *(wave 1, both halves landed 2026-09-17)*
 
 *(T024, FR-060–FR-063. **Two repositories, one cutover** — D33. It cannot be half-renamed: a
@@ -744,9 +912,72 @@ Feature 007 excluded these four discovery files from its own count and handed th
 
 ## 5. The ecosystem-wide count
 
-*(FR-070–FR-073a, FR-UX-003. The count itself is T062's and is **not run yet**. What is settled
-here is the labelling T023a owes, and one correction to the count's denominator that the wave-1
-gate turned up.)*
+*(FR-070–FR-073a, FR-UX-003. **The count was run 2026-10-17 (T062), and it is zero.** The result
+is directly below. The sections after it are the labelling T023a owed and the denominator
+correction the wave-1 gate turned up, kept as record.)*
+
+### The count: zero live occurrences, 57 exempt *(T062, run 2026-10-17)*
+
+**Method** (FR-070b), so that two people reach the same number:
+
+```bash
+specs/010-consumer-migration/tools/count-retired-vocabulary.sh      # ROOT defaults to ../
+```
+
+- **Denominator: discovered, not listed.** Every git checkout directly under the parent of this
+  one whose `HEAD` tracks a file naming `network_map.xml`. It found **seven**: `cuems-common`,
+  `cuems-editor`, `cuems-engine`, `cuems-frontend`, `cuems-nodeconf`, `cuems-power-bridge` and
+  `cuems-utils`. The six checkouts that name no network map (`CasparCG-server-lite`,
+  `cuems-dmxplayer`, `cuems-mediadecoder`, `gradient-motion-engine`, `libmtcmaster`, `libossia`) are
+  outside it by the same rule.
+- **De-duplicated by root commit**, with the remote printed beside it. That is stricter than the
+  remote URL T062 asked for, because a renamed repository's stale checkout keeps its **old** URL;
+  that was the third list error (§5's `cuems-wsclient` / `cuems-power-bridge`). Its first commit
+  cannot change. The stale `../cuems-wsclient` checkout no longer exists. Note that `cuems-editor`'s
+  remote is `cuems_editor.git`, with an underscore: matching by name would have needed a special case.
+- **Pattern**: `node_type|NodeType\.` (`git grep -E`), tracked files at each checkout's `HEAD`
+  (each sibling's `feat/xml-refactor`, at its candidate tag).
+- **Shipped only** (FR-073): excludes `tests/`, `test/`, `specs/`, `dev/`, `docs/`, `*.md`,
+  `test_*.py`, `*.spec.ts` and `debian/changelog`. The not-shipped files FR-073 names are reported
+  individually below, never through those exclusions.
+
+**Result**: 57 shipped occurrences. **57 are exempt and 0 are live.** Line numbers were re-measured on
+2026-10-17, not copied (FR-072). They will move again; re-run the script rather than trusting these.
+
+**Exempt — permanent: exists to detect, convert or refuse the retired spelling** (FR-071, FR-072).
+Deleting any of these deletes a working migration diagnostic.
+
+| Site | What it is |
+|---|---|
+| `cuems-utils/src/cuemsutils/errors.py:186,197,199,201,223-238` | `_NETWORK_MAP_LEGACY_ROLE_VALUES` and `network_map_node_type_message`: an unconverted map gets a message naming the migration, not a bare schema error |
+| `cuems-utils/src/cuemsutils/tools/ConfigBase.py:7,51,118` | the import, the docstring and the dispatch wiring that diagnostic into the config load path |
+| `cuems-utils/src/cuemsutils/config/network_map.py:26,32` | prose recording the rename and the string `cuems-engine` used to compare against |
+| `cuems-utils/src/cuemsutils/xml/schemas/network_map.xsd:56` | the schema comment recording 007's change |
+| `cuems-common/usr/bin/cuems-migrate-network-map:4,30,32,34,63,65,67,77,106,146,164,174,181` | the converter for a deployed node's `network_map.xml` |
+| `cuems-common/usr/bin/cuems-migrate-avahi-service:4,19,26-28,64,65,87,159,160,172,202` | the converter for the live Avahi discovery file |
+| `cuems-common/debian/postinst:183,228,234` | the comments on the two steps that run those converters |
+| `cuems-power-bridge/src/cuemspowerbridge/network_map.py:9,104,171,244` | the bridge's refusal of an unconverted map. This is option C of US11: it refuses, and does not parse the old vocabulary |
+| `cuems-frontend/tools/wire-guards.mjs:71,75` | a guard that **fails** if a retired key appears on the wire. Also not shipped (`tools/`) |
+| `cuems-common/debian/control:59,60,62,85,86` | the comments explaining the `Breaks:` that refuse a package still carrying the old vocabulary |
+| `cuems-engine/debian/control:23` | the same, for the engine's relations |
+| `cuems-nodeconf/debian/control:29` | the same, for nodeconf's |
+
+The last three rows are a kind FR-072 did not foresee: **packaging-relation comments**. They exist
+because a `Breaks:` refuses a package with the retired spelling, which is a refusal by `dpkg`
+rather than by code. So they are classed as permanent.
+
+**Exempt — removable at any time: not shipped** (FR-073, named individually, re-measured):
+
+| File | State at `HEAD`, 2026-10-17 |
+|---|---|
+| `cuems-engine/dev/network_map.xml` | **no longer tracked**. The exemption can be struck |
+| `cuems-engine/dev/test_xml_files/network_map.xml` | tracked, **0** occurrences (migrated). The exemption can be struck |
+| `cuems-engine/dev/CuemsEngine_old.py` | tracked, **1** occurrence. Still exempt, and could be deleted at any time |
+| `cuems-nodeconf/test_run_nodeconfig.py` | tracked, **0** occurrences (its T037 migrated it) |
+
+**Outside the count by FR-073**: tests, specs and documentation across the seven still carry the
+spelling, as fixtures for the converters and the diagnostics and as history. That is deliberate:
+a converter's test must contain what it converts.
 
 The count carries the counting **method** alongside the number (FR-070b), and the exempt set
 enumerated as `<path>:<start_line>[-<end_line>]` (FR-071/FR-072) with its two distinct reasons —
@@ -995,9 +1226,145 @@ the inbound work in
 
 ## 6. Rollout, rollback and the release gate
 
-*(FR-091–FR-104. Filled by T038a, T040, T041, T043–T045.)*
+*(FR-091–FR-104. T038a, T038b, T040, T041 and T045 recorded 2026-10-17; T043 and T044, the two
+rollback drills, need a deployed host and are still open.)*
+
+### 6.1 What the upgrade does on its own, and what it leaves to you (FR-094, FR-095b, T040)
+
+There are three conversions, and they run at different times:
+
+| Documents | How they move | When |
+|---|---|---|
+| `/etc/cuems/*.xml` **device shape** (pre-013 `<videoplayer>`, `<audio>`, …) | `cuems-utils`' **postinst** runs `cuems-reshape-devices` over the documents directly in `/etc/cuems` | **automatically, on upgrade**, before `cuems-init-node` and before any dependent package restarts a service |
+| `/etc/cuems/*.xml` **version** (`doc_version`) | in memory on every read; the file is not touched | automatically, at every load |
+| The **show library** | `cuems-reshape-devices`, **then** `cuems-convert-documents`, by the operator | **when you choose** (§6.2). Never from `postinst` |
+
+**Why the first row is automatic** (decided 2026-10-17). The load path refuses a pre-013-shape
+document, and nothing on the read path can reshape one, because the reshape has no version step. A node's
+own `settings.xml` is in that shape, and every service reads it at start, so without this step an
+upgraded node does not come back. `dpkg` configures `cuems-utils` before every package that depends
+on it, which is what puts the reshape ahead of the service restarts. The step backs up each document it
+rewrites and leaves a current one alone. On failure or timeout (60 s) it **warns and the install
+continues**, as every step in that script does. Read the warning: it means a service may refuse its
+configuration. Answer it with `cuems-reshape-devices --check`.
+
+**Why the library is not automatic** (FR-095). The library holds every show on the controller.
+Converting it is a decision with a rollback cost (§6.4), so it stays yours. Until you run the
+pair, a library **with old-shape shows does not open them**. Version-old shows in the current shape do open,
+converted in memory. Check which you have before the upgrade:
+
+```bash
+cuems-reshape-devices --check            # finds old-shape documents in /etc/cuems and the library
+cuems-convert-documents --check <path>…  # finds version-old documents; writes nothing
+```
+
+### 6.2 Converting the show library (FR-095, FR-036, FR-096, T041)
+
+1. **Upgrade the nodes first, then the controller** (FR-096). A node on the new library reads a
+   version-old document by converting it in memory, so nodes-first is safe. The reverse is not:
+2. **Do not deploy from a converted controller to a node that has not been upgraded** (FR-036). The
+   controller's show-distribution path pushes its converted documents to every node it deploys
+   to. An old library refuses them, because it is older than the documents. Upgrading nodes first is
+   what makes this order safe.
+3. Run the pair over the library, **reshape first**. In the reverse order, a version-old,
+   old-shape script cannot complete:
+
+   ```bash
+   cuems-reshape-devices --library <library>      # or explicit paths
+   cuems-convert-documents <path>…
+   ```
+
+   Both back up every document before rewriting it, and both skip a document that would not
+   validate, naming it and continuing. An interrupted run is **finished by running the same
+   command again**: documents already done are reported current and are not backed up twice
+   (`tests/integration/test_conversion_resume.py`).
+4. Confirm with both `--check`s. Exit `0` from both means the library is converted.
+
+### 6.3 Storage (FR-102a, T038b)
+
+Backups sit beside each document and are **never removed automatically**. Make room before you
+convert:
+
+| A document migrated by | Its directory grows to | Measured on |
+|---|---|---|
+| both tools (old shape **and** version-old) | **2.41×** | `tests/data/corpus/pre-013/script.xml`, 24 321 → 58 835 bytes |
+| `cuems-convert-documents` only | **2.29×** | `pre-008/script_v1_all_transforms.xml`, 3 127 → 7 178 bytes |
+
+It is more than "a copy per tool", because the rewritten document grows too: the writer indents
+(015's S3). **Budget 2.5× the library's current size**, or move it to a volume with that much room
+first. A volume that fills mid-conversion leaves a partly converted library. That is recoverable
+by re-running once there is room, but not until then.
+
+### 6.4 When to roll back, and who decides (FR-100a, T038a)
+
+**The on-site operator running the upgrade decides** (decided 2026-10-17). They are the one person
+who sees the signals as they happen. Any one of these qualifies:
+
+- a node does not come back from the upgrade, i.e. not rediscovered by the controller after its
+  restart;
+- the cluster loses topology: an adopted node is missing or unadopted after the upgrade;
+- a show will not load from the converted library, and §4's recovery routes do not answer it.
+
+**Which rollback** depends on one question, answered by the two `--check`s in §6.1: has the
+library been converted?
+
+- **Not converted**: downgrade the packages, and nothing else (FR-101). Note that the postinst
+  reshape (§6.1) has already rewritten `/etc/cuems`. Restore those documents from their backups
+  too, because an older library refuses the new shape.
+- **Converted**: downgrade the packages, then restore every rewritten document from its **oldest**
+  backup (FR-102, FR-102b). A document both tools touched has **two** backups. The older one is
+  the original; the newer one is the reshaped intermediate. *(Before 2026-10-17 the second backup
+  could silently replace the first; see `CHANGELOG.md`. If you migrated with an earlier build,
+  check for two backups before you rely on one.)*
+
+There is no reverse conversion (FR-104); the backups are the rollback.
+
+### 6.5 When backups may be reclaimed (FR-102, research R5, T045)
+
+**Never automatically.** Reclaiming is a separate, explicit operator action, and it is safe no earlier
+than when **both** of these hold:
+
+1. the post-upgrade verification has passed: every node discovered, adoption preserved, a show
+   loadable on each node;
+2. **at least one show has been loaded from the converted library and run to completion on the
+   cluster.**
+
+Until both hold, the backups are the only post-conversion rollback. A defect found after they are
+reclaimed is **fixed forward**; there is nothing left to roll back to (spec, "A defect is found
+after the backups have been reclaimed").
 
 ---
+
+## 6a. Discharging `specs/planning/xml-rebuild/` *(T069b verdicts, T069c execution, 2026-10-17)*
+
+A document is deleted only when **all three** hold: (1) its durable content has landed in
+`specs/agreements/`, (2) its executed content is captured in a `specs/NNN-*/`, and (3) it carries no
+scheduled-but-unexecuted residue. The three are recorded separately, because a document can fail on
+residue alone.
+
+| Document | (1) Durable content | (2) Executed in | (3) Residue | Verdict |
+|---|---|---|---|---|
+| `xml-rebuild-01-audit.md` | §6's X1–X17 → `schema-evolution-convention.md`, relocated **whole**, every status re-measured | 004–009 | **was** §6, now relocated | **deleted** |
+| `xml-rebuild-02-node-model-ownership.md` | node model exclusive to the library → invariants §5 | 007 | none | **deleted** |
+| `xml-rebuild-03-design-inputs.md` | D12, D15 → invariants §2 | 005, 006 | none | **deleted** |
+| `xml-rebuild-04-object-model.md` | the two public objects → invariants §2 | 005 | none | **deleted** |
+| `xml-rebuild-05-ui-wire-contract.md` | the payload's enumerated deltas → invariants §7 | 006, 010 | none | **deleted** |
+| `xml-rebuild-06-target-design.md` | D2, Q11 → (c), Q14 → (i) → invariants §1–§2 | 004–006 | none | **deleted** |
+| `xml-rebuild-07-speckit-prompts.md` | §10's standing rules → invariants §12 | every prompt run, 004–010 | none | **deleted** |
+| `xml-rebuild-08-extension-audit.md` | D17–D25 → invariants §3–§6 | 008 | D23's `cuems-nodeconf` atomization: **already re-homed** in that repository (`specs/planning/13-atomization-remeasured.md`) | **deleted** |
+| `xml-rebuild-09-consumer-audit.md` | D32, D33, D34 → invariants §10, §8, §6 | 010 | none | **deleted** |
+| `010-consumer-prompts/` (11 files) | — (procedure, not rule) | every flow landed | none | **kept**: deletable on all three tests, but kept by 015's decision **until 010 closes**. 010 still has production-hardware tasks open |
+
+The folder therefore survives with one subfolder, which is the **correct** outcome rather than a
+shortfall. Deliberately **excluded** from the agreement: D27's release gate, D28's item ordering,
+D30's two-phase split and D31's stop. Those were about how to land this work. A binding reference
+that carries expired scheduling teaches the next reader to follow it.
+
+**Referrers updated in the same change**: `CLAUDE.md:12`, `CHANGELOG.md`,
+`tests/data/corpus/negative/README.md`, `specs/planning/etc-cuems-first-install.md`,
+`specs/planning/hardware-outputs-capability-layer.md`, and a dated pointer at the top of this
+feature's `spec.md` and `tasks.md`. Specs 004–009, 015 and 016 are frozen and keep their
+citations, which `CLAUDE.md` sanctions.
 
 ## 7. Status and sequence, as at 2026-09-25
 

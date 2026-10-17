@@ -9,22 +9,26 @@ order, and how to know each wave actually worked rather than merely merged.
 
 ```bash
 # This repository's baseline — re-measure, do not inherit.
-hatch test --show
-# Expected starting point: 2573 passed, 96 skipped, 2 xfailed in ~53.3 s = 20.73 ms/test
+uvx hatch run test.py3.11:run -- -q     # `hatch test` lacks hypothesis on this box (CLAUDE.md)
+# Measured 2026-10-17 (T067): 3785 passed, 112 skipped, 2 xfailed, 7 failed — the seven are
+# pre-existing (six strict-XPASS tag tripwires, one engine-version pin in 012's guide).
 ```
+
+> **Walked 2026-10-17 (T067)** and corrected where it was wrong. Every command below that runs on a
+> development box was run; the corrections are marked. Production steps are marked as such.
 
 Every repository branches to `feat/xml-refactor`. Five of the seven have no spec-kit and acquire it
 on their first run; the per-repository flows are in
 `specs/planning/xml-rebuild/010-consumer-prompts/`.
 
-**Run the `cuems-wsclient` flow first**, even though nothing depends on it. It is last by
+**Run the `cuems-power-bridge` (formerly `cuems-wsclient`) flow first**, even though nothing depends on it. It is last by
 dependency and worst by current state: its shutdown fan-out resolves zero nodes, skips the
 reachability poll, and arms the mains relay against machines nothing asked to stop.
 
 ## Wave 0 — publish the descriptor *(this repository)*
 
 ```bash
-hatch test --show     # all six schemas, public == internal; instances validate; laziness holds
+uvx hatch run test.py3.11:run -- -q tests/contract/test_public_descriptor.py tests/contract/test_descriptor_laziness.py
 ```
 
 Verify by hand that the boundary did not move:
@@ -39,7 +43,7 @@ Each track's own suite, plus the discriminating test that gives it meaning:
 
 ```bash
 # 1a wsclient — the repository's FIRST test. It must fail against the old comparison.
-cd /disk/Projects/StageLab/cuems-wsclient && pytest
+cd /disk/Projects/StageLab/cuems-power-bridge && pytest   # was cuems-wsclient, renamed 2026-06
 
 # 1b editor — the only check that matters at this stage is that it starts.
 cd /disk/Projects/StageLab/cuems-editor
@@ -103,33 +107,56 @@ dpkg -i <library .deb newer than the pinned consumer> <unmigrated consumer .deb>
 # Success here means dpkg says no.
 ```
 
-**Check the rollback boundary before converting anything** (this is what the no-write mode is for):
+*(Done, T039: `cuems-nodeconf`'s `tests/packaging/release-gate-demo.sh` in an `mmdebstrap`
+bookworm chroot, 9/9, recorded in `specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/`.
+Re-run it after rule 4.)*
+
+**Upgrading reshapes `/etc/cuems` for you** (postinst, T040). Watch for its warning, and
+answer it with `cuems-reshape-devices --check`. The **show library** is yours to convert, with
+**two** commands, and the order matters. *(Corrected 2026-10-17: this section ran
+`cuems-convert-documents` alone, and walked on a scratch library it **skipped** every old-shape
+document, `1 converted, 1 skipped`.)*
+
+**Check the rollback boundary before converting anything** (writes nothing):
 
 ```bash
-cuems-convert-documents --check /projects/*/script.xml    # reports versions; writes nothing
+cuems-reshape-devices --check --library <library>       # old-shape documents; exit 0 = none
+#   (it also reads /etc/cuems, or --conf <dir>, which must hold settings.xml)
+cuems-convert-documents --check <library>/projects/*/script.xml
+#   <path>: version 1, current 2 — needs conversion
+#   2 documents: 2 needs conversion
 ```
 
-**Convert, at library scale:**
+**Make room first**: measured, a migrated document's directory grows to **2.29–2.41×**, because
+backups are kept and the rewritten document is indented. Budget **2.5×** the library (guide §6.3).
+
+**Convert, at library scale, nodes upgraded first** (guide §6.2):
 
 ```bash
-cuems-convert-documents /projects/*/script.xml
+cuems-reshape-devices --library <library>                # reshape FIRST
+cuems-convert-documents <library>/projects/*/script.xml  # then convert
+#   2 documents: 1 converted, 1 current
 ```
 
-Then verify the three properties that matter, none of which a summary line proves:
+Scripts are found by **root element**, not by name: `script.xml` above is the common case, and
+`cuems-reshape-devices` discovers the rest itself.
+
+Then verify the properties that matter. A summary line is not enough, so check each:
 
 ```bash
-# 1. Every document converted — counted, not sampled.
-cuems-convert-documents --check /projects/*/script.xml | grep -c 'version 2'
+# 1. Every document converted: both checks exit 0, and the summary says "N current".
+cuems-reshape-devices --check --library <library> && cuems-convert-documents --check <library>/projects/*/script.xml
 
-# 2. Every document has a retained backup.
-ls /projects/*/script.xml.*.bak | wc -l
+# 2. Every rewritten document has a backup. Count DOCUMENTS with one, not .bak files:
+#    one document can carry several (one per tool, plus one from an attempt that was skipped).
+for f in <library>/projects/*/script.xml; do ls "$f".*.bak >/dev/null 2>&1 || echo "no backup: $f"; done
 
-# 3. Resumability — interrupt a run, re-run it, and confirm the remainder completes with
-#    nothing converted twice and no second backup. (Already true by construction; verify it.)
+# 3. Resumability: run the same command again. Already-done documents report "already current"
+#    and get no second backup (pinned by tests/integration/test_conversion_resume.py).
 ```
 
-**Disk space**: backups sit beside the documents and are never reclaimed automatically, so a
-library roughly doubles its size until an operator reclaims them. Record the measured figure.
+**The restore point** is each document's **oldest** backup (FR-102b); the newer ones are
+intermediates.
 
 **Both rollback drills — executed, not written:**
 
@@ -141,31 +168,30 @@ Drill B (post-conversion): downgrade the packages AND restore from the .bak file
 **The cluster upgrade**, controller plus at least one node. Safe order: **nodes first**. Afterwards:
 every node discovered, adoption preserved, and a show loadable on each.
 
-## Wave 5 — removal *(gated on a measured zero)*
+## Wave 5 — removal *(moved to `v0.1.2`)*
+
+**Moved 2026-10-03** to `specs/planning/deprecated-surface-removal-v0-1-2.md` (R1–R12); nothing is
+removed in `0.1.1`. The census still gates it and still reads **zero**, re-run 2026-10-17 with its
+paths corrected (this section named `cuems-wsclient/src` and a top-level `cuemsnodeconf`, neither of
+which exists, and `tee`'d into a path relative to the wrong directory):
 
 ```bash
-# The census. Required value: ZERO. Re-run immediately before deleting anything —
-# a repository can regress between merge and removal.
 cd /disk/Projects/StageLab
 grep -rn 'cuemsutils\.xml\.XmlReaderWriter\|cuemsutils\.xml\.Parsers\|cuemsutils\.xml\.Settings\|cuemsutils\.xml\.CMLCuemsConverter\|cuemsutils\.timeoutloop\|from cuemsutils.xml import \(NetworkMap\|Settings\|ProjectMappings\|ProjectSettings\|XmlReaderWriter\|CuemsParser\)' \
-  cuems-engine/src cuems-editor/src cuems-common cuems-nodeconf cuemsnodeconf cuems-frontend/src cuems-wsclient/src 2>/dev/null | tee specs/010-consumer-migration/import-census.md | wc -l
-```
-
-Only then delete the five shim modules, the seven aliases and the four deprecated-symbol sites,
-retire the 22 contract tests **deliberately**, and move `__version__` to the release every warning
-since feature 006 has promised.
-
-```bash
-cd /disk/Projects/StageLab/cuems-utils && hatch test --show
-# The suite should be FASTER — 22 contract tests retire. If it is not, something else changed.
+  cuems-engine/src cuems-editor/src cuems-common cuems-nodeconf/cuemsnodeconf cuems-frontend/src cuems-power-bridge/src 2>/dev/null \
+  | grep -v '/\.venv\|/tests\?/\|/specs/' | wc -l      # 0
 ```
 
 ## The ecosystem-wide count
 
 ```bash
-cd /disk/Projects/StageLab
-grep -rn 'node_type\|NodeType\.' */src */cuemsnodeconf 2>/dev/null | wc -l
+specs/010-consumer-migration/tools/count-retired-vocabulary.sh   # run from this repository
 ```
+
+It finds its own denominator (every checkout that reads `network_map.xml`) and de-duplicates by
+root commit. 2026-10-17: 57 shipped occurrences, **all exempt, zero live** (guide §5). *(It
+replaces a hand-written `grep … */src */cuemsnodeconf`, which named paths by convention and would
+have missed a repository laid out differently.)*
 
 **This count has an enumerated exempt set, and the exemptions have two different reasons that must
 not be merged** (FR-071/FR-073a):

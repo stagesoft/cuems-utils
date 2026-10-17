@@ -1,5 +1,10 @@
 # Feature Specification: Consumer migration — one public API, six repositories, one release
 
+> **`specs/planning/xml-rebuild/` was discharged 2026-10-17 (T069c).** Its binding content is
+> `specs/agreements/xml-architecture-invariants.md`, and its open schema debt (X1–X17) is in
+> `specs/agreements/schema-evolution-convention.md`. The nine planning documents this feature cites
+> as provenance are in git history; `010-consumer-prompts/` is kept until this feature closes.
+>
 > **Superseded versions, 2026-10-15 (feature 016).** The coordinated `xml-refactor` landing no
 > longer holds `0.1.0rc16`. It cuts **`cuems-utils 0.1.1`**, the deprecated surface goes in
 > **`v0.1.2`** (`REMOVAL_RELEASE`), and every consumer bounds the library **`>= 0.1.1`,
@@ -88,6 +93,9 @@ routinely misremembered:
 
 - **The UI payload constraint is an enumerated delta, not unconditional byte-identity** (C3).
   `cuems-editor`'s `project_load` payload is transmitted verbatim to the Angular UI and stays
+  ⚠ *Superseded 2026-10-17: five deltas since 014, (a)–(e), defined by `cuems-editor`'s
+  `tests/ws-command-responses.txt` (see FR-010's correction); the string boolean form no longer
+  holds — booleans are native JSON.*
   byte-identical to today's **except** for exactly two already-landed, deliberate changes:
   (a) `schemaLocation` is absent — 006's `to_wire()` drops it; (b) `Media.duration` is
   `{"CTimecode": "HH:MM:SS.mmm"}` rather than a bare string — 008's D17/D18b. Every other key,
@@ -398,6 +406,9 @@ report the client receives.
 1. **Given** a project saved by the editor, **When** it is loaded and served to the UI, **Then**
    the payload equals today's except that `schemaLocation` is absent and the media duration is
    wrapped — and nothing else moved, including key order and the string boolean form.
+   ⚠ *Superseded 2026-10-17: five deltas since 014, (a)–(e), defined by `cuems-editor`'s
+   `tests/ws-command-responses.txt` (see FR-010's correction); the string boolean form no longer
+   holds — booleans are native JSON.*
 2. **Given** the editor's five show-parsing call sites, **When** they are inspected, **Then** all
    five use the public show object, and none constructs a parser or reader/writer directly.
 3. **Given** the raw-dict fixups the editor performs before parsing, **When** they are reviewed
@@ -1454,6 +1465,9 @@ repositories on disk and show the count is zero; then delete and run the suite.
    dedicated feature.
 7. **The UI's dual boolean check stays.** Simplifying it is an optional follow-up (FR-088e); the
    string boolean form on the wire is unchanged by this feature.
+   ⚠ *Superseded 2026-10-17: five deltas since 014, (a)–(e), defined by `cuems-editor`'s
+   `tests/ws-command-responses.txt` (see FR-010's correction); the string boolean form no longer
+   holds — booleans are native JSON.*
 8. **Upgrading nodes before controllers is the safe order** for the show-document conversion,
    because the library converts older documents in memory on read. The unsafe order is
    controller-first with un-upgraded nodes still receiving deployments. Q3's answer narrows the

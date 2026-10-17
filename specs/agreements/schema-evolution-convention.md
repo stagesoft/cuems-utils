@@ -191,6 +191,40 @@ true here specifically *because* the type was unreferenced, and that had to be v
 
 ---
 
+## Recorded schema debt — the audit's X1–X17, relocated whole
+
+Relocated 2026-10-17 by `010-consumer-migration` T069c, from
+`specs/planning/xml-rebuild/xml-rebuild-01-audit.md` §6, the only detailed record of this debt,
+so that the planning folder can be deleted without losing open work. The audit's original wording
+is in git history. **Every status below was re-measured against the six schemas on 2026-10-17**,
+not copied: two of the audit's claims were already wrong.
+
+| # | Finding | Status, 2026-10-17 |
+|---|---|---|
+| X1 | `BoolType`: `xs:string` restricted to `"True"`/`"False"`, not `xs:boolean`, declared three times | **closed** by feature 014 (`xs:boolean`; zero `BoolType` left) |
+| X2 | `TimecodeType` (`HH:MM:SS.mmm`) declared but "never used" | **the audit was wrong**: it is the lexical type of the `<CTimecode>` child (`script.xsd:161`), and D18 keeps it on purpose. Not debt |
+| X3 | `EmptyStringType` defined, never referenced | **open**: still declared (`script.xsd:572`), zero references. Trivially removable |
+| X4 | `TargetType` admits the empty string (`\|()` and `minLength=0`) beside a 36-character `UuidType`: two spellings of "uuid or nothing" | **open**: `target`, `action_target` and one `id` still use it. 012 narrowed `UuidType` without touching it |
+| X5 | `CommonPropertiesType` is `xs:sequence` (order-enforcing) while the root is `xs:all` | **open**: unchanged (`script.xsd:85-86`). Relaxing it is a rule-4 change: documents stay valid, but the writer's ordering contract moves |
+| X6 | (claimed prior attempt at X5) | **withdrawn by the audit itself**: the block was `UiPropertiesType`'s history, not X5's |
+| X7 | `xs:assert test="modified >= created"` requires XSD 1.1 | **a constraint, not debt**: it is why `xmlschema` is pinned to an `XMLSchema11` toolchain |
+| X8 | `script.xsd` declares `<?xml version="1.1"?>` | **open, cosmetic**: unchanged |
+| X9 | `network_map.xsd`'s `PutType` unreferenced | **closed** by feature 007 (deleted; precedent above) |
+| X10 | `UiPropertiesType` is `xs:anyType`, so the frontend can store arbitrary keys | **a standing constraint on D2, the costliest item here to lose**: no type, order or cardinality can be derived for `ui_properties`, and any machinery that walks types must treat it as opaque |
+| X11 | `outputs.xsd` never loaded, an unfinished concept | **structurally closed** (D13): it is `hardware_outputs.xsd` now, loaded, with the capability layer deferred to `specs/planning/hardware-outputs-capability-layer.md` |
+| X12 | `regions` unfinished | **structurally closed** (D13) |
+| X13 | `gradient_osc_port` added as **required** in 0.1.0rc8 | **open, scheduled work**: still required (`settings.xsd:78`). The procedure is in the precedent section above |
+| X14 | `outputs.xsd`'s `OutputsType` collided with `script.xsd`'s | **closed** in rc16 by the rename to `HardwareOutputsType`, pinned by `tests/unit/test_spec_derivation.py` |
+| X15 | The only `outputs.xml` in existence has a namespace typo (no trailing slash) | **open, outside this repository**: `cuems-engine`'s `dev/test_xml_files/outputs.xml`. It is why `hardware_outputs` is "reserved, not yet usable" (`ConfigManager.SchemaName.HARDWARE_OUTPUTS`) |
+| X16 | `DmxUniverseType` declares an attribute **and** an element named `universe_num`; with `attr_prefix=''` the decoded key is ambiguous | **open**: both still declared (`script.xsd:524`, `:526`). Disambiguating is a wire change |
+| X17 | `MediaCueType` did not declare `fade_profiles`; the two subtypes did | **closed** by feature 008: the fade-profile surface was deleted outright |
+
+**Still open, then**: X3, X4, X5, X8, X13, X15, X16, plus X7 and X10 as constraints. Each, when
+taken up, is read against the four rules above. X4, X5 and X16 change what valid documents look
+like and are rule-4 changes; X3 and X8 are not.
+
+---
+
 ## How this is enforced
 
 It is not, mechanically, and saying so is better than implying otherwise.

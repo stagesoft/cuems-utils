@@ -15,21 +15,36 @@ reaches the UI *inside* a mappings payload, which this feature untangles (FR-088
 
 ## The project-load payload
 
-**Byte-identical to today's except for exactly two changes.** Never restate this as unconditional
-byte-identity — that was true before 008 and has not been since (C3).
+**Never byte-identical: it differs from its predecessor in an enumerated set of deltas, and that
+set is defined in one place**, `cuems-editor`'s `tests/ws-command-responses.txt` ("project (reply
+to project_load)"), pinned by its `tests/test_project_payload.py`. Cite it, never a count.
+
+> ⚠ **Corrected 2026-10-17 (T068; analysis D1 missed this section).** It said "exactly two
+> changes", called the **string** boolean form "verified", and said the UI writes the string form
+> back. All three became false: 013 and 014 and one ruling added deltas, and 014 put native
+> booleans on the wire. The table below is the enumeration as of that date, for reading only.
 
 | # | Delta | Source |
 |---|---|---|
-| 1 | `schemaLocation` absent | 006, `to_wire()` |
-| 2 | `Media.duration` is `{"CTimecode": "HH:MM:SS.mmm"}`, not a bare string | 008, D17/D18b |
+| (a) | `schemaLocation` absent | 006, `to_wire()` |
+| (b) | `Media.duration` is `{"CTimecode": "HH:MM:SS.mmm"}`, not a bare string | 008, D17/D18b |
+| (c) | a hardware cue's key is `Cue` with `class`, its output's is `CueOutput` | 013 |
+| (d) | a model default projected for an absent optional element (`"opacity": 100`) | ruled 2026-10-02 |
+| (e) | booleans are JSON `true`/`false`, not `"True"`/`"False"` | 014 |
 
-Unchanged and **verified**: every other key, the key ordering, and the **string** boolean form. The
-UI reads `cueData.enabled === true || cueData.enabled === 'True'` and writes the string form back.
+Unchanged: every other key and the key ordering. The UI **writes** native booleans and still
+*reads* either form ("write native, read either").
 
-`doc_version` is **not** a third delta — excluded from every wire projection; the UI never sees it
+`doc_version` is **not** a delta: excluded from every wire projection; the UI never sees it
 (FR-012).
 
 ## Messages
+
+*As implemented (T068, 2026-10-17)*: the family below is the editor's `schema_descriptor`,
+`config_load` / `config_save` / `config_changed`, `document_load_report`, `document_load_failed`
+and `payload_version` frames, all on the one websocket, all `{"type": …, "value": …}`, failures
+through the editor's one error frame. The names and shapes are `cuems-editor`'s
+`tests/ws-command-responses.txt`, which binds; this contract records why each exists.
 
 ### Serve a schema descriptor
 
