@@ -385,8 +385,8 @@ field of `contracts/ci-workflow.md`.
 
 ## Phase 12: Hand-off and the last task
 
-- [ ] T081 Close checklist CHK020: re-fetch once more. If the release line moved **after** the cleanup, merge the delta by T007–T015's method, `git mv` any new root `tests/test_*.py` into its kind's directory in a follow-up commit, and re-run T073's layout test and T065 (one run per arm suffices if nothing else changed). Record the outcome in `specs/017-release-line-reconciliation/evidence/remeasure-handoff.md`.
-- [ ] T082 Release-safety verification (checklist CHK022–CHK025), written to `specs/017-release-line-reconciliation/evidence/release-safety-end.txt`:
+- [X] T081 Close checklist CHK020: re-fetch once more. If the release line moved **after** the cleanup, merge the delta by T007–T015's method, `git mv` any new root `tests/test_*.py` into its kind's directory in a follow-up commit, and re-run T073's layout test and T065 (one run per arm suffices if nothing else changed). Record the outcome in `specs/017-release-line-reconciliation/evidence/remeasure-handoff.md`.
+- [X] T082 Release-safety verification (checklist CHK022–CHK025), written to `specs/017-release-line-reconciliation/evidence/release-safety-end.txt`:
   - the tag list is identical to T003's;
   - every sibling's HEAD and `git status --porcelain` are identical to T003's;
   - the 016 file hash list is identical to T003's;
@@ -397,7 +397,7 @@ field of `contracts/ci-workflow.md`.
     - `REMOVAL_RELEASE` is still `"v0.1.2"` (`git grep -n 'REMOVAL_RELEASE =' -- src`);
     - this repository's own consumer-facing bounds are unchanged: `git diff <T001's commit> HEAD -- pyproject.toml` touches only the `test` environment's dependencies (`pyyaml`) and the pytest marker block;
     - `tests/packaging/test_no_version_bump.py` passes, with its output recorded.
-- [ ] T083 Rewrite `../.xml-refactor-tag-messages/cuems-utils.txt` (FR-044, checklist CHK027). Read it first.
+- [X] T083 Rewrite `../.xml-refactor-tag-messages/cuems-utils.txt` (FR-044, checklist CHK027). Read it first.
   - **`Tag:`** is an explicit **maintainer placeholder**, the one field filled at re-cut (analyze I2, option b; SC-010): `Tag: <MAINTAINER: fill at re-cut — the feat/xml-refactor commit that contains 017-release-line-reconciliation at <017 head sha>, after siblings' landings and upstream requests are coordinated>`;
   - "NOT YET RECONCILED" becomes `Reconciled with origin/debian/bookworm at 398a9cf (0.1.0rc17)`;
   - "Carries" gains items 1–5, A-1 with the target repair, and the Q13 retirement;
@@ -405,7 +405,7 @@ field of `contracts/ci-workflow.md`.
   - add the pre-publication checklist line (FR-076).
 
   Touch no other file there.
-- [ ] T084 Write `specs/017-release-line-reconciliation/evidence/handoff.md`: what 017 delivers, with links to every evidence file, and the maintainer's acts in order (plan §Hand-off):
+- [X] T084 Write `specs/017-release-line-reconciliation/evidence/handoff.md`: what 017 delivers, with links to every evidence file, and the maintainer's acts in order (plan §Hand-off):
   1. `--no-ff` merge into `feat/xml-refactor`;
   2. push;
   3. dispatch `tests.yml` with `siblings_ref` and fill `evidence/ci-gate.md`;

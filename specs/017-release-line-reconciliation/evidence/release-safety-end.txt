@@ -1,0 +1,216 @@
+# Release-safety end state (T082, checklist CHK022–CHK025) — 2026-10-21T22:07:07Z, cuems-utils HEAD 812fe9bfe6b8f0c5faf8b5d00bd12b1c0fa62399
+
+## Verdict
+
+- tags, sibling checkouts (HEAD, branch, porcelain status, worktree count) and the 102 hashes of
+  specs/016-coordinated-minor-bump/: IDENTICAL to release-safety-start.txt (T003), by diff of the
+  three sections below against that file's. No tag was created, moved or deleted; no sibling was touched.
+- signatures, cb4dad34b8aa57e48b3a7981c88ea48b657947d8^..HEAD: 33 G, 78 E, 1 N.
+  * the G set is exactly the first-parent set (33 commits): every commit 017 made is signed and verifies.
+  * all 79 non-G commits are ancestors of origin/debian/bookworm, origin/main or v0.0.9rc7, i.e. the release
+    lines' own history that the merges brought in, never 017's: 78 E (signed by A8C0BA8A79DE9DE3 x70 and
+    B5690EEEBB952194 x8, keys absent from this keyring, so not checkable here) and 1 N (b0df231,
+    'release: 0.0.9rc7', 2025, unsigned, absorbed with -s ours, Q9). No B, X, Y or R anywhere.
+- push state: '## 017-release-line-reconciliation' (no upstream); origin/017-release-line-reconciliation does not
+  exist; ls-remote finds neither 017-release-line-reconciliation nor 017-m1-trial on origin. Nothing was pushed.
+
+## FR-036: things that do not move
+
+- __version__ = 0.1.1
+- src/cuemsutils/_deprecation.py:26:REMOVAL_RELEASE = "v0.1.2"
+- pyproject.toml, git diff cb4dad34b8aa57e48b3a7981c88ea48b657947d8 HEAD: only [tool.hatch.envs.test] dependencies (+pyyaml, test-only) and
+  [tool.pytest.ini_options] (addopts --strict-markers; the unit/integration/contract/packaging/reads_siblings
+  markers; and C3's filterwarnings module path tests.test_name_coercion -> tests.unit.test_name_coercion).
+  [project] dependencies, optional-dependencies, requires-python and the build system are untouched.
+- tests/packaging/test_no_version_bump.py, named by T082, no longer exists: 016's 8f6eede replaced it with
+  tests/packaging/test_release_matrix.py. Its successor, run instead:
+    tests/packaging/test_release_matrix.py::test_this_repository_is_at_0_1_1 PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-common] PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-nodeconf] PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-power-bridge] PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-engine] PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-editor] PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-frontend] PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_feat_xml_refactor[cuems-common] PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_feat_xml_refactor[cuems-nodeconf] PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_feat_xml_refactor[cuems-power-bridge] PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_feat_xml_refactor[cuems-engine] PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_feat_xml_refactor[cuems-editor] PASSED
+    tests/packaging/test_release_matrix.py::test_siblings_at_feat_xml_refactor[cuems-frontend] PASSED
+    ============================== 13 passed in 0.30s ==============================
+
+## cuems-utils tags (refname objectname)
+refs/tags/deb0.0.9rc2 785f087b902c8f7e6f0d289df49d7faca0a87ff5
+refs/tags/debian/0.1.0rc15 baf4308ed9abc6ad021c727bb24416c52e7088bd
+refs/tags/debian/0.1.0rc16 cb6098966d5ec86c1652517eaccea34a4f50d3eb
+refs/tags/debian/0.1.0rc16+1 758021e1f47219d5ee988ee372b01013b7474190
+refs/tags/debian/0.1.0rc17 69db0ee078282bf7c0729d485f7c4fce648bbd03
+refs/tags/post_mtc_fix 52dc10e099755a7108bdcdd21d6f38580e06e68e
+refs/tags/pre-869fat84r-merge 88d09a5bcc2470e8f3721b1febec8a2ae99fe583
+refs/tags/pre-cffi-gen-src-merge 87ddc00ed7c91c5d794e1e51bee1e53d5dba2f44
+refs/tags/pre-ctimecode-merge 914dc1e6c7ff19ef205b803900eee2ca2c0ebf39
+refs/tags/pre-release-0.1.0rc15-merge acb97bd74e72f520184523f5740617cfccc74ad0
+refs/tags/pre_mtc_fix 5ac1d46d168c386f3a9e4c3b2d1ff0b4312f3701
+refs/tags/v0.0.7 7f2e302fc43a6d7bce5012d648d35c087612208f
+refs/tags/v0.0.7-post1 f089a64c55f02abfa802ce989c2a8cabc729e4ad
+refs/tags/v0.0.7.post2 9ca592eb2dc436a4fc3968fb2543b5363202f172
+refs/tags/v0.0.7.post3 4e22971b4cbf7c830e695a509d7581cba5bba260
+refs/tags/v0.0.8 350ed1319b153dfbefec254d53229100ac10fee5
+refs/tags/v0.0.9 177ce09bc65d4897bb1194bf06a628e1943ab03e
+refs/tags/v0.0.9rc1 56bd0ee8b88fd6ee8b509b0f8269950916a3322b
+refs/tags/v0.0.9rc2 72c0c94653bb62ded0280ceaee636776e7e37359
+refs/tags/v0.0.9rc3 695f91885f63bae2d5596106dc5edeb667bfa63c
+refs/tags/v0.0.9rc4 ec01b6f7a742756c25238bb386eb69d6ce3a5fa2
+refs/tags/v0.0.9rc5 36214c67f2b8c9d99aaecf238e8b5531fc176ed5
+refs/tags/v0.0.9rc6 aff301fb38c7fb1cd1237d7a796cf669f4b2d856
+refs/tags/v0.0.9rc7 b0df2314253d824a724485c324449186cccfa15e
+refs/tags/v0.0.9rc8 2dfb4921368b8bc995a47f4f874b23e049da9d18
+refs/tags/v0.0.9rc9 0a83c72518fa1ae5492957102c77c1e2630a6bdd
+refs/tags/v0.1.0rc1 8f97858985926592c848dda53a160cad0630990c
+refs/tags/v0.1.0rc10 6822af48d0d67ceb8abbbfd6954ae460cfa69a33
+refs/tags/v0.1.0rc11 cbab5b21bc6ea5edef8c545067cc481af7e038d5
+refs/tags/v0.1.0rc14 e4ad0ef63850afa8997df8d07e3aa3c950eb146f
+refs/tags/v0.1.0rc15 853316fd869e77513b6834f876d711c1631b0f21
+refs/tags/v0.1.0rc16 7bb569bb6f40ddb7c65375eb68bb31db5217db52
+refs/tags/v0.1.0rc17 2a441f5a36ffeb0dcad8d8b80eaef25f9affde08
+refs/tags/v0.1.0rc2 48393ef06f853cf4a60f66b6819b5644a571278e
+refs/tags/v0.1.0rc3 e5bffd9fc2fd98fa73b0d8069f4bda60ffecd759
+refs/tags/v0.1.0rc4 048b9542ef460d0bcb8c11017b435b766b7d5a6f
+refs/tags/v0.1.0rc7 aff27b83622b9622983802fcc812d3e7a88f569a
+refs/tags/v0.1.0rc8 ae37389392ac6f4a260432c1be1be52058d6b7e8
+refs/tags/xml-refactor-merge-candidate 1225b398c30cbcfc834c1b21ff3229647575a7c6
+
+## Sibling checkouts: HEAD, branch, porcelain status
+### cuems-common
+HEAD ba19317da02ef7ea59898ad0cb3455d9e9839f08 (feat/xml-refactor)
+status:
+worktrees: 1
+### cuems-nodeconf
+HEAD 334db1285eed9dff2cd3782bb9f4bb3a482fd854 (feat/xml-refactor)
+status:
+worktrees: 1
+### cuems-power-bridge
+HEAD 666cb25056a4e393ebea0f4401af301ac5965e1e (feat/xml-refactor)
+status:
+worktrees: 1
+### cuems-engine
+HEAD aa0ffe6190d64211f5940b6084dae46b0d308377 (009-release-line-reconciliation)
+status:
+worktrees: 1
+### cuems-editor
+HEAD a2431f0a1b9de8eca212b43c1b2e0b954c0540e4 (feat/xml-refactor)
+status:
+worktrees: 1
+### cuems-frontend
+HEAD 9e914643eb37d5d45e5d4468a5c1c49504941f4c (feat/xml-refactor)
+status:
+worktrees: 1
+### libmtcmaster
+HEAD 6afe645ff59a5d54fff341e67cbc31b1944ab1f3 (main)
+status:
+worktrees: 1
+
+## specs/016-coordinated-minor-bump
+last commit touching it: 4b336cd07d6b957e20b655effbca767713564d8b
+88654f697f49a650787938e38ec9e6ba684354ebda37fddd37970ed7857e20f0  specs/016-coordinated-minor-bump/checklists/release-safety.md
+a142e1d62e5205ed2cb12b6bca2a4a24faae2c31fcca3cbc3ed07a5d85840e22  specs/016-coordinated-minor-bump/checklists/requirements.md
+56313464de7a4704ed386b79a5dde631e515c562ccc03c177837283bbac9ee30  specs/016-coordinated-minor-bump/contracts/relation-matrix.md
+b8e810e3d18ccec7757f53a4e80394fcbd1c4f41a6040cb766d09b5bc70ef5cc  specs/016-coordinated-minor-bump/contracts/tag-message.md
+2cfd2dcb6e0bc7d690dc243a76cd023079ac07316630d40867d89fa1cd12c10a  specs/016-coordinated-minor-bump/data-model.md
+ee76f156fc93e1915cab5ed426e4182cbdfb641e46acf10b17e8cf2ec2b8a834  specs/016-coordinated-minor-bump/evidence/cuems-common/bookworm-build-2.txt
+61c8032afa3659a35252036e2474073fd64c1244cf00084c857c43de7fbce200  specs/016-coordinated-minor-bump/evidence/cuems-common/bookworm-build-3.txt
+4378550b616d9aee3aca9bdcfc616b074d742c6e10508964b72f8ecb8fd75d89  specs/016-coordinated-minor-bump/evidence/cuems-common/bookworm-build.txt
+6b72be8ec8bf56df7d1887fee0c8b2385d4991daf40fa914f7f15ad6ab0a2e69  specs/016-coordinated-minor-bump/evidence/cuems-common/release-gate-demo-2.txt
+258a1dd4559e86a3b3df65dc3a6bc71d43c5b22c94d1c42dc1122bff614adcd0  specs/016-coordinated-minor-bump/evidence/cuems-common/release-gate-demo-3.txt
+4bddf2be0652e0dfad6a922b9172037ebbe2e92234c6391860f2a460fb886825  specs/016-coordinated-minor-bump/evidence/cuems-common/release-gate-demo.txt
+683691f39b1512c7d3fbdabeccab5c32c13766d967543dc8de1be2eba3a52903  specs/016-coordinated-minor-bump/evidence/cuems-common/suite-A-2.txt
+5ecd7bc5b264937dbbc6ce28aec277054bef48242076ca0d34901952b6ac81dd  specs/016-coordinated-minor-bump/evidence/cuems-common/suite-A-3.txt
+cb34d9c00eb8afafa9318014ef8d8fabccbeb865faa1176f562afb8ae30be7c4  specs/016-coordinated-minor-bump/evidence/cuems-common/suite-A.txt
+87be8828a2fb5156dfd7f3cd01025db63f86ac7ab631bf98bfb0d69b991c4cd2  specs/016-coordinated-minor-bump/evidence/cuems-common/suite-B-2.txt
+056166653f92d1b48b32be2022366644e3103f649083799c441739738b9d642c  specs/016-coordinated-minor-bump/evidence/cuems-common/suite-B-3.txt
+8bc595b1c18b526cd3c98bfa671f098ff453909d6420ef0a3b8a960287c408f9  specs/016-coordinated-minor-bump/evidence/cuems-common/suite-B.txt
+d1203c6f38138e11fd355248c0f8a5c82697fa414dfd7b90146924d0fb294426  specs/016-coordinated-minor-bump/evidence/cuems-common/suite-start-2.txt
+eb94bd94388d0fc69c4621736fb571d4012d06a7fb937347950283c4ccd61dcc  specs/016-coordinated-minor-bump/evidence/cuems-common/suite-start.txt
+6131f171103bf706dc9f3547ffb4cbe13c448f406361dba3aa396a1240aef224  specs/016-coordinated-minor-bump/evidence/cuems-editor/bookworm-build-2.txt
+3e1e8d485832b588668451bff528909c243fea2103a2c1c3eeb1046bab906a1f  specs/016-coordinated-minor-bump/evidence/cuems-editor/bookworm-build-own-script.txt
+64804e22493b96d291d3400c858d58c633912b81bfda99036a40f388ab31fe6f  specs/016-coordinated-minor-bump/evidence/cuems-editor/bookworm-build.txt
+d3f1e8ba1178ed93e96e732bc6b3184048aabed9e3f106ba1eecb58ed7ce212d  specs/016-coordinated-minor-bump/evidence/cuems-editor/suite-A-2.txt
+2cb2987c54fc5b847349ae985f1b46f2091e65e3e463dd9fd38b64a41efcf02b  specs/016-coordinated-minor-bump/evidence/cuems-editor/suite-A.txt
+fb98d00a8fa6fa9dd477c53564f76369b4202a35062c5b43f6694b4ad6a3553f  specs/016-coordinated-minor-bump/evidence/cuems-editor/suite-B-2.txt
+d32795da858fb39a27aab3f24889fe3b89059c98e10357db49ea6462b7b948b6  specs/016-coordinated-minor-bump/evidence/cuems-editor/suite-B.txt
+4c3c78b14a9bda1aaab3e7d94c937d95665510acc3436c2f4330e1d2ff74758d  specs/016-coordinated-minor-bump/evidence/cuems-editor/suite-start.txt
+43cee24d67d68cd1a7407bee1de77fc8e8c56fb431331244440277f9a22b7a1b  specs/016-coordinated-minor-bump/evidence/cuems-engine/bookworm-build-2.txt
+366da4d5fd63b0575fa011fcb638d45d8223840fce514c313df40c2c4b4c485f  specs/016-coordinated-minor-bump/evidence/cuems-engine/bookworm-build.txt
+bb7af5e1b98684a53b4c06a537a5c1298fe84f75c0eb03ff25d05baec95a1c97  specs/016-coordinated-minor-bump/evidence/cuems-engine/lock-test-before.txt
+0cfc364a659e95b8c03af5ba68731b52cf5a39bcf1afed8ad65de576527e144b  specs/016-coordinated-minor-bump/evidence/cuems-engine/suite-A-2.txt
+ba03d292f6c0cad1fa3a4d2137fd57e971db3c984ba0dfa653968ece6a0e92f2  specs/016-coordinated-minor-bump/evidence/cuems-engine/suite-A.txt
+8a899ead627c9f7092ab74cd206c792c2e81b36198abd5bde93ce8cc1830b7b1  specs/016-coordinated-minor-bump/evidence/cuems-engine/suite-B-2.txt
+80b372ce1323e11a7d95bdbdab8437238522489cfd9594bfdd66d04d0f543b95  specs/016-coordinated-minor-bump/evidence/cuems-engine/suite-B.txt
+e99e0e9c89d563a78c91bf0eb75328e9be0d75a3a078c1199121b8d9f9cf9395  specs/016-coordinated-minor-bump/evidence/cuems-engine/suite-start-2.txt
+b2845835def3fde26e13e813acbcf2ade2e9917e175f6787dbe0dcd9602a4716  specs/016-coordinated-minor-bump/evidence/cuems-engine/suite-start.txt
+3229ecec3e45e2b9d5d6331fd8b1f43eaba9e9e83d44367d6fc8f5b4714280ce  specs/016-coordinated-minor-bump/evidence/cuems-frontend/build.txt
+fa73c753562d97236f8eb3dad6be4e4ec72003be723f6656b25e89d2951dbe45  specs/016-coordinated-minor-bump/evidence/cuems-frontend/preflight-toolchain.txt
+0131dd59c20473cac149c89ab81ec2c3fbf573a8429c65da3caad49965056df9  specs/016-coordinated-minor-bump/evidence/cuems-frontend/suite-A.txt
+3a2d8294c30d2ef19016f18e99593c332d88ea800508e590db56639f2b60a965  specs/016-coordinated-minor-bump/evidence/cuems-frontend/suite-B.txt
+e9fb4526f3fcf7016639b2ee675aff12e3e74dc3b51a7ea7d09a4bdff9317d1b  specs/016-coordinated-minor-bump/evidence/cuems-frontend/suite-start.txt
+bbdb6d50560afb8876ad9e44bea79e83933687523f9e8b2f7d54222f05558748  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/bookworm-build-2.txt
+a82e384d4d969aa48a3ad9d229173da612286bd7a71fbbe97f3b2d90ed85fe8a  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/bookworm-build-3.txt
+23f811050065dd169195cbd9ad6b7397f404275e06a16af5926b8ca4e23ac3d1  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/bookworm-build.txt
+04ba4af0f2c88f48d708a7cf7870d2c4100b7dfa9783ad05c467d87e25dacfc3  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/release-gate-demo-2.txt
+5d2983b150a0756153c4ebc59f1d114686bf3cfd47f697fa5de3c2f9f4b0e25c  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/release-gate-demo-3.txt
+e35ad78baa9f6e0396a2049287edbfa9063edb064e4eaf1d0243a845806dabc9  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/release-gate-demo.txt
+55fb27e3efbb4dad2d8a7eae9f4427e3678daf3609768364587507fb6e3c581e  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/suite-A-2.txt
+9c2538d0c06357381740b45d0eff0454ff45e79007d88b13f42223df7a4be7ca  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/suite-A-3.txt
+b054991eb6bcb71956663391c5181e5a3320c74b7f6ac26450eca889e74a2bcb  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/suite-A.txt
+1e270b6136f025c30042ad256e542588b6a6854f138c6580aa580690c63d8575  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/suite-B-2.txt
+00aef4bc45503fa5ed490c1fdd37853ca695baaddfbfcff6208c823506138cc6  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/suite-B-3.txt
+081fe5a00f53fec4961926b973af1b8ccbd7308bb82f55d260be0ae099d2cb8d  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/suite-B.txt
+b576f3705ef8ca1e4d3cf6c2091e993f4ef24451440ebe3cb73d4a23c6d527c5  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/suite-start-2.txt
+db5281cc5639ea02d8d23b7c61cf19556293bbc79ede4afa00798d402c459ae0  specs/016-coordinated-minor-bump/evidence/cuems-nodeconf/suite-start.txt
+524b1600c9597a61b2ef21f39877a75b9ce51cfef559cff19b0453c2e3c6319f  specs/016-coordinated-minor-bump/evidence/cuems-power-bridge/bookworm-build-2.txt
+89b2e556a5d1f0b9a981f010882e955d5a7669ff22e8ffc75d28ba882a7b54e0  specs/016-coordinated-minor-bump/evidence/cuems-power-bridge/bookworm-build.txt
+5c58b40d6e74981c6a342be17262f9d27bcd9bc92db04c146df4685c23db6301  specs/016-coordinated-minor-bump/evidence/cuems-power-bridge/suite-A-2.txt
+3c7b2ccc08763b08069a994e3aa2ec39450fc208c9cfa714c55b918481408b20  specs/016-coordinated-minor-bump/evidence/cuems-power-bridge/suite-A.txt
+edde65f17b0726d958bc2808d7fd958e51792a77676bb610fd0d2bcad744dd18  specs/016-coordinated-minor-bump/evidence/cuems-power-bridge/suite-B-2.txt
+1c46a25da598c0010b501df14e7141f0b3d1e55106f38a65c9bce13df4095efd  specs/016-coordinated-minor-bump/evidence/cuems-power-bridge/suite-B.txt
+936b3aa7234b019ab0d0c8294e91be3f6499be1cf85e9401458405dcf13da35e  specs/016-coordinated-minor-bump/evidence/cuems-power-bridge/suite-start.txt
+974d02aa61b8ea9811f7eae232bc5c3f872a178a052aff56ec1cd8f7fa7b228a  specs/016-coordinated-minor-bump/evidence/cuems-utils/bookworm-build-2.txt
+b77da3d3d34c6c8d963ac970d69392b3f0c3826e5ec593f84b1af2194615f040  specs/016-coordinated-minor-bump/evidence/cuems-utils/bookworm-build-3.txt
+4406b02adb57c444c12570963e70b89b50d0458bbbe519e9d6fddb3848028702  specs/016-coordinated-minor-bump/evidence/cuems-utils/bookworm-build.txt
+fa303433982a5da8fd2d47b7afd666f49dce138d682f25cd1be60f4c85453893  specs/016-coordinated-minor-bump/evidence/cuems-utils/release-matrix-fail-before.txt
+c31ae4e6593237fec7f093dd18ba3324695318eb2a0b2f218660d7a8aba9192c  specs/016-coordinated-minor-bump/evidence/cuems-utils/suite-A-2.txt
+697e55687e9a76382dd304d22bb3a70f32be9a50c028cef4ebfd8200cf1d00ec  specs/016-coordinated-minor-bump/evidence/cuems-utils/suite-A-3.txt
+18ccf2b8582a004c0663a46de8345ad304436f63fb869394c67fd377f39adad1  specs/016-coordinated-minor-bump/evidence/cuems-utils/suite-A.txt
+16b25ddf6430b2b4e18a8ba3db5a1f319d3b617ea13bdf73fda89564161d31fa  specs/016-coordinated-minor-bump/evidence/cuems-utils/suite-B-2.txt
+72d9f34aa714523e130a97e0b67bfc02872c6eee4fbc6e69a7665e6014201bba  specs/016-coordinated-minor-bump/evidence/cuems-utils/suite-B-3.txt
+0ceacf16c70fcc6953a863bd09312aaacd905f87f5b73041a2d556ee96fc4490  specs/016-coordinated-minor-bump/evidence/cuems-utils/suite-B.txt
+54dd2c22fefaf5761ad832d6e307ac6febf9aa203329d02f5d3d9129c9faa6cb  specs/016-coordinated-minor-bump/evidence/cuems-utils/suite-start.txt
+6afe679b5bb56960c6df4a6bbfe7a3c443ed0bcc82059cc87920c241094b8154  specs/016-coordinated-minor-bump/evidence/no-push-no-tag.txt
+85ca966274d86c5dee8cb45c1db3b33b5975e234d9db8aa0d97db1a01028673a  specs/016-coordinated-minor-bump/evidence/relation-verdicts-before.txt
+369462bd70eb44ecfccccf7639bbcb5fa3939d1bded2d03388b71a295b5c683d  specs/016-coordinated-minor-bump/evidence/relation-verdicts-progress-1.txt
+a2192abb1479f7f1353246869a4a53a29ad74d87cc7f340630b111563cb35b4b  specs/016-coordinated-minor-bump/evidence/relation-verdicts-progress-2.txt
+cc75d3657cb9e9383434cce7115d01cce2b244f40e0984a723a04e18eba01cc3  specs/016-coordinated-minor-bump/evidence/relation-verdicts-progress-3.txt
+4b8d7717d47de0fe2bbc82b8630991561566b3b7f03d7490a82d63d4708fbefe  specs/016-coordinated-minor-bump/evidence/relation-verdicts-progress-4.txt
+b7e10158cd805e1bdc8b18202ef26084a77633750e075e74aefb9a45b0b7d7e0  specs/016-coordinated-minor-bump/evidence/relation-verdicts-progress-5.txt
+ae3dabab4010be4a3bdd490a46f399e2f8cb00e3bd70903af6f3d36d548bc860  specs/016-coordinated-minor-bump/evidence/relation-verdicts-progress-6.txt
+6efb2a63277c0835a530c74251ef1f093287d3ad8b267840cc6383eef64c4a9a  specs/016-coordinated-minor-bump/evidence/relation-verdicts-progress-7.txt
+4456464cf4630569b1dfc543a3039357fa72ac6f174512c71c6873ec3d4c473f  specs/016-coordinated-minor-bump/evidence/relation-verdicts-progress.txt
+d397a672665c56a963a4ff40aa8652bd1bdd8a3448ec68ff71fe1dc8da10efb6  specs/016-coordinated-minor-bump/evidence/relation-verdicts.txt
+ebc753ea9a1939ad25bfccc57df292ac18aa3d87d2d5d37d3dee2e7722048339  specs/016-coordinated-minor-bump/evidence/suite-final.txt
+c10148cd4ffc3f985e437e93920acd590759cc32b23681c5dc4d5ed2e6d11b91  specs/016-coordinated-minor-bump/evidence/version-sites.txt
+dc9ce5baca0a4b26eb75553dea308c127c91d35f7c339f2c44a6ff95aabc41fe  specs/016-coordinated-minor-bump/plan.md
+dfd9671d107cac500c9436217d40db0de894b45a0adf5dcf7015fc48c43d4f64  specs/016-coordinated-minor-bump/quickstart.md
+728c016013568877d7ff6c88d7caaa74524dd90a1525e48122e66879a89db3ce  specs/016-coordinated-minor-bump/records/cuems-common.md
+e4d55646728951103d550b10b834e55c0896c55bbeceff19260c64f77644750e  specs/016-coordinated-minor-bump/records/cuems-editor.md
+effc9c23a61a02f0dfcf5fe31b04f512e0a0151882f4740ee8168497b8241d40  specs/016-coordinated-minor-bump/records/cuems-engine.md
+4c086334192409c17ad403e33aa67b8c3acfa05a6087b75a1db627793b75ed9c  specs/016-coordinated-minor-bump/records/cuems-frontend.md
+8ba29e5fc9f0e07a8d0dc384ee4c6f7c838baa887a3454c553d58f032d3c5333  specs/016-coordinated-minor-bump/records/cuems-nodeconf.md
+1c59d639bd2bc24c3fc672f3e27e7baec65e18257db4e6ffc7f3fd3d256bcf8b  specs/016-coordinated-minor-bump/records/cuems-power-bridge.md
+2edba21825b11c80d13aa06bf37ac8e23330f0b7f601970b6c6c4d50a77ed434  specs/016-coordinated-minor-bump/records/cuems-utils.md
+d342810f8ec91213680fd4c4fc6247b5ba583e4151fd6a59d332c08e0f6405c9  specs/016-coordinated-minor-bump/records/preflight.md
+cd2f8db7b9d4e24fc0e6af8184c6f3189d87066e706d42941bf3f2a558b259d4  specs/016-coordinated-minor-bump/research.md
+a9df3d75be1b9807c733e4dafba080074bd9a4a1b36a86ccf95657c22a0833d3  specs/016-coordinated-minor-bump/spec.md
+ccc7ed266760fb9076e0339a073e990841c65620a565bf823c6e4da5eef241a1  specs/016-coordinated-minor-bump/tasks.md
+0a5e33806c0d87f951b54ffecc174e22b4becd3f2ad12f1844afb4d205487911  specs/016-coordinated-minor-bump/tools/bookworm-build.sh
+b6b8dfc571192030945a721beef160368ffcbb24e0e643ab7c600258f0eab623  specs/016-coordinated-minor-bump/tools/verdicts.py
+2d554c399aac6d7b46846f22ff963331200ed08e1f94735436b209fdd92dea50  specs/016-coordinated-minor-bump/tools/verdicts.sh

@@ -62,7 +62,7 @@ Run 2026-10-21 on `3a99883` plus the test fix below.
 ignores mode `0o444`, so `test_helpers::TestCheckPath::test_tmp_file` fails there. That failure
 comes from the harness, not the code; `unshare -cn` maps uid 1000.
 
-**A fourth pre-existing order leak was exposed and fixed (test-only).** `tests/unit/test_version_steps.py::test_a_multi_step_walk_runs_every_step_in_order`
+**Another pre-existing order leak was exposed and fixed (test-only), the second after C3's `CUEMS_CONF_PATH` one.** `tests/unit/test_version_steps.py::test_a_multi_step_walk_runs_every_step_in_order`
 (since 008, `ff65dcc`) registered three scratch conversions into the module-global
 `versioning._CONVERSIONS` and never removed them. The full suite runs `contract/` before `unit/`,
 so `test_additive_surface_invariants::test_the_conversion_registry_is_unchanged` never saw them. The

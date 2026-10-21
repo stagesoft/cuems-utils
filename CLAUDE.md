@@ -232,9 +232,13 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
     (`xml/load_check.py`), about 21 ms per document; `python -m cuemsutils.xml.reshape_devices` works.
   - **Measured traps worth keeping:**
     - `python -I` ignores `PYTHONPATH`; use `-P` to pick an arm.
-    - Worktrees under the scratchpad hide the 22 sibling-reading tests, which skip there. Arm A
+    - Worktrees under the scratchpad hide the sibling-reading tests, which skip there. Arm A
       beside the siblings has **7 pre-existing failures**: one migration-guide version check against
       the engine's current checkout, and six release-matrix `XPASS(strict)` since the 016 re-cut.
+      Both were **stale assertions**, fixed in `2560b09`. Since then the full suite has **0 failures**
+      (3936 passed, 114 skipped, 2 xfailed).
+    - Run the offline check with `unshare -cn`, not `-rn`: `-r` maps to root, which ignores mode `0o444`.
+      Running `tests/unit` before `tests/contract` exposed a registry leak that suite order hid.
     - `tests/golden/api/public_api.json` is **not** in canonical sort order, so insert into it as text.
     - The bookworm `debian/changelog` copies of `0.1.0rc5`/`0.0.7-*` are truncated (no trailer).
     - `0.1.0rc5` and `0.1.0rc6` were **never published**; PyPI's JSON API is the source, because
@@ -242,6 +246,16 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   - **`expects_deprecation` now means something:** 14 test modules import the deprecated XML surface,
     all marked, guarded by `tests/contract/test_deprecated_imports_are_marked.py`, and listed in the
     `v0.1.2` removal plan's R10.
+  - **The pre-publication gate is `tests.yml`:** dispatch it with `-f siblings_ref=<tag>`.
+    - **No `tests/integration/` module reads a sibling**: the cross-repository tests are contract
+      and packaging tests. So `unit`, `integration` and `packaging` all check the six siblings out,
+      through `.github/actions/checkout-siblings`, with this repository in `cuems-utils/`, because
+      `actions/checkout` cannot write outside the workspace.
+    - A sibling-reading test carries `@pytest.mark.reads_siblings`. `tests/conftest.py` copies it
+      into the JUnit XML, and `.github/scripts/gate_summary.py` counts ran versus skipped.
+    - Static check: `tests/contract/test_ci_workflow.py`. **The green run is owed after the merge**
+      (`specs/017-release-line-reconciliation/evidence/ci-gate.md`, a template).
+  - Hand-off and the maintainer's six acts: `specs/017-release-line-reconciliation/evidence/handoff.md`.
 
 - **`016-coordinated-minor-bump` IMPLEMENTED and MERGED** (2026-10-15/16; merged into
   `feat/xml-refactor` and pushed with the six siblings; **no tag created or moved by the feature**, and
