@@ -139,7 +139,7 @@ using `XmlReaderWriter.write_from_object` on objects built in rc17's own model:
 - an `ActionCue` with `action_type="stop_project"` and `action_target=""`.
 
 The control twin replaces the last cue with `stop` aimed at the audio cue. Both files go to
-`tests/data/corpus/rc17/` with a `PROVENANCE.md`: commit, interpreter, the capture script, the
+`tests/data/rc17/` with a `PROVENANCE.md`: commit, interpreter, the capture script, the
 date and each file's sha256. Being pre-013 in shape (`True`/`False`, bare duration, no
 `doc_version`) is the point of the fixture: it exercises reshape → convert → load.
 

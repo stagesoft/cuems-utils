@@ -168,6 +168,13 @@ All twelve are answered (sessions below); no requirement remains provisional.
   `0.0.6-0`, `0.0.1-0`), which are `UNRELEASED` by nature. Check (4) now applies to entries **above
   the oldest released entry** (`0.1.0rc8`): between the top and rc8, only the top may be
   `UNRELEASED`. That is the case the check exists for, HEAD's retrospective rc15 entry.
+- **M3 — the rc17 fixture lives in `tests/data/rc17/`, not `tests/data/corpus/`** (implementation,
+  T016). The corpus is a pinned inventory: `tests/support/corpus.py` lists every document, pins a
+  count per directory, and requires a pre-refactor verdict in `outcomes.json`, which must never be
+  regenerated with `--force`. An rc17-written document has no pre-refactor verdict. 014 met the
+  same constraint and put its fixture in `tests/data/media_block/` (`tests/unit/test_media_block.py`
+  says why), and 017 follows that precedent. The work order's §6.1 wording ("checked into
+  `tests/data/corpus/`") is superseded by this one fact; nothing else moves.
 
 ## Specification workflow
 
@@ -477,7 +484,7 @@ in `evidence/ci-gate.md` (Clarifications, gate question).
 - **GPG signing fails**: retry; never `--no-gpg-sign`.
 - **A document carrying a retired value** (`pause_project`/`resume_project`, Q13): none is known.
   No producer has ever written one (measured), so none exists in the field. If one surfaces, the
-  loader refuses it with T1 naming the value, and the handover document says how to reinstate it.
+  loader refuses it with T1 (an enumeration violation on `action_type` listing the allowed values), and the handover document says how to reinstate it.
   No conversion silently rewrites it into another action.
 
 ## Requirements *(mandatory)*
@@ -598,8 +605,9 @@ in `evidence/ci-gate.md` (Clarifications, gate question).
   and the negative twins (`stop` with no target refused by T2 at save and load; an unknown action
   type refused by T1).
 - **FR-022 (A-1 fixture)**: The rc17 fixture MUST be produced by rc17's own writer (`398a9cf`'s
-  `XmlReaderWriter`) per the work order's §13 recipe, checked into `tests/data/corpus/` with its
-  provenance (commit, recipe, date), together with its `stop` control twin.
+  `XmlReaderWriter`) per the work order's §13 recipe, checked into **`tests/data/rc17/`** with its
+  provenance (commit, recipe, date), together with its `stop` control twin. It sits outside the
+  pinned corpus (spec M3).
 - **FR-023 (A-1, Q2 revisited)**: A project-scope action that carries a target MUST be **repaired
   to `None`** by a new T2 rule, `project_action_takes_no_target`. It applies to
   `("ActionCue", "action_target")`, is `repairable=True`, and its repair is the field's declared

@@ -143,7 +143,7 @@ tests/
 ├── contract/                   # A-2a–c, A-2d hash, FR-026a snapshot, test_test_layout.py,
 │                               #   test_ci_workflow.py; + test_version moved
 ├── packaging/                  # A-5 (Replaces, CACHEDIR.TAG strip, built .deb), changelog completeness
-├── data/corpus/rc17/           # FR-022 fixture + control twin + PROVENANCE.md
+├── data/rc17/                  # FR-022 fixture + control twin + PROVENANCE.md (outside the pinned corpus; spec M3)
 ├── golden/api/public_api.json  # FR-026a, one surgical re-hash (+ MANIFEST.sha256)
 └── conftest.py                 # FR-063 collection hook
 debian/  changelog, control, rules, README.Debian   # §5 + §7

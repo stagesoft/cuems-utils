@@ -54,16 +54,23 @@ test that touches a host `/etc/cuems`).
 
 ## 3. The rc17 fixture (research R5) and the probes (S-1, S-1′, S-2, X-4)
 
+> ⚠ **Use `-P`, never `-I`, whenever `PYTHONPATH` selects an arm.** `python -I` (isolated
+> mode) **ignores `PYTHONPATH`**, so it loads whichever `cuemsutils` the interpreter has
+> installed and silently measures the wrong arm. This happened once in 017 (T017's first probe
+> run) and was caught only by the probe's `# arm` line. `-P` keeps the script's own directory
+> off `sys.path`, which is the protection `-I` was there for, and honours `PYTHONPATH`.
+
+
 ```bash
 git -C $R worktree add $S/wt-bw 398a9cf
 # writes stop_project.xml and stop_control.xml with rc17's own XmlReaderWriter
-env -u CUEMS_CONF_PATH PYTHONPATH=$S/wt-bw/src $PY -I \
-  $R/specs/017-release-line-reconciliation/tools/capture_rc17_fixture.py --out $R/tests/data/corpus/rc17/
-sha256sum $R/tests/data/corpus/rc17/*.xml        # → PROVENANCE.md
+env -u CUEMS_CONF_PATH PYTHONPATH=$S/wt-bw/src $PY -P \
+  $R/specs/017-release-line-reconciliation/tools/capture_rc17_fixture.py --out $R/tests/data/rc17/
+sha256sum $R/tests/data/rc17/*.xml        # → PROVENANCE.md
 # migrate a COPY, then load, on each arm (the tools through main(), see S-4)
 for arm in $S/wt-a $S/wt-b; do
-  cp $R/tests/data/corpus/rc17/stop_project.xml $S/probe.xml
-  env -u CUEMS_CONF_PATH PYTHONPATH=$arm/src $PY -I \
+  cp $R/tests/data/rc17/stop_project.xml $S/probe.xml
+  env -u CUEMS_CONF_PATH PYTHONPATH=$arm/src $PY -P \
     $R/specs/017-release-line-reconciliation/tools/probes.py --arm $arm --file $S/probe.xml
 done
 # expected on B after A-1: reshape ok → convert "converted" → load_with_report CLEAN

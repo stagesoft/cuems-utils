@@ -42,8 +42,8 @@ plan Phase 9).
 **Purpose**: a committed planning state, a re-measured snapshot, and arm A's baselines, before
 any merge.
 
-- [ ] T001 Commit the planning artefacts so the bookworm merge commit can stay pure (checklist CHK016). `git add specs/017-release-line-reconciliation/ CLAUDE.md` and make one signed commit `docs(017): spec, clarify, plan, contracts and checklists for release-line reconciliation`. Confirm `git status --short` is empty afterwards.
-- [ ] T002 Re-measure the snapshot by quickstart §1 and write `specs/017-release-line-reconciliation/evidence/remeasure-start.md`. It records:
+- [X] T001 Commit the planning artefacts so the bookworm merge commit can stay pure (checklist CHK016). `git add specs/017-release-line-reconciliation/ CLAUDE.md` and make one signed commit `docs(017): spec, clarify, plan, contracts and checklists for release-line reconciliation`. Confirm `git status --short` is empty afterwards.
+- [X] T002 Re-measure the snapshot by quickstart §1 and write `specs/017-release-line-reconciliation/evidence/remeasure-start.md`. It records:
   - the ref table of research R1;
   - the `HEAD..origin/debian/bookworm` (77) and `HEAD..origin/main` (11) counts;
   - `git merge-tree --write-tree HEAD origin/debian/bookworm` (11 conflicting files, no modify/delete);
@@ -52,10 +52,10 @@ any merge.
   - the released sets from `origin/debian/bookworm:debian/changelog` and from PyPI's JSON API (research R9).
 
   If anything differs from the snapshot, stop ⏸ and amend research before continuing (FR-004).
-- [ ] T003 [P] Record the release-safety baseline in `specs/017-release-line-reconciliation/evidence/release-safety-start.txt`: `git tag -l --format='%(refname) %(objectname)'` for this repository; `git rev-parse HEAD` and `git status --porcelain` for each of `../cuems-common ../cuems-nodeconf ../cuems-power-bridge ../cuems-engine ../cuems-editor ../cuems-frontend ../libmtcmaster`; and `git log -1 --format=%H -- specs/016-coordinated-minor-bump` plus `find specs/016-coordinated-minor-bump -type f -exec sha256sum {} + | sort` (checklist CHK022–CHK024).
-- [ ] T004 [P] Create the arm-A worktree `git worktree add $S/wt-a 5e4c637`. Run the suite once (quickstart §2) into `specs/017-release-line-reconciliation/evidence/suite-A-1.txt`. Expected: about 3770 passed, possibly the known `test_descriptor_laziness…[project_mappings]` flake.
-- [ ] T005 [P] Take arm A's performance baselines (quickstart §6) into `specs/017-release-line-reconciliation/evidence/perf.md`: show-document load, the `script` descriptor warm call via `python -m tests.support.perf_descriptor`, and suite ms/test. Record the interpreter build, governor and `scaling_cur_freq` beside every figure.
-- [ ] T006 [P] Record arm A's quality figures in `specs/017-release-line-reconciliation/evidence/quality-A.txt`: `ruff check src/ tests/` (expected 0), and the mypy **error set** from the hatch `types` environment (`uvx hatch run types:check` or the configured script). Keep the full list, not only the count.
+- [X] T003 [P] Record the release-safety baseline in `specs/017-release-line-reconciliation/evidence/release-safety-start.txt`: `git tag -l --format='%(refname) %(objectname)'` for this repository; `git rev-parse HEAD` and `git status --porcelain` for each of `../cuems-common ../cuems-nodeconf ../cuems-power-bridge ../cuems-engine ../cuems-editor ../cuems-frontend ../libmtcmaster`; and `git log -1 --format=%H -- specs/016-coordinated-minor-bump` plus `find specs/016-coordinated-minor-bump -type f -exec sha256sum {} + | sort` (checklist CHK022–CHK024).
+- [X] T004 [P] Create the arm-A worktree `git worktree add $S/wt-a 5e4c637`. Run the suite once (quickstart §2) into `specs/017-release-line-reconciliation/evidence/suite-A-1.txt`. Expected: about 3770 passed, possibly the known `test_descriptor_laziness…[project_mappings]` flake.
+- [X] T005 [P] Take arm A's performance baselines (quickstart §6) into `specs/017-release-line-reconciliation/evidence/perf.md`: show-document load, the `script` descriptor warm call via `python -m tests.support.perf_descriptor`, and suite ms/test. Record the interpreter build, governor and `scaling_cur_freq` beside every figure.
+- [X] T006 [P] Record arm A's quality figures in `specs/017-release-line-reconciliation/evidence/quality-A.txt`: `ruff check src/ tests/` (expected 0), and the mypy **error set** from the hatch `types` environment (`uvx hatch run types:check` or the configured script). Keep the full list, not only the count.
 
 **Checkpoint**: the planning state is committed, the snapshot is confirmed, and arm A is measured.
 
@@ -66,8 +66,8 @@ any merge.
 **Purpose**: M1 (bookworm), M2 (main), M3 (`v0.0.9rc7` ancestry). **M1 contains the plan §5
 resolutions and the 42 deletions, and nothing else** (FR-002).
 
-- [ ] T007 Start M1 **on a trial branch** (spec FR-002, checklist CHK021): `git -C $R worktree add -b 017-m1-trial $S/wt-m1 017-release-line-reconciliation`. **T007–T013 run inside `$S/wt-m1`.** Then `git merge --no-ff --no-commit origin/debian/bookworm`. **Never** use `-X ours`, `-X theirs` or any `-s` strategy for this merge (checklist CHK003). Write `git diff --name-only --diff-filter=U` into `specs/017-release-line-reconciliation/evidence/merge-bookworm.md`, and compare it with plan §5's 11 files. If they differ, stop ⏸ (checklist CHK019).
-- [ ] T008 Resolve the source hunks exactly as plan §5 says. In each file the theirs/ours choice is per hunk, never per file:
+- [X] T007 Start M1 **on a trial branch** (spec FR-002, checklist CHK021): `git -C $R worktree add -b 017-m1-trial $S/wt-m1 017-release-line-reconciliation`. **T007–T013 run inside `$S/wt-m1`.** Then `git merge --no-ff --no-commit origin/debian/bookworm`. **Never** use `-X ours`, `-X theirs` or any `-s` strategy for this merge (checklist CHK003). Write `git diff --name-only --diff-filter=U` into `specs/017-release-line-reconciliation/evidence/merge-bookworm.md`, and compare it with plan §5's 11 files. If they differ, stop ⏸ (checklist CHK019).
+- [X] T008 Resolve the source hunks exactly as plan §5 says. In each file the theirs/ours choice is per hunk, never per file:
   - `src/cuemsutils/__init__.py`: ours `__version__ = "0.1.1"` plus theirs' `SPDX-FileContributor` line;
   - SPDX headers in `src/cuemsutils/cues/{ActionCue,CuemsScript,MediaCue,CueList}.py`: theirs' three lines, then ours' imports;
   - `src/cuemsutils/cues/CueList.py` hunk 2 (`get_media`): **theirs**;
@@ -75,27 +75,27 @@ resolutions and the 42 deletions, and nothing else** (FR-002).
   - `src/cuemsutils/xml/schemas/script.xsd` both hunks: **ours**, dropping theirs' second `Md5Type`.
 
   Leave the clean-merged files exactly as merged: `Parsers.py`, `XmlBuilder.py`, `FadeCue.py`, `tests/test_fade_cue.py`, `CLAUDE.md`, `debian/cuems-utils.links`, and the `stop_project` enumeration.
-- [ ] T009 Resolve the packaging hunks exactly as plan §5 says:
+- [X] T009 Resolve the packaging hunks exactly as plan §5 says:
   - `debian/control`: hunk 1 theirs (SPDX), hunk 2 ours (`debhelper-compat (= 13)`, `Standards-Version: 4.6.2`), hunk 3 **both** (ours' `Breaks: cuems-common (<< 1.3.1~)` with its comment, then theirs' `Replaces: cuems-engine (<< 0.1.0rc6-2~)`);
   - `debian/rules`: hunk 1 theirs (SPDX); hunk 2 theirs' `rm -f …/CACHEDIR.TAG` directly after `dh_virtualenv` inside `override_dh_virtualenv`, **then** ours' 011 schema/defaults install and `override_dh_installdeb`;
   - `debian/README.Debian`: `git checkout --ours debian/README.Debian`. **Never** a marker-splitting script, because its `======` underline reads as a separator.
-- [ ] T010 Rebuild `debian/changelog` per FR-030 and data-model §3:
+- [X] T010 Rebuild `debian/changelog` per FR-030 and data-model §3:
   - order: `0.1.1 UNRELEASED` (HEAD's body, unchanged in M1), then `0.1.0rc17`, `0.1.0rc16+1`, `0.1.0rc16`, `0.1.0rc15`, each **byte-for-byte** from `git show origin/debian/bookworm:debian/changelog`;
   - this **replaces** HEAD's `0.1.0rc15 UNRELEASED` entry. Do not keep its body anywhere session-local: T052 reads it back from `git show 5e4c637:debian/changelog`;
   - then `0.1.0rc14`…`0.1.0rc8` as they are, then HEAD's never-built entries in HEAD's form.
 
   `dpkg-parsechangelog -l debian/changelog -S Version` must print `0.1.1`. For `CHANGELOG.md`: ours' `0.1.1` section on top, then theirs' `0.1.0rc17`/`0.1.0rc16` sections kept intact (the rest is T055).
-- [ ] T011 Delete the 42 strays: `git rm` exactly the paths listed in research R17, re-derived three-way (quickstart §4) and diffed against R17 first. The ten kept additions stay. Then confirm `git grep -nE '^(<<<<<<<|>>>>>>>)( |$)' -- .` is empty and `git diff --cached --name-only --diff-filter=U` is empty.
-- [ ] T012 Commit M1 (signed). Message: `merge: origin/debian/bookworm (0.1.0rc17, 398a9cf) into 017 — §5 resolutions and 42 strays only`. Complete `specs/017-release-line-reconciliation/evidence/merge-bookworm.md` with one row per hunk (file, hunk, side kept, reason, plan §5 row), the 42 deleted paths, and the 10 kept additions (checklist CHK002).
-- [ ] T013 Run the suite on M1 into `specs/017-release-line-reconciliation/evidence/suite-M1.txt`. The merged-only red set must be exactly research R13's six (A-2a, A-2b, A-2c, A-2d, A-3a, A-4), plus at most the known laziness flake. Anything else: stop ⏸ before any further commit.
+- [X] T011 Delete the 42 strays: `git rm` exactly the paths listed in research R17, re-derived three-way (quickstart §4) and diffed against R17 first. The ten kept additions stay. Then confirm `git grep -nE '^(<<<<<<<|>>>>>>>)( |$)' -- .` is empty and `git diff --cached --name-only --diff-filter=U` is empty.
+- [X] T012 Commit M1 (signed). Message: `merge: origin/debian/bookworm (0.1.0rc17, 398a9cf) into 017 — §5 resolutions and 42 strays only`. Complete `specs/017-release-line-reconciliation/evidence/merge-bookworm.md` with one row per hunk (file, hunk, side kept, reason, plan §5 row), the 42 deleted paths, and the 10 kept additions (checklist CHK002).
+- [X] T013 Run the suite on M1 into `specs/017-release-line-reconciliation/evidence/suite-M1.txt`. The merged-only red set must be exactly research R13's six (A-2a, A-2b, A-2c, A-2d, A-3a, A-4), plus at most the known laziness flake. Anything else: stop ⏸ before any further commit.
 
   Then present `evidence/merge-bookworm.md` and this run for review ⏸.
   - **Approved:** in `$R`, `git merge --ff-only 017-m1-trial`, then `git worktree remove $S/wt-m1` and `git branch -d 017-m1-trial`. Confirm `git rev-parse HEAD` equals the reviewed M1 sha.
   - **Rejected:** `git worktree remove --force $S/wt-m1` and `git branch -D 017-m1-trial`, a local scratch branch that was never pushed, then redo from T007. The 017 branch is never reset and never fixed forward.
 
   The evidence files written in the trial worktree are copied into `$R`'s `evidence/` with the next records commit, because the fast-forward brings only what M1 committed.
-- [ ] T014 M2: `git merge --no-ff -S origin/main`. Confirm `git diff HEAD^1 HEAD --stat` is empty and `git merge-base --is-ancestor v0.1.0rc17 HEAD`. If the diff is not empty, stop ⏸ (checklist CHK018). Record the result in `specs/017-release-line-reconciliation/evidence/merge-bookworm.md`.
-- [ ] T015 M3: `git merge -S -s ours v0.0.9rc7 -m "merge: v0.0.9rc7 for ancestry only — its content is in v0.0.9rc8 (git diff v0.0.9rc7 v0.0.9rc8 -- src/cuemsutils/cues/CuemsScript.py src/cuemsutils/cues/MediaCue.py is empty)"`. Confirm the tree diff is empty and that `HEAD..origin/debian/bookworm` = `HEAD..origin/main` = 0. Record both in the same evidence file.
+- [X] T014 M2: `git merge --no-ff -S origin/main`. Confirm `git diff HEAD^1 HEAD --stat` is empty and `git merge-base --is-ancestor v0.1.0rc17 HEAD`. If the diff is not empty, stop ⏸ (checklist CHK018). Record the result in `specs/017-release-line-reconciliation/evidence/merge-bookworm.md`.
+- [X] T015 M3: `git merge -S -s ours v0.0.9rc7 -m "merge: v0.0.9rc7 for ancestry only — its content is in v0.0.9rc8 (git diff v0.0.9rc7 v0.0.9rc8 -- src/cuemsutils/cues/CuemsScript.py src/cuemsutils/cues/MediaCue.py is empty)"`. Confirm the tree diff is empty and that `HEAD..origin/debian/bookworm` = `HEAD..origin/main` = 0. Record both in the same evidence file.
 
 **Checkpoint ⏸**: M1–M3 are committed, the red set is the expected six, and both behind-counts are 0.
 
@@ -115,41 +115,41 @@ targetless-actions contract, rows 1–14 and 7a–8c, is covered one row to one 
 
 ### Tests for User Story 1 (written first, red on M3) ⚠️
 
-- [ ] T016 [P] [US1] Write the fixture-capture tool `specs/017-release-line-reconciliation/tools/capture_rc17_fixture.py` (research R5). It builds, with rc17's own model and `XmlReaderWriter`:
+- [X] T016 [P] [US1] Write the fixture-capture tool `specs/017-release-line-reconciliation/tools/capture_rc17_fixture.py` (research R5). It builds, with rc17's own model and `XmlReaderWriter`:
   - a VideoCue with `pixel_width=1920`, `pixel_height=1080`, `file_size=107374182400` and an uppercase md5;
   - an AudioCue;
   - a `stop_project` ActionCue with `action_target=""`;
 
-  and writes `stop_project.xml`. It also writes `stop_control.xml`, where the last cue is `stop` aimed at the audio cue. Run it in `git worktree add $S/wt-bw 398a9cf` (quickstart §3) into `tests/data/corpus/rc17/`, then write `tests/data/corpus/rc17/PROVENANCE.md` with the commit, interpreter, command, date and both sha256 (FR-022).
-- [ ] T017 [P] [US1] Write the probe tool `specs/017-release-line-reconciliation/tools/probes.py`. For an arm and a document it runs S-1, S-1′ (reshape → convert → `load_with_report`, the tools through `main()`), S-2, the control, and X-4, and prints one verdict line each. Run it on M3 into `specs/017-release-line-reconciliation/evidence/probes-M3.md`. Expected: S-1, S-1′ and S-2 refused by T2; control CLEAN; X-4 `None` for absent values.
-- [ ] T018 [US1] Write `tests/unit/test_targetless_actions.py`, one test per row of `contracts/targetless-actions.md`:
+  and writes `stop_project.xml`. It also writes `stop_control.xml`, where the last cue is `stop` aimed at the audio cue. Run it in `git worktree add $S/wt-bw 398a9cf` (quickstart §3) into `tests/data/rc17/`, then write `tests/data/rc17/PROVENANCE.md` with the commit, interpreter, command, date and both sha256 (FR-022).
+- [X] T017 [P] [US1] Write the probe tool `specs/017-release-line-reconciliation/tools/probes.py`. For an arm and a document it runs S-1, S-1′ (reshape → convert → `load_with_report`, the tools through `main()`), S-2, the control, and X-4, and prints one verdict line each. Run it on M3 into `specs/017-release-line-reconciliation/evidence/probes-M3.md`. Expected: S-1, S-1′ and S-2 refused by T2; control CLEAN; X-4 `None` for absent values.
+- [X] T018 [US1] Write `tests/unit/test_targetless_actions.py`, one test per row of `contracts/targetless-actions.md`:
   - rows 1–4: construct with absent, `None` or `""`, and `from_json` with `null`;
   - rows 5–6: save writes `<action_target />`, and `load_with_report` is CLEAN;
   - rows 7/7a: a resolving or dangling leftover uuid loads **REPAIRED** with exactly one `RepairRecord` naming `project_action_takes_no_target`, `previous_value=<uuid>`, `substituted_value=None`, and the file reported stale;
   - rows 8/8a/8b: construct ok, then save refused with that rule's message, and `validate()` reports it;
   - rows 9–10: `stop` with `None` refused at construct, save and load with the unchanged `action_target is required`, and never converted to another action type;
   - row 12: an unknown action type is refused by T1.
-- [ ] T019 [P] [US1] Write `tests/integration/test_rc17_migration.py`. Copy `tests/data/corpus/rc17/stop_project.xml` to `tmp_path`, run `cuems-reshape-devices` then `cuems-convert-documents` through their `main()`, then `CuemsScript.load_with_report`: the outcome must be CLEAN, with action type `stop_project` and target `None`. Do the same for `stop_control.xml`, which must also be CLEAN. Mark both `slow` only if they exceed the suite's usual per-test time.
-- [ ] T020 [P] [US1] Write `tests/contract/test_retired_action_types.py` (FR-029d). A script whose ActionCue has `action_type` `pause_project` or `resume_project` must be refused by **T1** at `save`, at `load` and through `from_json` + `save`, and `describe()`'s `ActionType` list must not contain either value.
-- [ ] T021 [P] [US1] Write `tests/unit/test_descriptor_repairability_order.py` (FR-023a):
+- [X] T019 [P] [US1] Write `tests/integration/test_rc17_migration.py`. Copy `tests/data/rc17/stop_project.xml` to `tmp_path`, run `cuems-reshape-devices` then `cuems-convert-documents` through their `main()`, then `CuemsScript.load_with_report`: the outcome must be CLEAN, with action type `stop_project` and target `None`. Do the same for `stop_control.xml`, which must also be CLEAN. Mark both `slow` only if they exceed the suite's usual per-test time.
+- [X] T020 [P] [US1] Write `tests/contract/test_retired_action_types.py` (FR-029d). A script whose ActionCue has `action_type` `pause_project` or `resume_project` must be refused by **T1** at `save`, at `load` and through `from_json` + `save`, and `describe()`'s `ActionType` list must not contain either value.
+- [X] T021 [P] [US1] Write `tests/unit/test_descriptor_repairability_order.py` (FR-023a):
   - (a) `ActionCue.action_target` is UNREPAIRABLE in the descriptor;
   - (b) `descriptor._repairability_map()` is the same whatever order `RULES` is iterated in. Rebuild it with the registry reversed, monkeypatched, clearing `_repairability_cache` before and after.
-- [ ] T022 [US1] Run T018–T021 on M3 and record each red excerpt in `specs/017-release-line-reconciliation/evidence/red-green.md`, using data-model §5's columns. T021(a) may already be green on M3: record it as `held`, since it becomes meaningful only once the new rule exists.
+- [X] T022 [US1] Run T018–T021 on M3 and record each red excerpt in `specs/017-release-line-reconciliation/evidence/red-green.md`, using data-model §5's columns. T021(a) may already be green on M3: record it as `held`, since it becomes meaningful only once the new rule exists.
 
 ### Implementation for User Story 1 (one commit: A-1 + A-2d + the Q13 retirement + FR-053)
 
-- [ ] T023 [US1] In `src/cuemsutils/cues/ActionCue.py`, add `TARGETLESS_ACTION_TYPES: frozenset[str] = frozenset({"stop_project"})` with research R3's comment. Make `__init__` raise `action_target is required` only when `init_dict.get('action_type')` is **not** in the set (research R4). Leave `set_action_target` unchanged, because `enforce` passes `self`.
-- [ ] T024 [US1] In `src/cuemsutils/xml/validators.py`:
+- [X] T023 [US1] In `src/cuemsutils/cues/ActionCue.py`, add `TARGETLESS_ACTION_TYPES: frozenset[str] = frozenset({"stop_project"})` with research R3's comment. Make `__init__` raise `action_target is required` only when `init_dict.get('action_type')` is **not** in the set (research R4). Leave `set_action_target` unchanged, because `enforce` passes `self`.
+- [X] T024 [US1] In `src/cuemsutils/xml/validators.py`:
   - `_action_target_required` passes `None` when `obj` is not `None` and `obj.get("action_type") in TARGETLESS_ACTION_TYPES`, with the message unchanged;
   - `_action_target_resolves` returns early for a type in the set;
   - register a new rule `project_action_takes_no_target` on `[("ActionCue", "action_target")]`, `repairable=True`. It raises `ValueError(f"action_target {value} must be empty: {obj.get('action_type')} acts on the whole project and takes no target; clear it")` when the type is in the set and `value is not None`.
 
   Import the set inside each function, as the module does for model imports (research R3, R16).
-- [ ] T025 [US1] In `src/cuemsutils/xml/descriptor.py` `_repairability_map`, replace `mapping[(key, field_name)] = rule.repairable` with `mapping[(key, field_name)] = mapping.get((key, field_name), True) and rule.repairable`, and add a comment citing FR-023a (research R16). Then confirm every descriptor golden under `tests/golden/` is byte-identical (`git diff --stat -- tests/golden` empty).
-- [ ] T026 [US1] In `src/cuemsutils/xml/schemas/script.xsd`, delete the `pause_project` and `resume_project` `<xs:enumeration>` lines, and point the `ActionType` comment at `specs/planning/project-pause-resume-deferred.md`. In the same edit, check that the merged `stop_project` comment makes no deprecated-parser claim (FR-051, xsd half). **Every `script.xsd` edit of 017 lands in this commit** (checklist CHK037).
-- [ ] T027 [US1] In `tests/contract/test_schema_scope.py`, update `CURRENT_SCHEMA_HASHES['script.xsd']` to the new sha256 (A-2d), with a comment naming 017, A-1 and the Q13 retirement, and stating that there is no version step.
-- [ ] T028 [US1] Update every test that pins the exact rule set for one new rule: check `tests/unit/test_t2_registry.py` and any closed list read by `test_config_parity` or the coherence test (`git grep -n "action_target_resolves" tests/` and `git grep -n "SEMANTIC_RULES" tests/`). Do not loosen any assertion; add the new name.
-- [ ] T029 [US1] Write `specs/planning/project-pause-resume-deferred.md` (FR-053, SC-015), and add its pointer row to `specs/017-release-line-reconciliation/evidence/test-retirements.md` (FR-029b: the one index of retirements). The document has six parts:
+- [X] T025 [US1] In `src/cuemsutils/xml/descriptor.py` `_repairability_map`, replace `mapping[(key, field_name)] = rule.repairable` with `mapping[(key, field_name)] = mapping.get((key, field_name), True) and rule.repairable`, and add a comment citing FR-023a (research R16). Then confirm every descriptor golden under `tests/golden/` is byte-identical (`git diff --stat -- tests/golden` empty).
+- [X] T026 [US1] In `src/cuemsutils/xml/schemas/script.xsd`, delete the `pause_project` and `resume_project` `<xs:enumeration>` lines, and point the `ActionType` comment at `specs/planning/project-pause-resume-deferred.md`. In the same edit, check that the merged `stop_project` comment makes no deprecated-parser claim (FR-051, xsd half). **Every `script.xsd` edit of 017 lands in this commit** (checklist CHK037).
+- [X] T027 [US1] In `tests/contract/test_schema_scope.py`, update `CURRENT_SCHEMA_HASHES['script.xsd']` to the new sha256 (A-2d), with a comment naming 017, A-1 and the Q13 retirement, and stating that there is no version step.
+- [X] T028 [US1] Update every test that pins the exact rule set for one new rule: check `tests/unit/test_t2_registry.py` and any closed list read by `test_config_parity` or the coherence test (`git grep -n "action_target_resolves" tests/` and `git grep -n "SEMANTIC_RULES" tests/`). Do not loosen any assertion; add the new name.
+- [X] T029 [US1] Write `specs/planning/project-pause-resume-deferred.md` (FR-053, SC-015), and add its pointer row to `specs/017-release-line-reconciliation/evidence/test-retirements.md` (FR-029b: the one index of retirements). The document has six parts:
   1. **retired text, verbatim:** the two enumeration lines and their comment from `2318dee:src/cuemsutils/xml/schemas/script.xsd`, the `RETAINED` entry, 008's `enum-audit.md` evidence, rc17's `CHANGELOG.md` line, and Q13's measurements;
   2. **prior art:** `../cuems-engine` `origin/dev` `9852d79` `src/cuems/ActionCue.py:95-97`, plus `ActionHandler.py:29` and bookworm `tests/test_action_cue.py:1519`;
   3. **reinstatement after `0.1.1`:** the additive enum value with a `script` 2 → 3 step under `specs/agreements/schema-evolution-convention.md`, the one-line `TARGETLESS_ACTION_TYPES` addition, T2, guard, `from_json`, descriptor, enum audit, and the tests, modelled on A-1 with code excerpts;
@@ -158,7 +158,7 @@ targetless-actions contract, rows 1–14 and 7a–8c, is covered one row to one 
   6. **the `stop_cue` naming option:** the documents it converts, its version step, and the sites it touches (`NodeEngine.py:366`, `ActionHandler.py:34,759`, the frontend's action authoring).
 
   Cite every cross-repository claim by path and commit, as read from the checkouts.
-- [ ] T030 [US1] Run T018–T021 plus `tests/contract/` on the working tree. All must be green except the A-2a–c tests still owned by US2 (T036). Record the green excerpts in `specs/017-release-line-reconciliation/evidence/red-green.md`. Commit T023–T029 as **one** signed commit `feat(actions): stop_project takes no target; retire pause_project/resume_project (017 A-1, A-2d, Q13)`, with `tests/data/corpus/rc17/` and the two `tools/` scripts. ⏸
+- [X] T030 [US1] Run T018–T021 plus `tests/contract/` on the working tree. All must be green except the A-2a–c tests still owned by US2 (T036). Record the green excerpts in `specs/017-release-line-reconciliation/evidence/red-green.md`. Commit T023–T029 as **one** signed commit `feat(actions): stop_project takes no target; retire pause_project/resume_project (017 A-1, A-2d, Q13)`, with `tests/data/rc17/` and the two `tools/` scripts. ⏸
 - [ ] T031 [P] [US1] Write `tests/integration/test_reshape_devices_main.py` (FR-029a): `subprocess.run([sys.executable, "-m", "cuemsutils.xml.reshape_devices", <copy of a corpus document>])` produces the same verdict output and exit status as calling `reshape_devices.main([...])`. Record it red on the A-1 commit.
 - [ ] T032 [P] [US1] Write `tests/integration/test_migration_tool_report.py` (FR-029c, `contracts/migration-tool-report.md` tests 1–3):
   - the rc17 control twin with its `stop` cue's `action_target` emptied, run through reshape then convert, is **written**, emits a WARNING matching `would be refused on load: [T2] action_target_required`, and is listed in the new summary bucket, with the exit status equal to the same run without the check;
@@ -461,7 +461,7 @@ commit. One commit per adaptation (plan §Phases), except that A-1, A-2d, Q13 an
 ### Parallel example: User Story 1 tests
 
 ```text
-T016  tools/capture_rc17_fixture.py → tests/data/corpus/rc17/
+T016  tools/capture_rc17_fixture.py → tests/data/rc17/
 T017  tools/probes.py → evidence/probes-M3.md
 T019  tests/integration/test_rc17_migration.py
 T020  tests/contract/test_retired_action_types.py

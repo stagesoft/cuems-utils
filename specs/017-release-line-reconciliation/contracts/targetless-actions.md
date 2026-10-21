@@ -34,7 +34,7 @@ exported, not in the API snapshot). Adding a member is a one-line change plus it
 | 10 | a `stop` cue whose target is `None` (set before `_initialized`, or `action_type` changed after) | save / load | refused, T2 `action_target_required`, **not repaired**, and the action type is **never changed** (FR-023) |
 | 11 | `pause_project` / `resume_project`, with or without a target | save / load / `from_json` | refused, **T1 enumeration**: retired from `ActionType` (Q13, FR-029d) |
 | 12 | `action_type="no_such_action"` | save / load | refused, T1 enumeration |
-| 13 | rc17 fixture (`tests/data/corpus/rc17/stop_project.xml`) | `cuems-reshape-devices` → `cuems-convert-documents` → `load_with_report` | reshape ok, convert "converted", load **CLEAN** |
+| 13 | rc17 fixture (`tests/data/rc17/stop_project.xml`) | `cuems-reshape-devices` → `cuems-convert-documents` → `load_with_report` | reshape ok, convert "converted", load **CLEAN** |
 | 14 | rc17 control twin (`stop` → the audio cue) | same | CLEAN (as on `5e4c637`) |
 
 ## Invariants
