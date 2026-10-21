@@ -22,6 +22,7 @@ from pathlib import Path
 
 from ..tools.library_reach import is_backup, library_path_from_settings
 from .documents import backup_document, backup_path, write_tree
+from .load_check import loader_refusal
 from .schema import SCHEMA_ROOTS, get_schema
 
 #: Old element names being deleted. Not a vocabulary the library supports.
@@ -269,6 +270,38 @@ def _as_the_load_path_sees_it(schema_name: str, tree: ET.ElementTree) -> ET.Elem
     return probe
 
 
+def _reshape_tree(schema_name: str, root: ET.Element) -> None:
+    """Reshape *root* in place, by its schema. The one place the four reshapes are chosen."""
+    if schema_name == "project_mappings":
+        reshape_mappings(root)
+    elif schema_name == "settings":
+        reshape_players(root)
+    elif schema_name == "script":
+        reshape_cues(root)
+    elif schema_name == "hardware_outputs":
+        reshape_output_groups(root)
+
+
+def loader_refusal_after_reshape(path: Path) -> str | None:
+    """What the loader would say about *path* once reshaped. Nothing is written to *path*.
+
+    For ``--check`` (017 S-3): the reshape runs on an in-memory copy, which is written to a
+    temporary file only so the loader can read it. ``None`` if it would be accepted, or if
+    the document is not one this tool reshapes.
+    """
+    import tempfile
+
+    tree = ET.parse(path)
+    schema_name = _schema_name(tree.getroot().tag)
+    if schema_name is None:
+        return None
+    _reshape_tree(schema_name, tree.getroot())
+    with tempfile.TemporaryDirectory() as scratch:
+        probe = Path(scratch) / path.name
+        write_tree(tree, probe)
+        return loader_refusal(probe, schema_name)
+
+
 def reshape_file(path: Path, *, write: bool, dry_run: bool, clock: str) -> str:
     """One document. Returns the verdict word the line is built from.
 
@@ -296,16 +329,9 @@ def reshape_file(path: Path, *, write: bool, dry_run: bool, clock: str) -> str:
         backup_document(path, clock)
     except OSError:
         return "skipped (backup failed; document left unrewritten)"
-    if schema_name == "project_mappings":
-        reshape_mappings(root)
-    elif schema_name == "settings":
-        reshape_players(root)
-    elif schema_name == "script":
-        reshape_cues(root)
-    elif schema_name == "hardware_outputs":
-        reshape_output_groups(root)
     if schema_name is None:
         return "skipped (unrecognised root)"
+    _reshape_tree(schema_name, root)
     try:
         get_schema(schema_name).validate(_as_the_load_path_sees_it(schema_name, tree))
     except Exception as exc:  # named, and the original stays
@@ -383,6 +409,7 @@ def main(argv: list[str] | None = None) -> int:
     write = not args.check
     verdicts: list[str] = []
     exit_code = 0
+    refused = 0
     for path in documents:
         if not path.is_file():
             print(f"{path}: skipped (not a file)", file=sys.stderr)
@@ -394,7 +421,20 @@ def main(argv: list[str] | None = None) -> int:
         verdicts.append(verdict)
         if verdict.startswith("skipped") or verdict == "old-shape":
             exit_code = 1
-    print(_summary(verdicts))
+        # Would the loader accept what was (or, under --check, would be) written? This is
+        # reported, never acted on: the bytes and the exit status are unchanged (017 S-3).
+        why = None
+        if verdict == "reshaped":
+            why = loader_refusal(path, _schema_name(ET.parse(path).getroot().tag))
+        elif verdict == "old-shape":
+            why = loader_refusal_after_reshape(path)
+        if why is not None:
+            print(f"WARNING {path}: would be refused on load: {why}", file=sys.stderr)
+            refused += 1
+    line = _summary(verdicts)
+    if refused:
+        line += f"; {refused} refused on load"
+    print(line)
     return exit_code
 
 
