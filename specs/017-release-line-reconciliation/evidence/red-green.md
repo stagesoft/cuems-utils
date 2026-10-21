@@ -113,3 +113,11 @@ public path as written, so each is recorded as **held**.
 table binds the `Md5Type` string type. T041 planned a separate `tests/unit/test_media_public_path.py`.
 It was **not** created, because the ported rc15 tests above are exactly those two checks on the public
 path, and a second copy would only duplicate them.
+
+## A-6 (T042): X-4 pinned: **held** (a pin, not a red → green)
+
+`tests/unit/test_media_absent_values.py`: **10 passed**. On a version-2 `Media` loaded **without** the
+four values, `.get(k)` and the attribute are `None`, the key is absent, and `to_wire()` omits it.
+**With** them, the values are `int`, `int`, `int`, `str`, with `file_size` 107374182400 intact.
+`Unset` is never returned. This answers `cuems-engine`'s X-4 / R-1 with **`None`**: its "missing →
+probe" branch needs no `Unset` check (`upstream-reports/cuems-engine.md`).

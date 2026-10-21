@@ -197,7 +197,7 @@ is pinned, `MediaCue` is snapshotted, and the 14-row inventory is proven.
   - the `<Media>` children are written in `script.xsd`'s declared sequence order, read from the schema, not hard-coded.
 
   Run it on **M3** (`git worktree add $S/wt-m3 <M3 sha>`, plan Phase 4; analyze I4). If green, record `held` in `evidence/red-green.md` and commit it with T042. If red, port the missing behaviour into the public path (`src/cuemsutils/xml/mapper.py` or the adapter table) as its own commit `fix(xml): … on the public path (017 FR-012)`.
-- [ ] T042 [P] [US2] A-6: write `tests/unit/test_media_absent_values.py` (FR-029, X-4):
+- [X] T042 [P] [US2] A-6: write `tests/unit/test_media_absent_values.py` (FR-029, X-4):
   - a version-2 `Media` loaded **without** the four elements gives `None` from `.get(k)` and from the attribute, the key is not in the mapping, and `to_wire()` omits it;
   - loaded **with** them, the values are `int`, `int`, `int`, `str` (`file_size == 107374182400`);
   - `Unset` is never returned.
