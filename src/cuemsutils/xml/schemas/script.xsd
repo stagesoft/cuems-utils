@@ -318,6 +318,10 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
       <xs:enumeration value="fade_action" />
       <xs:enumeration value="wait" />
       <xs:enumeration value="go_to" />
+      <!-- stop_project (0.1.0rc17): project-scope action, the authored end of an
+           unattended show. Needs no target: action_target is written empty, which
+           TargetType allows, and parses to None. The engine runs its STOP path. -->
+      <xs:enumeration value="stop_project" />
       <xs:enumeration value="pause_project" />
       <xs:enumeration value="resume_project" />
     </xs:restriction>

@@ -87,45 +87,57 @@ cuems-utils (0.1.1) UNRELEASED; urgency=medium
 
  -- Adrià Masip <adria@stagelab.coop>  Thu, 15 Oct 2026 22:10:00 +0200
 
-cuems-utils (0.1.0rc15) UNRELEASED; urgency=medium
+cuems-utils (0.1.0rc17) unstable; urgency=medium
 
-  NOT BUILT AS A PACKAGE. Recorded retrospectively: the source moved from
-  rc14 to rc16 while debian/ sat on a branch nobody merged into, so this
-  version never got an entry. It is written now so the changelog is a
-  continuous record rather than one with a hole in it.
+  * Merge main into debian/bookworm (0.1.0rc17, 869fhjdq5, PR #19):
+    script.xsd ActionType gains stop_project, the first project-scope
+    action and the authored end of an unattended show (cuems-engine
+    stop_project ActionCue). Its action_target is written empty and parses
+    to None; the ActionCue constructor and setter still refuse None.
+  * Every box of a cluster needs >= 0.1.0rc17 before a project carrying
+    the cue is saved: older utils reject it at validation. A downgrade
+    strands such a project until the cue is removed from cue_script.xml.
 
-  * New entry point: cuems-convert-documents, an offline batch upgrade for
-    XML documents, installed into the shared venv alongside the library. It
-    backs up each document before rewriting and treats a backup failure as
-    fatal for that document alone.
-  * Reading became strict. Every document load now runs structural and
-    semantic validation: a valid document loads, a version-old one converts
-    IN MEMORY with the file on disk untouched, a repairable violation loads
-    with the field repaired to its declared default, an unrepairable one
-    raises, and a document newer than the library raises distinguishably.
-    Operators get a report naming every repair rather than a silent
-    substitution.
-  * Documents carry a doc_version marker, per schema, with a conversion
-    registered for every version step. Absent means version 1, so nothing on
-    disk is invalidated by its introduction.
-  * network_map.xsd: <node_type>, free text carrying NodeType.master /
-    NodeType.slave, becomes <node_role>, typed controller/node/firstrun.
-    DEPLOYED MAPS MUST BE CONVERTED -- both audited production machines were
-    still carrying the old vocabulary at the time of writing.
-  * The library gained its first write path for network_map.xml, and the
-    node object model moved in from cuems-nodeconf.
-  * One public API across the library: load/save/validate/from_json/to_json/
-    to_wire on the script object, configuration accessors answering with
-    objects, and cuemsutils.errors as the one public error module. Six
-    retired entry points still resolve and warn; they are REMOVED IN v0.1.2,
-    which is why every consumer pins << 0.1.2~.
-  * DmxUniverse no longer silently stores unconverted channel data when a
-    per-entry conversion fails; it raises DmxChannelDecodeError naming the
-    universe and the failing entry.
-  * Media duration is typed as a timecode, and the unused fade-profile
-    surface is deleted.
+ -- Ion Reguera <ion@stagelab.coop>  Thu, 15 Oct 2026 18:42:29 +0200
 
- -- Adrià Masip <adria@stagelab.coop>  Thu, 24 Sep 2026 12:41:49 +0200
+cuems-utils (0.1.0rc16+1) unstable; urgency=medium
+
+  * packaging: stop shipping /usr/lib/cuems/CACHEDIR.TAG. The 0.1.0rc16 build
+    picked it up from virtualenv, and cuems-editor 0.1.0rc1-5 and
+    cuems-engine 0.1.0rc4/rc5 ship the same path, so installing one over the
+    other failed with "trying to overwrite" unless forced. Nothing reads it
+    at runtime. Same fix as cuems-power-bridge 0.3.0-8.
+  * No code change from 0.1.0rc16 (cuemsutils 0.1.0rc16 on PyPI).
+
+ -- Ion Reguera <ion@stagelab.coop>  Fri, 09 Oct 2026 12:41:21 +0200
+
+cuems-utils (0.1.0rc16) unstable; urgency=medium
+
+  * Merge main into debian/bookworm (0.1.0rc16, 869fej07m): media cues
+    without a usable media block. MediaCue.media_status() classifies a
+    cue's media as none / invalid / ok without touching the raising
+    file_name property; CueList.get_media (editor path) raises a named
+    ValueError for an invalid block instead of a bare KeyError 'file_name'
+    and skips a None block with a warning; CuemsScript.get_own_media
+    (engine path) never raises - both shapes are logged and skipped, so a
+    legacy <Media/> project still loads and that cue fails at arm as
+    before. Same code as cuemsutils 0.1.0rc16 on PyPI (tag v0.1.0rc16).
+
+ -- Ion Reguera <ion@stagelab.coop>  Thu, 08 Oct 2026 21:15:25 +0200
+
+cuems-utils (0.1.0rc15) unstable; urgency=medium
+
+  * Merge main into debian/bookworm (0.1.0rc15, 869fat84r): MediaType
+    gains optional pixel_width / pixel_height (VideoCue), file_size and
+    file_md5 (every media); the builder writes them in schema order and the
+    parser keeps file_md5 a string. Same code as cuemsutils 0.1.0rc15 on
+    PyPI (tag v0.1.0rc15).
+  * Replaces: cuems-engine (<< 0.1.0rc6-2~). Engine debs up to 0.1.0rc6-1
+    also ship /usr/lib/cuems/bin/cffi-gen-src (cffi's console script), so
+    upgrading cuems-utils on a box with any of them failed with "trying to
+    overwrite" unless forced. cuems-engine 0.1.0rc6-2 stops shipping it.
+
+ -- Ion Reguera <ion@stagelab.coop>  Tue, 06 Oct 2026 20:18:57 +0200
 
 cuems-utils (0.1.0rc14) unstable; urgency=medium
 

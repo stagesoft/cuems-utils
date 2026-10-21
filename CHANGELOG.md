@@ -301,6 +301,29 @@ They have one commit each and have never been edited.
   error, no log line. Preserved unchanged here — binding it would start running code that
   has never run — and scheduled for feature 005.
 
+## 0.1.0rc17 — 2026-10-15
+
+New project-scope action for the authored end of an unattended show: the cuems-engine `stop_project` ActionCue (ClickUp 869fhjdq5). This package only carries the vocabulary; the behaviour is in the engine.
+
+### Added
+- `script.xsd` `ActionType` gains `stop_project`. It is the first project-scope action and needs no target, so its `action_target` is written empty (`<action_target />`), which `TargetType` already allowed. On parse that comes back as `None`: `str_to_value` maps the empty string to `None` and the parsers assign without going through the setter. The `ActionCue` constructor and setter still refuse an explicit `None`.
+- `tests/test_action_cue_stop_project.py`: writer → XSD → reader round trip, parsed target is falsy, the editor's JSON path (`CuemsParser` on a `null` target) gives the same, unknown action types are still rejected by the schema, the model still refuses `None`.
+
+### Notes
+- **Every box of a cluster needs ≥ rc17 before a project carrying the cue is saved.** A box on ≤ rc16 rejects such a project at validation: the editor cannot save or open it, the controller fails the load early, and a node fails the load after tearing down its previous project (no `armed_ready`, "Load stalled" at 120 s). **Rollback hazard:** downgrading utils on a box that holds such a project strands it until the `<ActionCue>` whose `<action_type>` is `stop_project` is removed from `cue_script.xml` by hand.
+- `pause_project`, `resume_project`, `load`, `unload` and `wait` stay in the enum and stay unimplemented.
+
+## 0.1.0rc16 — 2026-10-08
+
+Media cues without a usable media block no longer crash the editor's save with a bare `KeyError 'file_name'`, and never make a project unloadable (ClickUp 869fej07m).
+
+### Fixed
+- `CueList.get_media` (editor path: update, new, duplicate, relink) guarded with `hasattr(cue.media, 'file_name')`, but `file_name` is a property that raises `KeyError`, which `hasattr` does not catch. A client that dropped a cue's media block (the UI does, when the file is not in its library list) produced an empty `Media` object and the save died inside the atomic block. Now: a media block without a file raises a named `ValueError` that says which cue — still no write, but readable. A cue with **no** media object (`None`, i.e. an empty `<Media/>` or a JSON `Media: null`) is logged at WARNING and skipped, so legacy projects stay listable and duplicable; refusing to *save* that shape is the editor's validator's job.
+- `CuemsScript.get_own_media` (engine path, every node, every load) had the same `hasattr` guard. It now classifies the media without raising: a cue without a usable media file is logged at ERROR and left out of the media list, the project still loads and that cue fails at arm, locally — exactly what an empty `<Media/>` did before, now visible in the journal. Raising here would have aborted the load on every node.
+
+### Added
+- `MediaCue.media_status()` → `('none' | 'invalid' | 'ok', file_name)`: the non-raising classifier both call sites use.
+
 ## 0.1.0rc11 — 2026-07-28
 
 Free-text fields are no longer type-coerced during parsing (closes ClickUp 869cqbpxa).
