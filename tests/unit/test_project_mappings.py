@@ -7,7 +7,7 @@ import pytest
 
 from cuemsutils.xml.settings import ProjectMappings
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parents[1] / "data"
 
 
 # ---------------------------------------------------------------------------

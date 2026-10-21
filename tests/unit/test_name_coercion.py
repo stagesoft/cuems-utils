@@ -23,7 +23,7 @@ from cuemsutils.xml.Parsers import STRING_TYPED_KEYS, CuemsParser
 # specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
 pytestmark = pytest.mark.expects_deprecation
 
-TMP_DIR = Path(__file__).parent / "tmp"
+TMP_DIR = Path(__file__).parents[1] / "tmp"
 TMP_DIR.mkdir(exist_ok=True)
 
 # The strtobool truth abbreviations -- the single characters that used to break.

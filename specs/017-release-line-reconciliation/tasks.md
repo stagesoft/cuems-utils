@@ -346,7 +346,7 @@ pass-set diff showing only recorded retirements.
 
   Commit `chore: remove dev/ and ToDo.md, untrack local settings (017 §14.1)`, then re-record the pass set and diff it.
 - [X] T072 [P] [US6] C2 (FR-062): rewrite `README.md` and `docs/index.md` to the public API (`CuemsScript.load/save/validate/from_json/to_wire`, `ConfigManager`, `cuemsutils.errors`), and replace `docs/xml.md`'s `Parsers`/`XmlBuilder`/`XmlReaderWriter` mkdocstrings pages with the public surface. Reword `README.md`'s `gradient_osc_port … NodeType` to the current type name, and adjust `mkdocs.yml` if its nav names the removed pages. Then build the site, which is **required, not optional**: `PYTHONPATH=src uvx --with mkdocs-material --with mkdocstrings-python mkdocs build --strict -d $S/site`. It must pass, and `grep -rl "XmlReaderWriter\|XmlBuilder\|cuemsutils.xml.Parsers" $S/site` must print nothing. Record both in `evidence/cleanup-checks.txt` (SC-012, analyze LOW). Commit `docs: README and site describe the public API only (017 §14.2)`.
-- [ ] T073 [US6] C3, test layout (FR-063, `contracts/test-layout.md`):
+- [X] T073 [US6] C3, test layout (FR-063, `contracts/test-layout.md`):
   - write `tests/contract/test_test_layout.py` and record it red;
   - `git mv` the 17 root modules per the contract's table, re-checking each one's kind with the signal grep;
   - `git rm tests/testdev_nng_talk.py` and record it in `evidence/test-retirements.md`;

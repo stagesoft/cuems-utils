@@ -1,6 +1,6 @@
 """Type coercion on the **live** paths (T036a) — SC-010, FR-003.
 
-``tests/test_name_coercion.py`` pins ``str_to_value`` itself, and stays as the
+``tests/unit/test_name_coercion.py`` pins ``str_to_value`` itself, and stays as the
 frozen-shim regression for it. That file cannot show what this feature actually
 changed, because it calls the heuristic directly — after the swap the heuristic
 is no longer on any live path, so testing it proves nothing about what the

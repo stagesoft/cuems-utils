@@ -2,6 +2,8 @@
 # Per-user agent permissions (feature 017, FR-061): never tracked. .claude/settings.json is shared.
 .claude/settings.local.json
 tests/tmp
+# Scratch output of tests, wherever a module writes it (feature 017 found tests/unit/tmp/).
+tests/**/tmp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

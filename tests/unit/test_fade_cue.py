@@ -18,7 +18,7 @@ from cuemsutils.xml import XmlReaderWriter
 # specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
 pytestmark = pytest.mark.expects_deprecation
 
-TMP_FILE = path.dirname(__file__) + '/tmp/test_fade_cue.xml'
+TMP_FILE = path.dirname(path.dirname(__file__)) + '/tmp/test_fade_cue.xml'
 TARGET_UUID = '1f301cf8-dd03-4b40-ac17-ef0e5e7988be'
 
 

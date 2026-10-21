@@ -1,15 +1,19 @@
-from os import environ, path
+from os import path
 from pathlib import Path
 
 import pytest
 
 from cuemsutils.tools.ConfigManager import ConfigManager
 
-TEST_DATA_PATH = path.join(Path(__file__).parent, 'data')
+TEST_DATA_PATH = path.join(Path(__file__).parents[1], 'data')
 
 @pytest.fixture
-def config_manager():
-    environ['CUEMS_CONF_PATH'] = TEST_DATA_PATH
+def config_manager(monkeypatch):
+    # monkeypatch, not environ[...] = ...: the variable is restored after each test. Assigned
+    # directly, it leaked into every later test that builds a ConfigManager without a directory.
+    # That was invisible while this module sat at the tests/ root and was collected last, and it
+    # broke two integration tests once feature 017 moved it into tests/integration/ (FR-063).
+    monkeypatch.setenv('CUEMS_CONF_PATH', TEST_DATA_PATH)
     return ConfigManager()
 
 def test_fail_no_conf_parameter():

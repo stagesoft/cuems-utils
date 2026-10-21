@@ -16,8 +16,8 @@ from cuemsutils.xml.settings import ProjectMappings
 # specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
 pytestmark = pytest.mark.expects_deprecation
 
-DATA_DIR = Path(__file__).parent / "data"
-TMP_DIR = Path(__file__).parent / "tmp"
+DATA_DIR = Path(__file__).parents[1] / "data"
+TMP_DIR = Path(__file__).parents[1] / "tmp"
 TMP_DIR.mkdir(exist_ok=True)
 
 NODE = "0367f391-ebf4-48b2-9f26-000000000001"

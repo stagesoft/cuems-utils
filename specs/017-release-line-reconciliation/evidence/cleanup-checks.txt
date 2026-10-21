@@ -15,3 +15,35 @@
 | the 017 head | **0** | **0** (link made absolute) | 156 | **0** |
 
 **--strict does not pass, and cannot within 017.** The 156 warnings are griffe's 'No type or annotation for …' on docstrings across tools/ and config/: codebase-wide documentation debt, outside FR-062's scope. Arm A shows fewer only because its cues page failed to render at all. T072's 'strict, required' is therefore met as: the build is error-free, carries no non-griffe warning, and renders no deprecated-module page. Annotating those docstrings would make --strict pass and is left as follow-up work.
+
+## C3: the test layout (T073, FR-063)
+
+- **Moved, by the signal grep** (verified per file; no name collision):
+  - `integration/`: `test_hubservices`, `test_communicatorservices`, `test_logger`, `test_configmanager`;
+  - `contract/`: `test_version`;
+  - `unit/`: the other twelve.
+- `testdev_nng_talk.py` retired (`test-retirements.md`).
+- `tests/conftest.py`: `pytest_collection_modifyitems` adds `unit` / `integration` / `contract` /
+  `packaging` from the path. The four markers are registered, and `addopts = "--strict-markers"`.
+  The `filterwarnings` entry follows `tests.unit.test_name_coercion`.
+- `tests/contract/test_test_layout.py`: no root `tests/test_*.py`; every collected item has exactly
+  one directory marker (checked by a subprocess collection with a probe plugin); no stale
+  `collect_ignore_glob`. Red before the moves, green after.
+- `pytest -m <kind> --co`: unit 1435, integration 528, contract 2020, packaging 57 = **4040**, every
+  test exactly once.
+
+**Three breakages the move exposed, each fixed as a pure rewire:**
+1. **`collect_ignore_glob`** named the `pynng` / `systemd` modules by root path, so the move made
+   them collect, and error, on a box without the dependency (`ModuleNotFoundError: systemd`). The
+   globs follow the moves, and the layout test now fails on a stale glob.
+2. **Six moved modules** found `tests/data` / `tests/tmp` relative to `__file__`. Fourteen sites
+   were moved up one level.
+3. **`test_configmanager`'s fixture** set `CUEMS_CONF_PATH` with `environ[...] = ...` and never
+   restored it. At the root it was collected after `integration/`, so the leak was invisible. Inside
+   `integration/` it runs before `test_default_mappings_fresh` and `test_remint_documents_valid`,
+   which then read its fixture identity. It now uses `monkeypatch.setenv`. The leak pre-dated 017;
+   the move only made it visible.
+
+**Pass set** (JUnit outcome per test, module path normalised `tests.<kind>.` → `tests.`): identical
+before and after, except the three new `test_test_layout` tests (PASSED). The 7 pre-existing
+failures are unchanged.

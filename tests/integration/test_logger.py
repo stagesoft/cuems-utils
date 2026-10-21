@@ -58,7 +58,7 @@ def test_logged(caplog):
 
     assert len(caplog.records) == 18
     for record in caplog.records:
-        assert record.name == "tests.test_logger"
+        assert record.name == "tests.integration.test_logger"
         if record.levelname == "ERROR":
             assert record.message == "Error occurred: An error occurred."
         elif record.levelname == "DEBUG":
@@ -101,12 +101,12 @@ def test_syslog():
         syslog = syslog_to_tempfile(rec_n = 6)
         assert len(syslog) == 6
         syslog_split = [i.split(")-(") for i in syslog]
-        assert syslog_split[0][2] == "tests.test_logger:test_syslog:hello_with_arg)> Call recieved\n"
-        assert syslog_split[1][2] == "tests.test_logger:test_syslog:hello_with_arg)> Using args: ('World',) and kwargs: {}\n"
-        assert syslog_split[2][2] == "tests.test_logger:test_syslog:hello_with_arg)> Finished with result: Hello, World!\n"
-        assert syslog_split[3][2] == "tests.test_logger:test_syslog:error_func)> Call recieved\n"
-        assert syslog_split[4][2] == "tests.test_logger:test_syslog:error_func)> Using args: () and kwargs: {}\n"
-        assert syslog_split[5][2] == "tests.test_logger:test_syslog:error_func)> Error occurred: An error occurred.\n"
+        assert syslog_split[0][2] == "tests.integration.test_logger:test_syslog:hello_with_arg)> Call recieved\n"
+        assert syslog_split[1][2] == "tests.integration.test_logger:test_syslog:hello_with_arg)> Using args: ('World',) and kwargs: {}\n"
+        assert syslog_split[2][2] == "tests.integration.test_logger:test_syslog:hello_with_arg)> Finished with result: Hello, World!\n"
+        assert syslog_split[3][2] == "tests.integration.test_logger:test_syslog:error_func)> Call recieved\n"
+        assert syslog_split[4][2] == "tests.integration.test_logger:test_syslog:error_func)> Using args: () and kwargs: {}\n"
+        assert syslog_split[5][2] == "tests.integration.test_logger:test_syslog:error_func)> Error occurred: An error occurred.\n"
 
         for i in range(6):
             x = syslog_split[i][0]
@@ -123,7 +123,7 @@ def test_Logger(caplog):
 
     assert len(caplog.records) == 4
     for record in caplog.records:
-        assert record.name == "tests.test_logger"
+        assert record.name == "tests.integration.test_logger"
         if record.levelname == "DEBUG":
             assert record.message == "This is a debug message."
         elif record.levelname == "INFO":
@@ -141,7 +141,7 @@ def test_logger_module_detection(caplog):
 
     assert len(caplog.records) == 1
     record = caplog.records[0]
-    assert record.name == "tests.test_logger"
+    assert record.name == "tests.integration.test_logger"
     assert record.message == "Module detection test"
     assert record.levelname == "INFO"
 
@@ -159,7 +159,7 @@ def test_logged_module_detection(caplog):
     assert len(caplog.records) == 3  # info (call received), debug (args), debug (result)
 
     for record in caplog.records:
-        assert record.name == "tests.test_logger", f"Expected 'tests.test_logger', got '{record.name}'"
+        assert record.name == "tests.integration.test_logger", f"Expected 'tests.integration.test_logger', got '{record.name}'"
 
 def test_logger_from_different_module(caplog):
     """Test that logger works correctly when called from different contexts."""
@@ -177,7 +177,7 @@ def test_logger_from_different_module(caplog):
 
     # All records should have the test module name
     for record in caplog.records:
-        assert record.name == "tests.test_logger"
+        assert record.name == "tests.integration.test_logger"
 
 def test_logger_formatter_fields(caplog):
     """Test that Logger class populates all cuemsFormatter fields correctly."""
@@ -194,7 +194,7 @@ def test_logger_formatter_fields(caplog):
 
     for record in caplog.records:
         # Verify module name (name field)
-        assert record.name == "tests.test_logger"
+        assert record.name == "tests.integration.test_logger"
 
         # Verify funcName is set (captures actual logging call location)
         assert hasattr(record, 'funcName')
@@ -232,8 +232,8 @@ def test_logged_decorator_formatter_fields(caplog):
     assert len(caplog.records) == 3  # info (call received), debug (args), debug (result)
 
     for record in caplog.records:
-        # Verify module name (name field) - should be tests.test_logger
-        assert record.name == "tests.test_logger"
+        # Verify module name (name field) - should be tests.integration.test_logger
+        assert record.name == "tests.integration.test_logger"
 
         # Verify process ID is available
         assert record.process == os.getpid()
@@ -293,7 +293,7 @@ def test_logger_complete_format_string(caplog):
 
     # Get the logger and add our handler
     from cuemsutils.log import main_logger
-    test_logger = main_logger(module_name="tests.test_logger", with_syslog=False, with_stdout=False)
+    test_logger = main_logger(module_name="tests.integration.test_logger", with_syslog=False, with_stdout=False)
     test_logger.logger.addHandler(handler)
 
     # Log a message
@@ -304,7 +304,7 @@ def test_logger_complete_format_string(caplog):
 
     # Verify the output contains expected components
     assert "FormitGo (PID:" in output
-    assert "tests.test_logger" in output
+    assert "tests.integration.test_logger" in output
     assert "Test formatter output" in output
     assert "[INFO]" in output
 
@@ -328,7 +328,7 @@ def test_logged_complete_format_string(caplog):
 
     # Get the logger and add our handler
     from cuemsutils.log import main_logger
-    test_logger = main_logger(module_name="tests.test_logger", with_syslog=False, with_stdout=False)
+    test_logger = main_logger(module_name="tests.integration.test_logger", with_syslog=False, with_stdout=False)
     test_logger.logger.addHandler(handler)
 
     # Call a decorated function
@@ -339,7 +339,7 @@ def test_logged_complete_format_string(caplog):
 
     # Verify the output contains expected components
     assert "FormitGo (PID:" in output
-    assert "tests.test_logger" in output
+    assert "tests.integration.test_logger" in output
     assert "Call recieved" in output
     assert "[INFO]" in output or "[DEBUG]" in output
     # Verify the caller field (decorated function name) is present in the format

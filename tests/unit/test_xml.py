@@ -161,7 +161,7 @@ def test_XmlBuilder(caplog):
     assert contents[3].find('Media').find('file_name').text == 'file_video.ext'
 
 reloaded_script, _ = create_dummy_script()
-TMP_FILE = path.dirname(__file__) + '/tmp/test_script.xml'
+TMP_FILE = path.dirname(path.dirname(__file__)) + '/tmp/test_script.xml'
 
 def test_XmlWriter(caplog):
     caplog.set_level(DEBUG)
@@ -227,8 +227,8 @@ def test_XmlReader(caplog):
     }
     assert reloaded_script.cuelist.contents[0].ui_properties['warning'] == 0
 
-TEST_JSON_FILE = path.dirname(__file__) + '/data/sample_script.json'
-TMP_JSON_FILE = path.dirname(__file__) + '/tmp/test_json_script.xml'
+TEST_JSON_FILE = path.dirname(path.dirname(__file__)) + '/data/sample_script.json'
+TMP_JSON_FILE = path.dirname(path.dirname(__file__)) + '/tmp/test_json_script.xml'
 
 def test_jsonload(caplog):
     ## ARRANGE
@@ -299,7 +299,7 @@ def test_json_readwrite(caplog):
     from cuemsutils.xml.Parsers import CuemsParser
 
     caplog.set_level(DEBUG)
-    TMP_PARSED_FILE = path.dirname(__file__) + '/tmp/test_script.json'
+    TMP_PARSED_FILE = path.dirname(path.dirname(__file__)) + '/tmp/test_script.json'
 
     with open(TEST_JSON_FILE) as json_file:
         data = json.load(json_file)
@@ -404,7 +404,7 @@ def test_json_readwrite(caplog):
 
 def test_settings():
     from cuemsutils.xml import Settings
-    SETTINGS_PATH = path.dirname(__file__) + '/data/settings.xml'
+    SETTINGS_PATH = path.dirname(path.dirname(__file__)) + '/data/settings.xml'
 
     settings = Settings(SETTINGS_PATH)
     assert settings.validate() is None
@@ -424,7 +424,7 @@ def test_output_latency_ms_type_round_trip():
     instead of NodeEngine silently always/never emitting the flag.
     """
     from cuemsutils.xml import Settings
-    SETTINGS_PATH = path.dirname(__file__) + '/data/settings.xml'
+    SETTINGS_PATH = path.dirname(path.dirname(__file__)) + '/data/settings.xml'
 
     settings = Settings(SETTINGS_PATH)
     settings.read()
@@ -456,7 +456,7 @@ def test_auto_rejected_on_dmxplayer():
     import xmlschema
 
     from cuemsutils.xml import Settings
-    BAD_PATH = path.dirname(__file__) + '/data/settings_bad_dmx_auto.xml'
+    BAD_PATH = path.dirname(path.dirname(__file__)) + '/data/settings_bad_dmx_auto.xml'
 
     try:
         # Settings() constructor validates+decodes eagerly, so that's
@@ -473,7 +473,7 @@ def test_auto_rejected_on_dmxplayer():
 
 def test_networkmap():
     from cuemsutils.xml import NetworkMap
-    NETWORKMAP_PATH = path.dirname(__file__) + '/data/network_map.xml'
+    NETWORKMAP_PATH = path.dirname(path.dirname(__file__)) + '/data/network_map.xml'
 
     networkmap = NetworkMap(NETWORKMAP_PATH)
     assert networkmap.validate() is None
@@ -487,7 +487,7 @@ def test_networkmap():
 
 def test_projectmappings():
     from cuemsutils.xml import ProjectMappings
-    PROJECTMAPPINGS_PATH = path.dirname(__file__) + '/data/project_mappings.xml'
+    PROJECTMAPPINGS_PATH = path.dirname(path.dirname(__file__)) + '/data/project_mappings.xml'
 
     projectmappings = ProjectMappings(PROJECTMAPPINGS_PATH)
     assert projectmappings.validate() is None
