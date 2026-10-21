@@ -354,7 +354,7 @@ pass-set diff showing only recorded retirements.
   - register `unit`, `integration`, `contract` and `packaging` in `pyproject.toml`'s `markers`, add `addopts = "--strict-markers"`, and change the `filterwarnings` entry to `tests.unit.test_name_coercion`.
 
   T073's test goes green. Commit `test: every test lives in, and is marked by, its kind's directory (017 §14.3)`, then re-record and diff the pass set.
-- [ ] T074 [P] [US6] C4 (FR-073, gh-pages half): in `.github/workflows/gh-pages.yml`, guard the deploy step with `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`. Optionally keep a `mkdocs build --strict` step for pull requests and dispatches (`contracts/ci-workflow.md`). Commit `ci: deploy the site only from pushes to main (017 §14.4)`.
+- [X] T074 [P] [US6] C4 (FR-073, gh-pages half): in `.github/workflows/gh-pages.yml`, guard the deploy step with `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`. Optionally keep a `mkdocs build --strict` step for pull requests and dispatches (`contracts/ci-workflow.md`). Commit `ci: deploy the site only from pushes to main (017 §14.4)`.
 - [ ] T075 [US6] Run quickstart §7's checks into `specs/017-release-line-reconciliation/evidence/cleanup-checks.txt`: the stale-path grep, no root `tests/test_*.py`, and `tests/unit tests/contract` run without network. Finish `evidence/cleanup-pass-set.md`: the before→after diff holds only the recorded retirements (SC-012).
 
 **Checkpoint**: the tree is clean, and the pass set is unchanged except for the recorded retirements.

@@ -1,5 +1,9 @@
 name: Deploy MkDocs site
 
+# The site is DEPLOYED only from a push to main. A pull request or a manual dispatch, from any
+# ref, only BUILDS it as a check. Before feature 017 every pull request and every dispatch ran
+# `mkdocs gh-deploy --force`, so a PR from feat/xml-refactor would have published that branch's
+# docs to the live site (017 §14.4, FR-073).
 on:
   push:
     branches:
@@ -10,18 +14,27 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # gh-deploy pushes the gh-pages branch; used only on a push to main
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
     - name: Install dependencies
       run: pip install mkdocs mkdocs-material mkdocstrings-python
 
-    - name: Deploy to GitHub Pages
+    # Not --strict yet: 156 griffe "no type or annotation" docstring warnings remain
+    # (specs/017-release-line-reconciliation/evidence/cleanup-checks.txt). The build must still
+    # finish without an error.
+    - name: Build the site (every event)
+      run: PYTHONPATH=src mkdocs build
+
+    - name: Deploy to GitHub Pages (push to main only)
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: PYTHONPATH=src mkdocs gh-deploy --force
