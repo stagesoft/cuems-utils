@@ -240,7 +240,7 @@ the relations read 126/126.
   - add `$S/rel/cuems-utils`, a worktree at the 017 head.
 
   Run `verdicts-017.sh $S/rel` into `specs/017-release-line-reconciliation/evidence/verdicts-017.txt`, with each worktree's commit written above the verdicts. Expected `126/126` (SC-007). Afterwards, `git -C ../<repo> worktree remove $S/rel/<repo>`; that touches only git's worktree list, never the sibling's checkout or branch.
-- [ ] T050 [US3] Build `0.1.1` with 016's tool, using its real interface (FR-035, quickstart §5):
+- [X] T050 [US3] Build `0.1.1` with 016's tool, using its real interface (FR-035, quickstart §5):
   - `git worktree add --detach $S/wt-build <017 head>`, because the tool refuses a dirty checkout;
   - then `UTILS=$S/wt-build OUT=$R/specs/017-release-line-reconciliation/evidence/bookworm-build.txt $R/specs/016-coordinated-minor-bump/tools/bookworm-build.sh $S/wt-build`.
 

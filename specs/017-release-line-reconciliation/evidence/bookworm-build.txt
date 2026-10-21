@@ -1,0 +1,28 @@
+# 016 bookworm build — wt-build (mmdebstrap --mode=unshare; tools/bookworm-build.sh)
+date: 2026-10-21T21:06:35+02:00
+host: Debian GNU/Linux 13 (trixie), mmdebstrap 1.5.7
+repo: wt-build @ 009fb94d97f4dd402dabce2dc73073f7b81ce456, changelog version 0.1.1
+cuemsutils wheel: cuemsutils-0.1.1-py3-none-any.whl from /tmp/claude-1000/-disk-Projects-StageLab-cuems-utils/5ed4cc43-5e7a-4f7f-b4f5-bd626a72db7f/scratchpad/wt-build @ 009fb94d97f4dd402dabce2dc73073f7b81ce456 (clean)
+
+## chroot
+os: Debian GNU/Linux 12 (bookworm)
+python3: /usr/bin/python3 -> /usr/bin/python3.11 Python 3.11.2
+dh-virtualenv 1.2.2-1.3
+debhelper 13.11.4
+
+## result
+pass1 OK
+build OK
+
+## packages
+cuems-utils_0.1.1_amd64.deb  sha256 8e354473e932b70f6e98edbd68f0dd7083bbf6668f7062c8625ed3ea4d29a765
+  Package: cuems-utils
+  Version: 0.1.1
+  Architecture: amd64
+  Depends: python3 (>= 3.11), python3 (<< 3.12), libc6 (>= 2.34), python3-systemd, python3-daemon
+  Breaks: cuems-common (<< 1.3.1~)
+
+## venv interpreter
+pyvenv.cfg: home = /usr/bin
+
+## verdict: OK
