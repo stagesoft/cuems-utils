@@ -7,7 +7,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # cuems-utils
 
-**Current release: v0.1.0rc8** — see [CHANGELOG.md](./CHANGELOG.md).
+**Next release: v0.1.1** (unreleased; the first stable release) — see [CHANGELOG.md](./CHANGELOG.md).
 
 **Shared data models, timecode utilities, XML tooling, and configuration primitives for the CueMS system.**
 
@@ -28,7 +28,8 @@ It is composed of:
 
 * **`cuemsutils.cues`** — the full cue data model hierarchy (audio, video, DMX, fade, action) used by both the engine and the editor
 * **`cuemsutils.tools`** — runtime utilities: timecode (`CTimecode`, `CTimecodeTimer`), fade calculation, NNG communications, systemd integration, configuration management
-* **`cuemsutils.xml`** — XML schema validation, project-file serialization, and settings parsing built on `xmlschema` and `lxml`
+* **`cuemsutils.errors`** — the one public error and report module (`SchemaError`, `ValidationError`, `IngestError`, `LoadReport`, …)
+* the bundled **XSD schemas** and three console tools (`cuems-convert-documents`, `cuems-reshape-devices`, `cuems-init-node`). `cuemsutils.xml` is internal and exports nothing; documents are read and written through `CuemsScript` and `ConfigManager`
 
 ---
 
@@ -40,18 +41,18 @@ It is composed of:
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          cuems-utils                                │
 │                                                                     │
-│  cues/          tools/                  xml/                        │
+│  cues/          tools/                  schemas/  (+ errors)        │
 │  ──────         ──────────────────      ──────────────────────      │
-│  Cue            CTimecode               XmlReaderWriter             │
-│  MediaCue       CTimecodeTimer          XmlBuilder                  │
-│  AudioCue       FadeCalculator          Settings                    │
-│  VideoCue       FadeProfile             CMLCuemsConverter           │
-│  DmxCue         ConfigManager          (schemas/)                   │
-│  FadeCue        CommunicatorServices    script.xsd                  │
-│  ActionCue      HubServices             settings.xsd                │
-│  CueList        SignalEngine            project_mappings.xsd        │
-│  CuemsScript    CTimecodeTimer          network_map.xsd             │
-│  CueOutput      Uuid, Logger, …                                     │
+│  Cue            CTimecode               script.xsd                  │
+│  MediaCue       CTimecodeTimer          settings.xsd                │
+│  AudioCue       FadeCalculator          network_map.xsd             │
+│  VideoCue       ConfigManager           project_mappings.xsd        │
+│  DmxCue         NodeList (NodeIndex)    project_settings.xsd        │
+│  FadeCue        CommunicatorServices    hardware_outputs.xsd        │
+│  ActionCue      HubServices                                         │
+│  CueList        SignalEngine            cuemsutils.errors           │
+│  CuemsScript    Uuid, Logger, …         (LoadReport, SchemaError…)  │
+│  CueOutput                                                          │
 └─────────────────────────────────────────────────────────────────────┘
          ↓                    ↓
    cuems-engine          cuems-editor
@@ -59,8 +60,8 @@ It is composed of:
 
 * **Cue models** travel as serialized XML or JSON between the editor (authoring) and the engine (playback). Both sides parse and construct them through the same `CuemsScript` / `CueList` / `MediaCue` hierarchy defined here.
 * **CTimecode** is the authoritative SMPTE timecode wrapper used for all scheduling, boundary evaluation, and MTC-to-millisecond conversion throughout the system.
-* **XML tooling** validates project files against XSD schemas, reads and writes them, and exposes the decoded data as typed Python objects.
-* **Configuration tools** (`ConfigManager`, `Settings`) abstract over `/etc/cuems/` paths, environment overrides, and settings.xml loading.
+* **Documents** are read and written through the public object API: `CuemsScript.load` / `save` for a show, `ConfigManager` for a node's configuration. Every read validates the schema (T1) and the semantic rules (T2), converts a version-old document in memory, and reports what it did.
+* **Configuration** (`ConfigManager`) abstracts over `/etc/cuems/` paths (`CUEMS_CONF_PATH`), and loads and saves `settings.xml`, `network_map.xml` and the project documents as objects.
 
 ---
 
@@ -68,19 +69,18 @@ It is composed of:
 
 ### Cues: `cues/`
 
-The cue data model — the unit of show control. All classes are serializable to/from XML (via `XmlReaderWriter`) and JSON (via `CuemsScript.to_json()`).
+The cue data model — the unit of show control. A show is read and written as XML through `CuemsScript.load` / `save`, and as JSON through `to_json` / `from_json`.
 
 * **`Cue`** — abstract base cue; owns `id`, `name`, `description`, `pre_wait`, `post_wait`, `enabled`, `ui_properties`.
 * **`MediaCue`** — extends `Cue` with media file reference, `autoload`, and `CueOutput` list. Base for all media-playing cues.
 * **`AudioCue`** — audio playback cue; owns JACK routing, level, and loop count. Contains MTC-polling loop using `.milliseconds_rounded` / `.milliseconds_exact`.
 * **`VideoCue`** — video playback cue; canvas region routing (monitor alias or custom normalized-float rectangle), level. Uses `.milliseconds_rounded` for MTC polling.
 * **`DmxCue`** — DMX playback cue; universe, channel, and level mapping. Offset calculations use `.milliseconds_exact` for drift-safe float math.
-* **`FadeCue`** — fade action cue; owns `curve_type` (`FadeCurveType` enum: `linear`, `exponential`, `logarithmic`, `sigmoid`), `duration`, `target_value`. Inherits from `ActionCue`.
-* **`ActionCue`** — action cue base; owns `action_type` and `action_target` (the id of the cue to act on).
-* **`FadeProfile`** — reusable fade envelope data class; holds a named fade curve with amplitude samples.
+* **`FadeCue`** — fade action cue; owns `curve_type` (`FadeCurveType` enum: `linear`, `exponential`, `logarithmic`, `sigmoid`, `ease_in`, `ease_out`), `duration`, `target_value`. Inherits from `ActionCue`.
+* **`ActionCue`** — action cue base; owns `action_type` and `action_target` (the id of the cue to act on). `stop_project`, the authored end of an unattended show, acts on the whole project and takes no target.
 * **`CueOutput`** — per-output routing descriptor on `MediaCue`. `VideoCueOutput` additionally carries an optional `canvas_region` (normalized `[0,1]` rectangle) for custom video placement.
 * **`CueList`** — ordered list of cues; owns `get_next_cue`, `get_cue_by_id`, `get_media`, and `get_all_output_names`. Skips disabled cues in traversal.
-* **`CuemsScript`** — top-level project model wrapping a `CueList`; owns `to_json()`, `get_media()`, and script-level metadata.
+* **`CuemsScript`** — top-level project model wrapping a `CueList`. The public entry points: `CuemsScript.load(path)`, `CuemsScript.load_with_report(path)` (returns the script and a `LoadReport`), `script.save(path)` (validates, then writes atomically), `script.validate()`, `CuemsScript.from_json(payload)`, `script.to_json()` and `script.to_wire()`.
 
 ---
 
@@ -100,7 +100,7 @@ Runtime utilities shared by all CueMS processes.
 
 * **`FadeCalculator`** — stateless calculator that produces a `zip` of `(timecode, value)` pairs between `start_time` and `end_time` at quarter-frame resolution. Supports named fade functions (`linear`, `exponential`, `logarithmic`, `sigmoid`) or any callable. Unit: start/end are `CTimecode` instances; intermediate values are milliseconds (fixed division by 1000 after 0.1.0rc6 unit-error fix).
 
-* **`ConfigManager`** — singleton that loads and caches `settings.xml`, `network_map.xml`, and `project_mappings.xml` from configurable paths. Exposes typed accessors (`get_video_output_id`, `get_nng_hub_port`, …). Conditional file loading at init — absent optional files are silently skipped.
+* **`ConfigManager`** — loads and caches a node's configuration (`settings.xml`, `network_map.xml`, `project_mappings.xml`, `project_settings.xml`) from `CUEMS_CONF_PATH` (default `/etc/cuems`), answering with objects (`load_*`), and writes them back (`save_settings`, `save_network_map`, `save_project_mappings`, `save_project_settings`). `ConfigManager.from_json(schema, payload)` builds a configuration document from JSON, `to_wire(section)` projects one, and `get_schema_descriptor()` describes every schema for a UI. `cuemsutils.tools.validate_config_document(path)` validates one without an installation.
 
 * **`CommunicatorServices`** — NNG-based request/response communicator (wraps `pynng`). Exposes `NngRequestResponse` and `NngBusHub` for inter-process messaging between engine and node processes.
 
@@ -118,24 +118,45 @@ Runtime utilities shared by all CueMS processes.
 
 ---
 
-### XML: `xml/`
+### Documents: the public object API, the schemas and the tools
 
-Project file I/O, validation, and settings loading, built on `xmlschema` 3.x and `lxml` 5.x.
+`cuemsutils.xml` is internal and exports nothing. Read and write documents through the objects:
 
-* **`XmlReaderWriter`** — unified reader/writer for CueMS XML project files. Validates against the bundled XSD on read and write. Supersedes the deprecated `XmlReader` / `XmlWriter` split.
-* **`XmlBuilder`** — low-level XML element construction from Python dicts; used internally by `XmlReaderWriter`.
-* **`Settings`** — base class for XML-backed configuration files. `xmlschema.to_dict()` decodes to typed Python: `int` for integer elements, `str` for `"auto"`, `None` for absent optional elements.
-* **`CMLCuemsConverter`** — converter from the legacy CML format to `CuemsScript` objects.
-* **`Parsers`** — XML parsing helpers.
+```python
+from cuemsutils.cues.CuemsScript import CuemsScript
+from cuemsutils.errors import SchemaError, ValidationError
 
-**Bundled schemas (`xml/schemas/`):**
+script, report = CuemsScript.load_with_report("project/script.xml")
+print(report.outcome)            # Outcome.CLEAN, CONVERTED or REPAIRED; report.repairs says what
+script.save("project/script.xml")  # T1 + T2 first; nothing is written if either fails
+```
+
+* **Every read is strict.** The schema (T1) and the semantic rules (T2) run on every load. A
+  version-old document is converted **in memory** (the file is untouched). A repairable violation is
+  repaired to the field's declared default and reported. An unrepairable one raises
+  `ValidationError`, and a structural one raises `SchemaError`.
+* **Every write validates first** and replaces the file atomically.
+* The deprecated `XmlReaderWriter`, `XmlBuilder` and `Parsers` still import in `0.1.1`, with a
+  warning, and are **removed in `v0.1.2`**.
+
+**Bundled schemas (`src/cuemsutils/xml/schemas/`, installed to `/usr/share/cuems/schemas/`):**
 
 | Schema | Validates |
 |---|---|
-| `script.xsd` | Project cuelists — full `CuemsScript` / `CueList` / cue hierarchy |
-| `settings.xsd` | Node settings files (`/etc/cuems/settings.xml`) including player types, output latency, and `gradient_osc_port` |
-| `project_mappings.xsd` | Output routing — node UUIDs, monitor aliases, and custom canvas templates |
-| `network_map.xsd` | Node fleet topology |
+| `script.xsd` | A show: `CuemsScript` / `CueList` / cue hierarchy |
+| `settings.xsd` | A node's settings (`/etc/cuems/settings.xml`): players, OSC ports (including `gradient_osc_port` on `NodeConfType`), output latency |
+| `network_map.xsd` | The node fleet: identities, roles (`controller` / `node` / `firstrun`), adoption |
+| `project_mappings.xsd` | Output routing: devices by class, monitor aliases, custom canvas templates |
+| `project_settings.xsd` | Per-project settings |
+| `hardware_outputs.xsd` | A node's hardware outputs |
+
+**Console tools** (installed into the shared venv and `/usr/bin`):
+
+* `cuems-reshape-devices` — rewrites documents in the pre-013 device shape into the current one (backup first).
+* `cuems-convert-documents` — upgrades version-old documents to the current schema version (backup first). Run it **after** `cuems-reshape-devices`.
+* `cuems-init-node` — provisions a node's identity and its three configuration documents.
+
+Both migration tools report every document the loader would refuse after they wrote it, and accept `--check`.
 
 ---
 
@@ -152,7 +173,7 @@ Project file I/O, validation, and settings loading, built on `xmlschema` 3.x and
 * **Cue** — a discrete show event (audio, video, DMX, fade, or action) with pre/post-wait offsets, arming state, and output routing.
 * **CuemsScript** — the top-level project model; a serializable tree of `CueList` and cues that travels between editor, engine, and nodes.
 * **Canvas Region** — a normalized `[0,1]` rectangle (top-left origin) used to place video cues on a node canvas without referencing physical pixel coordinates. Distinct roles in `project_mappings.xsd` (UI template slot) and `script.xsd` (per-cue instance).
-* **Settings** — the XML-backed runtime configuration for each node (`settings.xml`), including player binary paths, OSC ports, output latency overrides, and `gradient_osc_port`.
+* **Settings** — the runtime configuration of each node (`settings.xml`): player binary paths, OSC ports, output latency overrides and `gradient_osc_port`. Read and written through `ConfigManager`.
 
 ---
 
@@ -184,16 +205,17 @@ pip install "cuemsutils[all]"       # all optional dependencies
 
 ### Debian package
 
-The `debian/bookworm` branch carries the packaging metadata for building a native `.deb`:
+The package is `cuems-utils`, built from `debian/` on the working branch, inside a bookworm
+environment (the venv's interpreter must be bookworm's `/usr/bin/python3`):
 
 ```bash
-git clone --branch debian/bookworm https://github.com/stagesoft/cuems-utils.git
-cd cuems-utils
-dpkg-buildpackage -us -uc
-sudo dpkg -i ../python3-cuemsutils_*.deb
+dpkg-buildpackage -us -uc -b
+sudo dpkg -i ../cuems-utils_*.deb
 ```
 
-The `cuems-engine` Debian package declares `cuems-utils` as a system dependency; installing `cuems-engine` via apt will pull in `cuemsutils` automatically.
+It installs the library into the shared venv `/usr/lib/cuems`, the schemas into
+`/usr/share/cuems/schemas`, and, on first install, the node's documents into `/etc/cuems`.
+`cuems-engine`, `cuems-editor` and the other CueMS packages depend on it.
 
 ---
 
@@ -214,8 +236,7 @@ pip install -e ".[all]"
 ### Run tests
 
 ```bash
-cd src
-pytest
+uvx hatch run test.py3.11:run -- -q     # the suite on 3.11 (as CI gates)
 ```
 
 Useful invocations:
@@ -224,8 +245,8 @@ Useful invocations:
 pytest -m "not slow"                          # skip long-running tests
 pytest --cov=cuemsutils                       # with coverage report
 pytest -W error::DeprecationWarning           # surface remaining .milliseconds call-sites
-hatch test                                    # run full 3.11/3.12/3.13 matrix
-hatch test --cover                            # matrix with coverage
+uvx hatch run test:run -- -q                  # the 3.11/3.12/3.13 matrix
+uvx hatch run test:run-cov                    # with coverage
 ```
 
 ### Code style
@@ -238,40 +259,18 @@ ruff check .
 
 ## Release notes
 
-See [CHANGELOG.md](./CHANGELOG.md) for the full history.
+See [CHANGELOG.md](./CHANGELOG.md) for every release from `0.1.0rc5` on, and git tags and PyPI
+for the earlier ones.
 
-### v0.1.0rc8 — 2026-05-20
+**v0.1.1** (unreleased) is the first stable release:
+* one public object API (`CuemsScript`, `ConfigManager`, `cuemsutils.errors`);
+* strict, reporting reads, with versioned documents;
+* the device-class document shape;
+* `xs:boolean`;
+* uuid4 node identities;
+* `/etc/cuems` first install.
 
-Production call-site migration to `CTimecode` v2 API, deprecated method removal, and new `gradient_osc_port` settings field.
-
-**Fixed**
-- `AudioCue`, `VideoCue`, `DmxCue`: migrated remaining `.milliseconds` call-sites to `.milliseconds_rounded` (MTC polling loops) and `.milliseconds_exact` (drift-sensitive offset calculations). These three consumers still emitted `DeprecationWarning` at runtime after the 0.1.0rc6 library-level migration.
-
-**Removed**
-- `VideoCue.video_media_loop` — deprecated since 0.0.9rc5. Zero callers confirmed across cuems-engine, cuems-editor, and cuems-utils. Superseded by `loop_videoCue` in `cuems-engine`.
-
-**Added**
-- `gradient_osc_port` added as a required field on `NodeType` in `settings.xsd`. This is the UDP port `gradient-motiond` listens on for OSC commands from `GradientClient`. Propagated to `templates/settings.xml` and all test fixtures.
-
-### v0.1.0rc7 — 2026-04-27
-
-24h SMPTE rollover fix for `CTimecode.__str__` (closes ClickUp 869cpdbzy, Layer 1). `frames=2_160_002` at 25 fps now renders as `"24:00:00:01"` rather than wrapping to `"00:00:00:01"`. Layer 2 (MTC listener wrap detection) lives in `cuems-engine`.
-
-### v0.1.0rc6 — 2026-04-27
-
-`CTimecode` hardening pass (closes ClickUp 869cyndtv items #1–#7). Playhead-semantic `__init__`, correct arithmetic operators, `.milliseconds` precision split (`_exact` / `_rounded`), `framerate` canonical types, `FadeCalculator` ms-unit fix, `format_timecode +1` workaround removed.
-
-### v0.1.0rc5 — 2026-04-22
-
-`settings.xsd`: optional `output_latency_ms` on all three player types (`AudioPlayerType`, `VideoPlayerType`, `DmxPlayerType`). Strictly additive; existing `settings.xml` files remain valid.
-
-### v0.1.0rc4
-
-`FadeCue` class with XSD schema integration and full test suite. `FadeProfile` and `FadeCalculator` base. `CTimecodeTimer` quarter-frame timer. Canvas region (normalized `[0,1]` floats) for custom video placement.
-
-### v0.1.0
-
-First stable release. Python 3.13 compatibility. `localize_cue`, `get_video_output_id` rename, `nng_hub_port` settings field, `Logger` caller attribution.
+It also absorbs everything the release line shipped up to `0.1.0rc17`.
 
 ---
 
