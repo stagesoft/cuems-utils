@@ -291,13 +291,13 @@ document points at 017. The tag message is T081.
 
 **Independent test**: the files below exist with the content FR-042 and FR-050–FR-052 require.
 
-- [ ] T055 [P] [US5] Rewrite `CLAUDE.md` (FR-050):
+- [X] T055 [P] [US5] Rewrite `CLAUDE.md` (FR-050):
   - the merged `stop_project` field note becomes: the value is in version-2 `script.xsd`; A-1's targetless rule and the repair of a leftover target; skew rule "every box on ≥ 0.1.1"; the rollback hazard stays; and `pause_project`/`resume_project` are retired, pointing at the handover document;
   - the "two packaging lines" paragraph states that `debian/bookworm` ⊂ `feat/xml-refactor` at the M1 sha, and that the release line may keep releasing (Q10);
   - add a Recent Changes entry for 017.
-- [ ] T056 [P] [US5] Rewrite the merged `ActionCue` class docstring in `src/cuemsutils/cues/ActionCue.py` for the public path (FR-051): `stop_project` takes no target (`None`, written `<action_target />`), a leftover target is repaired on load and refused on save, and `pause_project`/`resume_project` are not values. Remove the "parses to `None` because the parsers bypass the setter" sentence. **No code change in this task.**
-- [ ] T057 [P] [US5] In `specs/planning/coordinated-release-version-bump.md`, "still owed" item 1: mark `cuems-utils` reconciled at the M1 sha and point at `specs/017-release-line-reconciliation/` (FR-052).
-- [ ] T058 [US5] Commit T055–T057 as `docs: describe 0.1.1 after the release-line merge (017)`.
+- [X] T056 [P] [US5] Rewrite the merged `ActionCue` class docstring in `src/cuemsutils/cues/ActionCue.py` for the public path (FR-051): `stop_project` takes no target (`None`, written `<action_target />`), a leftover target is repaired on load and refused on save, and `pause_project`/`resume_project` are not values. Remove the "parses to `None` because the parsers bypass the setter" sentence. **No code change in this task.**
+- [X] T057 [P] [US5] In `specs/planning/coordinated-release-version-bump.md`, "still owed" item 1: mark `cuems-utils` reconciled at the M1 sha and point at `specs/017-release-line-reconciliation/` (FR-052).
+- [X] T058 [US5] Commit T055–T057 as `docs: describe 0.1.1 after the release-line merge (017)`.
 - [ ] T059 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/cuems-editor.md`: `CueList.get_media` now raises a named `ValueError` for an invalid media block and skips `None` (869fej07m); the editor's half of `stop_project` (send `null`, or no target); and a leftover target is refused on save and repaired on load.
 - [ ] T060 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/cuems-frontend.md`: the descriptor publishes **11** action types (`stop_project` in, `pause_project`/`resume_project` out), a `null` target is accepted for `stop_project`, and the handover document is linked.
 - [ ] T061 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/cuems-engine.md`: its reconciliation must drop `pause_project`/`resume_project` from `ActionHandler.py:29` and from bookworm `tests/test_action_cue.py:1519`'s parametrization. Point at the handover document, and record for reference that `>= 0.1.0rc17` cannot be resolved from PyPI (its pre-spec already moves to `>= 0.1.1`). X-4 is answered `None`.

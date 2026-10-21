@@ -52,14 +52,14 @@ that file later moves, any more than a past git commit message would be.
 
 ## Field notes / gotchas
 
-- **`script.xsd` `ActionType` has `stop_project` since 0.1.0rc17** (the engine's authored end-of-show cue, ClickUp 869fhjdq5). Project-scope: `action_target` is written empty and parses to `None` (the parsers bypass the setter; the constructor/setter still refuse `None`). **Skew rule:** every box of a cluster on ≥ rc17 before such a project is saved; ≤ rc16 rejects it at validation (editor cannot save or open, controller load fails early, a node fails its load after tearing the old project down → "Load stalled"). **Rollback hazard:** a utils downgrade strands such a project until the `stop_project` `<ActionCue>` is removed from `cue_script.xml` by hand.
+- **`script.xsd` `ActionType` has `stop_project`** (rc17's authored end-of-show cue, ClickUp 869fhjdq5; in the version-2 schema since feature 017). It is the one member of `cues.ActionCue.TARGETLESS_ACTION_TYPES`: its target is `None` (accepted at construction, setter and `from_json`; written `<action_target />`). A leftover target is **repaired to `None` on load** (rule `project_action_takes_no_target`, reported) and **refused on save**. `pause_project`/`resume_project` were **retired** in 017 (project pause/resume deferred; `specs/planning/project-pause-resume-deferred.md`, which also records that `libmtcmaster`'s `pause()` *is* `play()`, a toggle). **Skew rule:** every box of a cluster on **≥ 0.1.1** (or ≥ rc17 on the release line) before such a project is saved; an older library rejects it at validation (editor cannot save or open, controller load fails early, a node fails its load after tearing the old project down → "Load stalled"). **Rollback hazard:** a utils downgrade strands such a project until the `stop_project` cue is removed from `cue_script.xml` by hand.
 
 - **The shared venv `/usr/lib/cuems` is one-way**: it has `include-system-site-packages = true`, so the venv sees system packages but the system `/usr/bin/python3` **cannot** import `cuemsutils`. Any tool whose entry points live in `/usr/bin` (dh-python3) must not `import cuemsutils` — reimplement with stdlib. (See the portable-.deb notes in the cuems-thermalmon CLAUDE.md.)
 - Many packages populate that shared venv (`cuemsutils`, pynng, lxml, **websockets** from cuems-utils; **pythonosc** from cuems-engine; plus editor/nodeconf/midi-connector). A `.deb` must not bundle anything another package already ships, or `dpkg -i` aborts on a file-overwrite conflict. lxml is bundled at 5.3.0 (CVE-2026-41066 fixed in 6.1.0; audited across all components — zero parser call sites, reachable risk nil).
 
 ### Building the `.deb` — verify the venv interpreter before shipping
 
-Built from **`debian/` on the working branch** — add a `debian/changelog` entry, then `dpkg-buildpackage -us -uc -b`; artifacts land in the parent dir. **Changed 2026-09-24**: packaging used to live on a separate `debian/bookworm` branch whose workflow was "merge `main` in first", and that merge stopped happening — the branch sat seven weeks and 132 commits behind at `0.1.0rc14` while the source reached rc16, so two release candidates left the tree with no changelog entry at all (both written retrospectively, marked NOT BUILT). ⚠ **Corrected 2026-10-16 (feature 016):** that note was wrong. `origin/debian/bookworm` is **still the active release line**: it cut `0.1.0rc16+1` and `0.1.0rc17` by exactly the merge-`main`-in workflow, and **no `packaging-rc14` tag exists**. So this repository has two packaging lines. The refactor's `debian/` lives on the working branch, and the release line keeps shipping `0.1.0rcN` from `debian/bookworm` until rule 4's reconciliation (`specs/planning/coordinated-release-version-bump.md`). Measure against `debian/bookworm`, never `main`. This also matches `cuems-common`, `cuems-power-bridge` and `cuems-nodeconf`, which all keep `debian/` on the working branch. See `debian/README.source` for the trixie and CI/CD intentions.
+Built from **`debian/` on the working branch** — add a `debian/changelog` entry, then `dpkg-buildpackage -us -uc -b`; artifacts land in the parent dir. **Changed 2026-09-24**: packaging used to live on a separate `debian/bookworm` branch whose workflow was "merge `main` in first", and that merge stopped happening — the branch sat seven weeks and 132 commits behind at `0.1.0rc14` while the source reached rc16, so two release candidates left the tree with no changelog entry at all (both written retrospectively, marked NOT BUILT). ⚠ **Corrected 2026-10-16 (feature 016):** that note was wrong. `origin/debian/bookworm` is **still the active release line**: it cut `0.1.0rc16+1` and `0.1.0rc17` by exactly the merge-`main`-in workflow, and **no `packaging-rc14` tag exists**. So this repository has two packaging lines. The refactor's `debian/` lives on the working branch, and the release line keeps shipping `0.1.0rcN` from `debian/bookworm` until rule 4's reconciliation (`specs/planning/coordinated-release-version-bump.md`). Measure against `debian/bookworm`, never `main`. This also matches `cuems-common`, `cuems-power-bridge` and `cuems-nodeconf`, which all keep `debian/` on the working branch. See `debian/README.source` for the trixie and CI/CD intentions. **Reconciled 2026-10-21 (feature 017):** `origin/debian/bookworm` (`0.1.0rc17`) and `origin/main` (`v0.1.0rc17`) are merged into the refactor (M1 `6a17392`), so `debian/bookworm` ⊂ `feat/xml-refactor` once 017 lands. The line **may keep cutting `0.1.0rcN` until `0.1.1` is published** (017 Q10); each such release is merged in the same way, never cherry-picked, and `tests/packaging/test_changelog_completeness.py` fails if a released entry goes missing or drifts. Re-measure with `git rev-list --count HEAD..origin/debian/bookworm` (must be 0).
 
 `debian/rules` pins `dh_virtualenv --python /usr/bin/python3` **by absolute path on purpose**. It used to say `--python python3`, which resolves through `PATH` — so building on a dev box with **pyenv** active baked the builder's private interpreter into the package:
 
@@ -217,6 +217,31 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   published anywhere). `pip index` omits yanked releases, so query the JSON API.
 
 ## Recent Changes
+
+- **`017-release-line-reconciliation` IMPLEMENTED** (2026-10-21/22, on its branch; merges into
+  `feat/xml-refactor` with `--no-ff`; **nothing pushed, no tag moved**). Rule 4 ("merge before bump")
+  for this repository: `origin/debian/bookworm` (`398a9cf`, `0.1.0rc17`) merged in (M1 `6a17392`), then
+  `origin/main` (M2, empty tree) and `v0.0.9rc7`'s ancestry (M3, `-s ours`, empty tree). `0.1.1` now
+  carries rc15 (stored media values, `Replaces: cuems-engine (<< 0.1.0rc6-2~)`), rc16 (media guards),
+  rc16+1 (no `CACHEDIR.TAG`) and rc17 (`stop_project`). See `specs/017-release-line-reconciliation/`.
+  - **A-1:** `TARGETLESS_ACTION_TYPES = {"stop_project"}`, consulted by three T2 rules and the
+    constructor. A leftover target is repaired on load and refused on save. The descriptor's
+    repairability map is now conservative (repairable only if every rule on the field is), a measured
+    no-op for every existing field. **Q13:** `pause_project`/`resume_project` retired (11 action types).
+  - **The migration tools now report** documents the loader would refuse after they wrote them
+    (`xml/load_check.py`), about 21 ms per document; `python -m cuemsutils.xml.reshape_devices` works.
+  - **Measured traps worth keeping:**
+    - `python -I` ignores `PYTHONPATH`; use `-P` to pick an arm.
+    - Worktrees under the scratchpad hide the 22 sibling-reading tests, which skip there. Arm A
+      beside the siblings has **7 pre-existing failures**: one migration-guide version check against
+      the engine's current checkout, and six release-matrix `XPASS(strict)` since the 016 re-cut.
+    - `tests/golden/api/public_api.json` is **not** in canonical sort order, so insert into it as text.
+    - The bookworm `debian/changelog` copies of `0.1.0rc5`/`0.0.7-*` are truncated (no trailer).
+    - `0.1.0rc5` and `0.1.0rc6` were **never published**; PyPI's JSON API is the source, because
+      `pip index` hides yanked releases.
+  - **`expects_deprecation` now means something:** 14 test modules import the deprecated XML surface,
+    all marked, guarded by `tests/contract/test_deprecated_imports_are_marked.py`, and listed in the
+    `v0.1.2` removal plan's R10.
 
 - **`016-coordinated-minor-bump` IMPLEMENTED and MERGED** (2026-10-15/16; merged into
   `feat/xml-refactor` and pushed with the six siblings; **no tag created or moved by the feature**, and
