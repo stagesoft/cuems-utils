@@ -143,3 +143,10 @@ All 104 tests in the 26 files that exercise either tool pass on `6768e96`.
 | Test | Red | Green |
 |---|---|---|
 | `tests/contract/test_public_api_surface.py::test_public_api_matches_the_snapshot` | **red** once `MediaCue` joined `PUBLIC_CLASSES` | passed after the surgical golden insert (`evidence/public-api-rehash.txt`: 68 added, 0 deleted) |
+
+## End of US2: full suite on the 017 head, in the real checkout beside the siblings
+
+**3899 passed, 7 failed, 112 skipped, 2 xfailed, 277 warnings** (36.20 s). The 7 are exactly arm
+A's pre-existing set (`suite-A-1b.md`), so **017 adds no failure**. The warning count is back to
+arm A's **277**, from the merged tree's 475: the absorbed tests' `DeprecationWarning`s left with
+their public-API ports, as the work order predicted (§13).

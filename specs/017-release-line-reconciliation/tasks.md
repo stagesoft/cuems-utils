@@ -203,7 +203,7 @@ is pinned, `MediaCue` is snapshotted, and the 14-row inventory is proven.
   - `Unset` is never returned.
 
   Record it as `held` (it is a pin) and commit `test: pin absent stored-media values as None (017 A-6, X-4)`.
-- [~] T043 [US2] FR-029b: `git grep -nE "XmlReaderWriter|xml\.Parsers|xml\.XmlBuilder|from cuemsutils\.xml import (Parsers|XmlBuilder)" -- tests/`. Every hit must be in a module marked `expects_deprecation` (frozen-shim contract). Record the output in `specs/017-release-line-reconciliation/evidence/deprecated-imports.txt` (SC-006).
+- [ ] T043 [US2] FR-029b: `git grep -nE "XmlReaderWriter|xml\.Parsers|xml\.XmlBuilder|from cuemsutils\.xml import (Parsers|XmlBuilder)" -- tests/`. Every hit must be in a module marked `expects_deprecation` (frozen-shim contract). Record the output in `specs/017-release-line-reconciliation/evidence/deprecated-imports.txt` (SC-006).
 - [X] T044 [US2] FR-026a (last adaptation):
   - add `"MediaCue": ("cuemsutils.cues.MediaCue", "MediaCue")` to `PUBLIC_CLASSES` in `tests/contract/test_public_api_surface.py` and record `test_public_api_matches_the_snapshot` red;
   - insert the `MediaCue` block by hand, in sorted position, into `tests/golden/api/public_api.json`, and update that file's line in `tests/golden/MANIFEST.sha256`;
@@ -211,7 +211,7 @@ is pinned, `MediaCue` is snapshotted, and the 14-row inventory is proven.
   - confirm `git diff --numstat -- tests/golden/api/public_api.json` shows 0 deleted lines, and save that output to `specs/017-release-line-reconciliation/evidence/public-api-rehash.txt` (SC-016).
 
   Commit `test(contract): snapshot MediaCue's public surface (017 FR-026a, Q8)`.
-- [ ] T045 [US2] Write `specs/017-release-line-reconciliation/evidence/inventory.md`: 14 rows in data-model §4's columns, one per spec FR-003 inventory item, each naming its proof (test node id, packaging test, or the history check with its command and output).
+- [X] T045 [US2] Write `specs/017-release-line-reconciliation/evidence/inventory.md`: 14 rows in data-model §4's columns, one per spec FR-003 inventory item, each naming its proof (test node id, packaging test, or the history check with its command and output).
 
 **Checkpoint**: US2 is green, and the merged-only red set is empty.
 
