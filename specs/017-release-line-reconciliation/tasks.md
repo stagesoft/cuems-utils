@@ -298,17 +298,17 @@ document points at 017. The tag message is T081.
 - [X] T056 [P] [US5] Rewrite the merged `ActionCue` class docstring in `src/cuemsutils/cues/ActionCue.py` for the public path (FR-051): `stop_project` takes no target (`None`, written `<action_target />`), a leftover target is repaired on load and refused on save, and `pause_project`/`resume_project` are not values. Remove the "parses to `None` because the parsers bypass the setter" sentence. **No code change in this task.**
 - [X] T057 [P] [US5] In `specs/planning/coordinated-release-version-bump.md`, "still owed" item 1: mark `cuems-utils` reconciled at the M1 sha and point at `specs/017-release-line-reconciliation/` (FR-052).
 - [X] T058 [US5] Commit T055–T057 as `docs: describe 0.1.1 after the release-line merge (017)`.
-- [ ] T059 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/cuems-editor.md`: `CueList.get_media` now raises a named `ValueError` for an invalid media block and skips `None` (869fej07m); the editor's half of `stop_project` (send `null`, or no target); and a leftover target is refused on save and repaired on load.
-- [ ] T060 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/cuems-frontend.md`: the descriptor publishes **11** action types (`stop_project` in, `pause_project`/`resume_project` out), a `null` target is accepted for `stop_project`, and the handover document is linked.
-- [ ] T061 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/cuems-engine.md`: its reconciliation must drop `pause_project`/`resume_project` from `ActionHandler.py:29` and from bookworm `tests/test_action_cue.py:1519`'s parametrization. Point at the handover document, and record for reference that `>= 0.1.0rc17` cannot be resolved from PyPI (its pre-spec already moves to `>= 0.1.1`). X-4 is answered `None`.
-- [ ] T062 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/cuems-power-bridge.md`: its half of the `stop_project` wire contract must show at its re-cut tag, and X-3 (nobody ships `CACHEDIR.TAG`) is this package's half, pinned.
-- [ ] T063 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/release-line-hygiene.md` for the release-line maintainer (FR-042, §14.6):
+- [X] T059 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/cuems-editor.md`: `CueList.get_media` now raises a named `ValueError` for an invalid media block and skips `None` (869fej07m); the editor's half of `stop_project` (send `null`, or no target); and a leftover target is refused on save and repaired on load.
+- [X] T060 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/cuems-frontend.md`: the descriptor publishes **11** action types (`stop_project` in, `pause_project`/`resume_project` out), a `null` target is accepted for `stop_project`, and the handover document is linked.
+- [X] T061 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/cuems-engine.md`: its reconciliation must drop `pause_project`/`resume_project` from `ActionHandler.py:29` and from bookworm `tests/test_action_cue.py:1519`'s parametrization. Point at the handover document, and record for reference that `>= 0.1.0rc17` cannot be resolved from PyPI (its pre-spec already moves to `>= 0.1.1`). X-4 is answered `None`.
+- [X] T062 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/cuems-power-bridge.md`: its half of the `stop_project` wire contract must show at its re-cut tag, and X-3 (nobody ships `CACHEDIR.TAG`) is this package's half, pinned.
+- [X] T063 [P] [US5] Write `specs/017-release-line-reconciliation/upstream-reports/release-line-hygiene.md` for the release-line maintainer (FR-042, §14.6):
   - stop tracking debhelper outputs and the 2025 experiment files on `debian/bookworm` (list from research R17);
   - rc17 is not on PyPI;
   - new tests go under `tests/{unit,integration,contract,packaging}/`, never the root;
   - CI dispatch with `siblings_ref`;
   - the line may keep cutting `0.1.0rcN` until `0.1.1` is published (Q10), and each release is merged into `feat/xml-refactor` the same way.
-- [ ] T064 [US5] Commit T059–T063 as `docs(017): upstream reports for the release-line reconciliation`.
+- [X] T064 [US5] Commit T059–T063 as `docs(017): upstream reports for the release-line reconciliation`.
 
 **Checkpoint**: everyone who depends on this library has a written note.
 
