@@ -1,3 +1,14 @@
+cuems-utils (0.1.0rc18~pre869ejxng3.1) unstable; urgency=medium
+
+  * TEST BUILD, not a release: 869ejxng3 + 1amfwm7e6cw Phase A (rig rows on
+    test2 and .111). Merges fix/869ejxng3-loop-varispeed: new
+    cuemsutils.tools.media_sidecars (loop_period, the indexes/<name>.period
+    sidecar, ensure_video_index — the .idx caller shared by the editor and
+    the engine) and the cuems-loop-period console script (print, --backfill).
+  * Python version 0.1.0rc18.dev1 for this test build.
+
+ -- Ion Reguera <ion@stagelab.coop>  Wed, 21 Oct 2026 17:47:12 +0200
+
 cuems-utils (0.1.0rc17) unstable; urgency=medium
 
   * Merge main into debian/bookworm (0.1.0rc17, 869fhjdq5, PR #19):

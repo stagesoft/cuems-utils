@@ -2,4 +2,4 @@
 #
 # SPDX-License-Identifier: GPL-3.0
 # SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
-__version__ = "0.1.0rc17"
+__version__ = "0.1.0rc18.dev1"
