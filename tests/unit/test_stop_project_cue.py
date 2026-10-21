@@ -24,13 +24,13 @@ The two retirements are recorded in
 target for ``stop_project`` at construction and at the setter. A-1 accepts it, because the
 frontend sends ``null`` (S-2). That is one of spec FR-003a's deliberate departures.
 """
+import pytest
+
 from cuemsutils.cues.ActionCue import ActionCue
 from cuemsutils.cues.CuemsScript import CuemsScript
 from cuemsutils.errors import Outcome
 from cuemsutils.xml.schema import get_schema
 from tests.support.capture_goldens import build_generated_script
-
-import pytest
 
 
 def test_stop_project_is_in_the_action_type_enum():

@@ -46,7 +46,6 @@ from cuemsutils.cues import AudioCue, CuemsScript, VideoCue
 from cuemsutils.cues.MediaCue import Media, Region
 from cuemsutils.errors import SchemaError
 from tests.support.capture_goldens import build_generated_script
-from tests.support.invalid_scripts import write_bypassing_validation
 
 DIMS = ("pixel_width", "pixel_height", "file_size")
 SCHEMA_ORDER = [

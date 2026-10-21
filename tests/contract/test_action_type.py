@@ -24,7 +24,6 @@ from cuemsutils.xml.descriptor import SchemaDescriptor
 from cuemsutils.xml.schema import get_schema
 from cuemsutils.xml.spec import TypeKey
 
-
 ELEVEN = {
     "play", "pause", "stop", "load", "unload", "enable", "disable",
     "fade_action", "wait", "go_to", "stop_project",
