@@ -42,6 +42,9 @@ dependencies = [
     "aiofiles==24.1.0",
 ]
 
+[project.scripts]
+cuems-loop-period = "cuemsutils.tools.media_sidecars:main"
+
 [project.optional-dependencies]
 systemd = [
     "systemd-python==235",
