@@ -206,6 +206,13 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   3.11.9** from a per-repository `.venv` (excluded through `.git/info/exclude`). This repository
   keeps its hatch matrix. Builds run in an `mmdebstrap` bookworm chroot (`equivs` and `debhelper`
   are now on the host).
+- **Feature 017 (`017-release-line-reconciliation`, planned 2026-10-21) adds no new runtime
+  dependency.** It merges `origin/debian/bookworm` (`0.1.0rc17`) and `origin/main` into the
+  refactor, under the unchanged `0.1.1`. One **test-only** addition: `pyyaml` in the hatch `test`
+  environment, for the static check of `.github/workflows/tests.yml`. PyPI's 0.1.0 line, measured
+  through its JSON API: rc1–rc4, rc7, rc8, rc10, rc11, rc14–rc16. **rc5, rc6, rc9, rc12, rc13 and
+  rc17 are not on PyPI** (rc9, rc12 and rc17 are Debian-only; rc5, rc6 and rc13 were never
+  published anywhere). `pip index` omits yanked releases, so query the JSON API.
 
 ## Recent Changes
 
