@@ -396,3 +396,10 @@ def main(argv: list[str] | None = None) -> int:
             exit_code = 1
     print(_summary(verdicts))
     return exit_code
+
+
+# The console script cuems-reshape-devices calls main() directly. This guard is what
+# makes `python -m cuemsutils.xml.reshape_devices` run it too, instead of exiting 0
+# having done nothing (feature 017, S-4). Same form as convert_documents.
+if __name__ == "__main__":
+    raise SystemExit(main())
