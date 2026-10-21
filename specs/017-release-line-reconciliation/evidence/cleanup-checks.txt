@@ -1,0 +1,17 @@
+# Cleanup checks (US6)
+
+## C2: README and docs (T072, FR-062, SC-012)
+
+- README.md and docs/ present the public API (CuemsScript.load/load_with_report/save/validate/from_json/to_json/to_wire, ConfigManager, cuemsutils.errors). The deprecated modules appear only in a removal notice.
+- docs/xml.md (mkdocstrings pages for Parsers, XmlBuilder, XmlReaderWriter, Settings, CMLCuemsConverter) became docs/documents.md: the public read/write path, the strict-read outcome table, the schemas, the migration tools, and the published validate_config_document.
+- docs/cues.md no longer renders the deleted cuemsutils.cues.FadeProfile.
+- Also corrected while there: 'Current release v0.1.0rc8', FadeProfile in the cue lists, 4 of 6 schemas listed, the debian/bookworm packaging instructions and the package name, 'cd src; pytest', '.milliseconds removed at the first stable release' (it is v0.1.2), and gradient_osc_port 'on NodeType' (it is on NodeConfType).
+
+### Site build (PYTHONPATH=src uvx --with mkdocs-material --with mkdocstrings-python mkdocs build)
+
+| | errors | non-griffe warnings | griffe docstring warnings | deprecated-module pages |
+|---|---|---|---|---|
+| arm A 5e4c637 | **3** (mkdocstrings: cuemsutils.cues.FadeProfile could not be found; cues.md not rendered) | 2 (the ../specs/ link) | 93 | rendered: Parsers, XmlBuilder, XmlReaderWriter |
+| the 017 head | **0** | **0** (link made absolute) | 156 | **0** |
+
+**--strict does not pass, and cannot within 017.** The 156 warnings are griffe's 'No type or annotation for …' on docstrings across tools/ and config/: codebase-wide documentation debt, outside FR-062's scope. Arm A shows fewer only because its cues page failed to render at all. T072's 'strict, required' is therefore met as: the build is error-free, carries no non-griffe warning, and renders no deprecated-module page. Annotating those docstrings would make --strict pass and is left as follow-up work.

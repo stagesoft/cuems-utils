@@ -317,9 +317,9 @@ document points at 017. The tag message is T081.
 ## Phase 8: Verification (cross-cutting, before the cleanup)
 
 - [X] T065 Run the suite three times on 3.11, interleaved A/B/A/B/A/B (`$S/wt-a` against a fresh worktree `$S/wt-b` at the head), into `specs/017-release-line-reconciliation/evidence/suite-{A,B}-{1,2,3}.txt`. Run it once on 3.12 and once on 3.13 on B. Write `specs/017-release-line-reconciliation/evidence/suite-verdict.md`: B's failure set ⊆ A's (the laziness flake identified if present), and the 3.13 snapshot failure noted as pre-existing (SC-003).
-- [ ] T066 Measure the performance bands (quickstart §6, at least 16 interleaved samples across three windows) and append them to `specs/017-release-line-reconciliation/evidence/perf.md`: the show-document load against its band of 16.465–17.750 ms, suite ms/test ≤ 115% of A, and the descriptor warm call ≤ 115% of A. Anything exceeded is recorded as exceeded (SC-009).
+- [X] T066 Measure the performance bands (quickstart §6, at least 16 interleaved samples across three windows) and append them to `specs/017-release-line-reconciliation/evidence/perf.md`: the show-document load against its band of 16.465–17.750 ms, suite ms/test ≤ 115% of A, and the descriptor warm call ≤ 115% of A. Anything exceeded is recorded as exceeded (SC-009).
 - [X] T067 Run ruff (expect 0) and compare the mypy error set with T006's, writing `specs/017-release-line-reconciliation/evidence/quality-B.txt`. The set must not grow (SC-QUALITY-001).
-- [ ] T068 Commit T065–T067's records as `docs(017): suite, performance and quality records`.
+- [X] T068 Commit T065–T067's records as `docs(017): suite, performance and quality records`.
 
 ---
 
@@ -338,14 +338,14 @@ by directory. Each commit is a pure move, delete or rewire, and the pass set is 
 `tests/unit tests/contract` green offline), plus `tests/contract/test_test_layout.py` green and the
 pass-set diff showing only recorded retirements.
 
-- [ ] T070 [US6] Record the pass set before the cleanup into `$S/passset-before.txt` (quickstart §7), and start `specs/017-release-line-reconciliation/evidence/cleanup-pass-set.md`.
-- [ ] T071 [US6] C1 (FR-061):
+- [X] T070 [US6] Record the pass set before the cleanup into `$S/passset-before.txt` (quickstart §7), and start `specs/017-release-line-reconciliation/evidence/cleanup-pass-set.md`.
+- [X] T071 [US6] C1 (FR-061):
   - `git rm -r dev/`, and remove `dev/local` from `.gitignore`;
   - triage `ToDo.md` item by item: each item still true becomes a short document under `specs/planning/`, and each done or superseded item is listed in the commit message with its reason; then `git rm ToDo.md`;
   - `git rm --cached .claude/settings.local.json` and add `.claude/settings.local.json` to `.gitignore`.
 
   Commit `chore: remove dev/ and ToDo.md, untrack local settings (017 §14.1)`, then re-record the pass set and diff it.
-- [ ] T072 [P] [US6] C2 (FR-062): rewrite `README.md` and `docs/index.md` to the public API (`CuemsScript.load/save/validate/from_json/to_wire`, `ConfigManager`, `cuemsutils.errors`), and replace `docs/xml.md`'s `Parsers`/`XmlBuilder`/`XmlReaderWriter` mkdocstrings pages with the public surface. Reword `README.md`'s `gradient_osc_port … NodeType` to the current type name, and adjust `mkdocs.yml` if its nav names the removed pages. Then build the site, which is **required, not optional**: `PYTHONPATH=src uvx --with mkdocs-material --with mkdocstrings-python mkdocs build --strict -d $S/site`. It must pass, and `grep -rl "XmlReaderWriter\|XmlBuilder\|cuemsutils.xml.Parsers" $S/site` must print nothing. Record both in `evidence/cleanup-checks.txt` (SC-012, analyze LOW). Commit `docs: README and site describe the public API only (017 §14.2)`.
+- [X] T072 [P] [US6] C2 (FR-062): rewrite `README.md` and `docs/index.md` to the public API (`CuemsScript.load/save/validate/from_json/to_wire`, `ConfigManager`, `cuemsutils.errors`), and replace `docs/xml.md`'s `Parsers`/`XmlBuilder`/`XmlReaderWriter` mkdocstrings pages with the public surface. Reword `README.md`'s `gradient_osc_port … NodeType` to the current type name, and adjust `mkdocs.yml` if its nav names the removed pages. Then build the site, which is **required, not optional**: `PYTHONPATH=src uvx --with mkdocs-material --with mkdocstrings-python mkdocs build --strict -d $S/site`. It must pass, and `grep -rl "XmlReaderWriter\|XmlBuilder\|cuemsutils.xml.Parsers" $S/site` must print nothing. Record both in `evidence/cleanup-checks.txt` (SC-012, analyze LOW). Commit `docs: README and site describe the public API only (017 §14.2)`.
 - [ ] T073 [US6] C3, test layout (FR-063, `contracts/test-layout.md`):
   - write `tests/contract/test_test_layout.py` and record it red;
   - `git mv` the 17 root modules per the contract's table, re-checking each one's kind with the signal grep;

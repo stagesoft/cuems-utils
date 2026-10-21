@@ -49,3 +49,81 @@ as above. Load 1.31, `scaling_cur_freq` 1.76 GHz at the start.
   T1+T2 load of each written document.
 - For a 200-project library migrated once, it adds about **4 s**.
 - No document in the sample was refused, so the report path's own cost is not in these figures.
+
+## T066: the three budgets, as bands, interleaved A/B (FR-PERF-001, SC-009)
+
+Arm A = `5e4c637`, arm B = the 017 head (`8f210fd`, a fixed worktree, so the later cleanup commits
+are not in it). Same interpreter as above. Three windows: 22:24 and 22:25 (load 2–3), then 21:42
+the next session (load 0.94, a quiet box). Arms alternate per sample.
+
+### Show-document load (`tools/perf_show_load.py`, 015's recipe)
+
+| Arm | n | Band | Median | Spread |
+|---|---|---|---|---|
+| A | 17 | 16.002–17.041 ms | **16.387** | 6.3% |
+| B | 17 | 16.072–16.804 ms | **16.323** | 4.5% |
+
+**B is 99.6% of A. ✅ No worse than A.** B's median is below 015's band (16.465–17.750 ms),
+meaning faster, not over. This box measures lower than 015's did. The verdict rests on the
+interleaved comparison, which is the instrument the budget names.
+
+### Suite ms/test (from `suite-verdict.md`'s three interleaved runs)
+
+A median 33.25 s / 3906 tests = **8.51 ms**; B median 36.38 s / 4038 tests = **9.01 ms**.
+**105.9% of A ✅** (budget ≤ 115%). One B sample ran at load 8.06, so the median is used.
+
+### `script` descriptor, warm call (`python -m tests.support.perf_descriptor --rounds 5 --schemas script`)
+
+| Window | A | B |
+|---|---|---|
+| 1 | 0.165 ms | 0.165 ms |
+| 2 | 0.165 ms | 0.164 ms |
+| 3 | 0.164 ms | 0.165 ms |
+
+**About 100% of A ✅** (budget ≤ 115%). Every warm call was a cache hit (`_instance_for`/warm
+call = 0) on both arms.
+
+**SC-009: all three budgets hold.** One enum value and one membership test moved none of them, as
+the work order expected.
+
+Raw samples: `<scratchpad>/perf/show-w{1,2,3}.txt` and `desc-w{1,2,3}.txt`, transcribed below.
+
+```
+# window 1 22:24:16 load 3.13 5.06 3.17
+A 16.624 3497609 3.13
+B 16.392 1546517 2.96
+A 16.002 1113000 2.96
+B 16.672 1540814 2.96
+A 16.234 1882302 2.96
+B 16.089 2472093 2.96
+A 16.387 4024303 2.96
+B 16.284 1113000 2.80
+A 16.003 4038044 2.80
+B 16.155 1397147 2.80
+A 16.048 4041579 2.80
+B 16.437 1719614 2.80
+# window 2 22:24:59 load 2.07 4.49 3.07
+A 16.729 3124962 2.07
+B 16.338 1113000 2.07
+A 17.041 3368560 2.07
+B 16.072 1982744 1.98
+A 16.570 1397511 1.98
+B 16.094 4036256 1.98
+A 16.349 1796536 1.98
+B 16.323 2918714 1.98
+A 16.119 1550779 1.98
+B 16.179 2908103 1.91
+# window 3 21:42:24 load 0.94 1.52 2.14
+A 16.276 4028455 0.94
+B 16.297 1927991 0.94
+A 16.419 1796741 0.94
+B 16.343 1113000 0.94
+A 16.955 4038918 0.94
+B 16.804 1113000 0.94
+A 16.167 1796495 0.94
+B 16.112 4038970 0.94
+A 16.773 1113000 0.94
+B 16.333 1113000 0.94
+A 16.674 1396917 0.94
+B 16.453 1797168 0.94
+```
