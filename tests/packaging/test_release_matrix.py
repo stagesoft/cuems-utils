@@ -54,18 +54,14 @@ def test_this_repository_is_at_0_1_1():
     assert re.search(r'__version__\s*=\s*"0\.1\.1"', init)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="until the maintainer re-cuts xml-refactor-merge-candidate (016)",
-)
 @pytest.mark.parametrize("name", SIBLINGS)
 def test_siblings_at_their_candidate_tags(name):
     """Asserted **at the sibling's coordinated tag**, not at its tip (015, FR-080c).
 
-    Until the maintainer re-cuts the tags, they still name the pre-016 numbers, so
-    this fails and is expected to. On the day of the re-cut it passes, ``strict``
-    turns that into a failure, and the marker has to go. A sibling with no tag
-    skips with the resolver's reason.
+    This was a strict xfail until the maintainer re-cut the tags at 016's numbers
+    (2026-10-16). From then it passed, ``strict`` turned that into a failure, and
+    the marker went (017 T077). A sibling with no tag skips with the resolver's
+    reason.
     """
     from tests.support.sibling_tags import tagged
 

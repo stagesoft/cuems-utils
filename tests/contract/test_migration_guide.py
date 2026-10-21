@@ -160,10 +160,15 @@ def test_the_coupled_engine_version_resolves(guide):
 
     named = re.search(r"cuems-engine (\d[^\s`*]+)", GUIDE.read_text())
     assert named, "the guide names no cuems-engine version"
-    assert named.group(1) == declared.group(1), (
+    # A floor, as the docstring says: equality failed the day the engine moved past
+    # the guide's release, which is the case the guide is still right in (017 T077).
+    from packaging.version import Version
+
+    assert Version(declared.group(1)) >= Version(named.group(1)), (
         f"the guide names cuems-engine {named.group(1)} but the tree is at "
-        f"{declared.group(1)}. FR-035 couples the re-mint to a specific release; "
-        "a guide naming a different one sends an operator to check the wrong thing."
+        f"{declared.group(1)}, which has not reached it. FR-035 couples the re-mint to a "
+        "specific release; a guide naming one that does not exist yet sends an operator "
+        "to check the wrong thing."
     )
 
 
