@@ -121,3 +121,19 @@ four values, `.get(k)` and the attribute are `None`, the key is absent, and `to_
 **With** them, the values are `int`, `int`, `int`, `str`, with `file_size` 107374182400 intact.
 `Unset` is never returned. This answers `cuems-engine`'s X-4 / R-1 with **`None`**: its "missing →
 probe" branch needs no `Unset` check (`upstream-reports/cuems-engine.md`).
+
+## S-4 (T031, T033): red → green
+
+| Test | Red on `fe259f9` | Green on `ffc34cc` |
+|---|---|---|
+| `tests/integration/test_reshape_devices_main.py::test_python_dash_m_runs_the_tool_like_its_main` | `python -m … --check` exited **0** having done nothing, where `main()` returns 1 for an old-shape document | passed |
+
+## S-3 (T032, T034): red → green
+
+| Test | Red before `6768e96` | Green on `6768e96` |
+|---|---|---|
+| `…/test_migration_tool_report.py::test_a_document_the_loader_would_refuse_is_written_and_reported` | **red**: no WARNING, no summary entry | passed |
+| `…::test_check_reports_what_the_tool_would_write` | **red** | passed |
+| `…::test_a_document_the_loader_accepts_gets_no_report` | held (the negative) | passed |
+
+All 104 tests in the 26 files that exercise either tool pass on `6768e96`.

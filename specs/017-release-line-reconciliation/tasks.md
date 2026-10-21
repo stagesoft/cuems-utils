@@ -159,16 +159,16 @@ targetless-actions contract, rows 1–14 and 7a–8c, is covered one row to one 
 
   Cite every cross-repository claim by path and commit, as read from the checkouts.
 - [X] T030 [US1] Run T018–T021 plus `tests/contract/` on the working tree. All must be green except the A-2a–c tests still owned by US2 (T036). Record the green excerpts in `specs/017-release-line-reconciliation/evidence/red-green.md`. Commit T023–T029 as **one** signed commit `feat(actions): stop_project takes no target; retire pause_project/resume_project (017 A-1, A-2d, Q13)`, with `tests/data/rc17/` and the two `tools/` scripts. ⏸
-- [ ] T031 [P] [US1] Write `tests/integration/test_reshape_devices_main.py` (FR-029a): `subprocess.run([sys.executable, "-m", "cuemsutils.xml.reshape_devices", <copy of a corpus document>])` produces the same verdict output and exit status as calling `reshape_devices.main([...])`. Record it red on the A-1 commit.
-- [ ] T032 [P] [US1] Write `tests/integration/test_migration_tool_report.py` (FR-029c, `contracts/migration-tool-report.md` tests 1–3):
+- [X] T031 [P] [US1] Write `tests/integration/test_reshape_devices_main.py` (FR-029a): `subprocess.run([sys.executable, "-m", "cuemsutils.xml.reshape_devices", <copy of a corpus document>])` produces the same verdict output and exit status as calling `reshape_devices.main([...])`. Record it red on the A-1 commit.
+- [X] T032 [P] [US1] Write `tests/integration/test_migration_tool_report.py` (FR-029c, `contracts/migration-tool-report.md` tests 1–3):
   - the rc17 control twin with its `stop` cue's `action_target` emptied, run through reshape then convert, is **written**, emits a WARNING matching `would be refused on load: [T2] action_target_required`, and is listed in the new summary bucket, with the exit status equal to the same run without the check;
   - the migrated rc17 fixture gets no entry;
   - a clean corpus document gets no entry and no WARNING.
 
   Before writing it, read the tools' current summary bucket names in `src/cuemsutils/xml/convert_documents.py` and `src/cuemsutils/xml/reshape_devices.py`, and name the new bucket in the same vocabulary. Record it red.
-- [ ] T033 [US1] Add `if __name__ == "__main__": sys.exit(main())` to `src/cuemsutils/xml/reshape_devices.py`, matching `convert_documents.py`'s form. T031 goes green. Commit `fix(xml): python -m cuemsutils.xml.reshape_devices runs the tool (017 S-4)`.
-- [ ] T034 [US1] In `src/cuemsutils/xml/convert_documents.py` and `src/cuemsutils/xml/reshape_devices.py`, after each **written** document, validate it on a throwaway copy with the loader's T1+T2 path (research R6). On refusal, log the WARNING `"<path>: would be refused on load: [<tier>] <rule> at <cue>/<field>: <message>"` and add the document to the new bucket, also under `--check`. Do not change the bytes written or the exit status. T032 goes green. Commit `feat(xml): migration tools report documents the loader would refuse (017 S-3)`.
-- [ ] T035 [US1] Measure the tools' per-document cost before and after T034, interleaved A/B over `tests/data/corpus/`, and record it in `specs/017-release-line-reconciliation/evidence/perf.md` without a budget (FR-029c).
+- [X] T033 [US1] Add `if __name__ == "__main__": sys.exit(main())` to `src/cuemsutils/xml/reshape_devices.py`, matching `convert_documents.py`'s form. T031 goes green. Commit `fix(xml): python -m cuemsutils.xml.reshape_devices runs the tool (017 S-4)`.
+- [X] T034 [US1] In `src/cuemsutils/xml/convert_documents.py` and `src/cuemsutils/xml/reshape_devices.py`, after each **written** document, validate it on a throwaway copy with the loader's T1+T2 path (research R6). On refusal, log the WARNING `"<path>: would be refused on load: [<tier>] <rule> at <cue>/<field>: <message>"` and add the document to the new bucket, also under `--check`. Do not change the bytes written or the exit status. T032 goes green. Commit `feat(xml): migration tools report documents the loader would refuse (017 S-3)`.
+- [X] T035 [US1] Measure the tools' per-document cost before and after T034, interleaved A/B over `tests/data/corpus/`, and record it in `specs/017-release-line-reconciliation/evidence/perf.md` without a budget (FR-029c).
 
 **Checkpoint**: US1 is green, which discharges X-1 (FR-041).
 
