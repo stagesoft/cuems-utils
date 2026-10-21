@@ -96,6 +96,8 @@ dependencies = [
   "hypothesis",
   "coverage[toml]",
   "ruff>=0.17.0,<0.18",
+  # Feature 017, FR-070: tests/contract/test_ci_workflow.py reads the workflow files. Test-only.
+  "pyyaml",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -140,6 +142,8 @@ markers = [
   "integration: lives in tests/integration/ (sockets, threads, subprocesses, /etc/cuems)",
   "contract: lives in tests/contract/ (a published surface: schemas, API snapshot, enumerations)",
   "packaging: lives in tests/packaging/ (debian/, the built .deb, the chroot lifecycle)",
+  # Feature 017, FR-071: written by hand on each test that reads a sibling checkout.
+  "reads_siblings: reads a sibling repository checked out beside this one (skips without it)",
 ]
 # Scoped to one warning class and one module, deliberately.
 #

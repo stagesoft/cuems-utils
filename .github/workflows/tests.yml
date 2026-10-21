@@ -1,40 +1,229 @@
 name: Tests
 
+# The pre-publication gate (feature 017, FR-070–FR-076; specs/017-release-line-reconciliation/
+# contracts/ci-workflow.md). The file keeps its name: workflow_dispatch works only for a workflow
+# file that exists on the default branch.
+#
+# Blocking (Q11): lint, unit, integration, packaging, coverage. Informational: matrix-info
+# (3.12/3.13). gate-summary fails iff a blocking job did not succeed, and writes the run record
+# that evidence/ci-gate.md is filled from.
+#
+# Run it by hand on a candidate:
+#   gh workflow run tests.yml --ref feat/xml-refactor -f siblings_ref=xml-refactor-merge-candidate
 on:
   push:
     branches:
       - main
+      - feat/xml-refactor
   pull_request:
   workflow_dispatch:
+    inputs:
+      siblings_ref:
+        description: ref (tag or branch) checked out in each sibling repository
+        default: xml-refactor-merge-candidate
+        required: false
 
 permissions:
   contents: read
 
 jobs:
-  test:
-    name: Run tests and upload coverage to Codecov
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
+      - run: pip install hatch
+      - name: ruff (0 findings)
+        run: hatch run test.py3.11:lint
 
-      - name: Install hatch and coverage
-        run: pip install hatch coverage[toml]
+  # unit, integration and packaging all check the siblings out: the tests that read them
+  # (marked reads_siblings) are contract and packaging tests, and none is an integration test.
+  unit:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cuems-utils
+          fetch-depth: 0
+      - uses: ./cuems-utils/.github/actions/checkout-siblings
+        with:
+          ref: ${{ inputs.siblings_ref || 'xml-refactor-merge-candidate' }}
+          token: ${{ secrets.SIBLINGS_TOKEN || github.token }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install hatch
+      - name: unit and contract tests
+        working-directory: cuems-utils
+        env:
+          COVERAGE_FILE: .coverage.unit
+        run: hatch run test.py3.11:run -- tests/unit tests/contract -m "not slow" --cov --junitxml=junit-unit.xml
+      - name: Record the resolved schema libraries
+        if: always()
+        working-directory: cuems-utils
+        run: hatch run test.py3.11:python -c "import xmlschema, lxml.etree as e; print('xmlschema', xmlschema.__version__); print('lxml', e.__version__)" > versions-unit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit
+          include-hidden-files: true
+          path: |
+            cuems-utils/.coverage.unit*
+            cuems-utils/junit-unit.xml
+            cuems-utils/versions-unit.txt
 
-      - name: Run tests with coverage
-        run: hatch run test:run-cov
+  integration:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cuems-utils
+          fetch-depth: 0
+      - uses: ./cuems-utils/.github/actions/checkout-siblings
+        with:
+          ref: ${{ inputs.siblings_ref || 'xml-refactor-merge-candidate' }}
+          token: ${{ secrets.SIBLINGS_TOKEN || github.token }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install hatch
+      - name: integration tests
+        working-directory: cuems-utils
+        env:
+          COVERAGE_FILE: .coverage.integration
+        run: hatch run test.py3.11:run -- tests/integration -m "not slow" --cov --junitxml=junit-integration.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration
+          include-hidden-files: true
+          path: |
+            cuems-utils/.coverage.integration*
+            cuems-utils/junit-integration.xml
+            sibling-commits.txt
 
-      - name: Generate coverage XML
-        run: coverage xml
+  packaging:
+    needs: lint
+    runs-on: ubuntu-latest
+    container: debian:bookworm
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      # git first, so actions/checkout makes a real clone with history and tags.
+      - run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
+      - run: git config --global --add safe.directory '*'
+      - uses: actions/checkout@v4
+        with:
+          path: cuems-utils
+          fetch-depth: 0
+      - uses: ./cuems-utils/.github/actions/checkout-siblings
+        with:
+          ref: ${{ inputs.siblings_ref || 'xml-refactor-merge-candidate' }}
+          token: ${{ secrets.SIBLINGS_TOKEN || github.token }}
+      - name: Build dependencies (bookworm's own)
+        run: >-
+          apt-get install -y --no-install-recommends
+          dh-virtualenv debhelper dpkg-dev fakeroot build-essential
+          python3-all python3-dev python3-pip python3-setuptools python3-venv python3-wheel
+      - name: Build the .deb
+        working-directory: cuems-utils
+        run: dpkg-buildpackage -us -uc -b
+      - name: Check the built package (FR-035)
+        working-directory: cuems-utils
+        run: |
+          set -eu
+          deb=$(ls ../cuems-utils_*.deb)
+          test "$(dpkg-deb -f "$deb" Version)" = "$(dpkg-parsechangelog -S Version)"
+          dpkg-deb --fsys-tarfile "$deb" | tar -xO ./usr/lib/cuems/pyvenv.cfg | grep -qx 'home = /usr/bin'
+          dpkg-deb --fsys-tarfile "$deb" | tar -tv | grep -q ' \./usr/lib/cuems/bin/python -> \.\./\.\./\.\./bin/python3$'
+          # Not `! … | grep`: set -e ignores a negated pipeline, so that check could never fail.
+          if dpkg-deb --fsys-tarfile "$deb" | tar -t | grep -qx './usr/lib/cuems/CACHEDIR.TAG'; then
+            echo "::error::the .deb ships usr/lib/cuems/CACHEDIR.TAG (X-3)"; false
+          fi
+      - name: packaging tests (the chroot tests skip)
+        working-directory: cuems-utils
+        run: |
+          python3 -m venv /tmp/venv
+          /tmp/venv/bin/pip install -e . pytest pytest-mock hypothesis pyyaml
+          /tmp/venv/bin/pytest tests/packaging -m "not slow" --junitxml=junit-packaging.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packaging
+          path: cuems-utils/junit-packaging.xml
 
-      - name: Upload coverage to Codecov
+  coverage:
+    needs: [unit, integration]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cuems-utils
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "coverage[toml]"
+      - uses: actions/download-artifact@v4
+        with:
+          path: artefacts
+      # Any threshold ([tool.coverage.report] fail_under) applies to the combined figure.
+      - name: Combine unit + integration
+        working-directory: cuems-utils
+        run: |
+          coverage combine ../artefacts/unit/.coverage.unit* ../artefacts/integration/.coverage.integration*
+          coverage report
+          coverage xml
+      - name: Upload coverage to Codecov (push to main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: stagesoft/cuems-utils
+          files: cuems-utils/coverage.xml
           fail_ci_if_error: false
+
+  matrix-info:
+    needs: lint
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install hatch
+      - run: hatch run test.py${{ matrix.python }}:run -- -m "not slow" --junitxml=junit-py${{ matrix.python }}.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: matrix-py${{ matrix.python }}
+          path: junit-py${{ matrix.python }}.xml
+
+  gate-summary:
+    needs: [lint, unit, integration, packaging, coverage, matrix-info]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artefacts
+      - name: Write the run record
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          GATE_SHA: ${{ github.sha }}
+          SIBLINGS_REF: ${{ inputs.siblings_ref || 'xml-refactor-merge-candidate' }}
+        run: python3 .github/scripts/gate_summary.py artefacts
+      - name: Fail if a blocking job did not succeed
+        if: needs.lint.result != 'success' || needs.unit.result != 'success' || needs.integration.result != 'success' || needs.packaging.result != 'success' || needs.coverage.result != 'success'
+        run: |
+          echo "::error::a blocking job (lint, unit, integration, packaging, coverage) did not succeed"
+          exit 1

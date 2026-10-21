@@ -112,6 +112,7 @@ def guide_words(guide: str) -> str:
 
 
 @pytest.mark.parametrize("repo", sorted(SITES))
+@pytest.mark.reads_siblings
 def test_every_measured_site_is_named_with_its_line(guide: str, repo: str):
     missing = [
         f"{name}:{line}"
@@ -126,6 +127,7 @@ def test_every_measured_site_is_named_with_its_line(guide: str, repo: str):
 
 
 @pytest.mark.parametrize("repo", sorted(PINNED_COMMITS))
+@pytest.mark.reads_siblings
 def test_the_guide_pins_the_commit_each_line_number_was_checked_against(
     guide: str, repo: str
 ):
@@ -150,6 +152,7 @@ DEAD_PINS = {"cuems-editor": "106015c", "cuems-frontend": "3183845"}
 
 
 @pytest.mark.parametrize("repo", sorted(DEAD_PINS))
+@pytest.mark.reads_siblings
 def test_a_pin_known_dead_is_marked_dead_and_dated_in_the_guide(guide: str, repo: str):
     """The provenance half of FR-080's split. The *operator-instruction* half
     (what a node's operator is told to check) is asserted at the sibling's

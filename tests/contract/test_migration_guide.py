@@ -147,6 +147,7 @@ def _sibling(name: str):
     return tagged(name)
 
 
+@pytest.mark.reads_siblings
 def test_the_coupled_engine_version_resolves(guide):
     """FR-035's precondition names a version. If the engine has moved past it
     the guide is still right (it is a floor), but if the engine has **not
@@ -172,6 +173,7 @@ def test_the_coupled_engine_version_resolves(guide):
     )
 
 
+@pytest.mark.reads_siblings
 def test_the_engine_really_broadcasts_the_status_the_guide_tells_you_to_watch(guide):
     """§8c tells an operator to watch ``cluster_warning`` and to read
     ``missing`` out of it. Both must exist, and the channel name must be the one
@@ -191,6 +193,7 @@ def test_the_engine_really_broadcasts_the_status_the_guide_tells_you_to_watch(gu
     "cuems-editor.service",
     "cuems-videocomposer.service",
 ])
+@pytest.mark.reads_siblings
 def test_every_unit_on_the_stop_list_is_a_unit_that_exists(guide, unit):
     """A stop list naming a unit that does not exist teaches an operator to
     ignore the errors from the ones that do."""
@@ -201,6 +204,7 @@ def test_every_unit_on_the_stop_list_is_a_unit_that_exists(guide, unit):
     )
 
 
+@pytest.mark.reads_siblings
 def test_the_power_bridge_unit_exists_where_its_own_package_ships_it(guide):
     """The one unit not in ``cuems-common``: the bridge ships its own."""
     assert "cuems-power-bridge.service" in GUIDE.read_text()
@@ -208,6 +212,7 @@ def test_the_power_bridge_unit_exists_where_its_own_package_ships_it(guide):
     assert bridge.exists("debian/cuems-power-bridge.service")
 
 
+@pytest.mark.reads_siblings
 def test_nodeconf_really_writes_the_map(guide):
     """The stop list's whole justification. If nodeconf stopped writing the map,
     the most emphatic warning in this document would be false."""

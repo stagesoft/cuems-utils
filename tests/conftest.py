@@ -79,3 +79,7 @@ def pytest_collection_modifyitems(config, items):
         kind = relative.split(_os.sep, 1)[0]
         if kind in _KINDS:
             item.add_marker(getattr(_pytest.mark, kind))
+        # Feature 017, FR-071: the gate summary counts these from the JUnit XML, which
+        # records user_properties but not markers.
+        if item.get_closest_marker("reads_siblings") is not None:
+            item.user_properties.append(("reads_siblings", "true"))

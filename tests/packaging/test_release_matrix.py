@@ -55,6 +55,7 @@ def test_this_repository_is_at_0_1_1():
 
 
 @pytest.mark.parametrize("name", SIBLINGS)
+@pytest.mark.reads_siblings
 def test_siblings_at_their_candidate_tags(name):
     """Asserted **at the sibling's coordinated tag**, not at its tip (015, FR-080c).
 
@@ -70,6 +71,7 @@ def test_siblings_at_their_candidate_tags(name):
 
 
 @pytest.mark.parametrize("name", SIBLINGS)
+@pytest.mark.reads_siblings
 def test_siblings_at_feat_xml_refactor(name):
     """What feature 016 itself guarantees: each sibling's ``feat/xml-refactor`` head.
 

@@ -369,15 +369,15 @@ evidence template exists. The green run itself happens after hand-off (clarify).
 **Independent test**: `tests/contract/test_ci_workflow.py` is green; `evidence/ci-gate.md` has every
 field of `contracts/ci-workflow.md`.
 
-- [ ] T076 [US7] Add `"pyyaml"` to `[tool.hatch.envs.test] dependencies` in `pyproject.toml` (test-only; plan Complexity Tracking), and confirm `import yaml` works in `uvx hatch run test.py3.11:run -- --co -q tests/contract`.
-- [ ] T077 [US7] Write `tests/contract/test_ci_workflow.py` with `contracts/ci-workflow.md`'s six static assertions. Look the trigger map up under both `"on"` and `True`. Record it red against the current single-job `tests.yml`.
-- [ ] T078 [US7] Restructure `.github/workflows/tests.yml` per `contracts/ci-workflow.md`, keeping the file name:
+- [X] T076 [US7] Add `"pyyaml"` to `[tool.hatch.envs.test] dependencies` in `pyproject.toml` (test-only; plan Complexity Tracking), and confirm `import yaml` works in `uvx hatch run test.py3.11:run -- --co -q tests/contract`.
+- [X] T077 [US7] Write `tests/contract/test_ci_workflow.py` with `contracts/ci-workflow.md`'s six static assertions. Look the trigger map up under both `"on"` and `True`. Record it red against the current single-job `tests.yml`.
+- [X] T078 [US7] Restructure `.github/workflows/tests.yml` per `contracts/ci-workflow.md`, keeping the file name:
   - triggers, including `feat/xml-refactor` and the `siblings_ref` input;
   - the jobs `lint`, `unit`, `integration` (with the six sibling checkouts at `siblings_ref`, `fetch-depth: 0`, tags), `packaging` (`container: debian:bookworm`), `coverage` (Codecov only on a push to `main`), `matrix-info` (`continue-on-error`) and `gate-summary` (`if: always()`, failing iff a blocking job did not succeed, writing the summary fields).
 
   T077 goes green.
-- [ ] T079 [P] [US7] Write `specs/017-release-line-reconciliation/evidence/ci-gate.md` as a **template**: data-model §8's fields with blanks, plus instructions for filling it from the first dispatch on the post-merge `feat/xml-refactor` head (FR-075).
-- [ ] T080 [US7] Update `CONTRIBUTORS.md`. Its testing section says where new tests go and that markers come from the directory (FR-064). Its release section carries the pre-publication line: a green dispatched `tests.yml` run on the post-merge `feat/xml-refactor` head with every sibling at its reconciled re-cut tag, before the GitHub release and the `.deb` upload (FR-076). Commit T076–T080 as `ci: parallel gate jobs with siblings_ref; gate deploys and Codecov to main (017 §14.5)`.
+- [X] T079 [P] [US7] Write `specs/017-release-line-reconciliation/evidence/ci-gate.md` as a **template**: data-model §8's fields with blanks, plus instructions for filling it from the first dispatch on the post-merge `feat/xml-refactor` head (FR-075).
+- [X] T080 [US7] Update `CONTRIBUTORS.md`. Its testing section says where new tests go and that markers come from the directory (FR-064). Its release section carries the pre-publication line: a green dispatched `tests.yml` run on the post-merge `feat/xml-refactor` head with every sibling at its reconciled re-cut tag, before the GitHub release and the `.deb` upload (FR-076). Commit T076–T080 as `ci: parallel gate jobs with siblings_ref; gate deploys and Codecov to main (017 §14.5)`.
 
 **Checkpoint**: the gate is checked statically, and its run is listed as owed at hand-off.
 

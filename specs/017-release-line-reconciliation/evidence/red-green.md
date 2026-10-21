@@ -179,3 +179,23 @@ skip without a built `.deb` beside the checkout. They are run against the bookwo
 
 **One fix found by the test:** the "never published" line for rc13 first sat inside rc14's section,
 which made rc14 (a PyPI release) look marked. rc13 now has its own one-line section.
+
+## The CI gate's static check (T077–T078): red on the single-job file, green after
+
+`tests/contract/test_ci_workflow.py` (contract `ci-workflow.md`'s six asserts, plus the sibling
+checkout checks from its 2026-10-22 correction):
+
+| State | Result |
+|---|---|
+| `2de5161`'s `tests.yml` (one `test` job, push on `main` only) | **7 of 7 red** (the first draft: triggers, graph, integration siblings, bookworm, `continue-on-error`, `gate-summary`, Codecov/deploy) |
+| after the restructure, with the action and the summary script | **10 passed** (the sibling check is now one test per job ×3, plus the action and the marker path) |
+
+`actionlint` 1.7.12 (`uvx --from actionlint-py actionlint`) finds nothing in `tests.yml` or
+`gh-pages.yml`. `gate_summary.py` was dry-run against a real JUnit file: 31 `reads_siblings`
+items ran (the 33 marked, minus the `slow` chroot test and `test_ordering_premise`, which was not
+in that run).
+
+**The full suite now has no failure**: 3936 passed, 114 skipped, 2 xfailed (hatch `test.py3.11`,
+2026-10-22). The seven failures recorded as pre-existing since `5e4c637` were the six
+`test_siblings_at_their_candidate_tags` `XPASS(strict)` and the coupled-engine equality check,
+both fixed in `2560b09`.
