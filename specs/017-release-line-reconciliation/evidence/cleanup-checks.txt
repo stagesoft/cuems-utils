@@ -47,3 +47,25 @@
 **Pass set** (JUnit outcome per test, module path normalised `tests.<kind>.` → `tests.`): identical
 before and after, except the three new `test_test_layout` tests (PASSED). The 7 pre-existing
 failures are unchanged.
+
+## C4 and the acceptance checks (T075, quickstart §7, SC-012)
+
+Run 2026-10-21 on `3a99883` plus the test fix below.
+
+| Check | Result |
+|---|---|
+| `git grep -nE "dev/parsers\|test_bus_(controller\|node)\|testdev_nng_talk" -- . ':!specs'` | **0 hits** |
+| `ls tests/test_*.py` | **0 files** (`dev/` absent too) |
+| `unshare -cn pytest tests/unit tests/contract` (no network: only `lo`, DOWN; uid 1000) | **3354 passed, 101 skipped, 1 failed**: `test_migration_guide::test_the_coupled_engine_version_resolves`, one of the 7 pre-existing failures |
+
+**Run as the current user, not with `unshare -r`.** `-r` maps to root inside the namespace, and root
+ignores mode `0o444`, so `test_helpers::TestCheckPath::test_tmp_file` fails there. That failure
+comes from the harness, not the code; `unshare -cn` maps uid 1000.
+
+**A fourth pre-existing order leak was exposed and fixed (test-only).** `tests/unit/test_version_steps.py::test_a_multi_step_walk_runs_every_step_in_order`
+(since 008, `ff65dcc`) registered three scratch conversions into the module-global
+`versioning._CONVERSIONS` and never removed them. The full suite runs `contract/` before `unit/`,
+so `test_additive_surface_invariants::test_the_conversion_registry_is_unchanged` never saw them. The
+offline check runs `unit` first, and that test failed. It reproduces on arm A `5e4c637` with the same
+two-file invocation (1 failed, 13 passed). The test now registers into a `monkeypatch`ed copy of
+the registry: 14 passed in either order. No source change.
