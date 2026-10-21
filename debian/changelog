@@ -22,18 +22,36 @@ cuems-utils (0.1.1) UNRELEASED; urgency=medium
   * Migration backups never overwrite each other: cuems-reshape-devices and
     cuems-convert-documents, run in order inside one second, used to lose
     the backup of the original. cuems-convert-documents gains --check.
-  * NOT YET RECONCILED with the release lines — do not publish until it is,
-    then re-verify the package relations:
-    the release line debian/bookworm is 77 commits ahead and carries
-    - 0.1.0rc16+1: stops shipping /usr/lib/cuems/CACHEDIR.TAG, a
-      cross-package file-overwrite conflict with cuems-power-bridge and
-      cuems-engine;
-    - 0.1.0rc17: script.xsd ActionType gains stop_project. A project saved
-      by an rc17 cluster with a stop_project cue is refused by 0.1.1 until
-      this is absorbed.
-  * Packaging: debian/ lives on the working branch, and debian/bookworm also
-    remains the active release line (it carries 0.1.0rc16+1 and rc17). The
-    packaging-rc14 tag this entry used to mention was never created.
+  * Reconciled with debian/bookworm at 398a9cf (0.1.0rc17): absorbs
+    0.1.0rc15, rc16, rc16+1 and rc17 (cuems-utils feature 017), merged with
+    their history, so the release line is an ancestor of this version:
+    - stop_project ActionType (rc17, 869fhjdq5): the authored end of an
+      unattended show. A project saved by an rc17 cluster with such a cue
+      loads on 0.1.1 after cuems-reshape-devices + cuems-convert-documents;
+    - media guards (rc16, 869fej07m): MediaCue.media_status(); get_media
+      raises a named ValueError for a media block without a file and skips
+      a missing one with a warning; get_own_media never raises;
+    - stored media values pixel_width, pixel_height, file_size, file_md5
+      (rc15, 869fat84r), carried by 0.1.1's own media block; an uppercase
+      md5 is refused rather than lowercased;
+    - Replaces: cuems-engine (<< 0.1.0rc6-2~) for cffi-gen-src (rc15);
+    - no /usr/lib/cuems/CACHEDIR.TAG in the package (rc16+1).
+  * stop_project takes no target: a None target is accepted at construction
+    and from JSON, written as <action_target />, and loads clean. A target
+    left on a stop_project cue is repaired to None on load (reported) and
+    refused on save. Every other action type still requires a target.
+  * pause_project and resume_project are retired from ActionType (11
+    values): project pause/resume is deferred to a future release, and no
+    producer ever wrote either value.
+  * cuems-reshape-devices and cuems-convert-documents report every document
+    the loader would refuse after they wrote it ("refused on load"); what
+    they write and their exit status are unchanged.
+    python -m cuemsutils.xml.reshape_devices now runs the tool.
+  * Packaging: debian/ lives on the working branch. After this merge
+    debian/bookworm is contained in it; that line may keep releasing
+    0.1.0rcN until 0.1.1 is published, and each such release is merged in
+    the same way. The packaging-rc14 tag this entry used to mention was
+    never created.
 
   Carried from the folded 0.1.0rc16 entry:
   * Schema renames, none of which invalidate a document on disk:
@@ -84,6 +102,41 @@ cuems-utils (0.1.1) UNRELEASED; urgency=medium
     feature 003); cuems-config-node no longer mints.
   * Packaging hygiene: debhelper-compat (= 13) replaces debian/compat 11,
     Standards-Version 4.6.2, README.Debian rewritten.
+
+
+  Carried from the folded retrospective 0.1.0rc15 entry (refactor work
+  recorded under that number; the number belongs to the released build
+  below):
+  * New entry point: cuems-convert-documents, an offline batch upgrade for
+    XML documents, installed into the shared venv alongside the library. It
+    backs up each document before rewriting and treats a backup failure as
+    fatal for that document alone.
+  * Reading became strict. Every document load now runs structural and
+    semantic validation: a valid document loads, a version-old one converts
+    IN MEMORY with the file on disk untouched, a repairable violation loads
+    with the field repaired to its declared default, an unrepairable one
+    raises, and a document newer than the library raises distinguishably.
+    Operators get a report naming every repair rather than a silent
+    substitution.
+  * Documents carry a doc_version marker, per schema, with a conversion
+    registered for every version step. Absent means version 1, so nothing on
+    disk is invalidated by its introduction.
+  * network_map.xsd: <node_type>, free text carrying NodeType.master /
+    NodeType.slave, becomes <node_role>, typed controller/node/firstrun.
+    DEPLOYED MAPS MUST BE CONVERTED -- both audited production machines were
+    still carrying the old vocabulary at the time of writing.
+  * The library gained its first write path for network_map.xml, and the
+    node object model moved in from cuems-nodeconf.
+  * One public API across the library: load/save/validate/from_json/to_json/
+    to_wire on the script object, configuration accessors answering with
+    objects, and cuemsutils.errors as the one public error module. Six
+    retired entry points still resolve and warn; they are REMOVED IN v0.1.2,
+    which is why every consumer pins << 0.1.2~.
+  * DmxUniverse no longer silently stores unconverted channel data when a
+    per-entry conversion fails; it raises DmxChannelDecodeError naming the
+    universe and the failing entry.
+  * Media duration is typed as a timecode, and the unused fade-profile
+    surface is deleted.
 
  -- Adrià Masip <adria@stagelab.coop>  Thu, 15 Oct 2026 22:10:00 +0200
 

@@ -257,20 +257,20 @@ the relations read 126/126.
 **Independent test**: `tests/packaging/test_changelog_completeness.py` is red on `5e4c637` and green
 on the head.
 
-- [ ] T051 [US4] Write `tests/packaging/test_changelog_completeness.py` per `contracts/changelog-completeness.md`:
+- [X] T051 [US4] Write `tests/packaging/test_changelog_completeness.py` per `contracts/changelog-completeness.md`:
   - carry the data block (`RELEASED_DEBIAN`, `RELEASED_PYPI`, `NEVER_PUBLISHED`, `OLDEST_RELEASED_DEBIAN`);
   - implement checks 1–6, with check 4 per spec M2;
   - make checks 2 (ref half) and 3 skip with a reason when `origin/debian/bookworm` or the `debian/*` tags are absent, using `tests/support/sibling_tags.py`'s pattern;
   - compare byte-for-byte on whole entry blocks, from the header line through the trailer line.
 
   Run it against `$S/wt-a`, expecting the red set listed in the contract, and record that in `evidence/red-green.md`.
-- [ ] T052 [US4] Update the `0.1.1` entry's body in `debian/changelog` (FR-031):
+- [X] T052 [US4] Update the `0.1.1` entry's body in `debian/changelog` (FR-031):
   - replace the "NOT YET RECONCILED" bullet with `Reconciled with debian/bookworm at 398a9cf (0.1.0rc17): absorbs rc15, rc16, rc16+1, rc17`, followed by one line for each of inventory items 1–5;
   - add one line for A-1's targetless rule and the `project_action_takes_no_target` repair, and one for the Q13 retirement of `pause_project`/`resume_project`;
   - fold in the body of HEAD's retrospective entry, taken from `git show 5e4c637:debian/changelog` (the `0.1.0rc15 UNRELEASED` block, header and trailer excluded), so the step does not depend on a session's scratchpad (analyze U1).
 
   Leave the trailer as it is. `dpkg-parsechangelog` must still print `0.1.1`.
-- [ ] T053 [US4] Rewrite `CHANGELOG.md` (FR-032, M1):
+- [X] T053 [US4] Rewrite `CHANGELOG.md` (FR-032, M1):
   - fold the two mid-file `## Unreleased — …` sections into `## 0.1.1 — Unreleased`, and replace its "Not yet reconciled" text with the reconciled line, items 1–5, A-1 and the Q13 retirement;
   - keep rc17's and rc16's sections; mark rc17 `(Debian only; not published to PyPI)`, and add `<!-- debian: 0.1.0rc16+1 (c01ca36) -->` plus one line under rc16;
   - add sections for `0.1.0rc15`, `0.1.0rc14`, `0.1.0rc12` (Debian only), `0.1.0rc10` and `0.1.0rc9` (Debian only), written from their `debian/changelog` text and dated by their trailers;
@@ -278,7 +278,7 @@ on the head.
   - end with `## Earlier releases`, pointing at the git tags and PyPI.
 
   Keep rc17's "stay in the enum" line verbatim (checklist CHK032).
-- [ ] T054 [US4] Run T051 on the head; it must be green. Record red→green. Commit T051–T053 as `docs(changelog): complete from 0.1.0rc5, guarded by a permanent test (017 D3)`.
+- [X] T054 [US4] Run T051 on the head; it must be green. Record red→green. Commit T051–T053 as `docs(changelog): complete from 0.1.0rc5, guarded by a permanent test (017 D3)`.
 
 **Checkpoint**: the changelog test is permanent and green.
 

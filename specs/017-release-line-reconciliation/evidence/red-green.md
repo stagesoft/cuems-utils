@@ -166,3 +166,16 @@ was copied into the arm-A worktree for the run) and against the 017 head:
 
 `tests/packaging/test_built_package.py::test_no_cachedir_tag_ships` and `::test_cffi_gen_src_ships`
 skip without a built `.deb` beside the checkout. They are run against the bookworm build in T050.
+
+## Changelog completeness (T051–T054): red on `5e4c637`, green on the head
+
+`tests/packaging/test_changelog_completeness.py`, 9 checks (contract `changelog-completeness.md`):
+
+| State | Result |
+|---|---|
+| `5e4c637` (the test copied into the arm-A worktree) | **8 red**, 1 held (check 1: the three top versions agreed) |
+| after M1 (`debian/changelog` rebuilt), before T052/T053 | checks 1–4 green, 5–6 **red** (`CHANGELOG.md`) |
+| after T052 + T053 | **9 passed** |
+
+**One fix found by the test:** the "never published" line for rc13 first sat inside rc14's section,
+which made rc14 (a PyPI release) look marked. rc13 now has its own one-line section.
