@@ -184,6 +184,23 @@ obligations, and it is sequenced here because its subject is the five modules R2
 - [ ] **R10** *(was T059)* Retire `tests/contract/test_deprecation_shims.py` **deliberately**,
       recording what replaces it and why deleting a contract test alongside the contract it guards
       is correct here (010 FR-029b)
+      - ⚠ **R10 is 14 modules, not one** (measured 2026-10-21 by feature 017, FR-029b). The other
+        13 also import the deprecated surface, and each breaks the day it is deleted. Since 017
+        every one carries `pytestmark = pytest.mark.expects_deprecation`, and
+        `tests/contract/test_deprecated_imports_are_marked.py` fails on any unmarked importer.
+        So **`pytest -m expects_deprecation --co` is the live list** (487 tests at 017). For each
+        module, decide **delete** (it tests the shim itself) or **port** (it tests behaviour that
+        survives the shim, through the public API):
+        - contract: `test_deprecation_shims`, `test_declared_break_nodeconf`,
+          `test_no_globals_injection`, `test_no_internal_deprecation`,
+          `test_validate_advice_per_schema`;
+        - integration: `test_construction_parity`, `test_d14_chain`, `test_default_mappings_valid`,
+          `test_type_coercion_live_paths`;
+        - unit, or at the `tests/` root until 017's cleanup moves them: `test_canvas_region_roundtrip`,
+          `test_fade_cue`, `test_name_coercion`, `test_xml`, `test_media_duration`.
+
+        When the surface is gone, `test_deprecated_imports_are_marked.py` retires too, because
+        nothing will be left for it to find.
 - [ ] **R11** *(was T060)* Move `__version__` in `src/cuemsutils/__init__.py` to
       `_deprecation.REMOVAL_RELEASE` — **and re-bound five sibling packages in the same step**
       (§3). Not a standalone task (010 FR-029c, SC-019)

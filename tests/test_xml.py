@@ -4,10 +4,17 @@ from logging import DEBUG, INFO
 from os import path
 from xml.etree.ElementTree import Element, ElementTree
 
+import pytest
+
 from cuemsutils.cues import ActionCue, AudioCue, CueList, CuemsScript, VideoCue
 from cuemsutils.cues.MediaCue import Media, Region
 from cuemsutils.xml import XmlReaderWriter
 from cuemsutils.xml.XmlBuilder import XmlBuilder
+
+# This module exercises the deprecated XML surface (XmlReaderWriter / Parsers /
+# XmlBuilder) on purpose. v0.1.2 deletes that surface, and this module with it or ported:
+# specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
+pytestmark = pytest.mark.expects_deprecation
 
 
 def create_dummy_script():

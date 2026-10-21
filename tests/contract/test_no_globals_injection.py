@@ -15,11 +15,18 @@ from __future__ import annotations
 
 import warnings
 
+import pytest
+
 import cuemsutils.xml.Parsers as parsers_module
 import cuemsutils.xml.XmlBuilder as xml_builder_module
 from cuemsutils.xml.mapper import Mapper, read_config_document
 from cuemsutils.xml.settings import NetworkMap
 from tests.support.corpus import REPO_ROOT
+
+# This module exercises the deprecated XML surface (XmlReaderWriter / Parsers /
+# XmlBuilder) on purpose. v0.1.2 deletes that surface, and this module with it or ported:
+# specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
+pytestmark = pytest.mark.expects_deprecation
 
 NETWORK_MAP_PATH = REPO_ROOT / "tests" / "data" / "network_map.xml"
 

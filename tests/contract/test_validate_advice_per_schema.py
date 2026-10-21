@@ -23,6 +23,11 @@ import pytest
 from cuemsutils._deprecation import REMOVAL_RELEASE
 from cuemsutils.xml import XmlReaderWriter
 
+# This module exercises the deprecated XML surface (XmlReaderWriter / Parsers /
+# XmlBuilder) on purpose. v0.1.2 deletes that surface, and this module with it or ported:
+# specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
+pytestmark = pytest.mark.expects_deprecation
+
 #: The four configuration schemas, which must be sent at the config validator.
 CONFIG_SCHEMAS = ("settings", "network_map", "project_mappings", "project_settings")
 #: The show schemas. ``hardware_outputs`` is a show schema used by the editor's

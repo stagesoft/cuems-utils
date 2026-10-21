@@ -156,6 +156,13 @@ All twelve are answered (sessions below); no requirement remains provisional.
   only; M2 and M3 have no stop point of their own and are made on the 017 branch after the
   fast-forward (FR-002).
 
+- Q (analyze/implement T043, maintainer): SC-006 assumed frozen-shim tests "marked
+  `expects_deprecation`", but measured, **no test used the marker**. 14 pre-017 modules import the
+  deprecated surface, none of them absorbed, and `v0.1.2`'s plan owned only one. What should
+  SC-006 require? → A: **Option B.** Narrow it to the absorbed tests (zero, as D4 intends). Mark
+  the 14 with `expects_deprecation`, enforced by `tests/contract/test_deprecated_imports_are_marked.py`.
+  List all 14 in `deprecated-surface-removal-v0-1-2.md` R10, which now owns their deletion or port.
+
 ### Measured corrections (plan, 2026-10-21)
 
 - **M1 — `0.1.0rc5` and `0.1.0rc6` were never published** (`research.md` R9). PyPI's JSON API
@@ -697,8 +704,12 @@ in `evidence/ci-gate.md` (Clarifications, gate question).
   The `ActionType` comment in `script.xsd` MUST point at the handover document. `0.1.1`'s
   changelog entry and `CHANGELOG.md` section MUST record the retirement. The released rc17 line
   saying they "stay in the enum" is kept verbatim, because it is true of rc17.
-- **FR-029b (D4)**: No retained test may import `cuemsutils.xml.XmlReaderWriter`, `Parsers` or
-  `XmlBuilder` unless it is a frozen-shim contract test marked `expects_deprecation`.
+- **FR-029b (D4; scope clarified 2026-10-21, option B)**: No **absorbed** test may import
+  `cuemsutils.xml.XmlReaderWriter`, `Parsers` or `XmlBuilder` (D4's scope; 017's ports remove all
+  of them). Every **other** test module that imports them on purpose MUST carry
+  `pytestmark = pytest.mark.expects_deprecation`, enforced by
+  `tests/contract/test_deprecated_imports_are_marked.py`, and MUST be listed in
+  `specs/planning/deprecated-surface-removal-v0-1-2.md` R10, which owns its deletion or port.
   `evidence/test-retirements.md` is the **one index of every retirement**, with its reason. That
   covers a retired assertion (the md5 case folding), a retired script (`testdev_nng_talk.py`),
   absorbed root copies replaced by their ports, and retired vocabulary (Q13). The vocabulary row
@@ -961,8 +972,10 @@ deletes and rewires, with the suite run after each commit and the pass set uncha
   moves.
 - **SC-005 (§10.5)**: X-4 is pinned by one test; the three A-5 packaging tests fail on `5e4c637` and
   pass on the 017 head.
-- **SC-006 (§10.6)**: **Zero** retained tests import the deprecated XML modules outside the marked
-  frozen-shim contract tests; every retirement is listed with its reason.
+- **SC-006 (§10.6, clarified)**: **Zero** absorbed tests import the deprecated XML modules. Every
+  test module that does import them is marked `expects_deprecation`, measured by a contract test (14
+  modules, 487 tests at 017), and listed in the `v0.1.2` removal plan's R10. Every retirement is
+  listed with its reason.
 - **SC-007 (§10.7)**: Relation verdicts **126/126** (016's 121 + row 26's 5). The `0.1.1` `.deb`
   builds in the bookworm chroot with all four FR-035 checks recorded.
 - **SC-008 (§10.8)**: The changelog completeness test **fails on `5e4c637` and passes** on the 017
