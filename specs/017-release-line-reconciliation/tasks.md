@@ -233,7 +233,7 @@ the relations read 126/126.
   Run it against `$S/wt-a`, where it must be red, and against the head, where it must be green, and record both.
 - [X] T047 [US3] Extend `tests/packaging/test_built_package.py` (the chroot test, skipped without `CUEMS_CHROOT_TAR`) to assert the built `.deb` has no `usr/lib/cuems/CACHEDIR.TAG`, and to report whether `usr/lib/cuems/bin/cffi-gen-src` is present (FR-028, FR-035).
 - [X] T048 [US3] Reword the comment block above the relations in `debian/control`. Each relation states its own reason. Row 26 states why there is no `Breaks:` (Q6, `contracts/relation-row-26.md`), and the "Replaces is deliberately absent" sentence goes. Commit T046–T048 as `fix(debian): pin Replaces and the CACHEDIR.TAG strip (017 A-5)`.
-- [ ] T049 [P] [US3] Write `specs/017-release-line-reconciliation/tools/verdicts-017.sh` per `contracts/relation-row-26.md`: run 016's `verdicts.sh` unchanged, read row 26 from `<parent>/cuems-utils/debian/control`, and run the five `dpkg --compare-versions` verdicts.
+- [X] T049 [P] [US3] Write `specs/017-release-line-reconciliation/tools/verdicts-017.sh` per `contracts/relation-row-26.md`: run 016's `verdicts.sh` unchanged, read row 26 from `<parent>/cuems-utils/debian/control`, and run the five `dpkg --compare-versions` verdicts.
 
   Build the parent from worktrees, never from the live checkouts (analyze U2):
   - for each of `cuems-common cuems-nodeconf cuems-power-bridge cuems-engine cuems-editor cuems-frontend`, run `git -C ../<repo> worktree add --detach $S/rel/<repo> feat/xml-refactor`;
