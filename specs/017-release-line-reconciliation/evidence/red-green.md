@@ -137,3 +137,9 @@ probe" branch needs no `Unset` check (`upstream-reports/cuems-engine.md`).
 | `…::test_a_document_the_loader_accepts_gets_no_report` | held (the negative) | passed |
 
 All 104 tests in the 26 files that exercise either tool pass on `6768e96`.
+
+## FR-026a (T044): red → green
+
+| Test | Red | Green |
+|---|---|---|
+| `tests/contract/test_public_api_surface.py::test_public_api_matches_the_snapshot` | **red** once `MediaCue` joined `PUBLIC_CLASSES` | passed after the surgical golden insert (`evidence/public-api-rehash.txt`: 68 added, 0 deleted) |

@@ -1,0 +1,16 @@
+# public_api.json re-hash (FR-026a, SC-016), 2026-10-21T18:16:04Z
+
+red: test_public_api_matches_the_snapshot FAILED once MediaCue joined PUBLIC_CLASSES (before the golden carried the block)
+before sha256: 908d42660765d241598871f332e66a841651363e0df9be0da4e85982aed0242f
+after  sha256: 758ef660ef680d61788ca6e6d7b4e5ccf343187ff1cf18432aaec24c0b098d1e
+
+git diff --numstat (added deleted path):
+68	0	tests/golden/api/public_api.json
+deleted lines in the diff: 0
+
+Checks run when inserting:
+- json.loads(new) == json.loads(old) + {symbols.MediaCue: _members(MediaCue)} -> True
+- json.loads(new) == the live _snapshot() -> True
+- re-serialising the old golden with dumps(indent=2, sort_keys=True) does NOT reproduce it (first difference at byte 8093: NodeIndex.foreign_controllers out of sort order), so the block was inserted as text, not by re-dumping
+
+MediaCue: 60 method entries, media_status included; bases ['Cue']

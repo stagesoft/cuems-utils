@@ -203,8 +203,8 @@ is pinned, `MediaCue` is snapshotted, and the 14-row inventory is proven.
   - `Unset` is never returned.
 
   Record it as `held` (it is a pin) and commit `test: pin absent stored-media values as None (017 A-6, X-4)`.
-- [ ] T043 [US2] FR-029b: `git grep -nE "XmlReaderWriter|xml\.Parsers|xml\.XmlBuilder|from cuemsutils\.xml import (Parsers|XmlBuilder)" -- tests/`. Every hit must be in a module marked `expects_deprecation` (frozen-shim contract). Record the output in `specs/017-release-line-reconciliation/evidence/deprecated-imports.txt` (SC-006).
-- [ ] T044 [US2] FR-026a (last adaptation):
+- [~] T043 [US2] FR-029b: `git grep -nE "XmlReaderWriter|xml\.Parsers|xml\.XmlBuilder|from cuemsutils\.xml import (Parsers|XmlBuilder)" -- tests/`. Every hit must be in a module marked `expects_deprecation` (frozen-shim contract). Record the output in `specs/017-release-line-reconciliation/evidence/deprecated-imports.txt` (SC-006).
+- [X] T044 [US2] FR-026a (last adaptation):
   - add `"MediaCue": ("cuemsutils.cues.MediaCue", "MediaCue")` to `PUBLIC_CLASSES` in `tests/contract/test_public_api_surface.py` and record `test_public_api_matches_the_snapshot` red;
   - insert the `MediaCue` block by hand, in sorted position, into `tests/golden/api/public_api.json`, and update that file's line in `tests/golden/MANIFEST.sha256`;
   - add a re-hash paragraph to `tests/contract/test_golden_immutability.py`'s docstring, beside the 009/011/axis-D/foreign-controller paragraphs;

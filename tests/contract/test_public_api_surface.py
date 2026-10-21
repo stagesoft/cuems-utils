@@ -49,6 +49,10 @@ PUBLIC_CLASSES = {
     "ConfigManager": ("cuemsutils.tools.ConfigManager", "ConfigManager"),
     "ConfigBase": ("cuemsutils.tools.ConfigBase", "ConfigBase"),
     "NodeIndex": ("cuemsutils.tools.NodeList", "NodeIndex"),
+    # Feature 017 (FR-026a, Q8): MediaCue's public methods are snapshotted, so
+    # the release line's ``media_status()`` (869fej07m) and the four stored-media
+    # accessors cannot change or vanish unnoticed.
+    "MediaCue": ("cuemsutils.cues.MediaCue", "MediaCue"),
 }
 
 #: The exception hierarchy, plus the repair-report types feature 008 (ITEM E)
