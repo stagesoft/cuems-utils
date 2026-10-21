@@ -19,6 +19,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import cast
 
 from ..tools.library_reach import is_backup, library_path_from_settings
 from .documents import backup_document, backup_path, write_tree
@@ -298,7 +299,9 @@ def loader_refusal_after_reshape(path: Path) -> str | None:
     _reshape_tree(schema_name, tree.getroot())
     with tempfile.TemporaryDirectory() as scratch:
         probe = Path(scratch) / path.name
-        write_tree(tree, probe)
+        # typeshed's ElementTree generic is invariant; write_tree takes the unparametrised
+        # form. The pre-existing call in reshape_file has the same mismatch.
+        write_tree(cast("ET.ElementTree", tree), probe)
         return loader_refusal(probe, schema_name)
 
 

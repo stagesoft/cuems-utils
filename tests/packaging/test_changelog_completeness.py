@@ -57,6 +57,7 @@ def _entries(text: str) -> list[tuple[str, str, str]]:
             if line.startswith(" -- "):
                 body = "".join(cur)
                 m = _HEADER.match(body)
+                assert m is not None  # the block starts with the header line matched above
                 out.append((m.group(2), m.group(3).strip(), body))
                 cur = None
     return out
