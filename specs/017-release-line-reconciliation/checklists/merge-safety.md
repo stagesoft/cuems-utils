@@ -23,7 +23,7 @@ when this checklist was written. Each records how it was closed.
 - [x] CHK006 Is a single proof required for each of the 14 inventory items, with its kind defined (public-API test, packaging test, history check, changelog test)? [Measurability, Spec §FR-003, §SC-002] → FR-003, SC-002, data-model §4, T045.
 - [x] CHK007 Is the rule for the absorbed **root** test files unambiguous: ported by A-3/A-4, not deleted in M1, and not moved by C3? [Clarity, Spec §FR-026, §FR-027, §FR-063, research R17] → Research R17 keeps them in M1; FR-026 and T037/T038 port them and delete the root copies; FR-063's "17 root modules" excludes them.
 - [x] CHK008 Is the behaviour of each rc15 legacy-path edit (string md5, schema-ordered media children) required to be proven on the **public** path, with a stated outcome when it already holds ("held", not an invented red)? [Clarity, Spec §FR-012, research R7] → FR-012, research R7, T041 (red-first on M3, "held" if green).
-- [x] CHK009 Is "behaving as released wherever the refactor's contract allows" bounded by an explicit list of the places where it does not (md5 case folding, `""` → `None`, target repair, the retired values)? [Clarity, Spec §US2, §FR-023, §FR-027, §FR-029d] → **Added: spec FR-003a**, a closed list of five departures plus the rule for any new one.
+- [x] CHK009 Is "behaving as released wherever the refactor's contract allows" bounded by an explicit list of the places where it does not (md5 case folding, `""` → `None`, target repair, the retired values)? [Clarity, Spec §US2, §FR-023, §FR-027, §FR-029d] → **Added: spec FR-003a**, a closed list of departures (six since T037 added A-1's `None` acceptance), plus the rule for any new one.
 
 ## Strays: nothing extra lands
 

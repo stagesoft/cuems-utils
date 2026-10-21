@@ -553,6 +553,9 @@ in `evidence/ci-gate.md` (Clarifications, gate question).
   4. `pause_project` and `resume_project` are **removed from the vocabulary** (FR-029d, Q13);
   5. absorbed behaviour is reached through the **public API**, and the deprecated XML path keeps
      its rc15 edits only as a shim (FR-012, D4).
+  6. a `stop_project` cue **accepts a `None` target** at construction and at the setter, where
+     rc17 refused it (A-1, S-2: the frontend sends `null`). Two rc17 assertions are retired for
+     it (T037, `evidence/test-retirements.md`).
 
   Any other ported rc-line assertion that fails is an adaptation (red → green), unless it
   contradicts a settled refactor decision. In that case it is retired with its reason (D4) and

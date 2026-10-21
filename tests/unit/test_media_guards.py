@@ -20,8 +20,13 @@ Two readers of a cue's media, two behaviours, pinned here:
   loads and that cue fails at arm, locally, as it always did for ``<Media/>``.
 
 Shapes are built the way the decoders build them: ``dict.__setitem__`` for
-the raw ``None`` (``Parsers.py`` assigns an empty element as ``None``),
+the raw ``None`` (an empty element decodes to ``None``), and
 ``set_Media(None)`` / ``ensure_items`` for the empty ``Media`` object.
+
+Ported by feature 017 (A-3, spec D4) from ``tests/test_media_guards.py``
+(0.1.0rc16). The port is a **move**: these tests exercise the public model
+(``MediaCue.media_status``, ``CueList.get_media``, ``CuemsScript.get_own_media``)
+directly and never touched the deprecated XML modules, so no assertion changed.
 """
 
 import uuid
