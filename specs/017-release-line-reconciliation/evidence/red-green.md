@@ -90,3 +90,26 @@ target, repairing to `None` restates the violation), so it now asserts exactly t
 value. The field stays published UNREPAIRABLE (FR-023a).
 
 ruff: **0**. Goldens: `git diff --stat -- tests/golden` **empty**.
+
+## A-3 / A-4 — ports (T037–T040): `held`, not red → green
+
+These are ports of absorbed tests (spec D4), not new behaviour. Each ported test passes on the
+public path as written, so each is recorded as **held**.
+- **A-3** (`099e4ad`): `tests/unit/test_stop_project_cue.py`, 3 passed. `tests/unit/test_media_guards.py`
+  was moved unchanged: 19 passed.
+- **A-4**: `tests/unit/test_media_pixel_dimensions.py` was rewritten to `CuemsScript.save` / `load` /
+  `to_json` / `from_json`: **44 passed** (21 tests with their parametrizations). The only change of
+  assertion is the retired `TestFileMd5::test_stored_lowercase` (`test-retirements.md`). No other rc15
+  assertion was red, so nothing beyond FR-003a's list was retired.
+
+## FR-012 (T041): the rc15 legacy-path behaviours on the public path: **held**
+
+| Behaviour (rc15's `Parsers.py` / `XmlBuilder.py` edits) | Public-path test | On the 017 head |
+|---|---|---|
+| the four media children are written in schema order, whatever the dict order | `tests/unit/test_media_pixel_dimensions.py::TestWrite::test_written_in_schema_order_whatever_the_dict_order` and `TestFileMd5::test_written_last_whatever_the_dict_order`, through `CuemsScript.save` | **held** |
+| an all-digit (or digits-and-`e`) `file_md5` stays a `str` on read and re-saves | `TestFileMd5::test_a_number_shaped_md5_survives_the_parser` (both parametrizations), through `CuemsScript.load` → `save` and `to_json` → `from_json`, asserting `type(...) is str` | **held** |
+
+**No port was needed** (research R7). The mapper emits a sequence in schema order, and the adapter
+table binds the `Md5Type` string type. T041 planned a separate `tests/unit/test_media_public_path.py`.
+It was **not** created, because the ported rc15 tests above are exactly those two checks on the public
+path, and a second copy would only duplicate them.
