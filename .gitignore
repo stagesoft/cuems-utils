@@ -1,5 +1,6 @@
 ## Local development files
-dev/local
+# Per-user agent permissions (feature 017, FR-061): never tracked. .claude/settings.json is shared.
+.claude/settings.local.json
 tests/tmp
 
 # Byte-compiled / optimized / DLL files
