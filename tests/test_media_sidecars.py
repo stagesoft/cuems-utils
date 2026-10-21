@@ -255,19 +255,56 @@ def _fake_indexer(bindir, body):
     p.chmod(0o755)
 
 
-def test_ensure_video_index_runs_only_the_missing(tmp_path, monkeypatch):
-    (tmp_path / 'indexes').mkdir()
-    a, b = tmp_path / 'a.mp4', tmp_path / 'b.mp4'
-    a.write_bytes(b'a'), b.write_bytes(b'b')
-    (tmp_path / 'indexes' / 'a.mp4.idx').write_bytes(b'i')
+def _write_idx(video, frames=100, size=None, mtime=None):
+    st = os.stat(video)
+    head = ms._IDX_HEAD.pack(ms._IDX_MAGIC, ms._IDX_VERSION, st.st_size if size is None else size,
+                             st.st_mtime_ns // 1_000_000_000 if mtime is None else mtime, frames)
+    p = Path(ms.video_index_path(str(video)))
+    p.parent.mkdir(exist_ok=True)
+    p.write_bytes(head + b'rest')
+
+
+# A fake indexer that writes a valid header for each argument (python, so it can stat).
+_INDEXER = '''exec python3 - "$@" <<'PY'
+import os, struct, sys
+for f in sys.argv[1:]:
+    open(os.path.join(os.path.dirname(f), "args"), "a").write(f + "\\n")
+    st = os.stat(f)
+    d = os.path.join(os.path.dirname(f), "indexes"); os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, os.path.basename(f) + ".idx"), "wb").write(
+        struct.pack("<4sIqqq", b"CXID", 1, st.st_size, st.st_mtime_ns // 10**9, 100))
+PY
+'''
+
+
+def test_video_index_state(tmp_path):
+    v = tmp_path / 'v.mp4'
+    v.write_bytes(b'video')
+    assert ms.video_index_state(str(v)) == ms.INDEX_MISSING
+    _write_idx(v)
+    assert ms.video_index_state(str(v)) == ms.INDEX_VALID
+    _write_idx(v, size=1)
+    assert ms.video_index_state(str(v)) == ms.INDEX_STALE
+    _write_idx(v, frames=0)
+    assert ms.video_index_state(str(v)) == ms.INDEX_MISSING
+    Path(ms.video_index_path(str(v))).write_bytes(b'short')
+    assert ms.video_index_state(str(v)) == ms.INDEX_MISSING
+
+
+def test_ensure_video_index_runs_only_the_missing_or_stale(tmp_path, monkeypatch):
+    a, b, c = tmp_path / 'a.mp4', tmp_path / 'b.mp4', tmp_path / 'c.mp4'
+    for p in (a, b, c):
+        p.write_bytes(p.name.encode())
+    _write_idx(a)                       # valid: left alone
+    _write_idx(c, size=999)             # stale: rebuilt
     bindir = tmp_path / 'bin'
     bindir.mkdir()
-    _fake_indexer(bindir, 'for f in "$@"; do echo "$f" >> "%s/args"; '
-                          'touch "$(dirname "$f")/indexes/$(basename "$f").idx"; done\n' % tmp_path)
+    _fake_indexer(bindir, _INDEXER)
     monkeypatch.setenv('PATH', f'{bindir}:{os.environ["PATH"]}')
-    assert ms.ensure_video_index([str(a), str(b)]) == []
-    assert (tmp_path / 'args').read_text().split() == [str(b)]
+    assert ms.ensure_video_index([str(a), str(b), str(c)]) == []
+    assert (tmp_path / 'args').read_text().split() == [str(b), str(c)]
     assert ms.ensure_video_index(str(b)) == []            # a no-op now
+    assert (tmp_path / 'args').read_text().split() == [str(b), str(c)]
 
 
 def test_ensure_video_index_reports_failures_and_never_raises(tmp_path, monkeypatch):

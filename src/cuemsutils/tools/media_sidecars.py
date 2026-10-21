@@ -32,6 +32,7 @@ and mtime (whole seconds: rsync ``-t`` keeps them across hosts) match.
 import argparse
 import json
 import os
+import struct
 import subprocess
 import sys
 import tempfile
@@ -291,16 +292,60 @@ def write_period(media_path: str, period: Period) -> str:
 
 
 # --------------------------------------------------------------------------- .idx
+#
+# The .idx itself is built by cuems-videoindexer (the videocomposer's
+# VideoFileInput in index-only mode, IDX_VERSION; it stays in that repo). What
+# lives here is its caller and the check of an existing index, moved from the
+# editor (869fat84r D20) and the engine (ensure_video_indexes).
+
+INDEX_VALID = 'valid'
+INDEX_STALE = 'stale'       # a readable header for another size or mtime
+INDEX_MISSING = 'missing'   # no index, unreadable, or a format we do not know
+
+# videocomposer VideoFileInput.cpp IdxHeader: magic, uint32 version, int64
+# video_size, int64 video_mtime (whole seconds), int64 frameCount, ...
+_IDX_HEAD = struct.Struct('<4sIqqq')
+_IDX_MAGIC = b'CXID'
+_IDX_VERSION = 1
+
+
+def video_index_path(file_path: str) -> str:
+    """``/lib/media/a.mp4`` -> ``/lib/media/indexes/a.mp4.idx`` (the videocomposer's
+    ``getIndexPath``)."""
+    return sidecar_path(file_path, INDEX_EXT)
+
+
+def video_index_state(file_path: str) -> str:
+    """Is the video's ``.idx`` the one the videocomposer would accept?
+
+    It compares what the videocomposer compares: magic, version, the video's
+    size and mtime (whole seconds), and a positive frame count. Fails closed:
+    anything it cannot read counts as missing.
+    """
+    try:
+        st = os.stat(file_path)
+        with open(video_index_path(file_path), 'rb') as f:
+            head = f.read(_IDX_HEAD.size)
+        magic, version, size, mtime, frames = _IDX_HEAD.unpack(head)
+    except (OSError, struct.error):
+        return INDEX_MISSING
+    if magic != _IDX_MAGIC or version != _IDX_VERSION or frames <= 0:
+        return INDEX_MISSING
+    if size != st.st_size or mtime != st.st_mtime_ns // 1_000_000_000:
+        return INDEX_STALE
+    return INDEX_VALID
+
 
 def ensure_video_index(paths, timeout_s: float = 600) -> list:
-    """Run ``cuems-videoindexer`` on every path of *paths* (one path or several) that
-    has no ``indexes/<name>.idx`` yet; returns the paths still without one.
+    """Run ``cuems-videoindexer`` on every path of *paths* (one path or several)
+    whose ``indexes/<name>.idx`` is missing or stale; returns the paths still without
+    a valid one.
 
     Never raises: a missing indexer, a timeout or a failure is a WARNING.
     """
     if isinstance(paths, str):
         paths = [paths]
-    todo = [p for p in paths if not os.path.exists(sidecar_path(p, INDEX_EXT))]
+    todo = [p for p in paths if video_index_state(p) != INDEX_VALID]
     if not todo:
         return []
     Logger.info(f'video index: indexing {len(todo)} file(s) without .idx: '
@@ -312,7 +357,7 @@ def ensure_video_index(paths, timeout_s: float = 600) -> list:
             Logger.warning(f'video index: cuems-videoindexer rc={r.returncode}: {r.stdout.strip()[-400:]!r}')
     except Exception as e:  # FileNotFoundError, TimeoutExpired, ...
         Logger.warning(f'video index: cuems-videoindexer failed: {e}')
-    missing = [p for p in todo if not os.path.exists(sidecar_path(p, INDEX_EXT))]
+    missing = [p for p in todo if video_index_state(p) != INDEX_VALID]
     for p in missing:
         Logger.warning(f'video index not created for {os.path.basename(p)}')
     return missing
