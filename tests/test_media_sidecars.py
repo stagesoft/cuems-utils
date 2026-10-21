@@ -181,6 +181,17 @@ def test_real_subprocess_timeout_maps_to_period_timeout(monkeypatch, tmp_path):
         ms._run(['ffprobe', 'x'], ms._Deadline(1))
 
 
+def test_low_priority_prefixes_nice_and_ionice(monkeypatch):
+    seen = []
+
+    class R:
+        returncode, stdout, stderr = 0, 'ok', ''
+    monkeypatch.setattr(ms.subprocess, 'run', lambda args, **k: seen.append(args) or R())
+    ms._run(['ffprobe', 'x'], ms._Deadline(None, low_priority=True))
+    ms._run(['ffprobe', 'y'], ms._Deadline(None))
+    assert seen == [['nice', '-n', '10', 'ionice', '-c3', 'ffprobe', 'x'], ['ffprobe', 'y']]
+
+
 def test_ffprobe_missing_is_a_period_error(monkeypatch):
     def nf(*a, **k):
         raise FileNotFoundError('ffprobe')
@@ -326,7 +337,7 @@ def test_cli_prints_and_backfills(tmp_path, monkeypatch, capsys):
         (tmp_path / n).write_bytes(b'z')
     seen = []
 
-    def fake_lp(path, budget_s=None):
+    def fake_lp(path, budget_s=None, low_priority=False):
         seen.append(os.path.basename(path))
         st = os.stat(path)
         return ms.Period(num=48000, den=48000, rate=48000, real_frames=None, fps=None, rule='header',

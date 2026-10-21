@@ -108,8 +108,9 @@ class Period:
 # --------------------------------------------------------------------------- ffprobe
 
 class _Deadline:
-    def __init__(self, budget_s: Optional[float]):
+    def __init__(self, budget_s: Optional[float], low_priority: bool = False):
         self.end = None if budget_s is None else time.monotonic() + budget_s
+        self.prefix = ['nice', '-n', '10', 'ionice', '-c3'] if low_priority else []
 
     def left(self) -> Optional[float]:
         if self.end is None:
@@ -123,7 +124,7 @@ class _Deadline:
 def _run(args: list, deadline: _Deadline) -> str:
     """Run ffprobe; stdout as text. Raises PeriodError / PeriodTimeout."""
     try:
-        r = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        r = subprocess.run(deadline.prefix + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                            timeout=deadline.left(), text=True)
     except subprocess.TimeoutExpired as e:
         raise PeriodTimeout(f'{args[0]} timed out') from e
@@ -201,14 +202,16 @@ def _video_frames(path: str, st: dict, deadline: _Deadline):
     return n, fps, 'packets', vfr
 
 
-def loop_period(path: str, budget_s: Optional[float] = None) -> Period:
+def loop_period(path: str, budget_s: Optional[float] = None, low_priority: bool = False) -> Period:
     """Compute the loop period of *path* (section 4.1).
 
     *budget_s* bounds the total time of the ffprobe calls (``None``: no bound);
     raises ``PeriodTimeout`` when exceeded, ``PeriodError`` on any failure.
+    *low_priority* runs ffprobe under ``nice -n 10 ionice -c3`` (the engine's
+    background finish after a budget miss, the backfill).
     """
     t0 = time.monotonic()
-    deadline = _Deadline(budget_s)
+    deadline = _Deadline(budget_s, low_priority)
     try:
         st = os.stat(path)
     except OSError as e:
@@ -412,7 +415,7 @@ def main(argv=None) -> int:
                 skipped += 1
                 continue
             try:
-                p = loop_period(f, a.budget)
+                p = loop_period(f, a.budget, low_priority=True)
                 write_period(f, p)
                 done += 1
                 print(f'wrote {sidecar_path(f)}  {p.num}/{p.den} = {p.ms:.3f} ms ({p.rule}, {p.probe_s} s)')
