@@ -232,7 +232,15 @@ def _repairability_map() -> dict[tuple[TypeKey, str], bool]:
                 if not keys:
                     raise RepairabilityTargetError(rule.name, class_name, field_name)
                 for key in keys:
-                    mapping[(key, field_name)] = rule.repairable
+                    # Conservative and order-independent (feature 017, FR-023a): a
+                    # field is repairable only if EVERY rule targeting it is. It
+                    # used to be last-registered-wins, which A-1's repairable
+                    # ``project_action_takes_no_target`` would have turned into
+                    # publishing ``ActionCue.action_target`` as repairable — false
+                    # for every action type but ``stop_project``.
+                    mapping[(key, field_name)] = (
+                        mapping.get((key, field_name), True) and rule.repairable
+                    )
         _repairability_cache = mapping
     return _repairability_cache
 

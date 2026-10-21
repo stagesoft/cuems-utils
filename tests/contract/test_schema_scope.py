@@ -80,12 +80,23 @@ SCHEMAS_DIR = REPO_ROOT / "src" / "cuemsutils" / "xml" / "schemas"
 #: this library still refuses one that omits or empties these elements (measured
 #: with and without the attributes). Inside the unreleased ``script`` 1 -> 2 step,
 #: so no version marker moves.
+#:
+#: Updated 2026-10-21 for ``script.xsd`` (feature 017, A-1 + A-2d + Q13), **once**
+#: for every ``script.xsd`` edit 017 makes:
+#: - the release-line merge brought ``stop_project`` into ``ActionType`` (rc17);
+#: - ``pause_project`` and ``resume_project`` are retired from it (project
+#:   pause/resume deferred; no producer ever wrote them; handover in
+#:   ``specs/planning/project-pause-resume-deferred.md``);
+#: - the ``stop_project`` comment names A-1's rule and points at that document.
+#:
+#: Still inside the unreleased ``script`` 1 -> 2 step: **no version 3** and no
+#: registry entry (014's precedent; spec FR-025, FR-029d).
 CURRENT_SCHEMA_HASHES = {
     "hardware_outputs.xsd": "e509dcee2ae8f461e3c25dfc680a73a0da31519159c1f0e3fb1199cc6dc46f5a",
     "network_map.xsd": "f1aecab856c49068197d064c8eb2309e972bc21ea508d4549e18277e1b55329b",
     "project_mappings.xsd": "c4a5e3504b32c961fe4b7ad49bfd22e17fd132f8e99be2c162c329385cdd13e8",
     "project_settings.xsd": "5cd80b9d2a5239365a764526a40c17426e158a9ec057acda2ffc97b552ea254f",
-    "script.xsd": "638ffe13ad69eacf4658cccb31455cd6074f6bda3f05b1cc5b497330d5c4d434",
+    "script.xsd": "d98e7cc1526c50ef336dbd5439284e44e60fa18141321f3767acc60ff296457c",
     "settings.xsd": "67ffe9ae1ae86a00f152b633b0ce9c9f9321d67eb9d9200b2f1467bb1fe0aa0b",
 }
 
