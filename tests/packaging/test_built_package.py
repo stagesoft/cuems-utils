@@ -90,3 +90,19 @@ def test_no_manifest_overlap_with_siblings(built_deb):
             theirs.add("/" + dest.strip("/") + "/" + src.rsplit("/", 1)[-1])
         overlap = ours & theirs
         assert not overlap, f"{sibling} also ships {sorted(overlap)}"
+
+
+# -- feature 017, A-5 / FR-035 ------------------------------------------------------
+
+
+def test_no_cachedir_tag_ships(built_deb):
+    """rc16+1 (``c01ca36``): ``debian/rules`` strips it after ``dh_virtualenv``. Other packages
+    ship the same path, so leaving it in makes dpkg refuse one of them ("trying to
+    overwrite")."""
+    assert "/usr/lib/cuems/CACHEDIR.TAG" not in set(deb_paths(built_deb))
+
+
+def test_cffi_gen_src_ships(built_deb):
+    """The file this package's ``Replaces: cuems-engine (<< 0.1.0rc6-2~)`` exists for (relation row
+    26). If it stopped shipping, the ``Replaces:`` would license nothing, and should go with it."""
+    assert "/usr/lib/cuems/bin/cffi-gen-src" in set(deb_paths(built_deb))

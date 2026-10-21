@@ -225,14 +225,14 @@ the relations read 126/126.
 **Independent test**: the A-5 packaging tests fail on `5e4c637` and pass on the head;
 `evidence/verdicts-017.txt` reads 126/126; `evidence/deb-checks.md` holds all four checks.
 
-- [ ] T046 [P] [US3] Write `tests/packaging/test_release_line_packaging.py` (FR-028, FR-034):
+- [X] T046 [P] [US3] Write `tests/packaging/test_release_line_packaging.py` (FR-028, FR-034):
   - the `Package: cuems-utils` stanza of `debian/control` declares `Replaces: cuems-engine (<< 0.1.0rc6-2~)` and still declares `Breaks: cuems-common (<< 1.3.1~)`;
   - `debian/rules`' `override_dh_virtualenv` removes `CACHEDIR.TAG` **after** the `dh_virtualenv` line;
   - `debian/rules` carries all four of: the `--python /usr/bin/python3` pin, the strip, 011's schema/defaults install, and `override_dh_installdeb`.
 
   Run it against `$S/wt-a`, where it must be red, and against the head, where it must be green, and record both.
-- [ ] T047 [US3] Extend `tests/packaging/test_built_package.py` (the chroot test, skipped without `CUEMS_CHROOT_TAR`) to assert the built `.deb` has no `usr/lib/cuems/CACHEDIR.TAG`, and to report whether `usr/lib/cuems/bin/cffi-gen-src` is present (FR-028, FR-035).
-- [ ] T048 [US3] Reword the comment block above the relations in `debian/control`. Each relation states its own reason. Row 26 states why there is no `Breaks:` (Q6, `contracts/relation-row-26.md`), and the "Replaces is deliberately absent" sentence goes. Commit T046–T048 as `fix(debian): pin Replaces and the CACHEDIR.TAG strip (017 A-5)`.
+- [X] T047 [US3] Extend `tests/packaging/test_built_package.py` (the chroot test, skipped without `CUEMS_CHROOT_TAR`) to assert the built `.deb` has no `usr/lib/cuems/CACHEDIR.TAG`, and to report whether `usr/lib/cuems/bin/cffi-gen-src` is present (FR-028, FR-035).
+- [X] T048 [US3] Reword the comment block above the relations in `debian/control`. Each relation states its own reason. Row 26 states why there is no `Breaks:` (Q6, `contracts/relation-row-26.md`), and the "Replaces is deliberately absent" sentence goes. Commit T046–T048 as `fix(debian): pin Replaces and the CACHEDIR.TAG strip (017 A-5)`.
 - [ ] T049 [P] [US3] Write `specs/017-release-line-reconciliation/tools/verdicts-017.sh` per `contracts/relation-row-26.md`: run 016's `verdicts.sh` unchanged, read row 26 from `<parent>/cuems-utils/debian/control`, and run the five `dpkg --compare-versions` verdicts.
 
   Build the parent from worktrees, never from the live checkouts (analyze U2):

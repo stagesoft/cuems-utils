@@ -150,3 +150,19 @@ All 104 tests in the 26 files that exercise either tool pass on `6768e96`.
 A's pre-existing set (`suite-A-1b.md`), so **017 adds no failure**. The warning count is back to
 arm A's **277**, from the merged tree's 475: the absorbed tests' `DeprecationWarning`s left with
 their public-API ports, as the work order predicted (§13).
+
+## A-5 (T046–T048): red on `5e4c637`, green on the head
+
+`tests/packaging/test_release_line_packaging.py`, run against `5e4c637`'s `debian/` (the test file
+was copied into the arm-A worktree for the run) and against the 017 head:
+
+| Test | `5e4c637` | 017 head |
+|---|---|---|
+| `test_cuems_utils_replaces_the_old_engine_for_cffi_gen_src` | **red** | passed |
+| `test_the_cuems_common_breaks_is_unchanged` | held (row 1, on both) | passed |
+| `test_the_control_comment_no_longer_says_replaces_is_absent` | **red** | red until T048's rewording, then passed |
+| `test_rules_strips_cachedir_tag_right_after_dh_virtualenv` | **red** | passed |
+| `test_rules_carries_all_four_required_items` | **red** (no strip) | passed |
+
+`tests/packaging/test_built_package.py::test_no_cachedir_tag_ships` and `::test_cffi_gen_src_ships`
+skip without a built `.deb` beside the checkout. They are run against the bookworm build in T050.
