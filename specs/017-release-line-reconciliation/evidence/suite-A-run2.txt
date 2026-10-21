@@ -1,0 +1,9 @@
+# arm A 5e4c637 run 2 — 2026-10-21T22:18:20Z — Python 3.11.9 — governor powersave — cur_freq 4036092 — load 1.71 1.59 1.36
+FAILED tests/contract/test_migration_guide.py::test_the_coupled_engine_version_resolves
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-common]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-nodeconf]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-power-bridge]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-engine]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-editor]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-frontend]
+7 failed, 3785 passed, 112 skipped, 2 xfailed, 323 warnings in 33.25s

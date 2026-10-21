@@ -1,0 +1,33 @@
+# Quality, the 017 head (T067), 2026-10-21T22:24:00Z
+
+## ruff
+uvx --from "ruff>=0.17.0,<0.18" ruff check src/ tests/  ->  All checks passed! (0 findings; arm A: 0)
+
+## mypy (same command as quality-A.txt: <hatch types env>/bin/mypy --no-incremental src/cuemsutils tests; mypy 2.4.0)
+
+| | Total | Genuine errors not in arm A | import-not-found 'pytest' |
+|---|---|---|---|
+| arm A 5e4c637 | 286 | — | 174 (172 test modules import pytest) |
+| head, first run | 300 | **2**: reshape_devices.py write_tree arg-type (017's new --check path); test_changelog_completeness.py union-attr | 186 |
+| head, after fixing both | **298** | **0** | 186 |
+
+**What the 12 remaining entries are.** Each is the same environmental error, 'Cannot find implementation or library stub for module named "pytest"'. One appears per test module that 017 added (8) or that gained `import pytest` with its expects_deprecation mark (4). The hatch types env does not install pytest, so every test module that imports it carries this error: arm A has 174 of them for 172 such modules. It is a property of the env, not of the code.
+
+**SC-QUALITY-001 verdict.** No genuine mypy error is added: after the two fixes, the multiset difference holds only that env-class entry. The literal set did grow by those 12, recorded rather than restated. Installing pytest into the types env would remove the whole class, on both arms; that is a tooling change outside 017.
+
+## multiset difference, head minus arm A
+```
+tests/contract/test_declared_break_nodeconf.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+tests/contract/test_no_globals_injection.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+tests/contract/test_retired_action_types.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+tests/integration/test_default_mappings_valid.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+tests/integration/test_rc17_migration.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+tests/packaging/test_changelog_completeness.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+tests/test_xml.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+tests/unit/test_media_absent_values.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+tests/unit/test_media_guards.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+tests/unit/test_media_pixel_dimensions.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+tests/unit/test_stop_project_cue.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+tests/unit/test_targetless_actions.py: error: Cannot find implementation or library stub for module named "pytest"  [import-not-found]
+```
+Arm A entries missing from the head: 0

@@ -1,0 +1,11 @@
+# head 8f210fd on 3.13 — 2026-10-21T22:21:39Z
+FAILED tests/contract/test_migration_guide.py::test_the_coupled_engine_version_resolves
+FAILED tests/contract/test_public_api_surface.py::test_public_api_matches_the_snapshot
+FAILED tests/integration/test_remint_fixture_ceiling.py::test_the_named_fixture_is_rewritten_within_the_ceiling
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-common]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-nodeconf]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-power-bridge]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-engine]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-editor]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-frontend]
+9 failed, 3913 passed, 114 skipped, 2 xfailed, 336 warnings in 35.34s

@@ -316,16 +316,16 @@ document points at 017. The tag message is T081.
 
 ## Phase 8: Verification (cross-cutting, before the cleanup)
 
-- [ ] T065 Run the suite three times on 3.11, interleaved A/B/A/B/A/B (`$S/wt-a` against a fresh worktree `$S/wt-b` at the head), into `specs/017-release-line-reconciliation/evidence/suite-{A,B}-{1,2,3}.txt`. Run it once on 3.12 and once on 3.13 on B. Write `specs/017-release-line-reconciliation/evidence/suite-verdict.md`: B's failure set ⊆ A's (the laziness flake identified if present), and the 3.13 snapshot failure noted as pre-existing (SC-003).
+- [X] T065 Run the suite three times on 3.11, interleaved A/B/A/B/A/B (`$S/wt-a` against a fresh worktree `$S/wt-b` at the head), into `specs/017-release-line-reconciliation/evidence/suite-{A,B}-{1,2,3}.txt`. Run it once on 3.12 and once on 3.13 on B. Write `specs/017-release-line-reconciliation/evidence/suite-verdict.md`: B's failure set ⊆ A's (the laziness flake identified if present), and the 3.13 snapshot failure noted as pre-existing (SC-003).
 - [ ] T066 Measure the performance bands (quickstart §6, at least 16 interleaved samples across three windows) and append them to `specs/017-release-line-reconciliation/evidence/perf.md`: the show-document load against its band of 16.465–17.750 ms, suite ms/test ≤ 115% of A, and the descriptor warm call ≤ 115% of A. Anything exceeded is recorded as exceeded (SC-009).
-- [ ] T067 Run ruff (expect 0) and compare the mypy error set with T006's, writing `specs/017-release-line-reconciliation/evidence/quality-B.txt`. The set must not grow (SC-QUALITY-001).
+- [X] T067 Run ruff (expect 0) and compare the mypy error set with T006's, writing `specs/017-release-line-reconciliation/evidence/quality-B.txt`. The set must not grow (SC-QUALITY-001).
 - [ ] T068 Commit T065–T067's records as `docs(017): suite, performance and quality records`.
 
 ---
 
 ## Phase 9: Final re-fetch and re-merge (before the cleanup)
 
-- [ ] T069 `git fetch --all --tags --prune`, then re-run T002's measurements into `specs/017-release-line-reconciliation/evidence/remeasure-handoff.md`, including PyPI's JSON API. **If either line moved** (FR-004, Q10), merge the delta by T007–T015's method and, for each new release: add an inventory row, add its `debian/changelog` entry verbatim, update the T051 data block, and add a public-API test. Then re-run T065. If PyPI gained rc17, remove its "Debian only" marking and update `RELEASED_PYPI` in the same commit. ⏸
+- [X] T069 `git fetch --all --tags --prune`, then re-run T002's measurements into `specs/017-release-line-reconciliation/evidence/remeasure-handoff.md`, including PyPI's JSON API. **If either line moved** (FR-004, Q10), merge the delta by T007–T015's method and, for each new release: add an inventory row, add its `debian/changelog` entry verbatim, update the T051 data block, and add a public-API test. Then re-run T065. If PyPI gained rc17, remove its "Debian only" marking and update `RELEASED_PYPI` in the same commit. ⏸
 
 ---
 
