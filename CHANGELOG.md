@@ -100,6 +100,12 @@ dropped it, with no reply and no close. It now answers with the same error reply
 context. A callback that raises is still not answered for, because it owns its context and may
 already have replied.
 
+### Fixed — enabling auto-ping on a running hub takes effect at once
+
+`NngBusHub.enable_auto_ping()` or `disable_auto_ping()` called after `start()` took effect only once
+the interval already in progress had run out (10 s by default). The handler now wakes on the change
+and starts a new interval with the new settings. The calls are safe from any thread.
+
 ### Fixed — every message on the bus reaches the receiver
 
 `NngBusHub` counted a frame as received and then dropped it when the frame was valid JSON but not an

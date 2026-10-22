@@ -222,6 +222,18 @@ class TestPingPongOverTheWire:
 
         assert run(scenario()) == (1, 1, 0, 0)
 
+    def test_auto_ping_enabled_on_a_running_controller_starts_at_once(self, tcp):
+        """H4 over the wire: enabling after start() no longer waits out the default 10 s interval."""
+        async def scenario():
+            hubs, listener, (node,) = await connected(tcp)
+            try:
+                listener.enable_auto_ping(interval=0.05, inactivity_threshold=0.0)
+                return await until(lambda: node._pong_count >= 2, timeout=BOUND)
+            finally:
+                await hubs.stop_all()
+
+        assert run(scenario()) is True
+
     def test_a_node_with_auto_pong_disabled_stays_silent(self, tcp):
         async def scenario():
             hubs, listener, (node,) = await connected(tcp)
@@ -321,6 +333,28 @@ class TestLifecycle:
                 await hubs.stop_all()
 
         run(scenario())
+
+
+    @pytest.mark.slow
+    def test_a_thousand_shutdowns_all_complete(self, ipc):
+        """H5, measured 2026-10-22 and not reproduced: 8000 hub receiver cancellations (IPC and TCP)
+        all completed, worst 3 ms. C6's lost-callback hang on a REP receive would have predicted about
+        8. Kept as a regression test, like C6's, so a pynng upgrade that changes this is caught."""
+        async def scenario():
+            for i in range(1000):
+                address = f"{ipc}.{i}"
+                hubs, listener, (node,) = await connected(address)
+                await node.send_message({"i": i})
+                await next_message(listener)
+                tasks = list(hubs.tasks.values())
+                for task in tasks:
+                    task.cancel()
+                await asyncio.wait(tasks, timeout=BOUND)
+                assert all(t.done() for t in tasks), f"round {i}: a hub's start() did not finish"
+                hubs.tasks.clear()
+            return True
+
+        assert asyncio.run(asyncio.wait_for(scenario(), timeout=600)) is True
 
 
 # --- _receiver_handler, against a peer that is not a hub ----------------------------------------

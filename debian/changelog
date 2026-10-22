@@ -68,6 +68,8 @@ cuems-utils (0.1.1) UNRELEASED; urgency=medium
     {"raw_data": ...}, as non-JSON text already did.
   * SignalEngine's SIGTERM/SIGINT handlers call sys.exit(), not the site
     builtin exit(), which python -S and frozen builds do not define.
+  * NngBusHub.enable_auto_ping()/disable_auto_ping() take effect at once
+    on a running hub, instead of after the current interval (10 s).
   * Packaging: debian/ lives on the working branch. After this merge
     debian/bookworm is contained in it; that line may keep releasing
     0.1.0rcN until 0.1.1 is published, and each such release is merged in

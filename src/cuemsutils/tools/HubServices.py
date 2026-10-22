@@ -85,6 +85,9 @@ class NngBusHub(HubService):
         self._auto_ping_interval: float = 10.0
         self._auto_ping_task: Optional[asyncio.Task] = None
         self._auto_pong_enabled: bool = True  # Nodes auto-respond by default
+        # Set by _auto_ping_handler while it runs, so a configuration change can wake it (H4).
+        self._auto_ping_loop: Optional[asyncio.AbstractEventLoop] = None
+        self._auto_ping_wakeup: Optional[asyncio.Event] = None
         self._ping_count: int = 0
         self._pong_count: int = 0
 
@@ -353,11 +356,33 @@ class NngBusHub(HubService):
         self._auto_ping_interval = interval
         self._inactivity_threshold = inactivity_threshold
         Logger.info(f"Auto-ping enabled: check every {interval}s, ping after {inactivity_threshold}s inactivity")
+        self._wake_auto_ping()
 
     def disable_auto_ping(self):
         """Disable automatic ping mechanism."""
         self._auto_ping_enabled = False
         Logger.info("Auto-ping disabled")
+        self._wake_auto_ping()
+
+    def _wake_auto_ping(self):
+        """Make a running _auto_ping_handler start a new interval with the current settings.
+
+        Without it, a change made after start() waited out the interval already in progress (10 s by
+        default; H4). Safe from any thread: off the handler's loop it goes through
+        call_soon_threadsafe. With no handler running it does nothing, because the handler reads the
+        settings when it starts.
+        """
+        loop, wakeup = self._auto_ping_loop, self._auto_ping_wakeup
+        if loop is None or wakeup is None or loop.is_closed():
+            return
+        try:
+            on_handler_loop = asyncio.get_running_loop() is loop
+        except RuntimeError:
+            on_handler_loop = False
+        if on_handler_loop:
+            wakeup.set()
+        else:
+            loop.call_soon_threadsafe(wakeup.set)
 
     def enable_auto_pong(self):
         """Enable automatic pong responses (enabled by default)."""
@@ -392,9 +417,24 @@ class NngBusHub(HubService):
         if not hasattr(self, '_inactivity_threshold'):
             self._inactivity_threshold = 5.0
 
+        self._auto_ping_loop = asyncio.get_running_loop()
+        self._auto_ping_wakeup = asyncio.Event()
+        try:
+            await self._auto_ping_loop_body()
+        finally:
+            self._auto_ping_loop = None
+            self._auto_ping_wakeup = None
+
+    async def _auto_ping_loop_body(self):
+        wakeup = self._auto_ping_wakeup
         while await asyncio.sleep(0, result=True):
             try:
-                await asyncio.sleep(self._auto_ping_interval)
+                wakeup.clear()
+                try:
+                    await asyncio.wait_for(wakeup.wait(), self._auto_ping_interval)
+                    continue  # the configuration changed: start a new interval with it
+                except asyncio.TimeoutError:
+                    pass
 
                 if not self._auto_ping_enabled:
                     continue

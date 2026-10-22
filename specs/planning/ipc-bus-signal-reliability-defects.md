@@ -12,10 +12,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 Every defect was **measured** over real sockets, signals and processes, never inferred.
 
-**Status (2026-10-22):** **C1–C7, H2, H3 and S1 are fixed**, test first: their xfail markers were
+**Status (2026-10-22):** **C1–C7, H2, H3, H4 and S1 are fixed, and H5 was measured and not reproduced**, test first: their xfail markers were
 removed, the tests went red, and the fix turned them green. Failed requests are now answered with
 `{"OK": False, "error": "<ExceptionType>: <message>"}`, the shape `cuems-nodeconf` already uses and
-`cuems-editor` already reads. C7 was found while fixing C3, and fixed the same way. A callback that *raises* is deliberately not answered for: it owns its context, and may already have replied or handed the context on (`cuems-engine` replies later, from another thread). **Open:** H1 (raise or return: a maintainer decision, plus a `cuems-engine` supervision change), H4, and H5 (below; to be measured first). This
+`cuems-editor` already reads. C7 was found while fixing C3, and fixed the same way. A callback that *raises* is deliberately not answered for: it owns its context, and may already have replied or handed the context on (`cuems-engine` replies later, from another thread). **Open:** H1 only (raise or return: a maintainer decision, plus a `cuems-engine` supervision change). This
 document is deleted once those are resolved.
 
 Before the fixes, the production code was unchanged. Each defect except C6 is pinned by `xfail(strict=True)` tests that
@@ -76,19 +76,26 @@ Direction suggested before the fixes (kept for the record; corrected above for C
 | **H1** | `start()` waits with `FIRST_EXCEPTION`, but the receiver **returns** on `Closed` | once the socket closes, **`start()` never returns** (still running 2 s later), so the service cannot react to losing its bus | `unit::TestStart::test_returns_when_the_receiver_stops_on_a_closed_socket`, `integration::TestLifecycle::test_start_returns_when_its_socket_is_closed` |
 | **H2** ✅ fixed | the receiver calls `.get()` on the decoded payload before delivering it | valid JSON that is not an object (`[1, 2]`, `"text"`, `42`) and non-UTF-8 bytes are **counted as received and silently dropped**, while plain non-JSON text *is* delivered as `raw_data` | `unit::TestReceiverHandler::test_every_received_frame_is_delivered[…]` (4 cases) |
 | **H3** ✅ fixed | the sent counter and last-sent time are updated **before** `asend()` | a failed send counts as traffic, so **`is_connection_healthy()` stays `True` while nothing goes out**, and the message is lost | `unit::TestSendHandler::test_a_failed_send_is_not_counted_as_sent` |
-| H4 (quirk) | `_auto_ping_handler` sleeps its interval *before* reading the new one | `enable_auto_ping()` after `start()` takes effect only after the previous interval (default 10 s). Configure it before `start()` | not pinned. `integration::TestPingPongOverTheWire` enables it before `start()` |
+| H4 (quirk) ✅ fixed | `_auto_ping_handler` sleeps its interval *before* reading the new one | `enable_auto_ping()` after `start()` takes effect only after the previous interval (default 10 s). Configure it before `start()` | not pinned. `integration::TestPingPongOverTheWire` enables it before `start()` |
 
 **H2, fixed:** every frame is delivered. A JSON object is `data`. Anything else is
 `{"raw_data": <its text>}`, with a warning log: bytes that are not UTF-8 (decoded with
 `errors="replace"`), text that is not JSON (as before), and JSON that is not an object. Nothing that
 was delivered before changes shape.
 
-**H5, suspected and not yet measured:** `NngBusHub` awaits `arecv_msg()`/`asend()` unshielded, and
-`start()`'s teardown awaits each cancelled task with no bound. By C6's mechanism, a lost NNG callback
-would hang the hub's shutdown about 1 time in 1000, and its `recv_timeout` cannot end that. Measure
-with C6's 1000-round probe before changing anything. A fix would reuse `_shielded`, and the order of
-closing and cancelling must respect the teardown comments about not touching NNG while it frees a
-pipe (SIGFPE/SIGABRT).
+**H4, fixed:** `enable_auto_ping()`/`disable_auto_ping()` wake a running handler, which starts a new
+interval with the new settings at once. The handler creates its event on its own loop. A change made
+from another thread goes through `call_soon_threadsafe`, and with no handler running it is a no-op.
+
+**H5, measured and not reproduced (no change made).** The suspicion was C6's lost-callback hang in the
+hub's shutdown, since `NngBusHub` awaits pynng unshielded and `start()`'s teardown awaits each
+cancelled task with no bound. Measured: a controller and a node connect, exchange a message, and both
+`start()` tasks are cancelled. Over 2 × 1000 rounds on IPC and 2000 on TCP, that is **8000 receiver
+cancellations, with no stall; the worst took 3 ms**. C6's rate predicts about 8 (P(0) ≈ 0.03%). Why
+this path differs is not shown: C6's stalls were on a REP `arecv()`, and the hub uses BUS
+`arecv_msg()`. The measurement is kept as the slow
+`integration::TestLifecycle::test_a_thousand_shutdowns_all_complete` (about 64 s), so a pynng upgrade
+that changes it is caught.
 
 Measured and **correct**, for the record: a TCP peer's identity is its real `(ip, port)`. The old
 unit test asserted a reversed IP only because its mock stored the address in host order; pynng

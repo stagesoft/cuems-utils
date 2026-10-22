@@ -445,6 +445,53 @@ class TestAutoPingHandler:
         self.pings_after(listener, 0.02)
         assert listener._inactivity_threshold == 5.0
 
+    def test_enabling_after_the_handler_started_takes_effect_within_the_new_interval(self, listener):
+        """H4: the handler used to finish its old sleep (10 s by default) before reading the change."""
+        async def scenario():
+            task = asyncio.create_task(listener._auto_ping_handler())
+            await asyncio.sleep(0.05)  # now inside the default 10 s interval
+            listener.enable_auto_ping(interval=0.02, inactivity_threshold=0.0)
+            await asyncio.sleep(0.3)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        run(scenario())
+        assert listener._ping_count >= 2
+
+    def test_disabling_while_it_waits_stops_the_pings(self, listener):
+        async def scenario():
+            listener.enable_auto_ping(interval=0.02, inactivity_threshold=0.0)
+            task = asyncio.create_task(listener._auto_ping_handler())
+            await asyncio.sleep(0.1)
+            listener.disable_auto_ping()
+            before = listener._ping_count
+            await asyncio.sleep(0.2)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            return before
+        before = run(scenario())
+        assert before >= 1 and listener._ping_count == before
+
+    def test_enabling_from_another_thread_wakes_it_too(self, listener):
+        import threading
+
+        async def scenario():
+            task = asyncio.create_task(listener._auto_ping_handler())
+            await asyncio.sleep(0.05)
+            caller = threading.Thread(
+                target=listener.enable_auto_ping, kwargs={"interval": 0.02, "inactivity_threshold": 0.0})
+            caller.start()
+            await asyncio.get_running_loop().run_in_executor(None, caller.join)
+            await asyncio.sleep(0.3)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        run(scenario())
+        assert listener._ping_count >= 2
+
+    def test_configuring_it_while_no_handler_runs_is_harmless(self, listener):
+        listener.enable_auto_ping(interval=1.0)
+        listener.disable_auto_ping()
+        assert listener._auto_ping_enabled is False
+
     def test_an_error_is_logged_and_the_handler_keeps_running(self, listener, caplog):
         listener.enable_auto_ping(interval=0.01)
         listener.send_ping = AsyncMock(side_effect=RuntimeError("queue broke"))
