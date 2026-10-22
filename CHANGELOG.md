@@ -100,6 +100,19 @@ dropped it, with no reply and no close. It now answers with the same error reply
 context. A callback that raises is still not answered for, because it owns its context and may
 already have replied.
 
+### Fixed — every message on the bus reaches the receiver
+
+`NngBusHub` counted a frame as received and then dropped it when the frame was valid JSON but not an
+object (`[1, 2]`, `"text"`, `42`), or was not UTF-8. Every frame is now delivered. A JSON object is
+the message data, as before. Anything else arrives as `{"raw_data": "<its text>"}`, as non-JSON text
+already did, with undecodable bytes replaced by `\ufffd`.
+
+### Fixed — SIGTERM and SIGINT stop a service on any interpreter
+
+`SignalEngine`'s exit handlers called the `site` builtin `exit()`, which an interpreter without the
+`site` module (`python -S`, frozen or embedded builds) does not define. The handler then raised
+`NameError`, and the service kept running. They call `sys.exit()` now.
+
 ### Fixed — a request no longer waits forever, and a cancelled service always stops
 
 `send_request` had no deadline: asking a service that was not running blocked in the send for good.

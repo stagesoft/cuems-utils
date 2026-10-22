@@ -480,14 +480,23 @@ class TestReceiverHandler:
         assert received(listener, [b"hello"]) == [Message({"raw_data": "hello"}, "ipc:///tmp/node.ipc")]
         assert "Received non-JSON message" in caplog.text
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "defect: valid JSON that is not an object (a list, string or number), and bytes that are not "
-        "UTF-8, are counted as received but never delivered. Plain non-JSON text is delivered as "
-        "raw_data, so these are lost silently by comparison. Measured over real TCP."
-    ))
     @pytest.mark.parametrize("payload", [b"[1, 2]", b'"text"', b"42", b"\xff\xfe"])
     def test_every_received_frame_is_delivered(self, listener, payload):
         assert len(received(listener, [payload])) == 1
+
+    @pytest.mark.parametrize("payload, text", [(b"[1, 2]", "[1, 2]"), (b'"text"', '"text"'), (b"42", "42")])
+    def test_json_that_is_not_an_object_is_delivered_as_raw_data(self, listener, payload, text, caplog):
+        assert received(listener, [payload]) == [Message({"raw_data": text}, "ipc:///tmp/node.ipc")]
+        assert "Received non-object JSON message" in caplog.text
+
+    def test_bytes_that_are_not_utf8_are_delivered_as_raw_data_with_replacements(self, listener, caplog):
+        (message,) = received(listener, [b"ok \xff\xfe end"])
+        assert message.data == {"raw_data": "ok \ufffd\ufffd end"}
+        assert "Received non-UTF-8 message" in caplog.text
+
+    def test_a_raw_data_message_is_never_mistaken_for_a_ping(self, listener):
+        received(listener, [b'["__type__", "ping"]'])
+        assert listener.outgoing.empty() and listener._pong_count == 0
 
     def test_a_timeout_keeps_polling(self, listener):
         assert received(listener, [timed_out(), timed_out(), b'{"after": 1}']) == [

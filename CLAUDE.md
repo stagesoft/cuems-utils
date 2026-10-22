@@ -224,12 +224,12 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   signals to a child process, a real `NOTIFY_SOCKET`, real REQ/REP over IPC, real BUS over TCP/IPC).
   Coverage: `SignalEngine` 61→100%, `CommunicatorServices` 40→96%, `HubServices` 55→93%, library
   87→90%. Production defects were found and pinned as `xfail(strict=True)`; the record is
-  `specs/planning/ipc-bus-signal-reliability-defects.md`. **C1–C7 and H3 are fixed**: a request that
+  `specs/planning/ipc-bus-signal-reliability-defects.md`. **C1–C7, H2, H3 and S1 are fixed**: a request that
   fails is answered with `{"OK": False, "error": "<Type>: <msg>"}`, an `ipc://` address no longer
   exits, a failed bus send no longer counts as healthy, `send_request(..., timeout=100)` returns `None`
   at its deadline, and no pynng operation is ever exposed to cancellation (`_shielded`: pynng's bridge can
   wait for good on a lost NNG callback, and **no socket timeout ends that**; close the socket instead).
-  **Still open:** H1, H2, H4, S1. ⚠ Traps: a REQ socket
+  **Still open:** H1, H4, H5 (suspected, unmeasured). ⚠ Traps: a REQ socket
   cannot poll (a timed-out receive abandons the request), and a node started before its controller may
   take up to `reconnect_time_max` (30 s) to join; and assert log text through `tests/support/cuems_logs.capture`, since each
   module's logger takes `CUEMS_LOG_LEVEL` once and caches it.

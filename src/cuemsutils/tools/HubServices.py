@@ -438,13 +438,25 @@ class NngBusHub(HubService):
                 # Extract sender information from the message pipe
                 sender = self._extract_sender_info(pynng_message.pipe)
 
-                # Decode bytes to string, then parse JSON to dict
-                decoded_string = pynng_message.bytes.decode()
+                # Decode bytes to string, then parse JSON to dict. Every frame is delivered: only a
+                # JSON object is data; anything else (not UTF-8, not JSON, or JSON that is not an
+                # object) arrives as {"raw_data": <its text>}. Those used to be counted as received
+                # and silently dropped.
                 try:
-                    data_dict = json.loads(decoded_string)
-                except json.JSONDecodeError:
-                    Logger.warning(f"Received non-JSON message from {sender}: {decoded_string}")
+                    decoded_string = pynng_message.bytes.decode()
+                except UnicodeDecodeError:
+                    decoded_string = pynng_message.bytes.decode(errors="replace")
+                    Logger.warning(f"Received non-UTF-8 message from {sender}: {decoded_string}")
                     data_dict = {"raw_data": decoded_string}
+                else:
+                    try:
+                        data_dict = json.loads(decoded_string)
+                    except json.JSONDecodeError:
+                        Logger.warning(f"Received non-JSON message from {sender}: {decoded_string}")
+                        data_dict = {"raw_data": decoded_string}
+                    if not isinstance(data_dict, dict):
+                        Logger.warning(f"Received non-object JSON message from {sender}: {decoded_string}")
+                        data_dict = {"raw_data": decoded_string}
 
                 message = Message(data=data_dict, sender=sender)
 

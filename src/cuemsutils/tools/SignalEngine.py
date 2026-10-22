@@ -1,4 +1,5 @@
 import signal
+import sys
 from os import getpid
 from time import sleep
 
@@ -72,7 +73,7 @@ class SignalEngine:
 
         self.stop()
         sleep(0.1)
-        exit()
+        sys.exit()
 
     def handle_terminate(self, sigNum, frame) -> None:
         string = f'SIGTERM received! Exiting with result code: {sigNum}'
@@ -81,7 +82,7 @@ class SignalEngine:
 
         self.stop()
         sleep(0.1)
-        exit()
+        sys.exit()
 
     def handle_print_all(self, sigNum, frame) -> None:
         Logger.info(f"STATUS REQUEST BY SIGUSR2 SIGNAL {sigNum}")

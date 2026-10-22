@@ -338,3 +338,23 @@ class TestForeignPeers:
                     return await next_message(listener)
 
         assert run(scenario()).data == {"raw_data": "not json"}
+
+    def test_every_frame_from_a_raw_bus_peer_reaches_the_user_queue(self, tcp):
+        frames = [b'{"ok": 1}', b"[1, 2]", b"42", b"\xff\xfe", b"plain"]
+
+        async def scenario():
+            async with running() as hubs:
+                listener = hubs.start(NngBusHub(tcp, NngBusHub.Mode.LISTENER))
+                await asyncio.sleep(0.1)
+                with Bus0() as peer:
+                    peer.dial(tcp, block=True)
+                    assert await until(lambda: listener.get_connection_count() == 1)
+                    for f in frames:
+                        await peer.asend(f)
+                    return [(await next_message(listener)).data for _ in frames]
+
+        assert run(scenario()) == [
+            {"ok": 1}, {"raw_data": "[1, 2]"}, {"raw_data": "42"},
+            {"raw_data": "\ufffd\ufffd"}, {"raw_data": "plain"},
+        ]
+

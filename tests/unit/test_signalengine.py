@@ -213,10 +213,6 @@ class TestExitHandlers:
         assert f"{label} received!" in capsys.readouterr().out
         assert f"{label} received!" in caplog.text
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "defect: the handlers call the site builtin exit(), which an interpreter without the site "
-        "module (python -S, frozen or embedded builds) does not define. sys.exit() is the API."
-    ))
     def test_exits_through_sys_exit_not_the_site_builtin(self, engine, no_sleep, monkeypatch, handler, label):
         monkeypatch.delattr(builtins, "exit")
         with pytest.raises(SystemExit):
