@@ -100,7 +100,8 @@ is recorded in "Recent Changes". The reasons:
 - It has exactly two consumers. Both have been measured (§3), and their migrations are mechanical.
 - The only change consumers can observe is the stop-when-an-essential-task-ends behaviour (D3). That
   behaviour is already specified and requested in
-  `specs/planning/upstream-cuems-engine-hub-start-supervision.md`.
+  `specs/planning/upstream-cuems-engine-hub-start-supervision.md` (deleted 2026-10-22 once the engine
+  half landed; in git history).
 
 **Escalate to a full SDD feature** if any of the following happens during the work:
 

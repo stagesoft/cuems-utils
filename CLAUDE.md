@@ -229,10 +229,10 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   exits, a failed bus send no longer counts as healthy, `send_request(..., timeout=100)` returns `None`
   at its deadline, and no pynng operation is ever exposed to cancellation (`_shielded`: pynng's bridge can
   wait for good on a lost NNG callback, and **no socket timeout ends that**; close the socket instead).
-  `NngBusHub.start()` now *returns* when its socket closes (decided: return, not raise); `cuems-engine` must watch that task, per `specs/planning/upstream-cuems-engine-hub-start-supervision.md`. Coverage now: `SignalEngine` 100%, `CommunicatorServices` 97%, `HubServices` 94%. ⚠ Traps: a REQ socket
+  `NngBusHub.start()` now *returns* when its socket closes (decided: return, not raise); `cuems-engine` watches that task since `69c2d9a` (its comms thread is now `AsyncCommsThread`, and the upstream report that asked for it is deleted). Coverage now: `SignalEngine` 100%, `CommunicatorServices` 97%, `HubServices` 94%. ⚠ Traps: a REQ socket
   cannot poll (a timed-out receive abandons the request), and a node started before its controller may
   take up to `reconnect_time_max` (30 s) to join; the first BUS message on a brand-new link can be dropped (H6:
-  3 in 12000, 0 after a 20 ms settle; tests use `SETTLE`); and assert log text through `tests/support/cuems_logs.capture`, since each
+  3 in 12000, 0 after a 20 ms settle; tests use `SETTLE`; the engine resends only its idempotent liveness `ping`, never `load`/`go`, see the defect record's H6); and assert log text through `tests/support/cuems_logs.capture`, since each
   module's logger takes `CUEMS_LOG_LEVEL` once and caches it.
 
 - **`017-release-line-reconciliation` IMPLEMENTED** (2026-10-21/22, on its branch; merges into

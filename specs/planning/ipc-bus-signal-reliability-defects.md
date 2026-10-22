@@ -15,7 +15,7 @@ Every defect was **measured** over real sockets, signals and processes, never in
 **Status (2026-10-22):** **every defect is fixed (C1–C8, H1–H4, S1), and H5 was measured and not reproduced**, test first: their xfail markers were
 removed, the tests went red, and the fix turned them green. Failed requests are now answered with
 `{"OK": False, "error": "<ExceptionType>: <message>"}`, the shape `cuems-nodeconf` already uses and
-`cuems-editor` already reads. C7 was found while fixing C3, and fixed the same way. A callback that *raises* is deliberately not answered for: it owns its context, and may already have replied or handed the context on (`cuems-engine` replies later, from another thread). **Open, outside this repository:** H1's engine half, in `specs/planning/upstream-cuems-engine-hub-start-supervision.md`. It is implemented on `cuems-engine`'s `feat/xml-refactor` (2026-10-22, the `AsyncCommsThread` migration). Delete this record once that commit is pushed. This
+`cuems-editor` already reads. C7 was found while fixing C3, and fixed the same way. A callback that *raises* is deliberately not answered for: it owns its context, and may already have replied or handed the context on (`cuems-engine` replies later, from another thread). **Nothing is open outside this repository any more.** H1's engine half landed on `cuems-engine`'s `feat/xml-refactor` in `69c2d9a` (pushed 2026-10-22, the `AsyncCommsThread` migration), and H6's engine half is the ping resend below. The upstream report that carried both, `upstream-cuems-engine-hub-start-supervision.md`, is deleted (in git history). This record's own deletion condition is therefore met; it stays until `CLAUDE.md`'s Recent Changes entry stops pointing at it. This
 document is deleted once those are resolved.
 
 Before the fixes, the production code was unchanged. Each defect except C6 is pinned by `xfail(strict=True)` tests that
@@ -119,8 +119,20 @@ controller never sees the message. Found when the H5 test lost its 50 ms sleep.
 
 So the loss is confined to connection establishment. For the engine, a command or status sent right
 after a node (re)connects can vanish without a trace, so anything that must arrive needs an
-application-level acknowledgement and resend. That request is in the engine upstream report. The
+application-level acknowledgement and resend. That request was in the engine upstream report. The
 tests let a connection settle first (`SETTLE`, 20 ms), and the H5 test resends instead.
+
+**Engine remediation, decided 2026-10-22: resend only what is idempotent.** The engine sends nothing
+automatically when a link comes up. Every bus message follows an operator action or an arm, seconds
+after connection, so the exposure is a node that (re)connects just before one. Measured per message:
+- **`ping` is resent.** The liveness probe resends it at 1/3 and 2/3 of its 1.5 s window to nodes
+  that have not ponged, and the window is not extended. A lost ping used to silently drop a live node
+  from the GO gate's required set. It is idempotent: the node only answers it.
+- **`load` is not resent.** `armed_ready` already acknowledges it, and a loss is visible
+  (`Load stalled`, the gate stays closed). A duplicate would re-arm the node, and could race a GO.
+- **`go` / `stop` / … are not resent.** `run_seq` is per run, not per GO, so a resent GO that did
+  arrive would fire the next cue. Resending them needs per-message ids and node-side dedupe, a
+  wire-format change for a full SDD feature in `cuems-engine` if it is ever wanted.
 
 Measured and **correct**, for the record: a TCP peer's identity is its real `(ip, port)`. The old
 unit test asserted a reversed IP only because its mock stored the address in host order; pynng
