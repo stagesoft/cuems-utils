@@ -97,8 +97,10 @@ class NngBusHub(HubService):
 
         This method starts the bus connection based on the mode (LISTENER or DIALER),
         then launches infinite receiver and sender loops. It monitors both tasks and
-        exits when the first exception occurs or connection is broken, properly cleaning
-        up all running tasks.
+        returns as soon as either one ends, whether it raised or stopped because the
+        socket closed, after cleaning up all running tasks. Either way the cause is
+        logged as an error. A caller that must react (restart, or exit so systemd restarts
+        the service) should watch for this task ending.
 
         Raises:
         - ValueError: If an unknown mode is set.
@@ -125,7 +127,9 @@ class NngBusHub(HubService):
 
             Logger.info(f"NNG {self.mode.value} tasks started: sender, receiver, ping")
 
-            done_tasks, pending_tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
+            # FIRST_COMPLETED, not FIRST_EXCEPTION: the receiver and sender *return* when the
+            # socket reports Closed, and with FIRST_EXCEPTION start() then never returned (H1).
+            done_tasks, pending_tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
 
             # Check if completed task had an exception
             for task in done_tasks:
@@ -133,6 +137,8 @@ class NngBusHub(HubService):
                 if task.exception() is not None:
                     Logger.error(f"NNG {self.mode.value} {task_name} handler failed: {task.exception()}")
                     Logger.error(f"Exception type: {type(task.exception()).__name__}")
+                elif self._closing:
+                    Logger.error(f"NNG {self.mode.value} {task_name} handler stopped: bus socket closed")
                 else:
                     Logger.warning(f"NNG {self.mode.value} {task_name} handler exited unexpectedly (no exception)")
 

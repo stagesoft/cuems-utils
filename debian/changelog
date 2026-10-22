@@ -70,6 +70,8 @@ cuems-utils (0.1.1) UNRELEASED; urgency=medium
     builtin exit(), which python -S and frozen builds do not define.
   * NngBusHub.enable_auto_ping()/disable_auto_ping() take effect at once
     on a running hub, instead of after the current interval (10 s).
+  * NngBusHub.start() returns, with an error logged, once its bus socket
+    closes; it used to keep running with no bus.
   * Packaging: debian/ lives on the working branch. After this merge
     debian/bookworm is contained in it; that line may keep releasing
     0.1.0rcN until 0.1.1 is published, and each such release is merged in

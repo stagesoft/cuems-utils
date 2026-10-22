@@ -224,12 +224,12 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   signals to a child process, a real `NOTIFY_SOCKET`, real REQ/REP over IPC, real BUS over TCP/IPC).
   Coverage: `SignalEngine` 61→100%, `CommunicatorServices` 40→96%, `HubServices` 55→93%, library
   87→90%. Production defects were found and pinned as `xfail(strict=True)`; the record is
-  `specs/planning/ipc-bus-signal-reliability-defects.md`. **C1–C7, H2–H4 and S1 are fixed, H5 measured and not reproduced**: a request that
+  `specs/planning/ipc-bus-signal-reliability-defects.md`. **every defect is fixed (C1–C7, H1–H4, S1), H5 measured and not reproduced**: a request that
   fails is answered with `{"OK": False, "error": "<Type>: <msg>"}`, an `ipc://` address no longer
   exits, a failed bus send no longer counts as healthy, `send_request(..., timeout=100)` returns `None`
   at its deadline, and no pynng operation is ever exposed to cancellation (`_shielded`: pynng's bridge can
   wait for good on a lost NNG callback, and **no socket timeout ends that**; close the socket instead).
-  **Still open:** H1 (a raise-or-return decision, plus a `cuems-engine` change). Coverage now: `SignalEngine` 100%, `CommunicatorServices` 97%, `HubServices` 94%. ⚠ Traps: a REQ socket
+  `NngBusHub.start()` now *returns* when its socket closes (decided: return, not raise); `cuems-engine` must watch that task, per `specs/planning/upstream-cuems-engine-hub-start-supervision.md`. Coverage now: `SignalEngine` 100%, `CommunicatorServices` 97%, `HubServices` 94%. ⚠ Traps: a REQ socket
   cannot poll (a timed-out receive abandons the request), and a node started before its controller may
   take up to `reconnect_time_max` (30 s) to join; and assert log text through `tests/support/cuems_logs.capture`, since each
   module's logger takes `CUEMS_LOG_LEVEL` once and caches it.

@@ -100,6 +100,13 @@ dropped it, with no reply and no close. It now answers with the same error reply
 context. A callback that raises is still not answered for, because it owns its context and may
 already have replied.
 
+### Fixed — a bus hub whose socket closes stops instead of idling
+
+`NngBusHub.start()` kept running after its bus socket closed: its receiver stopped, but `start()`
+waited on. It now returns as soon as its receiver or sender stops, and logs why (`bus socket closed`,
+or the handler's error). It still raises only for startup errors. A service that must react should
+watch for the `start()` task ending; `cuems-engine` has been asked to do so.
+
 ### Fixed — enabling auto-ping on a running hub takes effect at once
 
 `NngBusHub.enable_auto_ping()` or `disable_auto_ping()` called after `start()` took effect only once

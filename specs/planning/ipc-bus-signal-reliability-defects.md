@@ -12,10 +12,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 Every defect was **measured** over real sockets, signals and processes, never inferred.
 
-**Status (2026-10-22):** **C1–C7, H2, H3, H4 and S1 are fixed, and H5 was measured and not reproduced**, test first: their xfail markers were
+**Status (2026-10-22):** **every defect is fixed (C1–C7, H1–H4, S1), and H5 was measured and not reproduced**, test first: their xfail markers were
 removed, the tests went red, and the fix turned them green. Failed requests are now answered with
 `{"OK": False, "error": "<ExceptionType>: <message>"}`, the shape `cuems-nodeconf` already uses and
-`cuems-editor` already reads. C7 was found while fixing C3, and fixed the same way. A callback that *raises* is deliberately not answered for: it owns its context, and may already have replied or handed the context on (`cuems-engine` replies later, from another thread). **Open:** H1 only (raise or return: a maintainer decision, plus a `cuems-engine` supervision change). This
+`cuems-editor` already reads. C7 was found while fixing C3, and fixed the same way. A callback that *raises* is deliberately not answered for: it owns its context, and may already have replied or handed the context on (`cuems-engine` replies later, from another thread). **Open, outside this repository:** H1's engine half, in `specs/planning/upstream-cuems-engine-hub-start-supervision.md`. Delete this record once that lands. This
 document is deleted once those are resolved.
 
 Before the fixes, the production code was unchanged. Each defect except C6 is pinned by `xfail(strict=True)` tests that
@@ -73,10 +73,21 @@ Direction suggested before the fixes (kept for the record; corrected above for C
 
 | Id | Defect | Effect, measured | Pinned by |
 |---|---|---|---|
-| **H1** | `start()` waits with `FIRST_EXCEPTION`, but the receiver **returns** on `Closed` | once the socket closes, **`start()` never returns** (still running 2 s later), so the service cannot react to losing its bus | `unit::TestStart::test_returns_when_the_receiver_stops_on_a_closed_socket`, `integration::TestLifecycle::test_start_returns_when_its_socket_is_closed` |
+| **H1** ✅ fixed (library half) | `start()` waits with `FIRST_EXCEPTION`, but the receiver **returns** on `Closed` | once the socket closes, **`start()` never returns** (still running 2 s later), so the service cannot react to losing its bus | `unit::TestStart::test_returns_when_the_receiver_stops_on_a_closed_socket`, `integration::TestLifecycle::test_start_returns_when_its_socket_is_closed` |
 | **H2** ✅ fixed | the receiver calls `.get()` on the decoded payload before delivering it | valid JSON that is not an object (`[1, 2]`, `"text"`, `42`) and non-UTF-8 bytes are **counted as received and silently dropped**, while plain non-JSON text *is* delivered as `raw_data` | `unit::TestReceiverHandler::test_every_received_frame_is_delivered[…]` (4 cases) |
 | **H3** ✅ fixed | the sent counter and last-sent time are updated **before** `asend()` | a failed send counts as traffic, so **`is_connection_healthy()` stays `True` while nothing goes out**, and the message is lost | `unit::TestSendHandler::test_a_failed_send_is_not_counted_as_sent` |
 | H4 (quirk) ✅ fixed | `_auto_ping_handler` sleeps its interval *before* reading the new one | `enable_auto_ping()` after `start()` takes effect only after the previous interval (default 10 s). Configure it before `start()` | not pinned. `integration::TestPingPongOverTheWire` enables it before `start()` |
+
+**H1, fixed (library half), decided 2026-10-22: return, not raise.** `start()` waits with
+`FIRST_COMPLETED`, so it ends as soon as its receiver or sender stops, and it logs `... handler
+stopped: bus socket closed`. It **returns**, as it already did when a handler failed. Raising stays
+reserved for startup errors. Return is the lower-impact choice:
+- it keeps one rule for runtime failures;
+- a caller's `try` around startup errors does not start catching runtime ones;
+- a task that is never awaited raises no "exception never retrieved";
+- for `cuems-engine` the two were indistinguishable, because its `asyncio.gather(..., return_exceptions=True)`
+  waits on tasks that never end.
+That engine half is the upstream report.
 
 **H2, fixed:** every frame is delivered. A JSON object is `data`. Anything else is
 `{"raw_data": <its text>}`, with a warning log: bytes that are not UTF-8 (decoded with

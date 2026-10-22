@@ -218,17 +218,30 @@ class TestStart:
         run(hub.start())
         assert hub.connection is None
 
-    @pytest.mark.xfail(strict=True, raises=asyncio.TimeoutError, reason=(
-        "defect: start() waits with FIRST_EXCEPTION, and the receiver *returns* on a closed socket. "
-        "So once the socket is closed start() never returns, and the service never learns its bus "
-        "is gone. Measured over real TCP: still running 2 s after the close."
-    ))
     def test_returns_when_the_receiver_stops_on_a_closed_socket(self, hub):
         async def stops():
             return None
 
         hub._receiver_handler = stops
         run(hub.start(), timeout=1)
+
+    def test_a_closed_socket_is_logged_as_the_reason_it_returned(self, hub, caplog):
+        async def stops_on_closed():
+            hub._closing = True  # what the receiver does when the socket reports Closed
+            return None
+
+        hub._receiver_handler = stops_on_closed
+        run(hub.start(), timeout=1)
+        assert "receiver handler stopped: bus socket closed" in caplog.text
+
+    def test_it_returns_rather_than_raises_on_a_closed_socket(self, hub):
+        """H1 decision (2026-10-22): like a handler that fails, a closed socket ends start() by
+        returning. start() raises only for startup errors (an unknown mode, a socket it cannot open)."""
+        async def stops():
+            return None
+
+        hub._receiver_handler = stops
+        assert run(hub.start(), timeout=1) is None
 
 
 # --- NngBusHub.start_listener / start_dialer ------------------------------------------------------

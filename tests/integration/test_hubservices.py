@@ -319,20 +319,17 @@ class TestLifecycle:
 
         assert run(scenario()) is True
 
-    @pytest.mark.xfail(strict=True, raises=asyncio.TimeoutError, reason=(
-        "defect: once its socket is closed, start() never returns (its receiver returns on Closed, "
-        "but start() waits for FIRST_EXCEPTION), so the service cannot react to losing the bus."
-    ))
     def test_start_returns_when_its_socket_is_closed(self, tcp):
         async def scenario():
             hubs, listener, _ = await connected(tcp)
             try:
                 listener.connection.close()
                 await asyncio.wait_for(asyncio.shield(hubs.tasks[listener]), BOUND)
+                return listener._closing, listener.connection
             finally:
                 await hubs.stop_all()
 
-        run(scenario())
+        assert run(scenario()) == (True, None)
 
 
     @pytest.mark.slow
