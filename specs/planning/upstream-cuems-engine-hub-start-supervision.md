@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026 Stagelab Coop SCCL
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-# Upstream report → `cuems-engine`: notice when the bus hub stops
+# Upstream report → `cuems-engine`: notice when the bus hub stops, and do not trust a fresh link
 
 **From:** `cuems-utils`, 2026-10-22 (defect H1 in `specs/planning/ipc-bus-signal-reliability-defects.md`).
 `cuems-utils` edits no file in your repository. Delete this note once the engine change lands.
@@ -50,6 +50,18 @@ separate `asyncio.wait`.
 
 Before relying on a restart, check that the engine's systemd units carry `Restart=on-failure` (or
 `always`).
+
+## A second, smaller point: the first message on a new link can be lost
+
+NNG's BUS protocol is best-effort, and `cuems-utils` measured what that means right after a
+connection is established. A message sent the instant both sides see the connection was dropped 3
+times in 12000. Its `asend()` had completed, and the next message on the same link arrived. After a
+20 ms pause the count was 0 in 12000. So a command or status the engine sends just as a node
+connects, or reconnects after a controller restart, can vanish without any error.
+
+If a message must arrive (a `load`, a `go`, a node's state after it rejoins), it needs an
+acknowledgement and a resend. Your `ping`/`pong` liveness probe already has that shape. The
+alternative, a short pause after each new connection before sending, only narrows the window.
 
 ## How to verify
 

@@ -108,6 +108,19 @@ this path differs is not shown: C6's stalls were on a REP `arecv()`, and the hub
 `integration::TestLifecycle::test_a_thousand_shutdowns_all_complete` (about 64 s), so a pynng upgrade
 that changes it is caught.
 
+**H6, measured 2026-10-22: a protocol property, not a library defect; no code change.** NNG's BUS
+protocol is best-effort. A message a node sends **the instant** a new connection is up is
+occasionally dropped. Both sides report the connection, the node's `asend()` completes, and the
+controller never sees the message. Found when the H5 test lost its 50 ms sleep.
+- Sent as soon as both sides reported the connection: **3 lost in 12000** rounds. In each case the
+  next message on the same link arrived, so it is not C6's stuck receive.
+- With a 20 ms pause first: **0 in 12000**.
+
+So the loss is confined to connection establishment. For the engine, a command or status sent right
+after a node (re)connects can vanish without a trace, so anything that must arrive needs an
+application-level acknowledgement and resend. That request is in the engine upstream report. The
+tests let a connection settle first (`SETTLE`, 20 ms), and the H5 test resends instead.
+
 Measured and **correct**, for the record: a TCP peer's identity is its real `(ip, port)`. The old
 unit test asserted a reversed IP only because its mock stored the address in host order; pynng
 delivers it in network order.

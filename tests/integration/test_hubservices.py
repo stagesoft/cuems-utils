@@ -46,12 +46,12 @@ def run(coro):
     return asyncio.run(asyncio.wait_for(coro, timeout=60))
 
 
-async def until(predicate, timeout=BOUND):
+async def until(predicate, timeout=BOUND, interval=0.01):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if predicate():
             return True
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(interval)
     return False
 
 
@@ -84,17 +84,29 @@ async def running():
         await hubs.stop_all()
 
 
-async def connected(address, nodes=1, configure=None):
+#: NNG's BUS is best-effort, and a message sent the instant a connection is up can be dropped (H6):
+#: measured 2026-10-22, 3 lost in 12000 when sent as soon as both sides reported the connection,
+#: 0 in 12000 after 20 ms. Tests that assert exact deliveries let a new connection settle first.
+SETTLE = 0.02
+
+
+async def connected(address, nodes=1, configure=None, settle=SETTLE):
     """A started listener and ``nodes`` started dialers, once the listener sees them all.
-    ``configure(listener)`` runs before the listener starts."""
+    ``configure(listener)`` runs before the listener starts. ``settle`` seconds then pass before
+    returning (see SETTLE). A test that does not depend on delivery passes 0."""
     hubs = Running()
     listener = NngBusHub(address, NngBusHub.Mode.LISTENER)
     if configure:
         configure(listener)
     hubs.start(listener)
-    await asyncio.sleep(0.05)
+    # start_listener() creates the socket and listens with no await in between, so once the
+    # connection exists the address is bound. No fixed sleep: it was 50 of the H5 test's 64 s.
+    assert await until(lambda: listener.connection is not None, interval=0.001), "the controller never listened"
     dialers = [hubs.start(NngBusHub(address, NngBusHub.Mode.DIALER)) for _ in range(nodes)]
-    assert await until(lambda: listener.get_connection_count() == nodes), "the nodes never connected"
+    assert await until(lambda: listener.get_connection_count() == nodes, interval=0.001), \
+        "the nodes never connected"
+    if settle:
+        await asyncio.sleep(settle)
     return hubs, listener, dialers
 
 
@@ -336,13 +348,23 @@ class TestLifecycle:
     def test_a_thousand_shutdowns_all_complete(self, ipc):
         """H5, measured 2026-10-22 and not reproduced: 8000 hub receiver cancellations (IPC and TCP)
         all completed, worst 3 ms. C6's lost-callback hang on a REP receive would have predicted about
-        8. Kept as a regression test, like C6's, so a pynng upgrade that changes this is caught."""
+        8. Kept as a regression test, like C6's, so a pynng upgrade that changes this is caught.
+        ``slow``, so CI never selects it: run it with ``-m slow``."""
         async def scenario():
             for i in range(1000):
                 address = f"{ipc}.{i}"
-                hubs, listener, (node,) = await connected(address)
-                await node.send_message({"i": i})
-                await next_message(listener)
+                hubs, listener, (node,) = await connected(address, settle=0)
+                # A message on the fresh link, so the receivers are mid-loop when cancelled. The
+                # bus may drop it (H6), so resend, as anything on a best-effort bus must.
+                for _attempt in range(3):
+                    await node.send_message({"i": i})
+                    try:
+                        await next_message(listener, timeout=0.5)
+                        break
+                    except asyncio.TimeoutError:
+                        continue
+                else:
+                    raise AssertionError(f"round {i}: three messages lost on one link")
                 tasks = list(hubs.tasks.values())
                 for task in tasks:
                     task.cancel()
