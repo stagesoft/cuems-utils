@@ -5,8 +5,19 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # Absorb `AsyncCommsThread` into `cuems-utils` (ships in the coordinated `0.1.1`)
 
-**Written 2026-10-22.** **Status: library half (U1–U5) implemented 2026-10-22 in the working tree,
-not yet committed; consumer halves (E, N) not started.** Measured at the library half:
+**Written 2026-10-22.** **Status: library half (U1–U5) committed (`1c1334c`, plus `b592a57`: once
+`end_reason` is set, `stop()` only joins, which N2's SIGTERM-driven shutdown needs). nodeconf half
+(N1–N5) implemented on its `feat/xml-refactor` at `6e9be84`: suite 203 → 211 passed, stable over 3
+runs, no failure in either arm. Engine half (E) not started; it waits on the essential-task sign-off
+and the choice of branch (§8.3).** nodeconf corrections to §6.3:
+- It now lives in `src/cuemsnodeconf/` with tests by kind.
+- The thread's name changes to `AsyncComms-Communications`.
+- Its fatal path's non-zero exit is `run_nodeconf._exit_status`.
+- ⚠ Found, not fixed: `responder_get_request` swallows *every* exception, so a closed responder
+  socket makes nodeconf's listener spin and log forever instead of ending. Supervision cannot see that.
+  It is a `CommunicatorServices` question for the library.
+
+Measured at the library half:
 - Full suite 4209 passed, 114 skipped, 2 xfailed, 0 failures.
 - 47 new tests, stable over 3 runs. Module coverage 99% (only the `call_soon_threadsafe`
   closed-loop race guard is untested).
