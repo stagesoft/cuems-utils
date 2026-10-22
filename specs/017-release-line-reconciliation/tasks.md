@@ -412,7 +412,7 @@ field of `contracts/ci-workflow.md`.
   4. coordinate the commit with the siblings' landings and any upstream requests;
   5. fill the tag message's `Tag:` placeholder, the only edit, and re-cut the candidate tag;
   6. rule 4 for the other repositories, and publication only after the gate. Commit T081–T084's records as `docs(017): hand-off`. ⏸
-- [ ] T085 **Last task: delete the work order** (FR-060, SC-014):
+- [X] T085 **Last task: delete the work order** (FR-060, SC-014):
   - check every row of spec §"Traceability to the work order" against the files it names, and add any section found missing to this directory before going on;
   - `git grep -n release-line-reconciliation-0.1.1 -- . ':!specs/017-*'` must print nothing; re-point any hit first (cuems-engine's same-named file is another repository and is not a hit);
   - `git rm specs/planning/release-line-reconciliation-0.1.1.md`;

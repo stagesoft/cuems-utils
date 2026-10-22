@@ -7,7 +7,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 **Feature Branch**: `017-release-line-reconciliation`
 **Created**: 2026-10-17
-**Status**: Draft
+**Status**: Implemented (hand-off 2026-10-22; `evidence/handoff.md`)
 **Input**: User description: "Feature `017-release-line-reconciliation` for cuems-utils. Branch off `feat/xml-refactor` (`5e4c637`, version `0.1.1` UNRELEASED; the candidate tag is on `4b336cd`). **Goal.** Absorb this library's release line `origin/debian/bookworm` (`398a9cf`, `0.1.0rc17`, 77 commits behind) and `origin/main` (`23e4752`, tag `v0.1.0rc17`) into the refactor before `0.1.1` is published ("merge before bump", rule 4 of `specs/planning/coordinated-release-version-bump.md`). Nothing shipped in `0.1.0rc15`, `rc16`, `rc16+1` or `rc17` may be lost, and the absorbed code must obey the refactor's contract […]. **The work order** is `specs/planning/release-line-reconciliation-0.1.1.md` […]. **Final phase: the first-stable-release cleanup (§14).** […] **Last task.** The final task of `tasks.md` deletes the planning file once 017's artefacts carry all of its content (§11 step 13). **Clarify list and limits.** Treat §12 as the clarify list. Out of scope: publishing, tag moves, pushes, sibling edits (write upstream reports), the `v0.1.2` removal, and new behaviour beyond A-1. **Constitution.** TDD […], performance budgets as bands with interleaved A/B, no new runtime dependency, actionable errors. Planning artefacts go under `specs/017-release-line-reconciliation/`, evidence under its `evidence/`, upstream reports under its `upstream-reports/`, and 016's evidence is never overwritten." (full text in the `/speckit-specify` invocation of 2026-10-17; it is Appendix A of the work order, verbatim).
 
 ## Clarifications
@@ -1085,3 +1085,4 @@ So that the final task can delete it (FR-060), each section must have a home in 
 | §12 clarify list | Open questions → `## Clarifications` + `research.md` |
 | §13 measurement recipe | `quickstart.md` + `evidence/` |
 | §14 cleanup and CI | FR-060–FR-076, SC-012–SC-014 |
+| Appendix A, the paste-ready `/speckit-specify` prompt | this spec's **Input** line, verbatim |
