@@ -125,6 +125,18 @@ class TestResponder:
         assert results == [{"later": {"n": 2}}]
         comms.stop(timeout=BOUND)
 
+    def test_a_closed_responder_socket_ends_the_communications(self, ipc_dir):
+        path = f"{ipc_dir}/svc.ipc"
+        comms = Responder(path)
+        comms.start()
+        assert _wait_for(lambda: os.path.exists(path))
+        comms.communicator.communicator_service.responder.close()
+        ended = comms.ended.wait(BOUND)
+        comms.stop(timeout=BOUND)
+        assert ended, "a closed responder socket left the thread running"
+        assert isinstance(comms.end_reason, pynng.Closed)
+        assert len(comms.ended_with) == 1
+
     def test_stop_during_a_pending_receive_is_prompt_every_time(self, ipc_dir):
         slowest = 0.0
         for i in range(ROUNDS):

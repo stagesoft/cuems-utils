@@ -34,6 +34,14 @@ async def _shielded(operation):
     return await asyncio.shield(inner)
 
 
+def _close_quietly(context) -> None:
+    """Close a context whose socket may already be closed, which makes ``close()`` raise ``Closed``."""
+    try:
+        context.close()
+    except Exception:
+        pass
+
+
 def _error_reply(error: Exception) -> dict:
     """The reply sent when a request cannot be answered normally.
 
@@ -187,22 +195,34 @@ class NngRequestResponse(CommunicatorService):
         self.responder = Rep0(**self.params_reply)
 
     async def responder_get_request(self, callback):
+        """Receive one request on a new context and hand it, with the context, to ``callback``.
+
+        A socket error raises (C8): the responder is closed or was never connected, and every later
+        call would fail the same way. Swallowed, it made the caller's ``while`` loop spin without
+        ever yielding to its event loop. A malformed request is answered here, and a callback that
+        raises is logged, as before; neither ends the caller's loop.
+        """
+        responder = getattr(self, "responder", None)
+        if responder is None:
+            raise RuntimeError("responder_connect() was not called")
+        context = responder.new_context()
         try:
-            context = self.responder.new_context()
-            try:
-                request = await _shielded(context.arecv())
-            except asyncio.CancelledError:
-                context.close()  # ends the shielded pending receive (see _shielded)
-                raise
-            try:
-                decoded_request = json.loads(request.decode())  # Parse the JSON request
-            except ValueError as e:
-                # The callback never sees this request, so it is answered here and its context
-                # closed: unanswered, its requester would wait for good. (A callback that raises is
-                # different: it owns the context, and may already have replied or handed it on.)
-                Logger.error(f"Error occurred while handling request: {e}")
-                await self.responder_post_reply(_error_reply(e), context)
-                return
+            request = await _shielded(context.arecv())
+        except BaseException:
+            # Cancelled: closing ends the shielded pending receive (see _shielded). Failed: the
+            # context is of no further use, and closing it here keeps it from leaking.
+            _close_quietly(context)
+            raise
+        try:
+            decoded_request = json.loads(request.decode())  # Parse the JSON request
+        except ValueError as e:
+            # The callback never sees this request, so it is answered here and its context
+            # closed: unanswered, its requester would wait for good. (A callback that raises is
+            # different: it owns the context, and may already have replied or handed it on.)
+            Logger.error(f"Error occurred while handling request: {e}")
+            await self.responder_post_reply(_error_reply(e), context)
+            return
+        try:
             Logger.debug(f"Received: {decoded_request}")
             if asyncio.iscoroutinefunction(callback):
                 Logger.debug("Calling callback function async")

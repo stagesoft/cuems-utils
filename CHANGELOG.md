@@ -122,6 +122,17 @@ dropped it, with no reply and no close. It now answers with the same error reply
 context. A callback that raises is still not answered for, because it owns its context and may
 already have replied.
 
+### Fixed — a responder whose socket fails raises instead of spinning
+
+`responder_get_request` (the context API that `cuems-engine`'s editor listener and `cuems-nodeconf`'s
+engine listener loop on) swallowed socket errors as well as request errors. On a closed responder it
+returned about 28,700 times a second, logging an error each time and never yielding, so the caller's
+`while` loop starved everything else on its event loop. A socket error now **raises**, after closing
+the context, and a responder that was never connected raises `RuntimeError`. A malformed request is
+still answered with an error reply, and a callback that raises is still only logged. A caller's
+listener loop therefore **ends** on a socket error: mark it `essential()` in an `AsyncCommsThread`
+to take the service's fatal path (defect C8).
+
 ### Fixed — a bus hub whose socket closes stops instead of idling
 
 `NngBusHub.start()` kept running after its bus socket closed: its receiver stopped, but `start()`

@@ -335,6 +335,39 @@ class TestPromptCancellation:
 
 
 class TestContextResponderFailureModes:
+    def test_a_socket_closed_under_a_pending_receive_raises_promptly(self, address):
+        async def scenario():
+            responder = NngRequestResponse(address)
+            await responder.responder_connect()
+            task = asyncio.create_task(responder.responder_get_request(Mock()))
+            await asyncio.sleep(0.05)
+            responder.responder.close()
+            await asyncio.wait({task}, timeout=BOUND)
+            assert task.done(), f"the pending receive did not end within {BOUND} s"
+            return task.exception()
+
+        assert isinstance(run(scenario()), pynng.Closed)
+
+    def test_a_listener_loop_on_a_closed_socket_ends_instead_of_spinning(self, address):
+        # The consumers' shape: `while not stop_requested: await responder_get_request(cb)`.
+        async def scenario():
+            responder = NngRequestResponse(address)
+            await responder.responder_connect()
+            responder.responder.close()
+            rounds = 0
+
+            async def listener():
+                nonlocal rounds
+                while rounds < 1000:
+                    rounds += 1
+                    await responder.responder_get_request(Mock())
+
+            with pytest.raises(pynng.Closed):
+                await asyncio.wait_for(listener(), BOUND)
+            return rounds
+
+        assert run(scenario()) == 1
+
     def test_a_malformed_request_is_answered_and_the_responder_keeps_serving(self, address):
         async def scenario():
             responder = NngRequestResponse(address)

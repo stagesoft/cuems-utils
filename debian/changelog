@@ -54,6 +54,10 @@ cuems-utils (0.1.1) UNRELEASED; urgency=medium
     {"OK": false, "error": "<Type>: <message>"}. The context API
     (responder_get_request) answers a malformed request the same way.
   * Communicator accepts an ipc:// address; it used to sys.exit(1).
+  * responder_get_request raises on a socket error (a closed or never
+    connected responder) instead of logging and returning, which made
+    the caller's listener loop spin without yielding, starving its event
+    loop. Malformed requests and raising callbacks are handled as before.
   * send_request takes timeout= (seconds, default 100) for the send and
     the reply together, and returns None when it passes: asking a service
     that was not running used to block for good.

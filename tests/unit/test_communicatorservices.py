@@ -466,6 +466,26 @@ class TestResponderGetRequest:
         run(rr.responder_get_request(Mock(side_effect=RuntimeError("handler bug"))))
         assert "handler bug" in caplog.text
 
+    def test_a_closed_responder_socket_raises(self, rr):
+        def closed():
+            raise pynng.Closed("Object closed", 7)
+
+        rr.responder.new_context = closed
+        with pytest.raises(pynng.Closed):
+            run(rr.responder_get_request(Mock()))
+
+    def test_a_failing_receive_closes_its_context_then_raises(self, rr):
+        rr.responder.incoming[:] = [pynng.Closed("Object closed", 7)]
+        callback = Mock()
+        with pytest.raises(pynng.Closed):
+            run(rr.responder_get_request(callback))
+        assert rr.responder.contexts[0].closed is True
+        callback.assert_not_called()
+
+    def test_a_responder_that_was_never_connected_raises(self):
+        with pytest.raises(RuntimeError, match=r"responder_connect\(\) was not called"):
+            run(NngRequestResponse(ADDRESS).responder_get_request(Mock()))
+
 
 class TestResponderPostReply:
     def test_sends_the_reply_on_the_context_and_closes_it(self):

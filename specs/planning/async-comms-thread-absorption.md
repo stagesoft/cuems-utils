@@ -13,9 +13,11 @@ and the choice of branch (§8.3).** nodeconf corrections to §6.3:
 - It now lives in `src/cuemsnodeconf/` with tests by kind.
 - The thread's name changes to `AsyncComms-Communications`.
 - Its fatal path's non-zero exit is `run_nodeconf._exit_status`.
-- ⚠ Found, not fixed: `responder_get_request` swallows *every* exception, so a closed responder
-  socket makes nodeconf's listener spin and log forever instead of ending. Supervision cannot see that.
-  It is a `CommunicatorServices` question for the library.
+- Found while doing this and **fixed as C8** (`specs/planning/ipc-bus-signal-reliability-defects.md`):
+  `responder_get_request` swallowed socket errors, so a closed responder made the listener spin
+  without yielding instead of ending, and supervision could not see it. It now raises.
+- The engine half waits until the engine's own 009 (release-line reconciliation) lands, so that
+  reconciliation is not affected.
 
 Measured at the library half:
 - Full suite 4209 passed, 114 skipped, 2 xfailed, 0 failures.

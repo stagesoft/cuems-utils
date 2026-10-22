@@ -51,6 +51,23 @@ separate `asyncio.wait`.
 Before relying on a restart, check that the engine's systemd units carry `Restart=on-failure` (or
 `always`).
 
+## Update 2026-10-22: `editor_listener` can now end too, and the library supervises for you
+
+**`editor_listener` now ends on a socket error (C8).** `responder_get_request` used to swallow
+socket errors. On a closed editor responder it returned about 28,700 times a second without
+yielding, so `editor_listener`'s `while` loop starved the whole comms event loop: the bus hub, the
+WebSocket OSC listener and ping/pong. It now raises. On your current `gather(...,
+return_exceptions=True)` that means one ERROR line and the listener task ends, while the bus and the
+WebSocket keep running. That is better than today, but the editor still cannot reach the engine.
+
+**You no longer need to write the change suggested above.** `cuemsutils.tools.AsyncCommsThread`
+(0.1.1) is your base class, absorbed into the library. It already does "a task that raises, or an
+`essential()` task that returns, ends the comms and calls `on_comms_ended()`", and
+`cuems-nodeconf` already runs on it. The migration is
+`specs/planning/async-comms-thread-absorption.md` §6.2: import the library class, mark
+`nng_hub.start()` and `editor_listener()` essential, and make `on_comms_ended` take your fatal path
+(SIGTERM yourself, exit non-zero). It is planned for after your 009 lands.
+
 ## A second, smaller point: the first message on a new link can be lost
 
 NNG's BUS protocol is best-effort, and `cuems-utils` measured what that means right after a
