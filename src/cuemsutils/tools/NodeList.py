@@ -14,12 +14,15 @@ public configuration façade.
 from __future__ import annotations
 
 from enum import Enum
+from functools import cache
 from typing import Callable, Hashable
 
 # Re-exported (FR-002b, FR-007) — the public path to the container a document
 # decodes. ``cuemsutils.config`` itself exports nothing (research R10a); a
 # consumer imports ``node`` from here, never from ``cuemsutils.config.network_map``.
 from ..config.network_map import node
+from ..helpers import Unset
+from ..log import Logger
 
 # ``partition_by_adoption`` is resolved by the module ``__getattr__`` at the
 # foot of this file, which ruff cannot see — hence the narrow suppression rather
@@ -154,6 +157,17 @@ class NodeIndex(dict):
         reasoning, and ``tests/contract/test_node_aliasing.py`` fails if it
         happens.
 
+        **Only values the schema accepts are copied** (D12 of
+        ``specs/planning/tpm-ek-fingerprint.md``). Each announced field is
+        checked against its ``NodeType`` simple type, using the text ``save``
+        would write. An invalid value is dropped with a warning, and the stored
+        value stays. A new node missing a valid required field is not added.
+        Without this, one bad announcement made every later ``save`` of the
+        whole map fail, because the bad value stayed in memory. A field that is
+        not announced (absent, ``None`` or ``Unset``) is left alone, and
+        ``adopted``/``online`` are never taken from discovery. The merge itself
+        never fails.
+
         Args:
             discovered: a mapping of freshly-discovered nodes, keyed however
                 the caller's discovery mechanism keys them.
@@ -168,18 +182,39 @@ class NodeIndex(dict):
             if d_uuid:
                 discovered_uuids.add(d_uuid)
 
+            accepted, rejected = _announced_fields(discovered_node)
             match = existing_by_uuid.get(d_uuid)
             if match is not None:
                 _key, existing_node = match
+                for name, value in rejected:
+                    Logger.warning(
+                        f"Node {d_uuid} announced an invalid {name} ({value!r}); "
+                        f"keeping {existing_node.get(name)!r}"
+                    )
                 preserved_adopted = existing_node.get("adopted", False)
                 # Refresh mutable discovery fields in place; never clobber
                 # the real key with the discovered one.
                 existing_node.update(
-                    {k: v for k, v in discovered_node.items() if k != "mac"}
+                    {k: v for k, v in accepted.items() if k != "mac"}
                 )
                 existing_node["adopted"] = preserved_adopted
                 existing_node["online"] = True
             else:
+                missing = [
+                    name for name, (_t, required, _s) in _node_fields().items()
+                    if required and name not in accepted
+                ]
+                if missing:
+                    Logger.warning(
+                        f"Discovered node {d_uuid!r} not added to the network map: "
+                        f"no valid {', '.join(missing)}"
+                    )
+                    continue
+                for name, value in rejected:
+                    Logger.warning(
+                        f"Node {d_uuid} announced an invalid {name} ({value!r}); dropped"
+                    )
+                    del discovered_node[name]
                 key = discovered_node.get("mac")
                 self[key] = discovered_node
                 self[key]["adopted"] = False
@@ -417,6 +452,60 @@ class NodeIndex(dict):
                 n.get("role_id"), n.get("alias"), n.get("hostname"),
             ))
         return tuple(sig)
+
+
+#: Never taken from discovery: ``merge`` preserves ``adopted`` and forces
+#: ``online``, so an announced value for either is not checked.
+_DISCOVERY_MANAGED = frozenset({"adopted", "online"})
+
+
+@cache
+def _node_fields() -> dict:
+    """``name -> (xsd_type, required, simple type)`` for ``NodeType``'s fields.
+
+    Imported lazily: ``xml/`` imports this module while registering its enums,
+    so a module-level import would close the cycle ``__getattr__`` avoids.
+    """
+    from ..xml.schema import simple_type
+    from ..xml.spec import derive_named
+
+    return {
+        f.name: (f.xsd_type, f.required, simple_type("network_map", f.xsd_type))
+        for f in derive_named("network_map", "NodeType").fields
+    }
+
+
+def _is_valid(name: str, value) -> bool:
+    """Whether ``save`` would write ``value`` as text the schema accepts."""
+    from ..xml.adapters import adapter_for
+
+    xsd_type, _required, simple = _node_fields()[name]
+    if simple is None:
+        return True
+    try:
+        text = adapter_for(xsd_type).to_lexical(value)
+    except (AttributeError, TypeError, ValueError):
+        return False
+    return simple.is_valid("" if text is None else text)
+
+
+def _announced_fields(discovered_node) -> tuple[dict, list]:
+    """Split a discovered node's announced fields into valid and invalid.
+
+    Undeclared keys and keys with no value (``None``/``Unset``) are skipped,
+    so they are in neither result: they are not announcements.
+    """
+    fields = _node_fields()
+    accepted: dict = {}
+    rejected: list = []
+    for name, value in discovered_node.items():
+        if name not in fields or name in _DISCOVERY_MANAGED or value is None or value is Unset:
+            continue
+        if _is_valid(name, value):
+            accepted[name] = value
+        else:
+            rejected.append((name, value))
+    return accepted, rejected
 
 
 # --- the published adoption split (feature 013, T057, FR-035) -----------------

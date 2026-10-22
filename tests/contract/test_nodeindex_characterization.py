@@ -64,10 +64,16 @@ def test_merge_matches_by_uuid_not_mac():
 
 def test_merge_adds_a_genuinely_new_node_keyed_by_its_own_mac():
     """:475-482 — a node with no uuid match is added, keyed by its own mac,
-    ``adopted=False``, ``online=True``."""
+    ``adopted=False``, ``online=True``.
+
+    The fixture carries a valid uuid and ip since ``merge`` started refusing a
+    new node without them (D12, ``specs/planning/tpm-ek-fingerprint.md``); it
+    used to be ``uuid="u2"`` with no ip. The assertions are unchanged.
+    """
     existing = NodeIndex()
     discovered = NodeIndex({
-        "bb:new": _node(uuid="u2", mac="bb:new", name="fresh"),
+        "bb:new": _node(uuid="3f1c2a4e-8b7d-4e6f-9a0b-1c2d3e4f5a6b", mac="bb:new",
+                        name="fresh", ip="10.0.0.3"),
     })
 
     existing.merge(discovered)

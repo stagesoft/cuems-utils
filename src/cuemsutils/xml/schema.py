@@ -88,6 +88,22 @@ def root_element(schema_name: str):
     return get_schema(schema_name).elements[SCHEMA_ROOTS[schema_name]]
 
 
+def simple_type(schema_name: str, xsd_type: str | None):
+    """The ``xmlschema`` simple type a field declares, or ``None``.
+
+    ``xsd_type`` is a field's declared type name as ``spec.derive`` reports it:
+    a schema-local name (``NonEmptyString``) or a bare XSD builtin (``boolean``).
+    ``None`` for a complex type, or for a field with no type.
+    """
+    if xsd_type is None:
+        return None
+    schema = get_schema(schema_name)
+    if xsd_type in schema.types:
+        return schema.types[xsd_type]
+    qualified = f"{{http://www.w3.org/2001/XMLSchema}}{xsd_type}"
+    return schema.maps.types.get(qualified)
+
+
 def clear_cache() -> None:
     """Drop every cached schema. For tests that measure load counts."""
     get_schema.cache_clear()

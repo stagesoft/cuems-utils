@@ -32,7 +32,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from .schema import get_schema
+from .schema import simple_type
 from .spec import FieldKind, TypeKey, derive
 
 SEED_FILE_NAME = "system-defaults.toml"
@@ -111,20 +111,9 @@ def _scalar_fields(key: TypeKey):
     return [f for f in derive(key).fields if f.kind is FieldKind.ELEMENT and f.child is None]
 
 
-def _simple_type(schema_name: str, xsd_type: str | None):
-    """The ``xmlschema`` simple type for a field's declared type, or ``None``."""
-    if xsd_type is None:
-        return None
-    schema = get_schema(schema_name)
-    if xsd_type in schema.types:
-        return schema.types[xsd_type]
-    qualified = f"{{http://www.w3.org/2001/XMLSchema}}{xsd_type}"
-    return schema.maps.types.get(qualified)
-
-
 def _check_scalar_type(schema_name: str, type_name: str, field, value: Any, where: str) -> None:
     """V4: the TOML scalar's Python type must match what the XSD type decodes to."""
-    simple = _simple_type(schema_name, field.xsd_type)
+    simple = simple_type(schema_name, field.xsd_type)
     if simple is None:
         return
     lexical = str(value)
