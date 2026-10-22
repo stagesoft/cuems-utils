@@ -17,7 +17,7 @@
 ## What is cuems-utils?
 
 `cuems-utils` is the shared library at the base of the **CueMS** (Cue Management System).
-It provides the data models, timecode primitives, XML tooling, and runtime configuration
+It provides the data models, timecode primitives, the document schemas, and runtime configuration
 helpers consumed by every other component in the system — `cuems-engine`, `cuems-editor`,
 and their player subprocesses.
 
@@ -27,7 +27,8 @@ The library is organized into three submodules plus a small set of root-level ut
 |---|---|
 | `cues/` | The full cue data-model hierarchy (audio, video, DMX, fade, action) |
 | `tools/` | Runtime utilities: timecode, fade calculation, NNG communications, systemd integration, configuration management |
-| `xml/` | XML schema validation, project-file serialization, and settings parsing |
+| `errors` | The public error and report types (`SchemaError`, `ValidationError`, `LoadReport`, …) |
+| schemas | The six bundled XSDs. `cuemsutils.xml` is internal and exports nothing; documents go through `CuemsScript` and `ConfigManager` |
 
 ---
 
@@ -38,7 +39,7 @@ Editor (authoring)
     │
     │  CuemsScript (JSON / XML)
     ▼
-cuems-utils ──► XmlReaderWriter ──► schema validation ──► CuemsScript / CueList / Cue objects
+cuems-utils ──► CuemsScript.load / save ──► T1 + T2 validation ──► CuemsScript / CueList / Cue objects
     │
     │  shared via pip / deb dependency
     ▼
@@ -67,12 +68,11 @@ data models or utilities add it as a dependency and import the relevant classes.
 - **`AudioCue`** — audio playback cue; JACK routing, level, loop count. MTC-polling uses `.milliseconds_rounded` / `.milliseconds_exact`.
 - **`VideoCue`** — video playback cue; monitor alias or normalized-float canvas region. MTC-polling uses `.milliseconds_rounded`.
 - **`DmxCue`** — DMX playback cue; universe, channel, and level mapping. Offset math uses `.milliseconds_exact` for drift safety.
-- **`FadeCue`** — fade action cue; `curve_type` (`linear`, `exponential`, `logarithmic`, `sigmoid`), `duration`, `target_value`. Inherits `ActionCue`.
-- **`ActionCue`** — action cue base; `action_type` and `action_target` (id of the cue to act on).
-- **`FadeProfile`** — reusable fade envelope data class with named curve and amplitude samples.
+- **`FadeCue`** — fade action cue; `curve_type` (`linear`, `exponential`, `logarithmic`, `sigmoid`, `ease_in`, `ease_out`), `duration`, `target_value`. Inherits `ActionCue`.
+- **`ActionCue`** — action cue base; `action_type` and `action_target` (id of the cue to act on). `stop_project` acts on the whole project and takes no target.
 - **`CueOutput`** — per-output routing descriptor. `VideoCueOutput` additionally carries an optional `canvas_region` (normalized `[0,1]` rectangle).
 - **`CueList`** — ordered cue container; owns `get_next_cue`, `get_cue_by_id`, `get_media`. Skips disabled cues in traversal.
-- **`CuemsScript`** — top-level project model; wraps a `CueList` with script-level metadata and a `to_json()` serializer.
+- **`CuemsScript`** — top-level project model; wraps a `CueList`. Public entry points: `load`, `load_with_report`, `save`, `validate`, `from_json`, `to_json`, `to_wire` ([Documents](documents.md)).
 
 ### Tools layer
 
@@ -90,8 +90,9 @@ data models or utilities add it as a dependency and import the relevant classes.
   two `CTimecode` endpoints at quarter-frame resolution. Supports named curve names or
   any callable; correct unit handling (`start_seconds = ms / 1000`) after the 0.1.0rc6
   unit-error fix.
-- **`ConfigManager`** — singleton loader for `settings.xml`, `network_map.xml`, and
-  `project_mappings.xml`. Conditional file loading at init; typed accessors.
+- **`ConfigManager`** — loads and saves a node's configuration (`settings.xml`, `network_map.xml`,
+  `project_mappings.xml`, `project_settings.xml`) as objects; `from_json`, `to_wire`,
+  `get_schema_descriptor` ([Documents](documents.md)).
 - **`CommunicatorServices`** — NNG request/response and bus-hub transport wrappers
   (`NngRequestResponse`, `NngBusHub`).
 - **`HubServices`** — fan-out to multiple dialer endpoints; used by the controller engine.
@@ -102,22 +103,22 @@ data models or utilities add it as a dependency and import the relevant classes.
   elapsed time exceeds `timeout`. Formerly `timeoutloop.Timeoutloop` at the package root;
   that path still resolves but is deprecated (removed in `v0.1.2`).
 
-### XML layer
+### Documents
 
-[`xml/`](xml.md) — project file I/O, validation, and settings loading.
-
-- **`XmlReaderWriter`** — validates against bundled XSD on read and write; supersedes the
-  deprecated `XmlReader` / `XmlWriter` pair.
-- **`XmlBuilder`** — low-level element construction from Python dicts.
-- **`Settings`** — base class for XML-backed config; `xmlschema.to_dict()` returns `int`
-  for integer elements, `str` for `"auto"`, `None` for absent optional elements.
-- **`CMLCuemsConverter`** — converts legacy CML project files to `CuemsScript`.
-- **`Parsers`** — XML parsing helpers.
-
-**Bundled schemas (`xml/schemas/`):**
+[Documents](documents.md): reading and writing a show and a node's configuration through the
+public objects, strict reads with a report, the six bundled schemas and the two migration tools.
+`cuemsutils.xml` is internal and exports nothing.
 
 | Schema | Validates |
 |---|---|
+| `script.xsd` | A show: `CuemsScript` / `CueList` / every cue type |
+| `settings.xsd` | A node's settings: player types, `output_latency_ms`, `gradient_osc_port` (on `NodeConfType`) |
+| `network_map.xsd` | The node fleet: identities, roles, adoption |
+| `project_mappings.xsd` | Output routing: devices by class, monitor aliases, custom canvas templates |
+| `project_settings.xsd` | Per-project settings |
+| `hardware_outputs.xsd` | A node's hardware outputs |
+
+---|---|
 | `script.xsd` | Full project cuelists — `CuemsScript` / `CueList` / all cue types |
 | `settings.xsd` | Per-node settings including player types, `output_latency_ms`, and `gradient_osc_port` |
 | `project_mappings.xsd` | Output routing — node UUIDs, monitor aliases, custom canvas templates |
@@ -140,7 +141,7 @@ drop-frame correction at 29.97/59.94 DF. The result: at any MTC position T,
 The original `.milliseconds: int` truncated via `int()`, losing up to 1 ms per call at
 fractional framerates and accumulating monotonically in long-running installations. The v2
 API splits this into two explicit accessors — the deprecated `.milliseconds` is retained
-as an alias and will be removed at the first stable release. Migration guide:
+as an alias, which warns, and is removed in `v0.1.2`. Migration guide:
 
 | Old | New | Reason |
 |---|---|---|
@@ -165,12 +166,12 @@ output entry as a custom slot that the editor lists alongside monitor aliases an
 a default rect when the user places a cue. `canvas_region` in `script.xsd`
 (`VideoCueOutput`) is the **per-cue instance** rect the user drew. The two elements share
 the same `CanvasRegionType` XSD definition but have distinct semantics; see
-[Canvas Region](../specs/agreements/canvas_region.md) for the full specification.
+[Canvas Region](https://github.com/stagesoft/cuems-utils/blob/main/specs/agreements/canvas_region.md) for the full specification.
 
 ### XSD as authoritative contract
 
-Python validation is secondary to the XSD. `XmlReaderWriter` validates against the
-bundled schema on every read and write. Schema changes require corresponding Python model
+Python validation is secondary to the XSD. `CuemsScript.load` / `save` and `ConfigManager`
+validate against the bundled schema (T1) and the semantic rules (T2) on every read and write. Schema changes require corresponding Python model
 changes in the same commit (the `settings.xml` template and `settings.xsd` live here
 for exactly this reason).
 
@@ -180,10 +181,10 @@ for exactly this reason).
 
 Each module's public API is generated directly from docstrings:
 
-- [Cues](cues.md) — `Cue`, `MediaCue`, `AudioCue`, `VideoCue`, `DmxCue`, `FadeCue`, `ActionCue`, `FadeProfile`, `CueOutput`, `CueList`, `CuemsScript`
+- [Cues](cues.md) — `Cue`, `MediaCue`, `AudioCue`, `VideoCue`, `DmxCue`, `FadeCue`, `ActionCue`, `CueOutput`, `CueList`, `CuemsScript`
 - [Tools](tools.md) — `CTimecode`, `CTimecodeTimer`, `FadeCalculator`, `ConfigManager`, `CommunicatorServices`, `HubServices`, `SignalEngine`, `TimeoutLoop`, `Uuid`
-- [XML](xml.md) — `XmlReaderWriter`, `XmlBuilder`, `Settings`, `CMLCuemsConverter`, `Parsers`
+- [Documents](documents.md) — reading and writing through `CuemsScript` and `ConfigManager`, the schemas, the migration tools
 - [API (root modules)](api.md) — `helpers`, `log`
-- [Canvas Region](../specs/agreements/canvas_region.md) — coordinate model, validation rules, V1
+- [Canvas Region](https://github.com/stagesoft/cuems-utils/blob/main/specs/agreements/canvas_region.md) — coordinate model, validation rules, V1
   caps, and deferred work (an agreed cross-repo convention, not generated API reference — stored in
   `specs/agreements/`, linked here for discoverability)

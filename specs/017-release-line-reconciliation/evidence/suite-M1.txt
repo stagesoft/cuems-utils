@@ -1,0 +1,8 @@
+# M1 6a17392 — 2026-10-21T17:35:29Z — Python 3.11.9 — load 0.62
+FAILED tests/contract/test_action_type.py::test_action_type_enumerates_exactly_twelve_values
+FAILED tests/contract/test_action_type.py::test_the_descriptor_publishes_exactly_those_twelve_values
+FAILED tests/contract/test_enum_audit.py::test_the_schemas_carry_no_more_and_no_fewer_than_the_retained_set
+FAILED tests/contract/test_schema_scope.py::test_every_schema_matches_its_recorded_hash
+FAILED tests/test_action_cue_stop_project.py::test_constructor_accepts_an_empty_target_and_refuses_none
+FAILED tests/unit/test_media_pixel_dimensions.py::TestFileMd5::test_stored_lowercase
+6 failed, 3835 passed, 134 skipped, 2 xfailed, 475 warnings in 36.20s

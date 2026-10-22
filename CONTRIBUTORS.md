@@ -64,21 +64,24 @@ pyenv local 3.11
 pip install -e ".[all]"
 
 # Verify the test suite is green before making any changes
-cd src && pytest
+hatch run test.py3.11:run
 ```
 
-Run lint checks:
+Run lint checks (the CI gate requires 0 findings):
 
 ```bash
-ruff check .
+hatch run test.py3.11:lint
 ```
 
-Run the full Python 3.11 / 3.12 / 3.13 matrix:
+Run the Python 3.12 / 3.13 matrix (informational in CI; 3.11 is the one that blocks):
 
 ```bash
-hatch test
-hatch test --cover
+hatch run test.py3.12:run
+hatch run test.py3.13:run
 ```
+
+Use the `test` environment's scripts, not `hatch test`: hatch's built-in test environment does
+not install this project's test dependencies (`hypothesis`, `pyyaml`).
 
 ---
 
@@ -156,10 +159,10 @@ the commit SHA of your failing-test commit. Reviewers will check it.
 
 ```bash
 # Run the full suite
-cd src && pytest
+hatch run test.py3.11:run
 
 # Run with coverage report
-cd src && pytest --cov=cuemsutils
+hatch run test.py3.11:run-cov
 
 # Flush any remaining .milliseconds DeprecationWarnings as hard failures
 pytest -W error::DeprecationWarning
@@ -169,7 +172,31 @@ pytest -m slow
 
 # Skip slow tests for a fast feedback loop
 pytest -m "not slow"
+
+# One kind only (the marker comes from the directory)
+pytest -m unit
 ```
+
+### Where a new test goes
+
+Every test module lives in exactly one of four directories. Its **marker comes from the
+directory** (`tests/conftest.py` adds it), so never write `@pytest.mark.unit` and its siblings by
+hand. `tests/contract/test_test_layout.py` fails on a `tests/test_*.py` at the root, and on any
+test that ends up with no kind marker or more than one.
+
+| Directory | Marker | What belongs there |
+|---|---|---|
+| `tests/integration/` | `integration` | real sockets / `pynng`, `asyncio` servers, threads, syslog, `CUEMS_CONF_PATH` or `/etc/cuems`, subprocesses of the console tools |
+| `tests/contract/` | `contract` | asserts a published surface: schema hashes, the API snapshot, enumerations, version sites, the workflow files |
+| `tests/packaging/` | `packaging` | reads `debian/`, builds or inspects a `.deb`, the chroot lifecycle |
+| `tests/unit/` | `unit` | everything else (pure in-process) |
+
+Write tests through the public API (`CuemsScript.load` / `save` / `from_json`, `ConfigManager`,
+`cuemsutils.errors`). A test that imports a deprecated module on purpose must say so with
+`pytestmark = pytest.mark.expects_deprecation`, or `tests/contract/test_deprecated_imports_are_marked.py`
+fails. A test that reads a sibling repository checked out beside this one carries
+`@pytest.mark.reads_siblings`, and skips with a reason when the sibling is absent.
+`--strict-markers` is on, so a misspelt marker is an error.
 
 ---
 
@@ -302,6 +329,20 @@ Examples:
 [Fixed] CTimecode.__str__ no longer wraps to 00:00:00:00 after 24 h continuous MTC.
 [Changed] CTimecode.milliseconds split into milliseconds_exact (float) and milliseconds_rounded (int).
 ```
+
+### Before publishing a release (maintainers)
+
+A release is published only after a **green dispatched run of `tests.yml`** on the exact commit
+being released, with **every sibling at its reconciled re-cut tag**:
+
+```bash
+gh workflow run tests.yml --ref feat/xml-refactor -f siblings_ref=xml-refactor-merge-candidate
+```
+
+For `0.1.1`, that commit is the post-merge `feat/xml-refactor` head. The run comes **before**
+the GitHub release, which triggers `pypi-publish.yml`, and before the `.deb` upload. Its
+`gate-summary` job writes the run record; copy it into the feature's `evidence/ci-gate.md`. A run
+that shows sibling-reading tests skipped did not check the siblings, so it does not count.
 
 ---
 

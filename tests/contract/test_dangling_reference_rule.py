@@ -169,11 +169,23 @@ def test_both_reference_rules_are_registered_with_the_right_repairability():
         f"no repairable rule covers 'target'; found {sorted(r.name for r in target_rules)}"
     )
     assert action_rules, "no rule covers 'action_target'"
-    assert not any(r.repairable for r in action_rules), (
-        "action_target must not be repairable: its declared default is None, "
-        "which action_target_required rejects — repairing would restate the "
-        f"violation. Found {sorted(r.name for r in action_rules if r.repairable)}"
+    # The two *reference* rules stay unrepairable: for an action that needs a
+    # target, the declared default None is the very value action_target_required
+    # rejects, so repairing would restate the violation.
+    #
+    # Feature 017 (A-1, spec "Q2 revisited") adds exactly ONE repairable rule on the
+    # field, project_action_takes_no_target. It fires only for a project-scope type
+    # (TARGETLESS_ACTION_TYPES), where None IS the valid value, so its repair does
+    # not restate anything. The descriptor still publishes the field UNREPAIRABLE,
+    # because repairable means every rule on the field is (FR-023a).
+    repairable = sorted(r.name for r in action_rules if r.repairable)
+    assert repairable == ["project_action_takes_no_target"], (
+        "action_target's reference rules must not be repairable: their declared "
+        "default is None, which action_target_required rejects, so repairing would "
+        "restate the violation. The one sanctioned exception is the project-scope "
+        f"rule. Found repairable: {repairable}"
     )
+    assert {r.name for r in action_rules} >= {"action_target_required", "action_target_resolves"}
 
 
 def test_the_two_action_target_rules_report_different_faults():

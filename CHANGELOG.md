@@ -18,16 +18,46 @@ public object API, so it no longer names this surface. The deprecated surface th
 `(<< 1.3.0-23~)`, which the released `1.3.0-23`…`-25` satisfied without carrying the `/etc/cuems`
 handover.
 
-### Not yet reconciled — do not publish until it is
+### Reconciled — the release line's `0.1.0rc15` … `0.1.0rc17` are in this release
 
-The parallel release line (`debian/bookworm`, 77 commits ahead on 2026-10-15) has shipped two
-builds whose content is **not** in this branch yet. They are absorbed before publication, and the
-package relations are re-verified after the merge:
+The parallel release line (`debian/bookworm`, 77 commits ahead) and `main` (tag `v0.1.0rc17`) are
+**merged in** (feature 017), with their history, so both are ancestors of `0.1.1` and nothing they
+shipped is lost:
 
-- **`0.1.0rc16+1`**: stops shipping `/usr/lib/cuems/CACHEDIR.TAG`, a file-overwrite conflict with
-  `cuems-power-bridge` and `cuems-engine` at `dpkg -i` time.
-- **`0.1.0rc17`**: `script.xsd`'s `ActionType` gains `stop_project`. A project saved by an rc17
-  cluster with a `stop_project` cue is **refused** by `0.1.1` until this is absorbed.
+- **`stop_project` ActionType** (rc17, 869fhjdq5): the authored end of an unattended show. A project
+  an rc17 cluster saved with such a cue **loads on `0.1.1`** after `cuems-reshape-devices` and
+  `cuems-convert-documents`.
+- **Media guards** (rc16, 869fej07m): `MediaCue.media_status()`. `CueList.get_media` raises a named
+  `ValueError` for a media block without a file and skips a missing one with a warning;
+  `CuemsScript.get_own_media` never raises.
+- **Stored media values** `pixel_width`, `pixel_height`, `file_size`, `file_md5` (rc15, 869fat84r),
+  carried by this release's own media block. ⚠ An **uppercase** md5 is **refused** here; rc15
+  lowercased it. Lowercase before assigning.
+- **`Replaces: cuems-engine (<< 0.1.0rc6-2~)`** (rc15): `cffi-gen-src` belongs to this package.
+- **No `/usr/lib/cuems/CACHEDIR.TAG`** in the package (rc16+1).
+
+### Changed — `stop_project` takes no target, and a leftover one is cleared
+
+A `stop_project` cue accepts a `None` target, at construction and from JSON (`null`, as the frontend
+sends it). It is written `<action_target />` and loads clean. A target left on such a cue, typically
+kept when a `stop` cue was retyped, is **repaired to `None` on load** (the load report names the rule
+`project_action_takes_no_target` and the uuid it replaced) and **refused on save**. Every other
+action type still requires a target. rc17 refused a `None` target at construction; this release
+accepts it.
+
+### Removed — `pause_project` and `resume_project`
+
+Both values leave `ActionType`, which now has 11. Project pause/resume is deferred to a future
+release, and no producer ever wrote either value, so no document is affected. The record and the
+way to reinstate them are in `specs/planning/project-pause-resume-deferred.md`.
+
+### Changed — the migration tools say when the loader would refuse what they wrote
+
+`cuems-reshape-devices` and `cuems-convert-documents` validated the schema only. After writing,
+each now asks the loader's own question and reports every document the loader would refuse:
+`WARNING <path>: would be refused on load: …`, and a `refused on load` count in the summary.
+`--check` reports the same for what would be written. What they write and their exit status are
+unchanged. `python -m cuemsutils.xml.reshape_devices` now runs the tool; it exited 0 doing nothing.
 
 ### Fixed — migrating a library no longer destroys the backup of the original
 
@@ -120,7 +150,7 @@ invisible. Those were the descriptor's generic seeds ("the zero of the type"), s
 - `cuems-frontend` can delete its `toWireShape` transform and `UR1_UI_STARTING_VALUES` table.
   A new output then looks exactly as before.
 
-## Unreleased — `outputs` renamed to `hardware_outputs`, and X14 resolved
+### Folded — `outputs` renamed to `hardware_outputs`, and X14 resolved
 
 The sixth schema is renamed as the first step of making it the node's **hardware capability
 descriptor** — what its name always implied — rather than the stub it has been since it was
@@ -175,14 +205,14 @@ doc_version and exactly-six-schemas checks.
 Corpus: the two live instances are renamed with the schema. `tests/data/corpus/pre-008/` is a
 frozen snapshot the corpus walk excludes, and is left untouched.
 
-## Unreleased — schema-derived XML serialization core (feature 004)
+### Folded — schema-derived XML serialization core (feature 004)
 
 Replaces four independent implementations of the same mapping rules with one engine driven
 by a field specification derived from the XSD. **Observable behaviour does not change**:
 written XML and the read dict stay byte-identical, and every pre-existing consumer import
 keeps working behind a deprecation shim — with one declared exception, below.
 
-### ⚠️ Breaking — `cuems-nodeconf` handler injection is no longer consulted
+#### ⚠️ Breaking — `cuems-nodeconf` handler injection is no longer consulted
 
 `cuems-nodeconf` registers its node handlers by assigning into this library's private
 module namespaces (`NodeXmlBuilders.py:105-111`):
@@ -211,7 +241,7 @@ lookup that the explicit registry exists to delete.
   now it would be rewritten twice. `cuems-nodeconf` is not shipping against this release.
 - **Details**: `specs/004-xml-serialization-core/migration-map.md` §3.
 
-### Deprecated
+#### Deprecated
 
 All of the following keep working and will be **removed in `v0.1.2`**. Importing is silent;
 each *call* warns, at the caller's line, naming its replacement. Full table with consumer
@@ -234,7 +264,7 @@ remains a supported entry point. Its `str_to_value` method is deprecated; the cl
 `STRING_TYPED_KEYS` and `VALUE_TYPES` are deprecated but **cannot warn**: both are values
 read in membership checks, never called, so there is no call for a warning to attach to.
 
-### Changed — the one intentional, non-breaking behaviour difference
+#### Changed — the one intentional, non-breaking behaviour difference
 
 Log output. This feature guarantees byte-identical XML and byte-identical read dicts; log
 records are explicitly outside that guarantee.
@@ -245,7 +275,7 @@ records are explicitly outside that guarantee.
 - No record at any level carries a field value or an object repr. As a side effect, show
   content — cue names, file paths — no longer appears in log files.
 
-### Fixed
+#### Fixed
 
 - `MediaCue` declared `fade_profiles` in `REQ_ITEMS` while `script.xsd` declares it on
   `AudioCueType` and `VideoCueType` — the two concrete types — and not on `MediaCueType`.
@@ -254,7 +284,7 @@ records are explicitly outside that guarantee.
   claiming a field its own schema type does not define. Found by the new coherence check on
   its first run.
 
-### Performance
+#### Performance
 
 The engine is **faster** than the code it replaces, measured best-of-5 on a fixed machine
 and interpreter (`specs/004-xml-serialization-core/baseline.md`):
@@ -270,7 +300,7 @@ Derivation is bounded by the 56 distinct complex types across all six schemas an
 grow with document size — asserted by a counter, not a clock, so it holds on show files
 larger than anything in the test corpus.
 
-### Testing
+#### Testing
 
 The suite grows from **561** to **1255** tests. The additions are the deliverable as much
 as the engine is: a 28-document corpus vendored from all four repositories with recorded
@@ -281,7 +311,7 @@ than only the endpoints.
 The goldens were captured from unmodified code and committed before any machinery moved.
 They have one commit each and have never been edited.
 
-### Notes
+#### Notes
 
 - Element order for order-free (`xs:all`) content models is derived as **arrival order**,
   which is what the current builder produces. An earlier draft specified sorted keys; the
@@ -301,6 +331,82 @@ They have one commit each and have never been edited.
   error, no log line. Preserved unchanged here — binding it would start running code that
   has never run — and scheduled for feature 005.
 
+## 0.1.0rc17 — 2026-10-15
+
+*(Debian only; not published to PyPI)*
+
+New project-scope action for the authored end of an unattended show: the cuems-engine `stop_project` ActionCue (ClickUp 869fhjdq5). This package only carries the vocabulary; the behaviour is in the engine.
+
+### Added
+- `script.xsd` `ActionType` gains `stop_project`. It is the first project-scope action and needs no target, so its `action_target` is written empty (`<action_target />`), which `TargetType` already allowed. On parse that comes back as `None`: `str_to_value` maps the empty string to `None` and the parsers assign without going through the setter. The `ActionCue` constructor and setter still refuse an explicit `None`.
+- `tests/test_action_cue_stop_project.py`: writer → XSD → reader round trip, parsed target is falsy, the editor's JSON path (`CuemsParser` on a `null` target) gives the same, unknown action types are still rejected by the schema, the model still refuses `None`.
+
+### Notes
+- **Every box of a cluster needs ≥ rc17 before a project carrying the cue is saved.** A box on ≤ rc16 rejects such a project at validation: the editor cannot save or open it, the controller fails the load early, and a node fails the load after tearing down its previous project (no `armed_ready`, "Load stalled" at 120 s). **Rollback hazard:** downgrading utils on a box that holds such a project strands it until the `<ActionCue>` whose `<action_type>` is `stop_project` is removed from `cue_script.xml` by hand.
+- `pause_project`, `resume_project`, `load`, `unload` and `wait` stay in the enum and stay unimplemented.
+
+## 0.1.0rc16 — 2026-10-08
+
+<!-- debian: 0.1.0rc16+1 (c01ca36) -->
+**`0.1.0rc16+1`** (Debian revision, 2026-10-09) stops shipping `/usr/lib/cuems/CACHEDIR.TAG`, which `cuems-editor` 0.1.0rc1-5 and `cuems-engine` 0.1.0rc4/rc5 also ship, so installing one over the other failed with "trying to overwrite". No code change from `0.1.0rc16`.
+
+Media cues without a usable media block no longer crash the editor's save with a bare `KeyError 'file_name'`, and never make a project unloadable (ClickUp 869fej07m).
+
+### Fixed
+- `CueList.get_media` (editor path: update, new, duplicate, relink) guarded with `hasattr(cue.media, 'file_name')`, but `file_name` is a property that raises `KeyError`, which `hasattr` does not catch. A client that dropped a cue's media block (the UI does, when the file is not in its library list) produced an empty `Media` object and the save died inside the atomic block. Now: a media block without a file raises a named `ValueError` that says which cue — still no write, but readable. A cue with **no** media object (`None`, i.e. an empty `<Media/>` or a JSON `Media: null`) is logged at WARNING and skipped, so legacy projects stay listable and duplicable; refusing to *save* that shape is the editor's validator's job.
+- `CuemsScript.get_own_media` (engine path, every node, every load) had the same `hasattr` guard. It now classifies the media without raising: a cue without a usable media file is logged at ERROR and left out of the media list, the project still loads and that cue fails at arm, locally — exactly what an empty `<Media/>` did before, now visible in the journal. Raising here would have aborted the load on every node.
+
+### Added
+- `MediaCue.media_status()` → `('none' | 'invalid' | 'ok', file_name)`: the non-raising classifier both call sites use.
+
+## 0.1.0rc15 — 2026-10-06
+
+Stored media values, measured once at upload so the engine does not probe the file when it arms a
+cue (ClickUp 869fat84r).
+
+### Added
+- `MediaType` gains optional `pixel_width` and `pixel_height` (VideoCue), and `file_size` and
+  `file_md5` (every media type). The builder writes them in schema order, and the parser keeps
+  `file_md5` a string. Same code as `cuemsutils 0.1.0rc15` on PyPI (tag `v0.1.0rc15`).
+
+### Fixed
+- `Replaces: cuems-engine (<< 0.1.0rc6-2~)`. Engine packages up to `0.1.0rc6-1` also ship
+  `/usr/lib/cuems/bin/cffi-gen-src` (cffi's console script), so upgrading `cuems-utils` on a box with
+  any of them failed with "trying to overwrite" unless forced. `cuems-engine 0.1.0rc6-2` stops
+  shipping it.
+
+## 0.1.0rc14 — 2026-08-03
+
+### Fixed
+- `HubServices` stops its receive and send loops for good when the socket reports `Closed`, instead
+  of looping straight back into another `arecv_msg()`/`asend()`. pynng's `atexit` hook calls
+  `nng_fini()`, and CPython does not join daemon threads before `atexit` hooks run, so the comms
+  thread kept polling and aborted the process with "panic: pthread_mutex_lock: Invalid argument".
+  Both loops also stop once `_closing` is set. Measured on a node engine: 5/5 instrumented restarts
+  core-dumped before, 0/10 after (ClickUp 869ed00ya).
+
+### Added
+- `VideoCue.opacity`, and the corrected `AudioCue.master_vol` default.
+
+## 0.1.0rc13
+
+*(never published: no Debian build, not on PyPI)*. The source moved to rc13 for `VideoCue.opacity`
+and the `AudioCue.master_vol` default, and both were released as rc14.
+
+## 0.1.0rc12 — 2026-07-29
+
+*(Debian only; not published to PyPI)*
+
+### Fixed
+- `log.py` records each message **once** in the journal, with its real priority:
+  - the root logger is seeded with a `NullHandler`, so third-party import-time logging cannot arm an
+    implicit `basicConfig` stderr handler;
+  - under systemd (`JOURNAL_STREAM`) only the `SysLogHandler` is attached, the only copy that
+    carries a true per-record priority, so `cuems-logs -l/-e` can filter;
+  - `SysLogHandler.ident` is set from `argv[0]`, so journald records the full `SYSLOG_IDENTIFIER`.
+
+  Verified on a controller: 3 copies became 1, priorities 7/4/3.
+
 ## 0.1.0rc11 — 2026-07-28
 
 Free-text fields are no longer type-coerced during parsing (closes ClickUp 869cqbpxa).
@@ -318,6 +424,25 @@ Free-text fields are no longer type-coerced during parsing (closes ClickUp 869cq
 - `id` is deliberately **not** in the allowlist: the `Uuid()` branch inside `str_to_value` is the only thing that produces `Uuid` objects on parse (the parsers assign via raw `dict.__setitem__` and never reach the property setters), so adding it would downgrade every cue, script and media id to a plain `str`. The consequence is that `DmxSceneType.id` (`script.xsd:403`, declared `xs:string`) cannot be protected by this mechanism — accepted, since DMX scene ids are system-assigned rather than operator-typed.
 - Projects saved before this release have the corrupted name baked into their `cue_script.xml`; the original text is unrecoverable (`n`, `no`, `N`, `off` all collapse to `False`) and must be renamed by hand.
 - `cuems-nodeconf` calls the inherited `str_to_value` without a key (`NodeXmlBuilders.py:80`), so node names remain exposed to the identical bug. Tracked separately.
+
+## 0.1.0rc10 — 2026-07-09
+
+### Security
+- `lxml` 5.3.0 → **6.1.0**, clearing CVE-2026-41066 (XXE via `iterparse()` / `ETCompatXMLParser()`
+  with `resolve_entities=True`). This package uses only `lxml.etree.Element` and
+  `register_namespace`, never the parser entry points, so the flaw was never reachable here. The
+  bump clears the advisory. The suite was green before and after.
+
+## 0.1.0rc9 — 2026-07-06
+
+*(Debian only; not published to PyPI)*
+
+### Fixed
+- Media duration correctness, paired with the `cuems-editor` and `cuems-frontend` fixes for the
+  ffprobe duration-extraction bug. `Media.duration` is validated and canonicalised on write
+  (accepts `str`/`CTimecode`/`None`, rejects malformed), and the getter still returns `str`.
+  `script.xsd` escapes the literal dot in `TimecodeType`, and constrains `MediaType/duration` to
+  `cms:TimecodeType`. Existing documents still validate; malformed values are now rejected.
 
 ## 0.1.0rc8 — 2026-05-20
 
@@ -350,6 +475,8 @@ Production call-site migration to the `CTimecode` v2 API, removal of a long-depr
 - Layer 2 (cuems-engine MtcListener wrap detection + 24h offset accumulation) is required to fully close 869cpdbzy: MIDI MTC encodes hours in a 5-bit field (max 23) and real SMPTE senders reset to `00:00:00:00` after 24h, so the listener must detect the wrap and accumulate offset before constructing CTimecodes. Without Layer 2, `mtc.main_tc` resets to ~frames=1 every 24h regardless of CTimecode's internal monotonicity.
 
 ## 0.1.0rc6 — 2026-04-27
+
+*(never published: no Debian build, not on PyPI)*
 
 CTimecode hardening pass (closes ClickUp 869cyndtv items #1–#7 + audit findings). This release is a coordinated semantic fix to the CTimecode wrapper: `__init__` now produces playhead-semantic frames; arithmetic operators are off-by-one-correct and reject cross-framerate operands; `.milliseconds` is split into precision-explicit accessors; the `format_timecode` `+1` workaround is removed; FadeCalculator's silent ms-as-seconds unit error is fixed.
 
@@ -399,6 +526,8 @@ Run `python -W error::DeprecationWarning pytest tests/` to surface every remaini
 
 ## 0.1.0rc5 — 2026-04-22
 
+*(never published: no Debian build, not on PyPI)*
+
 ### Added
 - `settings.xsd` defines optional `<output_latency_ms>` on
   `AudioPlayerType`, `VideoPlayerType`, and `DmxPlayerType`.
@@ -421,3 +550,9 @@ Run `python -W error::DeprecationWarning pytest tests/` to surface every remaini
   integer values and `str` for `"auto"`. `cuems-engine`'s NodeEngine
   arg-building relies on `isinstance(value, int)` to decide whether
   to emit the `--output-latency-ms` CLI flag to each player process.
+
+## Earlier releases
+
+Releases before `0.1.0rc5` (`0.1.0rc1`…`rc4`, and the `0.0.*` series, including `0.0.9rc7`) have no
+section here. They are recorded by their git tags (`git tag -l 'v0.*'`) and on PyPI
+(<https://pypi.org/project/cuemsutils/#history>).

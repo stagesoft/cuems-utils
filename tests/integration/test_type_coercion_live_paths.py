@@ -1,6 +1,6 @@
 """Type coercion on the **live** paths (T036a) — SC-010, FR-003.
 
-``tests/test_name_coercion.py`` pins ``str_to_value`` itself, and stays as the
+``tests/unit/test_name_coercion.py`` pins ``str_to_value`` itself, and stays as the
 frozen-shim regression for it. That file cannot show what this feature actually
 changed, because it calls the heuristic directly — after the swap the heuristic
 is no longer on any live path, so testing it proves nothing about what the
@@ -33,6 +33,11 @@ from cuemsutils.tools.Uuid import Uuid
 from cuemsutils.xml.Parsers import CuemsParser
 from tests.support import roundtrip as rt
 from tests.support.corpus import by_relpath
+
+# This module exercises the deprecated XML surface (XmlReaderWriter / Parsers /
+# XmlBuilder) on purpose. v0.1.2 deletes that surface, and this module with it or ported:
+# specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
+pytestmark = pytest.mark.expects_deprecation
 
 SCRIPT = "cuems-editor/script_minimal.xml"
 

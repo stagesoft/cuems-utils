@@ -1,0 +1,9 @@
+# arm B 8f210fd run 2 — 2026-10-21T22:18:54Z — Python 3.11.9 — governor powersave — cur_freq 1550055 — load 1.56 1.57 1.36
+FAILED tests/contract/test_migration_guide.py::test_the_coupled_engine_version_resolves
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-common]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-nodeconf]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-power-bridge]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-engine]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-editor]
+FAILED tests/packaging/test_release_matrix.py::test_siblings_at_their_candidate_tags[cuems-frontend]
+7 failed, 3915 passed, 114 skipped, 2 xfailed, 323 warnings in 36.37s

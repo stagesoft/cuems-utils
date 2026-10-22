@@ -201,7 +201,7 @@ class CuemsDict(dict):
 
         Built on ``extract_items`` rather than a new helper: ``Cue.items()`` was
         its only production caller, and orphaning it would drag
-        ``tests/test_helpers.py`` into this feature's diff for no reason.
+        ``tests/unit/test_helpers.py`` into this feature's diff for no reason.
 
         A class with **no** declared field set falls through to ``dict.items()``
         unchanged. That is not a loophole — it is what keeps wildcard containers

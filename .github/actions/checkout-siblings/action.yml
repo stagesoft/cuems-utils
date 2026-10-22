@@ -1,0 +1,41 @@
+# Feature 017, FR-071 (specs/017-release-line-reconciliation/contracts/ci-workflow.md).
+#
+# Checks the six sibling repositories out BESIDE this one, which is where the cross-repository
+# tests look for them (tests/support/sibling_tags.py resolves ../<repo>). actions/checkout cannot
+# write outside $GITHUB_WORKSPACE, so the calling job checks this repository out into
+# cuems-utils/ and runs from there.
+#
+# Full history and tags (fetch-depth: 0): the tests resolve xml-refactor-merge-candidate^{commit}
+# and read feat/xml-refactor with git show, not the working tree.
+name: Check out the CUEMS siblings
+description: Check out the six sibling repositories at one ref, beside cuems-utils/.
+inputs:
+  ref:
+    description: ref (tag or branch) checked out in every sibling
+    required: true
+  token:
+    description: a token that can read the siblings; the default reads public repositories only
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with: {repository: stagesoft/cuems-common, path: cuems-common, ref: "${{ inputs.ref }}", fetch-depth: 0, token: "${{ inputs.token }}"}
+    - uses: actions/checkout@v4
+      with: {repository: stagesoft/cuems-nodeconf, path: cuems-nodeconf, ref: "${{ inputs.ref }}", fetch-depth: 0, token: "${{ inputs.token }}"}
+    - uses: actions/checkout@v4
+      with: {repository: stagesoft/cuems-power-bridge, path: cuems-power-bridge, ref: "${{ inputs.ref }}", fetch-depth: 0, token: "${{ inputs.token }}"}
+    - uses: actions/checkout@v4
+      with: {repository: stagesoft/cuems-engine, path: cuems-engine, ref: "${{ inputs.ref }}", fetch-depth: 0, token: "${{ inputs.token }}"}
+    - uses: actions/checkout@v4
+      with: {repository: stagesoft/cuems_editor, path: cuems-editor, ref: "${{ inputs.ref }}", fetch-depth: 0, token: "${{ inputs.token }}"}
+    - uses: actions/checkout@v4
+      with: {repository: stagesoft/cuems-frontend, path: cuems-frontend, ref: "${{ inputs.ref }}", fetch-depth: 0, token: "${{ inputs.token }}"}
+    - name: Record each sibling's resolved commit
+      shell: bash
+      run: |
+        for repo in cuems-common cuems-nodeconf cuems-power-bridge cuems-engine cuems-editor cuems-frontend; do
+          git config --global --add safe.directory "$GITHUB_WORKSPACE/$repo"
+          echo "$repo $(git -C "$repo" rev-parse HEAD)"
+        done | tee sibling-commits.txt

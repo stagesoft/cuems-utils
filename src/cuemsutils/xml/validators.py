@@ -547,8 +547,16 @@ def repair(obj) -> list:
     repairable=False,
 )
 def _action_target_required(value, obj=None) -> None:
-    """An action cue must name what it acts on."""
-    if value is None:
+    """An action cue must name what it acts on — unless it acts on the whole project.
+
+    A type in :data:`~cuemsutils.cues.ActionCue.TARGETLESS_ACTION_TYPES` takes no
+    target (feature 017, A-1), so ``None`` passes for it. ``obj`` is the cue itself,
+    both on the T2 walk and at :func:`enforce`. ``obj is None`` (a caller with no cue)
+    keeps the old strict reading.
+    """
+    from ..cues.ActionCue import TARGETLESS_ACTION_TYPES
+
+    if value is None and (obj is None or obj.get("action_type") not in TARGETLESS_ACTION_TYPES):
         raise ValueError("action_target is required")
 
 
@@ -620,9 +628,49 @@ def _action_target_resolves(value, obj=None, context=None) -> None:
         # context means the caller had no document (``enforce``), and a rule
         # that cannot decide passes rather than guessing.
         return
+    from ..cues.ActionCue import TARGETLESS_ACTION_TYPES
+
+    if obj is not None and obj.get("action_type") in TARGETLESS_ACTION_TYPES:
+        # A project-scope action's target is cleared by
+        # ``project_action_takes_no_target``, so it has no resolution to check.
+        # Checking it here as well would refuse a dangling leftover, unrepairably,
+        # before the repairable rule ran, because repair stops at the first
+        # unrepairable finding (feature 017, research R16).
+        return
     if value not in context.cue_ids:
         raise ValueError(
             f"action_target {value} does not resolve to a cue in this document"
+        )
+
+
+@register(
+    "project_action_takes_no_target",
+    [("ActionCue", "action_target")],
+    # REPAIRABLE: the repair substitutes the field's declared default, and
+    # ``ActionCue.REQ_ITEMS['action_target']`` is ``None``, which is exactly the
+    # value a project-scope action must carry. So the default *is* the fix, which
+    # is the property every ``repairable=True`` rule must have. Repair runs on the
+    # load path only; ``save`` refuses this violation like any other (feature 017,
+    # spec "Q2 revisited").
+    repairable=True,
+)
+def _project_action_takes_no_target(value, obj=None) -> None:
+    """A project-scope action carries no target (feature 017, A-1, Q2 revisited).
+
+    A uuid left on a ``stop_project`` cue, typically kept when a ``stop`` cue was
+    retyped, means nothing to the engine. Rather than keeping it silently, the
+    library repairs it to ``None`` on load and reports the repair, and refuses it on
+    save with this message.
+    """
+    from ..cues.ActionCue import TARGETLESS_ACTION_TYPES
+
+    if value is None or obj is None:
+        return
+    action_type = obj.get("action_type")
+    if action_type in TARGETLESS_ACTION_TYPES:
+        raise ValueError(
+            f"action_target {value} must be empty: {action_type} acts on the whole "
+            f"project and takes no target; clear it"
         )
 
 

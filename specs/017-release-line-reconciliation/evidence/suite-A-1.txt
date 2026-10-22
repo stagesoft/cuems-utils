@@ -1,0 +1,26 @@
+# arm A 5e4c637 — 2026-10-21T17:29:13Z — Python 3.11.9 (main, Aug 14 2024, 05:07:28) [Clang 18.1.8 ] — governor powersave — cur_freq 2258163 kHz — load 3.72 1.41 0.95
+    data = XmlReaderWriter(schema_name='script', xmlfile=f).read()
+
+tests/unit/test_media_duration.py::test_xsd_accepts_corrected_duration
+tests/unit/test_media_duration.py::test_xsd_rejects_malformed_duration
+  /home/adria/.local/share/hatch/env/virtual/cuemsutils/KPtCKENL/test.py3.11/lib/python3.11/site-packages/deprecated/classic.py:199: DeprecationWarning: Call to deprecated method read. (use cuemsutils.cues.CuemsScript.CuemsScript.to_wire instead; removed in v0.1.2; note: the returned dict no longer contains the schemaLocation key, and this path applies **no version conversion** — a document written for an older schema version is refused here and converted in memory by the public load)
+    return wrapped_(*args_, **kwargs_)
+
+tests/unit/test_media_duration.py::test_xsd_rejects_malformed_duration
+  /tmp/claude-1000/-disk-Projects-StageLab-cuems-utils/5ed4cc43-5e7a-4f7f-b4f5-bd626a72db7f/scratchpad/wt-a/tests/unit/test_media_duration.py:103: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.2)
+    XmlReaderWriter(schema_name='script', xmlfile=f).write_from_object(script)
+
+tests/unit/test_media_duration.py::test_xsd_rejects_malformed_duration
+  /tmp/claude-1000/-disk-Projects-StageLab-cuems-utils/5ed4cc43-5e7a-4f7f-b4f5-bd626a72db7f/scratchpad/wt-a/tests/unit/test_media_duration.py:103: DeprecationWarning: Call to deprecated method write_from_object. (use cuemsutils.cues.CuemsScript.CuemsScript.save instead; removed in v0.1.2)
+    XmlReaderWriter(schema_name='script', xmlfile=f).write_from_object(script)
+
+tests/unit/test_media_duration.py::test_xsd_rejects_malformed_duration
+  /tmp/claude-1000/-disk-Projects-StageLab-cuems-utils/5ed4cc43-5e7a-4f7f-b4f5-bd626a72db7f/scratchpad/wt-a/tests/unit/test_media_duration.py:115: DeprecationWarning: Call to deprecated class XmlReaderWriter. (use cuemsutils.cues.CuemsScript.CuemsScript instead; removed in v0.1.2)
+    XmlReaderWriter(schema_name='script', xmlfile=f).read()
+
+tests/unit/test_media_duration.py::test_xsd_rejects_malformed_duration
+  /tmp/claude-1000/-disk-Projects-StageLab-cuems-utils/5ed4cc43-5e7a-4f7f-b4f5-bd626a72db7f/scratchpad/wt-a/tests/unit/test_media_duration.py:115: DeprecationWarning: Call to deprecated method read. (use cuemsutils.cues.CuemsScript.CuemsScript.to_wire instead; removed in v0.1.2; note: the returned dict no longer contains the schemaLocation key)
+    XmlReaderWriter(schema_name='script', xmlfile=f).read()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+3770 passed, 134 skipped, 2 xfailed, 277 warnings in 36.05s

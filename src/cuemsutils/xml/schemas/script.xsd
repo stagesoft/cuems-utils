@@ -318,8 +318,19 @@ SPDX-FileContributor: Ion Reguera <ion@stagelab.coop>
       <xs:enumeration value="fade_action" />
       <xs:enumeration value="wait" />
       <xs:enumeration value="go_to" />
-      <xs:enumeration value="pause_project" />
-      <xs:enumeration value="resume_project" />
+      <!-- stop_project (0.1.0rc17): project-scope action, the authored end of an
+           unattended show. Needs no target: action_target is written empty, which
+           TargetType allows, and parses to None. The engine runs its STOP path.
+           A leftover target is refused on save and repaired to None on load by
+           the T2 rule project_action_takes_no_target (feature 017, A-1).
+
+           pause_project / resume_project were retired here in 0.1.1, inside the
+           still-unreleased version-2 step: project pause/resume is deferred to a
+           future release, no producer ever wrote either value, and no document
+           carried one. Their record and the way to reinstate them (a version step
+           once version 2 has shipped) are in
+           specs/planning/project-pause-resume-deferred.md. -->
+      <xs:enumeration value="stop_project" />
     </xs:restriction>
   </xs:simpleType>
 

@@ -96,6 +96,8 @@ dependencies = [
   "hypothesis",
   "coverage[toml]",
   "ruff>=0.17.0,<0.18",
+  # Feature 017, FR-070: tests/contract/test_ci_workflow.py reads the workflow files. Test-only.
+  "pyyaml",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -130,13 +132,22 @@ exclude_lines = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# --strict-markers: an unregistered marker is an error, not a silent no-op (feature 017, FR-063).
+addopts = "--strict-markers"
 markers = [
   "slow: marks tests as slow (deselect with '-m \"not slow\"')",
   "expects_deprecation: exercises a deprecated shim on purpose (feature 004)",
+  # Feature 017, FR-063: added from the directory by tests/conftest.py, never written by hand.
+  "unit: lives in tests/unit/ (pure in-process)",
+  "integration: lives in tests/integration/ (sockets, threads, subprocesses, /etc/cuems)",
+  "contract: lives in tests/contract/ (a published surface: schemas, API snapshot, enumerations)",
+  "packaging: lives in tests/packaging/ (debian/, the built .deb, the chroot lifecycle)",
+  # Feature 017, FR-071: written by hand on each test that reads a sibling checkout.
+  "reads_siblings: reads a sibling repository checked out beside this one (skips without it)",
 ]
 # Scoped to one warning class and one module, deliberately.
 #
-# `tests/test_name_coercion.py` is the frozen-shim regression for
+# `tests/unit/test_name_coercion.py` is the frozen-shim regression for
 # `CuemsParser.str_to_value`, which feature 004 deprecated. It calls the
 # heuristic ~40 times by design, so it emits ~40 DeprecationWarnings that mean
 # nothing is wrong.
@@ -147,7 +158,7 @@ markers = [
 # Silencing them globally would make that test pass unconditionally.
 filterwarnings = [
   "default",
-  "ignore:.*str_to_value.*:DeprecationWarning:tests.test_name_coercion",
+  "ignore:.*str_to_value.*:DeprecationWarning:tests.unit.test_name_coercion",
 ]
 
 [tool.ruff]

@@ -27,6 +27,11 @@ import pytest
 
 from cuemsutils._deprecation import REMOVAL_RELEASE
 
+# This module exercises the deprecated XML surface (XmlReaderWriter / Parsers /
+# XmlBuilder) on purpose. v0.1.2 deletes that surface, and this module with it or ported:
+# specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
+pytestmark = pytest.mark.expects_deprecation
+
 OLD_IMPORT_PATHS = [
     "cuemsutils.xml.XmlReaderWriter",
     "cuemsutils.xml.Settings",

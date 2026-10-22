@@ -28,7 +28,10 @@ def test_an_unregistered_step_is_a_valid_identity():
     assert root.find("child").text == "unchanged"
 
 
-def test_a_multi_step_walk_runs_every_step_in_order():
+def test_a_multi_step_walk_runs_every_step_in_order(monkeypatch):
+    # The registry is module-global: register into a copy, or the scratch steps
+    # leak into every later test that inspects it (test_additive_surface_invariants).
+    monkeypatch.setattr(versioning, "_CONVERSIONS", dict(versioning._CONVERSIONS))
     schema_name = "scratch_schema_multi_step"
     calls: list[int] = []
 

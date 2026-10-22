@@ -1,0 +1,495 @@
+'''Integration test for the XML Builder and Parser classes'''
+import typing
+from logging import DEBUG, INFO
+from os import path
+from xml.etree.ElementTree import Element, ElementTree
+
+import pytest
+
+from cuemsutils.cues import ActionCue, AudioCue, CueList, CuemsScript, VideoCue
+from cuemsutils.cues.MediaCue import Media, Region
+from cuemsutils.xml import XmlReaderWriter
+from cuemsutils.xml.XmlBuilder import XmlBuilder
+
+# This module exercises the deprecated XML surface (XmlReaderWriter / Parsers /
+# XmlBuilder) on purpose. v0.1.2 deletes that surface, and this module with it or ported:
+# specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
+pytestmark = pytest.mark.expects_deprecation
+
+
+def create_dummy_script():
+    target_uuid = '1f301cf8-dd03-4b40-ac17-ef0e5e7988be'
+    c = ActionCue({
+        'loop': 0,
+        'action_target': target_uuid,
+        'action_type': 'play',
+        'ui_properties': {
+            'icon': 'icon.png',
+            'color': '#ffffff',
+            'timeline_position': {
+                'x': 0,
+                'y': 0
+            },
+            'warning': 0
+        }
+    })
+    c2 = VideoCue({
+        'id': target_uuid,
+        'loop': 0,
+        'Media': Media({
+            'file_name': 'file_video.ext',
+            'id': '',
+            'duration': '00:00:00.000',
+            'regions' : [
+                Region({
+                    'id': 0, 'loop': 2, 'in_time': None, 'out_time': None
+                })
+            ]
+        })
+    })
+    ac = AudioCue({
+        'master_vol': 66,
+        'Media': Media({
+            'file_name': 'file.ext',
+            'id': '',
+            'duration': '00:00:00.000',
+            'regions': [
+                Region({
+                    'id': 0,
+                    'loop': 2,
+                    'in_time': None,
+                    'out_time': None
+                })
+            ]
+        })
+    })
+    c3 = VideoCue({
+        'loop': 0,
+        'Media': Media({
+            'file_name': 'file_video.ext',
+            'id': '',
+            'duration': '00:00:00.000',
+            'regions' : [
+                Region({
+                    'id': 0, 'loop': 2, 'in_time': None, 'out_time': None
+                })
+            ]
+        })
+    })
+    #ac.outputs = {'stereo': 1}
+    #d_c = DmxCue(time=23, scene={0:{0:10, 1:50}, 1:{20:23, 21:255}, 2:{5:10, 6:23, 7:125, 8:200}}, init_dict={'loop' : 3})
+    #d_c.outputs = {'universe0': 3}
+
+    custom_cue_list = CueList({'contents': [c]})
+    custom_cue_list.append(c2)
+    custom_cue_list.append(ac)
+    custom_cue_list.append(c3)
+
+    script = CuemsScript({
+        'CueList': custom_cue_list,
+        'ui_properties': {'icon': 'icon.png', 'color': '#000000'}
+    })
+    script.name = "Test Script"
+    script.description = "This is a test script"
+    return script, [c, c2, ac, c3]
+
+def test_cues():
+    script, cues = create_dummy_script()
+
+    assert script.ui_properties['icon'] == 'icon.png'
+    assert script.ui_properties['color'] == '#000000'
+
+    assert script.cuelist.contents[0] == cues[0]
+    assert script.cuelist.contents[1] == cues[1]
+    assert script.cuelist.contents[2] == cues[2]
+    #assert script.cuelist.contents[3] == d_c
+
+    assert isinstance(script, CuemsScript)
+    assert isinstance(script.cuelist.contents[0], ActionCue)
+    assert isinstance(script.cuelist.contents[1], VideoCue)
+    assert isinstance(script.cuelist.contents[2], AudioCue)
+
+    assert script.cuelist.contents[0].action_target == script.cuelist.contents[1].id
+    assert script.cuelist.contents[0].action_type == 'play'
+
+@typing.no_type_check
+def test_XmlBuilder(caplog):
+
+    caplog.set_level(DEBUG)
+    script, _ = create_dummy_script()
+    xml_data = XmlBuilder(
+        script,
+        {'cms':'https://stagelab.coop/'},
+        'script'
+    ).build()
+
+    assert isinstance(xml_data, ElementTree)
+    assert xml_data.getroot().tag == '{https://stagelab.coop/}CuemsProject'
+    assert xml_data.getroot().find('CuemsScript').find('name').text == 'Test Script'
+
+    xmlscript = xml_data.getroot().find('CuemsScript')
+    assert xmlscript.find('description').text == 'This is a test script'
+    assert type(xmlscript.find('id')) is Element
+    assert type(xmlscript.find('modified')) is Element
+    assert type(xmlscript.find('modified')) is Element
+    assert xmlscript.find('created').text == xmlscript.find('modified').text
+
+    script_ui_properties = xmlscript.find('ui_properties')
+    assert script_ui_properties.find('icon').text == 'icon.png'
+    assert script_ui_properties.find('color').text == '#000000'
+
+    cuelist = xmlscript.find('CueList')
+    assert type(cuelist) is Element
+    assert type(cuelist.find('contents')) is Element
+
+    contents = cuelist.find('contents')
+    assert contents.__len__() == 4
+    assert contents[0].tag == 'ActionCue'
+    assert contents[0].find('loop').text == '0'
+    action_cue_ui_properties = contents[0].find('ui_properties')
+    assert type(action_cue_ui_properties) is Element
+    assert action_cue_ui_properties.find('icon').text == 'icon.png'
+    assert action_cue_ui_properties.find('color').text == '#ffffff'
+    assert contents[1].tag == 'VideoCue'
+    assert contents[2].tag == 'AudioCue'
+    assert contents[2].find('master_vol').text == '66'
+    audio_media = contents[2].find('Media')
+    assert type(audio_media) is Element
+    assert audio_media.find('file_name').text == 'file.ext'
+    assert audio_media.find('regions').find('Region').find('loop').text == '2'
+    assert contents[3].tag == 'VideoCue'
+    assert contents[3].find('Media').find('file_name').text == 'file_video.ext'
+
+reloaded_script, _ = create_dummy_script()
+TMP_FILE = path.dirname(path.dirname(__file__)) + '/tmp/test_script.xml'
+
+def test_XmlWriter(caplog):
+    caplog.set_level(DEBUG)
+    tmpfile = TMP_FILE
+    writer = XmlReaderWriter(
+        schema_name = 'script',
+        xmlfile = tmpfile
+    )
+
+    writer.write_from_object(reloaded_script)
+
+    assert writer.validate() is None
+    assert path.isfile(tmpfile) is True
+
+def test_XmlReader(caplog):
+    from cuemsutils.log import Logger
+    caplog.set_level(INFO)
+    tmpfile = TMP_FILE
+
+    reader = XmlReaderWriter(
+        schema_name = 'script',
+        xmlfile = tmpfile
+    )
+    readed = reader.read_to_objects()
+
+    assert path.isfile(tmpfile) is True
+    assert type(readed) is CuemsScript
+    assert type(readed.created) is str
+    Logger.info(readed.__dict__)
+    assert type(readed.cuelist) is CueList
+    assert len(readed.cuelist.contents) == 4
+    assert type(readed.cuelist.contents[0]) is ActionCue
+    assert type(readed.cuelist.contents[1]) is VideoCue
+    assert type(readed.cuelist.contents[2]) is AudioCue
+    assert type(readed.cuelist.contents[3]) is VideoCue
+
+    # ``assert reloaded_script == readed`` until feature 006.
+    #
+    # That assertion passed because ``Cue.__eq__`` compared by ``id`` alone, so
+    # a cue list compared cue-by-cue by identifier and the one real difference
+    # between the written script and the one read back was invisible. Equality
+    # now compares every declared field (behaviour change 5), which makes the
+    # difference visible — so it is stated here rather than absorbed by a
+    # comparison too coarse to see it.
+    #
+    # The difference is *not* new and is not a regression: wildcard
+    # ``ui_properties`` content has no declared type anywhere (that is what a
+    # wildcard is), so an integer written as ``<warning>0</warning>`` has
+    # nothing to decode back to and returns as the string ``'0'``. Recorded as
+    # F19 and unchanged by this feature.
+    assert readed.id == reloaded_script.id
+    assert readed.cuelist.id == reloaded_script.cuelist.id
+    for before, after in zip(reloaded_script.cuelist.contents, readed.cuelist.contents):
+        if before.ui_properties:
+            continue  # the wildcard case, asserted explicitly below
+        assert after == before
+
+    assert readed.cuelist.contents[0].ui_properties == {
+        'icon': 'icon.png',
+        'color': '#ffffff',
+        'timeline_position': {'x': '0', 'y': '0'},
+        'warning': '0',
+    }
+    assert reloaded_script.cuelist.contents[0].ui_properties['warning'] == 0
+
+TEST_JSON_FILE = path.dirname(path.dirname(__file__)) + '/data/sample_script.json'
+TMP_JSON_FILE = path.dirname(path.dirname(__file__)) + '/tmp/test_json_script.xml'
+
+def test_jsonload(caplog):
+    ## ARRANGE
+    import json
+
+    from cuemsutils.cues import CueList, CuemsScript
+    from cuemsutils.tools.CTimecode import CTimecode
+    from cuemsutils.xml.Parsers import CuemsParser
+
+    caplog.set_level(DEBUG)
+
+    with open(TEST_JSON_FILE) as json_file:
+        data = json.load(json_file)
+        assert type(data) is dict
+        assert data['action'] == 'project_save'
+        json_script = data['value']
+
+    ## ACT
+    parsed = CuemsParser(json_script).parse()
+    writer = XmlReaderWriter(
+        schema_name = 'script',
+        xmlfile = TMP_JSON_FILE
+    )
+    writer.write_from_object(parsed)
+
+    ## ASSERT
+    assert writer.validate() is None
+    assert json_script is not None
+    assert json_script['CuemsScript']['name'] == 'Prueba'
+    assert json_script['CuemsScript']['description'] is None
+    assert type(parsed) is CuemsScript
+    assert type(parsed.cuelist) is CueList
+    assert len(parsed.cuelist.contents) == 4
+    assert parsed.cuelist.offset is None
+    assert type(parsed.cuelist.postwait) is CTimecode
+    assert type(parsed.cuelist.prewait) is CTimecode
+
+def test_json_dump():
+    import json
+
+    from cuemsutils.xml.descriptor import generate_script_example
+
+    script = generate_script_example()
+    audio_cue = script.cuelist.contents[0]
+    json_string = json.dumps(script)
+    json_string = '{"CuemsScript": ' + json_string + '}'
+    json_self_str = script.to_json()
+
+    assert json_string is not None
+    assert type(json_string) is str
+
+    assert json_self_str is not None
+    assert type(json_self_str) is str
+
+    assert json_string == json_self_str
+
+    assert isinstance(audio_cue, AudioCue)
+    assert isinstance(audio_cue.media, Media)
+    assert isinstance(audio_cue.media.regions, list)
+    assert isinstance(audio_cue.media.regions[0], Region)
+
+    assert "Region" in json_self_str
+
+def test_json_readwrite(caplog):
+    ## ARRANGE
+    import json
+
+    from cuemsutils.xml.Parsers import CuemsParser
+
+    caplog.set_level(DEBUG)
+    TMP_PARSED_FILE = path.dirname(path.dirname(__file__)) + '/tmp/test_script.json'
+
+    with open(TEST_JSON_FILE) as json_file:
+        data = json.load(json_file)
+        assert type(data) is dict
+        assert data['action'] == 'project_save'
+        json_script = data['value']
+
+    parsed = CuemsParser(json_script).parse()
+
+    with open(TMP_PARSED_FILE, 'w') as json_file:
+        loaded_parsed = json.dumps(
+            {
+                'action': 'project_save',
+                'value': {'CuemsScript': parsed}
+            },
+            indent = 4
+        )
+        json_file.write(loaded_parsed)
+
+    with open(TMP_PARSED_FILE) as tmp_json_file:
+        tmp_data = json.load(tmp_json_file)
+        assert type(tmp_data) is dict
+        assert tmp_data['action'] == 'project_save'
+        json_parsed = tmp_data['value']
+
+    # ``assert json_script == json_parsed`` until feature 006.
+    #
+    # ``sample_script.json`` is a captured ``project_save`` payload from
+    # ``cuems-editor``, and it carries JSON booleans (``"autoload": false``).
+    # The library used to echo them back unchanged, because ``__json__`` dumped
+    # the object's own Python values — which is exactly the inconsistency F21
+    # names: the *other* payload the same editor receives, ``project_load``,
+    # carried ``"False"`` as a **string**, because ``cms:BoolType`` was an
+    # ``xs:string`` enum in the schema. Feature 006 unified the two on one
+    # projection, which meant answering in the schema's form on both.
+    #
+    # **Feature 014 (X1) removed the cause rather than the symptom.** The three
+    # booleans are the built-in ``xs:boolean`` now, so the schema's form *is*
+    # the JSON form, and difference (a) below — this comment's whole reason for
+    # existing — is closed. The retirement is recorded rather than deleted:
+    # (a) is now the assertion that the payload matches, with the old
+    # expectation stated so a reader meeting a pre-014 editor payload knows
+    # which side changed.
+    #
+    # The round trip is still asserted where it is meaningful — **stability**,
+    # which is the property a consumer actually depends on — and the remaining
+    # differences are named rather than tolerated in silence.
+
+    # 1. Stability: the projection is a fixed point. Feed its own output back
+    #    in and nothing moves. An unstable payload is the real hazard here,
+    #    because it drifts a little on every save.
+    reparsed = CuemsParser(json_parsed).parse()
+    assert json.loads(json.dumps({'CuemsScript': reparsed})) == json_parsed
+
+    # 2. Content survives: identifiers, names, timecodes and numbers are
+    #    carried through untouched. This is the part of the old assertion that
+    #    was about the data rather than about its encoding.
+    before = json_script['CuemsScript']
+    after = json_parsed['CuemsScript']
+    for key in ('id', 'name', 'description', 'created', 'modified'):
+        assert after[key] == before[key]
+    assert after['CueList']['id'] == before['CueList']['id']
+    # One ``Cue`` key, the class inside the body (feature 013, axis D).
+    audio_before = before['CueList']['contents'][0]['Cue']
+    audio_after = after['CueList']['contents'][0]['Cue']
+    assert audio_after['class'] == audio_before['class'] == 'audio'
+    assert audio_after['master_vol'] == audio_before['master_vol'] == 80
+    # ``Media.duration`` reshapes (enumerated as difference (d) below); every
+    # other ``Media`` field passes through untouched.
+    media_before = dict(audio_before['Media'])
+    media_after = dict(audio_after['Media'])
+    del media_before['duration'], media_after['duration']
+    assert media_after == media_before
+    assert audio_after['prewait'] == {'CTimecode': '00:00:05.000'}
+
+    # 3. The enumerated differences, each stated once.
+    #    a. **Closed by feature 014 (X1).** This read
+    #       ``after[...]['autoload'] == 'False'``: the editor sent a JSON
+    #       boolean and got back the capitalised string ``cms:BoolType``
+    #       spelled. With ``xs:boolean`` the value survives as itself, so what
+    #       was a difference is now the round trip holding. ``is False`` on both
+    #       sides, because ``"False"`` is truthy and ``== False`` would pass for
+    #       ``0`` too.
+    assert before['CueList']['autoload'] is False
+    assert after['CueList']['autoload'] is False
+    #    b. Wildcard ``ui_properties`` content has no declared type, so its
+    #       scalars render as strings (X10's documented fallback).
+    assert before['ui_properties']['warning'] == 0
+    assert after['ui_properties']['warning'] == '0'
+    #    c. An optional field with no value is **absent**, not present-and-null
+    #       — the same rule the XML writer applies, now applied here too.
+    #       ``AudioCueType`` had no optional field to demonstrate this with
+    #       once ``fade_profiles`` was deleted (feature 008, FR-007a); the
+    #       property itself is still covered elsewhere, on
+    #       ``VideoCueOutput.canvas_region``.
+    #    d. ``Media.duration`` reshapes from a bare string to the same
+    #       ``{"CTimecode": "..."}`` wrapper every other timecode field
+    #       carries (feature 008, FR-002/FR-003) — the one sanctioned change
+    #       to this payload's shape.
+    assert audio_before['Media']['duration'] == '00:03:01.000'
+    assert audio_after['Media']['duration'] == {'CTimecode': '00:03:01.000'}
+
+def test_settings():
+    from cuemsutils.xml import Settings
+    SETTINGS_PATH = path.dirname(path.dirname(__file__)) + '/data/settings.xml'
+
+    settings = Settings(SETTINGS_PATH)
+    assert settings.validate() is None
+    assert settings.read() is None
+    assert settings.loaded is True
+    assert isinstance(settings.get_dict(), dict)
+
+
+def test_output_latency_ms_type_round_trip():
+    """Assert the typing contract NodeEngine depends on:
+    - <output_latency_ms>33</> decodes to Python int
+    - <output_latency_ms>auto</> decodes to Python str
+    - absent element yields None / missing key
+    The isinstance(value, int) check in cuems-engine's NodeEngine
+    arg-building relies on this behavior. If xmlschema's union
+    resolution changes in a future upgrade, this test fails loudly
+    instead of NodeEngine silently always/never emitting the flag.
+    """
+    from cuemsutils.xml import Settings
+    SETTINGS_PATH = path.dirname(path.dirname(__file__)) + '/data/settings.xml'
+
+    settings = Settings(SETTINGS_PATH)
+    settings.read()
+    d = settings.get_dict()
+
+    # get_dict() returns the Settings element's children directly — no
+    # outer CuemsSettings/Settings wrapper.
+    video_conf = d['node']['videoplayer']
+    audio_conf = d['node']['audioplayer']
+    dmx_conf = d['node']['dmxplayer']
+
+    # videoplayer has integer 33 → Python int (not str, not Decimal)
+    assert isinstance(video_conf['output_latency_ms'], int)
+    assert video_conf['output_latency_ms'] == 33
+
+    # audioplayer has "auto" → Python str
+    assert isinstance(audio_conf['output_latency_ms'], str)
+    assert audio_conf['output_latency_ms'] == 'auto'
+
+    # dmxplayer has no element → missing key / None
+    assert dmx_conf.get('output_latency_ms') is None
+
+
+def test_auto_rejected_on_dmxplayer():
+    """Negative: settings.xml with <output_latency_ms>auto</> on
+    <dmxplayer> must fail schema validation. Dmx uses IntLatencyMsType
+    because no auto-measurement path exists.
+    """
+    import xmlschema
+
+    from cuemsutils.xml import Settings
+    BAD_PATH = path.dirname(path.dirname(__file__)) + '/data/settings_bad_dmx_auto.xml'
+
+    try:
+        # Settings() constructor validates+decodes eagerly, so that's
+        # where the exception surfaces. XMLSchemaException is the base
+        # class covering both XMLSchemaValidationError and
+        # XMLSchemaDecodeError.
+        settings = Settings(BAD_PATH)
+        settings.validate()
+    except xmlschema.XMLSchemaException:
+        return
+    raise AssertionError(
+        'Schema should have rejected "auto" on dmxplayer/output_latency_ms'
+    )
+
+def test_networkmap():
+    from cuemsutils.xml import NetworkMap
+    NETWORKMAP_PATH = path.dirname(path.dirname(__file__)) + '/data/network_map.xml'
+
+    networkmap = NetworkMap(NETWORKMAP_PATH)
+    assert networkmap.validate() is None
+    assert networkmap.read() is None
+    assert networkmap.loaded is True
+    network_dict = networkmap.get_dict()
+    assert isinstance(network_dict, dict)
+    assert 'node_list' in network_dict
+    assert isinstance(network_dict['node_list'], list)
+    assert network_dict['node_list'][0]['node']['online'] is True
+
+def test_projectmappings():
+    from cuemsutils.xml import ProjectMappings
+    PROJECTMAPPINGS_PATH = path.dirname(path.dirname(__file__)) + '/data/project_mappings.xml'
+
+    projectmappings = ProjectMappings(PROJECTMAPPINGS_PATH)
+    assert projectmappings.validate() is None
+    assert projectmappings.read() is None
+    assert projectmappings.loaded is True

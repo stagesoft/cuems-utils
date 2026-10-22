@@ -30,6 +30,11 @@ import pytest
 from tests.support import roundtrip as rt
 from tests.support.corpus import DOCUMENTS, GOLDEN_ROOT
 
+# This module exercises the deprecated XML surface (XmlReaderWriter / Parsers /
+# XmlBuilder) on purpose. v0.1.2 deletes that surface, and this module with it or ported:
+# specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
+pytestmark = pytest.mark.expects_deprecation
+
 CHAIN_DOCS = [d for d in DOCUMENTS if (GOLDEN_ROOT / "xml" / f"{d.slug}.xml").exists()]
 IDS = [d.relpath for d in CHAIN_DOCS]
 

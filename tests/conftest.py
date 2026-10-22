@@ -13,13 +13,15 @@ def _module_available(name: str) -> bool:
         return False
 
 
+# Paths are relative to this directory. Feature 017 moved these modules out of the tests/ root
+# (FR-063), and the globs moved with them: a stale glob silently stops gating.
 collect_ignore_glob = []
 
 if not _module_available("pynng"):
-    collect_ignore_glob += ["test_communicatorservices.py", "test_hubservices.py"]
+    collect_ignore_glob += ["integration/test_communicatorservices.py", "integration/test_hubservices.py"]
 
 if not _module_available("systemd"):
-    collect_ignore_glob += ["test_signalengine.py"]
+    collect_ignore_glob += ["unit/test_signalengine.py"]
 
 
 # ---------------------------------------------------------------------------
@@ -59,3 +61,25 @@ def _no_host_etc_cuems_dependence():
         yield
     finally:
         _cm.ConfigManager.__init__ = original
+
+
+# --- the directory is the marker (feature 017, FR-063) --------------------------------
+#
+# Every test lives in exactly one of tests/{unit,integration,contract,packaging}/, and gets that
+# kind as a marker from its path, so `pytest -m unit` (or integration, contract, packaging) selects
+# by kind without each module having to remember a `pytestmark`. The release line used to add tests
+# at the tests/ root; tests/contract/test_test_layout.py now refuses that.
+_KINDS = ("unit", "integration", "contract", "packaging")
+_TESTS_ROOT = _os.path.dirname(_os.path.abspath(__file__))
+
+
+def pytest_collection_modifyitems(config, items):
+    for item in items:
+        relative = _os.path.relpath(str(item.path), _TESTS_ROOT)
+        kind = relative.split(_os.sep, 1)[0]
+        if kind in _KINDS:
+            item.add_marker(getattr(_pytest.mark, kind))
+        # Feature 017, FR-071: the gate summary counts these from the JUnit XML, which
+        # records user_properties but not markers.
+        if item.get_closest_marker("reads_siblings") is not None:
+            item.user_properties.append(("reads_siblings", "true"))

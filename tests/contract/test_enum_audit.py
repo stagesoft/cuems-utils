@@ -19,9 +19,15 @@ from cuemsutils.xml.schema import SCHEMA_NAMES, get_schema
 #: absent by design — ITEM A already deleted both whole (enum-audit.md's
 #: "REMOVE — whole type deleted" rows).
 RETAINED = {
+    # Feature 017 (FR-024) changes this set in two directions, with its evidence in
+    # specs/017-release-line-reconciliation/evidence/enum-audit-017.md, because
+    # enum-audit.md (008) is frozen:
+    # - stop_project joins: implemented by cuems-engine (rc6-5, 869fhjdq5) and
+    #   authored by cuems-frontend's dev line;
+    # - pause_project / resume_project leave: retired (Q13), and implemented nowhere.
     ("script", "ActionType"): {
         "play", "pause", "stop", "load", "unload", "enable", "disable",
-        "fade_action", "wait", "go_to", "pause_project", "resume_project",
+        "fade_action", "wait", "go_to", "stop_project",
     },
     # ``ease_in``/``ease_out`` joined on feature 014's cherry-pick of ``main``'s
     # ``9c17418``: the engine dispatches those two names natively, so a project

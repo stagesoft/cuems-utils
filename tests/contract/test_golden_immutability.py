@@ -87,6 +87,16 @@ four method entries (``cluster_controllers``, ``is_foreign_controller``,
 ``foreign_controllers``, ``drop_foreign_controllers``), inserted by hand in
 sorted position; every pre-existing entry is byte-identical.
 
+**Feature 017 re-hashes ``api/public_api.json`` once** (FR-026a, spec Q8): ``MediaCue``
+joins ``PUBLIC_CLASSES``, so its public methods are snapshotted. These include the release
+line's ``media_status()`` (rc16, 869fej07m) and the four stored-media accessors. The
+``MediaCue`` block (60 method entries) is inserted **as text** before ``"NodeIndex"`` in
+``symbols``: **68 lines added, 0 deleted**. Parsed, the result equals the previous golden
+plus exactly that block, which equals the live snapshot. It was not re-serialised, because the
+file is not in canonical ``sort_keys`` order (``NodeIndex.foreign_controllers`` sits out of
+order), and a re-dump would have moved existing lines. Evidence:
+``specs/017-release-line-reconciliation/evidence/public-api-rehash.txt``.
+
 
 ``MANIFEST.sha256`` pins the hash of every file under this directory at the
 moment T002 ran (after T003b/T003c added the two new corpus documents' goldens,

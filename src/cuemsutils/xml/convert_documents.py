@@ -28,6 +28,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from .documents import backup_document, write_tree
+from .load_check import loader_refusal
 from .schema import SCHEMA_ROOTS, get_schema
 from .versioning import CURRENT_VERSION, DOC_VERSION_ATTR, convert, read_version
 
@@ -134,8 +135,25 @@ def check_file(path: Path) -> tuple[str, int | None, int | None]:
     return ConversionOutcome.CONVERTED, version, current
 
 
+def _report_refusal(path: Path, counts: dict[str, int]) -> None:
+    """Print the loader's refusal of *path*, if any, and count it (017 S-3, FR-029c).
+
+    Reporting only: nothing is written and the exit status does not change.
+    """
+    schema_name = _schema_name_for_root(ET.parse(path).getroot().tag)
+    why = loader_refusal(path, schema_name)
+    if why is not None:
+        print(f"WARNING {path}: would be refused on load: {why}", file=sys.stderr)
+        counts["refused on load"] = counts.get("refused on load", 0) + 1
+
+
 def _check(paths: list[Path]) -> int:
-    """``--check``: report every document's version and a summary; write nothing."""
+    """``--check``: report every document's version and a summary; write nothing.
+
+    Also reports each document the loader would refuse once converted. The loader applies the
+    same registered conversions in memory, so its verdict on the file as it stands is its
+    verdict on what this tool would write (017 S-3).
+    """
     counts = {"current": 0, "needs conversion": 0, "skipped": 0}
     for path in paths:
         try:
@@ -150,9 +168,11 @@ def _check(paths: list[Path]) -> int:
         elif status == ConversionOutcome.CURRENT:
             print(f"{path}: already current (version {version})")
             counts["current"] += 1
+            _report_refusal(path, counts)
         else:
             print(f"{path}: version {version}, current {current} — needs conversion")
             counts["needs conversion"] += 1
+            _report_refusal(path, counts)
     _print_summary(len(paths), counts)
     return 0 if counts["needs conversion"] == 0 and counts["skipped"] == 0 else 1
 
@@ -210,6 +230,8 @@ def main(argv: list[str] | None = None) -> int:
         elif status == ConversionOutcome.CONVERTED:
             print(f"{path}: converted")
             counts["converted"] += 1
+            # Written: does the loader accept what was written? Report, never refuse (S-3).
+            _report_refusal(path, counts)
         else:
             print(f"{path}: already current")
             counts["current"] += 1

@@ -50,6 +50,10 @@ and the file inventory in this repository.
 >    `cuems-frontend` 31 behind its own `origin/dev` (it tagged `v0.1.0-rc1` on 2026-10-16). That
 >    includes `stop_project` on every side (library rc17, engine rc6-5, frontend's STOP chips) and
 >    `CACHEDIR.TAG`. Re-verify every relation after each merge
+>    - **`cuems-utils`: reconciled** by feature 017 (`specs/017-release-line-reconciliation/`):
+>      `origin/debian/bookworm` merged at M1 `6a17392`, `origin/main` at M2 `909d6f3`; 0 commits
+>      behind either. Relations re-verified 126/126 (016's 121 plus row 26, the `Replaces:` the
+>      merge brought). The other five repositories are still owed.
 >    (`specs/016-coordinated-minor-bump/tools/verdicts.sh`).
 > 2. ~~**The re-cut** of every `xml-refactor-merge-candidate`~~: ✅ **done 2026-10-16** by the
 >    maintainer (`../.xml-refactor-tag-messages/recut-and-push.sh`); all seven verified on the remotes.

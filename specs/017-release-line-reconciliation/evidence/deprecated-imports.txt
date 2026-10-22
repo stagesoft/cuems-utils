@@ -1,0 +1,21 @@
+# Deprecated-surface imports in tests (T043, FR-029b, SC-006), 2026-10-21T19:01:57Z
+
+Absorbed tests importing the deprecated XML modules: 0 (017's ports: test_stop_project_cue, test_media_guards, test_media_pixel_dimensions).
+Modules importing them on purpose (all pre-017), now marked expects_deprecation and listed in deprecated-surface-removal-v0-1-2.md R10:
+  tests/contract/test_declared_break_nodeconf.py
+  tests/contract/test_deprecation_shims.py
+  tests/contract/test_no_globals_injection.py
+  tests/contract/test_no_internal_deprecation.py
+  tests/contract/test_validate_advice_per_schema.py
+  tests/integration/test_construction_parity.py
+  tests/integration/test_d14_chain.py
+  tests/integration/test_default_mappings_valid.py
+  tests/integration/test_type_coercion_live_paths.py
+  tests/test_canvas_region_roundtrip.py
+  tests/test_fade_cue.py
+  tests/test_name_coercion.py
+  tests/test_xml.py
+  tests/unit/test_media_duration.py
+
+Enforced by tests/contract/test_deprecated_imports_are_marked.py: red with the marks stashed (1 failed), green with them.
+pytest -m expects_deprecation --co: 487/4022 tests collected (3535 deselected) in 1.39s

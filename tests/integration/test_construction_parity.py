@@ -58,6 +58,11 @@ import pytest
 from tests.support import roundtrip as rt
 from tests.support.corpus import DOCUMENTS
 
+# This module exercises the deprecated XML surface (XmlReaderWriter / Parsers /
+# XmlBuilder) on purpose. v0.1.2 deletes that surface, and this module with it or ported:
+# specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
+pytestmark = pytest.mark.expects_deprecation
+
 #: Any script document — ``write_bytes`` only needs one to resolve the schema.
 SCRIPT_DOC = next(d for d in DOCUMENTS if d.schema == "script")
 

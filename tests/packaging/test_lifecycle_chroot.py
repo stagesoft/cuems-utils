@@ -30,6 +30,7 @@ def _install_ours(chroot, built_deb):
 # -- US1 (T017, T018) -----------------------------------------------------------
 
 
+@pytest.mark.reads_siblings
 def test_custody_transfer_both_orders(chroot, built_deb, sibling_deb, tmp_path):
     """The live map survives the handover, in either unpack order (research R3)."""
     old_common = _build_old_common_stub(tmp_path)

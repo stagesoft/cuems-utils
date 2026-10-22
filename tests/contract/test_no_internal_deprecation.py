@@ -26,6 +26,11 @@ from cuemsutils.xml.Parsers import CuemsParser
 from tests.support import roundtrip as rt
 from tests.support.corpus import DOCUMENTS, GOLDEN_ROOT
 
+# This module exercises the deprecated XML surface (XmlReaderWriter / Parsers /
+# XmlBuilder) on purpose. v0.1.2 deletes that surface, and this module with it or ported:
+# specs/planning/deprecated-surface-removal-v0-1-2.md (R10). Feature 017, FR-029b.
+pytestmark = pytest.mark.expects_deprecation
+
 OUTCOMES = json.loads((GOLDEN_ROOT / "outcomes.json").read_text())
 
 

@@ -26,6 +26,7 @@ def test_postinst_runs_the_tool_after_the_token_and_before_exit():
 
 
 @pytest.mark.skipif(not (COMMON / "debian" / "control").exists(), reason="cuems-common sibling checkout not found")
+@pytest.mark.reads_siblings
 def test_cuems_common_still_configures_after_this_package():
     control = (COMMON / "debian" / "control").read_text(encoding="utf-8")
     # The floor moved with the coordinated minor bump (feature 016): >= 0.1.1.
