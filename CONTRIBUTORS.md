@@ -167,8 +167,11 @@ hatch run test.py3.11:run-cov
 # Flush any remaining .milliseconds DeprecationWarnings as hard failures
 pytest -W error::DeprecationWarning
 
-# Run only slow-marked tests
-pytest -m slow
+# Run the slow tests, except the wall-clock budgets
+pytest -m "slow and not nocov"
+
+# Run the wall-clock budget tests, alone and never with --cov
+hatch run test.py3.11:run-timing        # = pytest -m nocov
 
 # Skip slow tests for a fast feedback loop
 pytest -m "not slow"
@@ -196,6 +199,11 @@ Write tests through the public API (`CuemsScript.load` / `save` / `from_json`, `
 `pytestmark = pytest.mark.expects_deprecation`, or `tests/contract/test_deprecated_imports_are_marked.py`
 fails. A test that reads a sibling repository checked out beside this one carries
 `@pytest.mark.reads_siblings`, and skips with a reason when the sibling is absent.
+A test that asserts a wall-clock budget carries **both** `slow` and `nocov`. Coverage tracing slows
+each code path by a different factor (the show-document load 2.5×, a remint 1.5×), so such a test
+would measure the tracer, not the code. Every coverage run deselects `slow`. `run-cov` also
+excludes `nocov`, and the budgets run on their own through `run-timing`.
+`tests/contract/test_timing_markers.py` enforces the pairing.
 `--strict-markers` is on, so a misspelt marker is an error.
 
 ---

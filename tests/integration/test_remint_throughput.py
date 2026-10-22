@@ -62,6 +62,9 @@ import pytest
 from cuemsutils.tools import remint
 from tests.support.library_fixture import nodes_for, remint_200
 
+# Wall-clock budgets: never under coverage (tests/contract/test_timing_markers.py).
+pytestmark = [pytest.mark.slow, pytest.mark.nocov]
+
 #: FR-PERF-001, in bytes per second. **Re-baselined 2026-09-30**: 140 MB/s, the
 #: slowest of ten measured samples (154 MB/s) with 10% allowed for future
 #: degradation. It replaces the 500 MB/s an analysis pass supplied without

@@ -165,3 +165,35 @@ def test_6_codecov_and_the_site_deploy_only_on_a_push_to_main(tests_yml):
     unguarded = [s.get("name", s.get("uses", s.get("run"))) for s in codecov + deploy
                  if _condition(s.get("if", "")) != MAIN_PUSH]
     assert not unguarded, f"not conditioned on {MAIN_PUSH!r}: {unguarded}"
+
+
+# --- 7. wall-clock budgets run without coverage ---------------------------------------
+
+def test_7_no_coverage_run_selects_a_nocov_test(tests_yml):
+    """``--cov`` slows each path by a different factor (``tests/contract/test_timing_markers.py``),
+    so every coverage run deselects ``slow``, which every ``nocov`` test also carries."""
+    runs = [str(s.get("run", "")) for s in _steps(tests_yml)]
+    leaky = [r for r in runs if "--cov" in r and '-m "not slow"' not in r]
+    assert not leaky, leaky
+
+
+def test_7_integration_runs_the_nocov_tests_alone_without_coverage(tests_yml):
+    steps = tests_yml["jobs"]["integration"]["steps"]
+    timing = [s for s in steps if '-m nocov' in str(s.get("run", ""))]
+    assert len(timing) == 1, "integration needs exactly one `-m nocov` step"
+    run = str(timing[0]["run"])
+    assert "--cov" not in run and "COVERAGE_FILE" not in (timing[0].get("env") or {}), run
+    assert "--junitxml=junit-timing.xml" in run, run
+    # It runs even when the coverage step failed, so both results are reported.
+    assert _condition(timing[0].get("if", "")) == "success() || failure()", timing[0].get("if")
+    uploads = [s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact@")]
+    assert any("junit-timing.xml" in str(s["with"]["path"]) for s in uploads)
+
+
+def test_7_the_local_coverage_script_excludes_nocov():
+    import tomllib
+
+    scripts = tomllib.loads((WORKFLOWS.parents[1] / "pyproject.toml").read_text(encoding="utf-8"))[
+        "tool"]["hatch"]["envs"]["test"]["scripts"]
+    assert '-m "not nocov"' in scripts["run-cov"], scripts["run-cov"]
+    assert scripts["run-timing"].startswith("pytest -m nocov"), scripts.get("run-timing")

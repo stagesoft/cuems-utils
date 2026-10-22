@@ -174,6 +174,8 @@ def test_the_named_baseline_exists_and_records_both_rows():
     assert str(EIGHT_SHOW_DOCUMENT_MS) in text
 
 
+@pytest.mark.slow
+@pytest.mark.nocov
 def test_the_show_document_load_is_within_its_recorded_budget():
     """Compared against the measured **band**, not the straddled 16.5 ms line.
 
@@ -205,6 +207,8 @@ def test_the_show_document_load_is_within_its_recorded_budget():
     assert median > 0.0
 
 
+@pytest.mark.slow
+@pytest.mark.nocov
 def test_the_network_map_load_is_within_its_re_baselined_budget():
     from cuemsutils.tools.ConfigBase import load_config_document
     from cuemsutils.xml.settings import NetworkMap
@@ -249,6 +253,8 @@ def test_the_narrowing_added_exactly_one_rule_to_the_map_read():
     assert on_the_map == ["node_uuid_unique"]
 
 
+@pytest.mark.slow
+@pytest.mark.nocov
 def test_a_colliding_map_does_not_make_the_read_pathologically_slow(tmp_path):
     """The uniqueness rule's failure path builds a message naming every row. On
     a large map that must not become quadratic — an operator diagnosing a

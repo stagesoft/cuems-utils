@@ -65,6 +65,18 @@ So:
 The static check asserts all of this: the three jobs, the action's six paths and `ref`, and the
 marker's path into the XML.
 
+## Amendment (2026-10-22, after 017's merge): wall-clock budgets run without coverage
+
+Measured on the merged head: under `--cov`, 6 budget tests failed that pass without it. Coverage
+tracing slows each path by a different factor: the show load 2.5×, the remint 1.5×, and the
+substitution ratio 1.33×. Raising the budgets enough would have meant up to 2.4×, which defeats
+them. Instead, the 15 wall-clock tests are marked **`slow` and `nocov`**, so every
+`-m "not slow"` coverage run deselects them. The `integration` job runs them in a second step,
+`pytest -m nocov`, with no `--cov`. That step runs even if the coverage step failed, and its
+`junit-timing.xml` reaches the summary as a `timing` row. Locally: `run-cov` excludes
+`nocov`, `run-timing` runs it alone, and the other slow tests are `-m "slow and not nocov"`.
+Guarded by `tests/contract/test_timing_markers.py` and `test_ci_workflow.py` check 7.
+
 ## `gate-summary` fields (also the `evidence/ci-gate.md` template)
 
 This repository's SHA; `siblings_ref` and each sibling's resolved commit; pass, skip and xfail

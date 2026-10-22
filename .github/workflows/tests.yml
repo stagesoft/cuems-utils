@@ -96,6 +96,12 @@ jobs:
         env:
           COVERAGE_FILE: .coverage.integration
         run: hatch run test.py3.11:run -- tests/integration -m "not slow" --cov --junitxml=junit-integration.xml
+      # Wall-clock budgets (marker nocov, always also slow): coverage tracing would distort them,
+      # so they run alone and without --cov (tests/contract/test_timing_markers.py).
+      - name: wall-clock budget tests (no coverage)
+        if: success() || failure()
+        working-directory: cuems-utils
+        run: hatch run test.py3.11:run -- tests -m nocov --junitxml=junit-timing.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -104,6 +110,7 @@ jobs:
           path: |
             cuems-utils/.coverage.integration*
             cuems-utils/junit-integration.xml
+            cuems-utils/junit-timing.xml
             sibling-commits.txt
 
   packaging:

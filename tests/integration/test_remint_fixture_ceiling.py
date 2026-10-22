@@ -24,6 +24,9 @@ import pytest
 from cuemsutils.tools import remint
 from tests.support.library_fixture import REMINT_200, nodes_for, remint_200
 
+# Wall-clock budgets: never under coverage (tests/contract/test_timing_markers.py).
+pytestmark = [pytest.mark.slow, pytest.mark.nocov]
+
 #: SC-PERF-001, seconds. **Re-baselined 2026-09-30 from the measurement.**
 #:
 #: The stated ceiling was 2.0 s, and it was an estimate — the one figure

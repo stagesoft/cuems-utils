@@ -109,7 +109,9 @@ CC = "gcc"
 
 [tool.hatch.envs.test.scripts]
 run = "pytest {args:tests/}"
-run-cov = "pytest --cov {args:tests/}"
+# Wall-clock budget tests (marker nocov) are excluded under coverage and run alone in run-timing.
+run-cov = 'pytest --cov -m "not nocov" {args:tests/}'
+run-timing = "pytest -m nocov {args:tests/}"
 lint = "ruff check {args:src/ tests/}"
 
 [tool.coverage.run]
@@ -144,6 +146,9 @@ markers = [
   "packaging: lives in tests/packaging/ (debian/, the built .deb, the chroot lifecycle)",
   # Feature 017, FR-071: written by hand on each test that reads a sibling checkout.
   "reads_siblings: reads a sibling repository checked out beside this one (skips without it)",
+  # Always together with slow, so a `-m "not slow"` coverage run never selects it. Run alone,
+  # without --cov: `pytest -m nocov`; the other slow tests: `pytest -m "slow and not nocov"`.
+  "nocov: a wall-clock budget, which coverage tracing would distort (always also slow)",
 ]
 # Scoped to one warning class and one module, deliberately.
 #
