@@ -100,6 +100,19 @@ dropped it, with no reply and no close. It now answers with the same error reply
 context. A callback that raises is still not answered for, because it owns its context and may
 already have replied.
 
+### Fixed — a request no longer waits forever, and a cancelled service always stops
+
+`send_request` had no deadline: asking a service that was not running blocked in the send for good.
+It now takes `timeout` (seconds, default **100**) for the send and the reply together. When the
+deadline passes it returns `None`, as its other failures do, and logs which address did not answer.
+`Communicator.send_request` takes the same parameter. A custom `communicator_service` must now accept
+`timeout` too.
+
+Cancelling a service's `reply()` loop, or a pending `responder_get_request`, could hang about 1 time
+in 1000. pynng's asyncio bridge waits for an NNG callback that occasionally never arrives. The
+library now never exposes a pynng operation to cancellation: a cancelled server returns at once and
+closes its socket or context. Measured: no hang in 7000 cancellations.
+
 ### Fixed — `Communicator` accepts an `ipc://` address
 
 `Communicator("ipc:///tmp/editor.ipc")` checked the prefixed string as a file path, which resolves to

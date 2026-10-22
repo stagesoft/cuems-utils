@@ -1,6 +1,7 @@
 import asyncio
 import json
 import sys
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from enum import Enum
@@ -8,9 +9,29 @@ from functools import partial
 
 from deprecated import deprecated
 from pynng import Rep0, Req0
+from pynng import Timeout as NngTimeout
 
 from ..helpers import check_path
 from ..log import Logger
+
+#: The longest a request waits, in seconds: for the send (no replier yet) and the reply together.
+REQUEST_TIMEOUT = 100.0
+
+
+async def _shielded(operation):
+    """Await a pynng socket or context operation without exposing it to cancellation (C6).
+
+    When the awaiting task is cancelled, pynng's asyncio bridge calls ``nng_aio_cancel`` and then
+    waits for NNG's completion callback. Measured 2026-10-22: about 1 time in 1000 that callback never
+    comes, so the cancelled task never finishes, and a receive timeout does not end it either.
+    Shielded, the operation keeps running on its own while the cancellation reaches the caller at
+    once. Every caller closes its socket or context on the way out (a ``with`` block, or an explicit
+    ``close()``), which completes the abandoned operation with ``Closed``. That error is retrieved
+    here, so it is never logged as "exception was never retrieved".
+    """
+    inner = asyncio.ensure_future(operation)
+    inner.add_done_callback(lambda done: done.cancelled() or done.exception())
+    return await asyncio.shield(inner)
 
 
 def _error_reply(error: Exception) -> dict:
@@ -35,8 +56,9 @@ class CommunicatorService(ABC):
         self.address = address
 
     @abstractmethod
-    def send_request(self, request:dict) -> dict:
-        """ Send request dic and return response dict  """
+    def send_request(self, request:dict, timeout: float = REQUEST_TIMEOUT) -> dict:
+        """ Send request dict and return response dict, or None after ``timeout`` seconds.
+        Communicator passes ``timeout`` through, so an implementation must accept it. """
 
     @abstractmethod
     def reply(self, request_processor:Callable[[dict], dict]) -> dict:
@@ -63,26 +85,37 @@ class NngRequestResponse(CommunicatorService):
             self.params_request = {'listen': self.address}
             self.params_reply = {'dial': self.address}
 
-    async def send_request(self, request):
+    async def send_request(self, request, timeout: float = REQUEST_TIMEOUT):
         """
         Send a request to the specified address and return the response.
 
         Parameters:
         - request (dict): The request to be sent. It should be a dictionary.
+        - timeout (float, optional): Seconds to wait in all, for the send and the reply together.
+          Default REQUEST_TIMEOUT (100 s). With no replier listening, the send itself would
+          otherwise block for good.
 
         Returns:
         - dict: The response received from the address. It will be a dictionary.
+        - None: When there is no reply within ``timeout``, or on any other error. Both are logged.
         """
+        deadline_ms = max(1, int(timeout * 1000))
         try:
-            with Req0(**self.params_request) as socket:
+            with Req0(**self.params_request, send_timeout=deadline_ms, recv_timeout=deadline_ms) as socket:
                 while await asyncio.sleep(0, result=True):
                     Logger.debug(f"Sending: {request}")
                     encoded_request = json.dumps(request).encode()
-                    await socket.asend(encoded_request)
+                    started = time.monotonic()
+                    await _shielded(socket.asend(encoded_request))
+                    # One deadline for both halves: the reply gets what the send left.
+                    socket.recv_timeout = max(1, deadline_ms - int((time.monotonic() - started) * 1000))
                     response = await self._get_response(socket)
                     decoded_response = json.loads(response.decode())
                     Logger.debug(f"receiving: {decoded_response}")
                     return decoded_response
+        except NngTimeout:
+            Logger.error(f"Error occurred while sending request: no reply from {self.address} within {timeout} s")
+            return None
         except Exception as e:
             Logger.error(f"Error occurred while sending request: {e}")
             return None
@@ -97,7 +130,7 @@ class NngRequestResponse(CommunicatorService):
         Returns:
         - bytes: The response from the socket.
         """
-        response = await socket.arecv()
+        response = await _shielded(socket.arecv())
         return response
 
     async def reply(self, request_processor):
@@ -114,9 +147,11 @@ class NngRequestResponse(CommunicatorService):
         - None: This function is designed to run indefinitely, handling incoming requests and responses.
         """
         try:
+            # On cancellation the with block closes the socket, which ends a shielded pending
+            # receive (see _shielded).
             with Rep0(**self.params_reply) as socket:
                 while await asyncio.sleep(0, result=True):
-                    request = await socket.arecv()
+                    request = await _shielded(socket.arecv())
                     # One bad request must not stop the service: a request that is not JSON, or
                     # whose processor raises, is answered with _error_reply() and the loop goes on.
                     # Only a socket error (above, in arecv) ends it.
@@ -144,7 +179,7 @@ class NngRequestResponse(CommunicatorService):
                 Logger.error(f"Error occurred while sending response: cannot encode it: {e}")
                 encoded_response = json.dumps(_error_reply(e)).encode()
             Logger.debug(f"Sending: {encoded_response}")
-            await socket.asend(encoded_response)
+            await _shielded(socket.asend(encoded_response))
         except Exception as e:
             Logger.error(f"Error occurred while sending response: {e}")
 
@@ -154,7 +189,11 @@ class NngRequestResponse(CommunicatorService):
     async def responder_get_request(self, callback):
         try:
             context = self.responder.new_context()
-            request = await context.arecv()
+            try:
+                request = await _shielded(context.arecv())
+            except asyncio.CancelledError:
+                context.close()  # ends the shielded pending receive (see _shielded)
+                raise
             try:
                 decoded_request = json.loads(request.decode())  # Parse the JSON request
             except ValueError as e:
@@ -227,8 +266,8 @@ class Communicator(CommunicatorService):
         self.requester_dials = requester_dials
         self.communicator_service:CommunicatorService = communicator_service(self.address, requester_dials=self.requester_dials)
 
-    async def send_request(self, request):
-        response = await self.communicator_service.send_request(request)
+    async def send_request(self, request, timeout: float = REQUEST_TIMEOUT):
+        response = await self.communicator_service.send_request(request, timeout=timeout)
         return response
 
     async def reply(self, request_processor):

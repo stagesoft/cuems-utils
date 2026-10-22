@@ -54,6 +54,13 @@ cuems-utils (0.1.1) UNRELEASED; urgency=medium
     {"OK": false, "error": "<Type>: <message>"}. The context API
     (responder_get_request) answers a malformed request the same way.
   * Communicator accepts an ipc:// address; it used to sys.exit(1).
+  * send_request takes timeout= (seconds, default 100) for the send and
+    the reply together, and returns None when it passes: asking a service
+    that was not running used to block for good.
+  * A cancelled reply() or responder_get_request() always stops: pynng
+    operations are shielded from cancellation (about 1 cancellation in
+    1000 used to hang on a lost NNG callback), and the socket or context
+    is closed instead.
   * NngBusHub counts a message as sent only after asend() succeeds, so a
     failing link no longer reports itself healthy.
   * Packaging: debian/ lives on the working branch. After this merge

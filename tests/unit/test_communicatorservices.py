@@ -12,6 +12,7 @@ import threading
 import warnings
 from unittest.mock import AsyncMock, Mock, patch
 
+import pynng
 import pytest
 
 from cuemsutils.tools import CommunicatorServices as module
@@ -58,7 +59,10 @@ class FakeSocket:
     async def arecv(self):
         if not self.incoming:
             raise ScriptEnded
-        return self.incoming.pop(0)
+        item = self.incoming.pop(0)
+        if isinstance(item, BaseException):
+            raise item
+        return item
 
     def new_context(self):
         context = FakeSocket(self.incoming[:1], self.fail_send)
@@ -70,12 +74,79 @@ class FakeSocket:
         self.closed = True
 
 
+class StuckSocket(FakeSocket):
+    """What pynng's asyncio bridge does in the rare case C6 measured: a pending operation swallows
+    CancelledError and waits for NNG's completion callback, which never comes. Only closing the
+    socket ends it (NNG completes the operation with ECLOSED)."""
+
+    def __init__(self, stuck=("arecv",), **kwargs):
+        super().__init__(**kwargs)
+        self.stuck = set(stuck)
+        self._released = None
+
+    async def _hang(self):
+        self._released = self._released or asyncio.get_running_loop().create_future()
+        while not self._released.done():
+            try:
+                await asyncio.shield(self._released)
+            except asyncio.CancelledError:
+                continue
+        raise pynng.Closed("Object closed", 7)
+
+    async def arecv(self):
+        if "arecv" in self.stuck:
+            await self._hang()
+        return await super().arecv()
+
+    async def asend(self, data):
+        if "asend" in self.stuck:
+            await self._hang()
+        await super().asend(data)
+
+    def close(self):
+        self.closed = True
+        if self._released is not None and not self._released.done():
+            self._released.set_result(None)
+
+    def __exit__(self, *exc):
+        self.close()
+
+
+async def cancelled_promptly(coro_factory, sock, *, settle=0.05, bound=1.0):
+    """Start the coroutine, let it reach its pending pynng call, cancel it. Returns (done, closed),
+    with ``closed`` read before this helper closes the socket itself to release a red run."""
+    task = asyncio.create_task(coro_factory())
+    await asyncio.sleep(settle)
+    task.cancel()
+    await asyncio.wait({task}, timeout=bound)
+    done, closed = task.done(), sock.closed
+    sock.close()
+    await asyncio.wait({task}, timeout=bound)
+    return done, closed
+
+
 def frame(obj) -> bytes:
     return json.dumps(obj).encode()
 
 
 def run(coro):
     return asyncio.run(asyncio.wait_for(coro, timeout=5))
+
+
+def timed_out():
+    return pynng.Timeout("Timed out", 5)
+
+
+def request_ms() -> int:
+    return int(module.REQUEST_TIMEOUT * 1000)
+
+
+# --- module constants -------------------------------------------------------------------------
+
+class TestTimeouts:
+    def test_a_request_waits_at_most_100_seconds_by_default(self):
+        assert module.REQUEST_TIMEOUT == 100.0
+
 
 
 # --- IpcAddress -------------------------------------------------------------------------------
@@ -130,7 +201,24 @@ class TestSendRequest:
         sock = FakeSocket([frame({"ok": 1})])
         with patch.object(module, "Req0", return_value=sock) as req0:
             run(NngRequestResponse(ADDRESS, requester_dials=False).send_request({"q": 1}))
-        req0.assert_called_once_with(listen=ADDRESS)
+        req0.assert_called_once_with(listen=ADDRESS, send_timeout=request_ms(), recv_timeout=request_ms())
+
+    def test_the_timeout_bounds_both_the_send_and_the_reply(self):
+        sock = FakeSocket([frame({"ok": 1})])
+        with patch.object(module, "Req0", return_value=sock) as req0:
+            run(NngRequestResponse(ADDRESS).send_request({"q": 1}, timeout=2.5))
+        assert req0.call_args.kwargs["send_timeout"] == 2500
+        assert 0 < sock.recv_timeout <= 2500  # what remains of the deadline after the send
+
+    def test_no_reply_within_the_timeout_returns_none_and_says_so(self, caplog):
+        with patch.object(module, "Req0", return_value=FakeSocket([timed_out()])):
+            assert run(NngRequestResponse(ADDRESS).send_request({}, timeout=0.5)) is None
+        assert f"no reply from {ADDRESS} within 0.5 s" in caplog.text
+
+    def test_a_send_that_times_out_returns_none(self, caplog):
+        with patch.object(module, "Req0", return_value=FakeSocket(fail_send=timed_out())):
+            assert run(NngRequestResponse(ADDRESS).send_request({}, timeout=0.5)) is None
+        assert f"no reply from {ADDRESS} within 0.5 s" in caplog.text
 
     def test_sends_the_request_json_encoded(self):
         sock = FakeSocket([frame({"ok": 1})])
@@ -158,6 +246,26 @@ class TestSendRequest:
         with patch.object(module, "Req0", return_value=FakeSocket([b"not json"])):
             assert run(NngRequestResponse(ADDRESS).send_request({})) is None
 
+    def test_cancelling_it_while_the_reply_hangs_finishes_and_closes_the_socket(self):
+        """C6 on the requester: a caller's own timeout (cuems-editor uses asyncio.timeout) cancels it."""
+        sock = StuckSocket()
+        with patch.object(module, "Req0", return_value=sock):
+            done, closed = run(cancelled_promptly(lambda: NngRequestResponse(ADDRESS).send_request({}), sock))
+        assert (done, closed) == (True, True)
+
+    def test_an_abandoned_operation_that_later_fails_is_not_reported_as_unretrieved(self, caplog):
+        sock = StuckSocket()
+
+        async def scenario():
+            with patch.object(module, "Req0", return_value=sock):
+                await cancelled_promptly(lambda: NngRequestResponse(ADDRESS).send_request({}), sock)
+            await asyncio.sleep(0.05)
+            import gc
+            gc.collect()
+
+        run(scenario())
+        assert "exception was never retrieved" not in caplog.text
+
     def test_get_response_returns_the_raw_frame(self):
         assert run(NngRequestResponse(ADDRESS)._get_response(FakeSocket([b"raw"]))) == b"raw"
 
@@ -169,6 +277,19 @@ class TestReply:
         with patch.object(module, "Rep0", return_value=FakeSocket()) as rep0:
             run(NngRequestResponse(ADDRESS).reply(lambda q: q))
         rep0.assert_called_once_with(listen=ADDRESS)
+
+    def test_cancelling_it_while_its_receive_hangs_still_finishes_and_closes_the_socket(self):
+        """C6: never wait out pynng's cancellation of a pending receive."""
+        sock = StuckSocket()
+        with patch.object(module, "Rep0", return_value=sock):
+            done, closed = run(cancelled_promptly(lambda: NngRequestResponse(ADDRESS).reply(Mock()), sock))
+        assert (done, closed) == (True, True)
+
+    def test_cancelling_it_while_its_reply_send_hangs_still_finishes(self):
+        sock = StuckSocket(stuck=("asend",), incoming=[frame({"n": 1})])
+        with patch.object(module, "Rep0", return_value=sock):
+            done, closed = run(cancelled_promptly(lambda: NngRequestResponse(ADDRESS).reply(lambda q: q), sock))
+        assert (done, closed) == (True, True)
 
     def test_answers_every_request_with_the_processor_result(self):
         sock = FakeSocket([frame({"n": 1}), frame({"n": 2})])
@@ -302,6 +423,12 @@ class TestResponderGetRequest:
         run(rr.responder_get_request(callback))
         callback.assert_called_once_with({"n": 1}, rr.responder.contexts[0])
 
+    def test_cancelling_it_while_its_receive_hangs_finishes_and_closes_the_context(self, rr):
+        context = StuckSocket()
+        rr.responder.new_context = lambda: context
+        done, closed = run(cancelled_promptly(lambda: rr.responder_get_request(Mock()), context))
+        assert (done, closed) == (True, True)
+
     def test_each_request_gets_its_own_context(self, rr):
         rr.responder.incoming.append(frame({"n": 2}))
         run(rr.responder_get_request(Mock()))
@@ -428,7 +555,11 @@ class TestCommunicatorDelegation:
     def test_send_request_returns_the_service_reply(self, comm):
         comm.communicator_service.send_request.return_value = {"r": 1}
         assert run(comm.send_request({"q": 1})) == {"r": 1}
-        comm.communicator_service.send_request.assert_awaited_once_with({"q": 1})
+        comm.communicator_service.send_request.assert_awaited_once_with({"q": 1}, timeout=module.REQUEST_TIMEOUT)
+
+    def test_send_request_forwards_its_timeout(self, comm):
+        run(comm.send_request({"q": 1}, timeout=3))
+        comm.communicator_service.send_request.assert_awaited_once_with({"q": 1}, timeout=3)
 
     def test_reply_delegates_the_processor(self, comm):
         processor = Mock()

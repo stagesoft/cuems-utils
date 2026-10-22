@@ -17,9 +17,11 @@ from pynng import Bus0
 from cuemsutils.tools.HubServices import NngBusHub
 
 BOUND = 2.0  # seconds; a local round trip takes milliseconds
-# The dialer retries after 1 s, then doubles the wait (2 s, 4 s), so one retry lost to a busy box
-# already costs 3 s. 10 s covers two lost retries; a normal reconnect takes about 1 s.
-RECONNECT = 10.0
+# NNG grows a dialer's retry delay after every failed dial, up to start_dialer's
+# reconnect_time_max (30 s), and several dials can fail before the controller exists. Measured
+# 2026-10-22 on an idle box: 0.4-8.5 s over 15 runs, so a 10 s bound flaked. Only the configured
+# maximum is a bound that cannot flake. A normal run takes 1-2 s; only a real failure waits it out.
+RECONNECT = 30.0 + 5.0
 
 
 def free_port() -> int:
@@ -41,7 +43,7 @@ def ipc():
 
 
 def run(coro):
-    return asyncio.run(asyncio.wait_for(coro, timeout=30))
+    return asyncio.run(asyncio.wait_for(coro, timeout=60))
 
 
 async def until(predicate, timeout=BOUND):

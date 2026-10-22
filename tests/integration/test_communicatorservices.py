@@ -4,18 +4,22 @@ These are the paths the CUEMS services use between themselves: one process repli
 Every await is bounded, so a hang shows up as a failure, never as a stuck suite. The behaviour of
 each method in isolation is in ``tests/unit/test_communicatorservices.py``.
 
-**Servers are stopped by closing their socket, never by cancelling alone.** ``reply()`` blocks in
-pynng's ``arecv()`` with no receive timeout. Measured 2026-10-22 over 1000 rounds, both with one
-event loop and with a fresh loop per round: about 1 cancellation in 1000 of that pending receive
-never completes. A test that only cancelled would hang about once in 250 runs of this file. Closing the
-socket makes ``arecv()`` raise ``Closed``, which ``reply()`` handles by returning, so every socket
-this module opens is recorded (``OPENED``) and closed by the helpers and by teardown.
+**Servers are stopped by cancelling them, as a service does, and that must be prompt (C6).** pynng's
+asyncio bridge, when the awaiting task is cancelled, calls ``nng_aio_cancel`` and then waits for NNG's
+completion callback. About 1 time in 1000 that callback never comes (measured 2026-10-22 over 1000
+rounds), and a receive timeout does not end it either. So the module never exposes a pynng operation to
+cancellation: it shields it, and on cancellation it closes the socket or context and returns at once.
+``_stop`` asserts the prompt return, and ``TestPromptCancellation`` repeats it.
+
+``_ask`` still releases a request it gave up on by closing its socket. Every socket the module opens is
+recorded in ``OPENED`` and closed at teardown.
 """
 import asyncio
 import json
 import os
 import shutil
 import tempfile
+import time
 from unittest.mock import Mock
 
 import pynng
@@ -79,14 +83,10 @@ async def _serving(address, processor, *, requester_dials=True):
 
 
 async def _stop(task):
-    """Close the replier's socket so reply() returns; cancel only as a fallback (see the docstring)."""
-    for sock in OPENED:
-        if isinstance(sock, pynng.Rep0):
-            sock.close()
+    """Cancel a server, as a service shutting down does. It must finish promptly (C6)."""
+    task.cancel()
     await asyncio.wait({task}, timeout=BOUND)
-    if not task.done():
-        task.cancel()
-        await asyncio.wait({task}, timeout=BOUND)
+    assert task.done(), f"cancelling the server did not complete within {BOUND} s (C6)"
 
 
 async def _ask(address, request, *, requester_dials=True):
@@ -230,12 +230,81 @@ class TestCommunicatorEndToEnd:
 # --- failure modes ---------------------------------------------------------------------------
 
 class TestFailureModes:
-    @pytest.mark.xfail(strict=True, raises=asyncio.TimeoutError, reason=(
-        "defect: send_request has no timeout, so asking a service that is not running waits "
-        "forever instead of returning None as its other failures do."
-    ))
-    def test_asking_a_service_that_is_not_running_returns_none(self, address):
-        assert run(_ask(address, {"n": 1})) is None
+    def test_asking_a_service_that_is_not_running_returns_none_at_its_timeout(self, address):
+        async def scenario():
+            started = time.monotonic()
+            reply = await asyncio.wait_for(
+                NngRequestResponse(address).send_request({"n": 1}, timeout=0.3), BOUND)
+            return reply, time.monotonic() - started
+
+        reply, took = run(scenario())
+        assert reply is None
+        assert 0.25 <= took < BOUND
+
+    def test_a_service_that_starts_within_the_timeout_still_answers(self, address):
+        async def scenario():
+            ask = asyncio.create_task(asyncio.wait_for(
+                NngRequestResponse(address).send_request({"n": 4}, timeout=3), 5))
+            await asyncio.sleep(0.3)
+            server = await _serving(address, lambda q: {"ok": q["n"]})
+            try:
+                return await ask
+            finally:
+                await _stop(server)
+
+        assert run(scenario()) == {"ok": 4}
+
+
+class TestPromptCancellation:
+    """C6: a cancelled server finishes at once, never hangs on a pending pynng operation."""
+
+    ROUNDS = 25
+
+    def test_cancelling_reply_completes_promptly_every_time(self, ipc_dir):
+        async def scenario():
+            worst = 0.0
+            for i in range(self.ROUNDS):
+                address = f"ipc://{ipc_dir}/r{i}.ipc"
+                server = await _serving(address, lambda q: q)
+                await _ask(address, {"i": i})
+                started = time.monotonic()
+                await _stop(server)
+                worst = max(worst, time.monotonic() - started)
+            return worst
+
+        assert run(scenario()) < 0.5
+
+    def test_cancelling_a_pending_responder_get_request_completes_promptly(self, address):
+        async def scenario():
+            responder = NngRequestResponse(address)
+            await responder.responder_connect()
+            try:
+                task = asyncio.create_task(responder.responder_get_request(Mock()))
+                await asyncio.sleep(0.25)  # several polls with no request
+                started = time.monotonic()
+                task.cancel()
+                await asyncio.wait({task}, timeout=BOUND)
+                return task.done(), time.monotonic() - started
+            finally:
+                responder.responder.close()
+
+        done, took = run(scenario())
+        assert done and took < 0.5
+
+    @pytest.mark.slow
+    def test_a_thousand_cancellations_all_complete(self, ipc_dir):
+        """The measurement that found C6, as a regression test: before the fix about 1 in 1000 hung.
+        It is slow (about 4 s), so it runs with ``-m slow``; the unit tests pin the mechanism."""
+        async def scenario():
+            for i in range(1000):
+                address = f"ipc://{ipc_dir}/s{i}.ipc"
+                server = await _serving(address, lambda q: q)
+                await _ask(address, {"i": i})
+                await _stop(server)
+                OPENED.clear()
+            return True
+
+        assert asyncio.run(asyncio.wait_for(scenario(), timeout=300)) is True
 
     def test_the_service_keeps_answering_after_its_processor_raised(self, address):
         def processor(q):

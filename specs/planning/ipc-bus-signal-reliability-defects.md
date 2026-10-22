@@ -12,10 +12,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 Every defect was **measured** over real sockets, signals and processes, never inferred.
 
-**Status (2026-10-22):** **C1, C2, C3, C4, C7 and H3 are fixed**, test first: their xfail markers were
+**Status (2026-10-22):** **C1–C7 and H3 are fixed**, test first: their xfail markers were
 removed, the tests went red, and the fix turned them green. Failed requests are now answered with
 `{"OK": False, "error": "<ExceptionType>: <message>"}`, the shape `cuems-nodeconf` already uses and
-`cuems-editor` already reads. C7 was found while fixing C3, and fixed the same way. A callback that *raises* is deliberately not answered for: it owns its context, and may already have replied or handed the context on (`cuems-engine` replies later, from another thread). **Open:** C5, C6, H1, H2, H4 and S1. This
+`cuems-editor` already reads. C7 was found while fixing C3, and fixed the same way. A callback that *raises* is deliberately not answered for: it owns its context, and may already have replied or handed the context on (`cuems-engine` replies later, from another thread). **Open:** H1, H2, H4 and S1. This
 document is deleted once those are resolved.
 
 Before the fixes, the production code was unchanged. Each defect except C6 is pinned by `xfail(strict=True)` tests that
@@ -35,11 +35,36 @@ message look delivered.
 | **C2** ✅ fixed | an exception from the request processor escapes `reply()`'s `while` loop | **the service stops answering**; every later request hangs | `unit::TestReply::test_a_raising_processor_does_not_stop_the_replier`, `integration::TestFailureModes::test_the_service_keeps_answering_after_its_processor_raised` |
 | **C3** ✅ fixed | a request that is not JSON does the same | same as C2 | `unit::TestReply::test_a_malformed_request_does_not_stop_the_replier` |
 | **C4** ✅ fixed | a response that cannot be JSON-encoded is logged and **never sent** | REQ/REP needs one reply per request, so **that requester hangs forever** | `unit::TestRespond::test_an_unencodable_response_still_answers_the_requester`, `integration::TestFailureModes::test_a_requester_is_answered_even_when_its_response_cannot_be_encoded` |
-| **C5** | `send_request` has no timeout | asking a service that is not running **waits forever**, where every other failure returns `None` | `integration::TestFailureModes::test_asking_a_service_that_is_not_running_returns_none` |
+| **C5** ✅ fixed | `send_request` has no timeout | asking a service that is not running **waits forever**, where every other failure returns `None` | `integration::TestFailureModes::test_asking_a_service_that_is_not_running_returns_none` |
 | **C7** ✅ fixed | the context API's `responder_get_request` logs a request that is not JSON and drops it: no reply, and the context is never closed | **its requester waits forever**, and the context leaks. Same class as C3, on the other server API | `unit::TestResponderGetRequest::test_a_malformed_request_is_answered_and_its_context_closed` |
-| **C6** | `reply()` waits in `arecv()` with no receive timeout | **about 1 cancellation in 1000** of that pending receive never completes. Measured over 1000 rounds, both with one event loop and with a fresh loop per round. So a service that stops `reply()` by cancelling it can hang at shutdown until systemd kills it | not pinnable (probabilistic). The integration tests stop servers by closing the socket instead, as their docstring explains |
+| **C6** ✅ fixed | `reply()` waits in `arecv()` with no receive timeout | **about 1 cancellation in 1000** of that pending receive never completes. Measured over 1000 rounds, both with one event loop and with a fresh loop per round. So a service that stops `reply()` by cancelling it can hang at shutdown until systemd kills it | not pinnable (probabilistic). The integration tests stop servers by closing the socket instead, as their docstring explains |
 
-Suggested direction (a design decision, not made here):
+**How C5 and C6 were fixed (2026-10-22), and a correction to the direction suggested below.**
+
+- **C5.** `send_request(request, timeout=REQUEST_TIMEOUT)` waits at most 100 s by default, for the
+  send and the reply together, then returns `None` and logs `no reply from <address> within <t> s`.
+  `Communicator.send_request` forwards `timeout`, and the abstract `CommunicatorService.send_request`
+  declares it, so a custom service must accept it. Measured: with no replier the hang was in
+  **`asend()`**, not in the receive, so a receive timeout alone would never have fixed C5. The fix
+  sets `send_timeout` to the deadline, then `recv_timeout` to what the send left. A REQ socket cannot
+  poll: a timed-out receive abandons the request (`BadState` on retry).
+- **C6.** The suggested 100 ms receive timeout was implemented and **measured not to work**: still 2
+  stalls in 1000 rounds. The stuck receive was still pending 7 s later. The mechanism, read in
+  `pynng/_aio.py`: on cancellation, `asyncio_helper.wait_for_aio` calls `nng_aio_cancel` and keeps
+  waiting, swallowing `CancelledError`, for NNG's completion callback. Rarely that callback never
+  comes, and then no timeout can end the operation. The fix never exposes a pynng operation to
+  cancellation. `_shielded()` lets the cancellation reach the caller at once. The caller closes its
+  socket (the `with` block) or context, which ends the abandoned operation with `Closed`, and that
+  error is retrieved so it is never logged. The receive timeout was removed again. Measured after the
+  fix: **0 stalls in 7000 cancellations** (about 7 expected before). It is pinned deterministically
+  by `StuckSocket`, a fake that reproduces the bridge's behaviour, and by the slow 1000-round
+  `integration::TestPromptCancellation::test_a_thousand_cancellations_all_complete`.
+
+Found on the way, not a defect: a node started **before** its controller takes 0.4–8.5 s to connect
+(15 runs, idle box). It can take up to `start_dialer`'s `reconnect_time_max` of 30 s, because NNG
+grows the dialer's retry delay after every failed dial. The integration bound is therefore 35 s.
+
+Direction suggested before the fixes (kept for the record; corrected above for C5 and C6):
 - **C2, C3, C4:** catch per request inside the loop, and always send one reply (an error object, for example).
 - **C5, C6:** give the sockets a receive timeout, as `NngBusHub` does with `recv_timeout=100`, and loop on `Timeout`. That makes cancellation prompt and lets `send_request` take a deadline.
 - **C1:** strip `ipc://` before `check_path`.
