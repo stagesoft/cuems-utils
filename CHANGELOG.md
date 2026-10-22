@@ -95,6 +95,11 @@ forever too. Every request now gets exactly one reply. When a request cannot be 
 the reply is `{"OK": false, "error": "<ExceptionType>: <message>"}`: the shape `cuems-nodeconf`
 already uses, which `cuems-editor` reads as a refusal. Only a socket error ends the loop.
 
+The context API had the same gap: `responder_get_request` logged a request that was not JSON and
+dropped it, with no reply and no close. It now answers with the same error reply and closes the
+context. A callback that raises is still not answered for, because it owns its context and may
+already have replied.
+
 ### Fixed — `Communicator` accepts an `ipc://` address
 
 `Communicator("ipc:///tmp/editor.ipc")` checked the prefixed string as a file path, which resolves to

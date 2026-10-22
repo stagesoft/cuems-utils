@@ -12,9 +12,11 @@ socket makes ``arecv()`` raise ``Closed``, which ``reply()`` handles by returnin
 this module opens is recorded (``OPENED``) and closed by the helpers and by teardown.
 """
 import asyncio
+import json
 import os
 import shutil
 import tempfile
+from unittest.mock import Mock
 
 import pynng
 import pytest
@@ -261,3 +263,29 @@ class TestFailureModes:
 
         reply = run(scenario())
         assert reply["OK"] is False and reply["error"].startswith("TypeError: ")
+
+
+class TestContextResponderFailureModes:
+    def test_a_malformed_request_is_answered_and_the_responder_keeps_serving(self, address):
+        async def scenario():
+            responder = NngRequestResponse(address)
+            await responder.responder_connect()
+            try:
+                with pynng.Req0(dial=address) as raw:
+                    await raw.asend(b"not json")
+                    get = asyncio.create_task(responder.responder_get_request(Mock()))
+                    bad = json.loads((await asyncio.wait_for(raw.arecv(), BOUND)).decode())
+                    await asyncio.wait({get}, timeout=BOUND)
+                held = []
+                ask = asyncio.create_task(_ask(address, {"n": 2}))
+                await asyncio.wait_for(
+                    responder.responder_get_request(lambda q, c: held.append((q, c))), BOUND)
+                (request, context), = held
+                await responder.responder_post_reply({"ok": request["n"]}, context)
+                return bad, await ask
+            finally:
+                responder.responder.close()
+
+        bad, good = run(scenario())
+        assert bad["OK"] is False and bad["error"].startswith("JSONDecodeError: ")
+        assert good == {"ok": 2}

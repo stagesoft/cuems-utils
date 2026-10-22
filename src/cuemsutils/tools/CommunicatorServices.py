@@ -155,7 +155,15 @@ class NngRequestResponse(CommunicatorService):
         try:
             context = self.responder.new_context()
             request = await context.arecv()
-            decoded_request = json.loads(request.decode())  # Parse the JSON request
+            try:
+                decoded_request = json.loads(request.decode())  # Parse the JSON request
+            except ValueError as e:
+                # The callback never sees this request, so it is answered here and its context
+                # closed: unanswered, its requester would wait for good. (A callback that raises is
+                # different: it owns the context, and may already have replied or handed it on.)
+                Logger.error(f"Error occurred while handling request: {e}")
+                await self.responder_post_reply(_error_reply(e), context)
+                return
             Logger.debug(f"Received: {decoded_request}")
             if asyncio.iscoroutinefunction(callback):
                 Logger.debug("Calling callback function async")

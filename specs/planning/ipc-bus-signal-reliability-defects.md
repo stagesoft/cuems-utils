@@ -12,10 +12,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 Every defect was **measured** over real sockets, signals and processes, never inferred.
 
-**Status (2026-10-22):** **C1, C2, C3, C4 and H3 are fixed**, test first: their xfail markers were
+**Status (2026-10-22):** **C1, C2, C3, C4, C7 and H3 are fixed**, test first: their xfail markers were
 removed, the tests went red, and the fix turned them green. Failed requests are now answered with
 `{"OK": False, "error": "<ExceptionType>: <message>"}`, the shape `cuems-nodeconf` already uses and
-`cuems-editor` already reads. **Open:** C5, C6, C7 (found while fixing C3), H1, H2, H4 and S1. This
+`cuems-editor` already reads. C7 was found while fixing C3, and fixed the same way. A callback that *raises* is deliberately not answered for: it owns its context, and may already have replied or handed the context on (`cuems-engine` replies later, from another thread). **Open:** C5, C6, H1, H2, H4 and S1. This
 document is deleted once those are resolved.
 
 Before the fixes, the production code was unchanged. Each defect except C6 is pinned by `xfail(strict=True)` tests that
@@ -36,7 +36,7 @@ message look delivered.
 | **C3** ✅ fixed | a request that is not JSON does the same | same as C2 | `unit::TestReply::test_a_malformed_request_does_not_stop_the_replier` |
 | **C4** ✅ fixed | a response that cannot be JSON-encoded is logged and **never sent** | REQ/REP needs one reply per request, so **that requester hangs forever** | `unit::TestRespond::test_an_unencodable_response_still_answers_the_requester`, `integration::TestFailureModes::test_a_requester_is_answered_even_when_its_response_cannot_be_encoded` |
 | **C5** | `send_request` has no timeout | asking a service that is not running **waits forever**, where every other failure returns `None` | `integration::TestFailureModes::test_asking_a_service_that_is_not_running_returns_none` |
-| **C7** | the context API's `responder_get_request` logs a request that is not JSON and drops it: no reply, and the context is never closed | **its requester waits forever**, and the context leaks. Same class as C3, on the other server API | `unit::TestResponderGetRequest::test_a_malformed_request_is_answered_and_its_context_closed` |
+| **C7** ✅ fixed | the context API's `responder_get_request` logs a request that is not JSON and drops it: no reply, and the context is never closed | **its requester waits forever**, and the context leaks. Same class as C3, on the other server API | `unit::TestResponderGetRequest::test_a_malformed_request_is_answered_and_its_context_closed` |
 | **C6** | `reply()` waits in `arecv()` with no receive timeout | **about 1 cancellation in 1000** of that pending receive never completes. Measured over 1000 rounds, both with one event loop and with a fresh loop per round. So a service that stops `reply()` by cancelling it can hang at shutdown until systemd kills it | not pinnable (probabilistic). The integration tests stop servers by closing the socket instead, as their docstring explains |
 
 Suggested direction (a design decision, not made here):

@@ -309,15 +309,24 @@ class TestResponderGetRequest:
         assert len(rr.responder.contexts) == 2
         assert rr.responder.contexts[0] is not rr.responder.contexts[1]
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "defect C7: a malformed request on the context API is logged and dropped, with no reply and "
-        "no close, so its requester waits forever and the context leaks. Same class as C3 in reply()."
-    ))
     def test_a_malformed_request_is_answered_and_its_context_closed(self, rr):
         rr.responder.incoming[:] = [b"not json"]
         run(rr.responder_get_request(Mock()))
         context = rr.responder.contexts[0]
         assert len(context.sent) == 1 and context.closed is True
+
+    def test_the_answer_to_a_malformed_request_is_an_error_reply(self, rr):
+        rr.responder.incoming[:] = [b"not json"]
+        run(rr.responder_get_request(Mock()))
+        (reply,) = [json.loads(s) for s in rr.responder.contexts[0].sent]
+        assert reply["OK"] is False and reply["error"].startswith("JSONDecodeError: ")
+
+    def test_a_raising_callback_is_not_answered_for_it(self, rr):
+        """The callback owns its context: it may already have replied, or have handed the context on
+        to reply later (cuems-engine does, from another thread). A second reply is not ours to send."""
+        run(rr.responder_get_request(Mock(side_effect=RuntimeError("handler bug"))))
+        context = rr.responder.contexts[0]
+        assert context.sent == [] and context.closed is False
 
     def test_a_malformed_request_is_logged_and_the_callback_not_called(self, rr, caplog):
         rr.responder.incoming[:] = [b"not json"]
