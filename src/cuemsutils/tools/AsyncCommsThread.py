@@ -148,7 +148,12 @@ class AsyncCommsThread(Thread):
             timeout = self.timeout
 
         loop = self.event_loop
-        if loop is not None and self.is_alive() and not self.ended.is_set():
+        # Once end_reason is set the loop is already cancelling its tasks and
+        # stopping by itself (typically: on_comms_ended signalled the process,
+        # and this is the signal handler). A cancellation posted now could land
+        # in a loop that closes before running it, so only join.
+        ending = self.ended.is_set() or self.end_reason is not None
+        if loop is not None and self.is_alive() and not ending:
             try:
                 # Cancel the tasks first and WAIT for them: cancelling the NNG
                 # receiver while NNG is still alive lets pynng cancel and free

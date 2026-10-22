@@ -206,6 +206,27 @@ class TestStop:
         comms.stop(timeout=BOUND)
         assert isinstance(comms.end_reason, ValueError)
 
+    def test_stop_while_the_communications_end_by_themselves_only_joins(self, caplog):
+        # nodeconf's fatal path: on_comms_ended signals the process, and the signal handler
+        # calls stop() from another thread while this loop is still shutting itself down.
+        stopped = []
+
+        class Signalling(Comms):
+            def on_comms_ended(self, task):
+                stopper = threading.Thread(target=lambda: stopped.append(self.stop(timeout=BOUND)))
+                stopper.start()
+                time.sleep(0.05)  # let stop() start while this loop is still running
+
+        begin = time.monotonic()
+        comms = ended(started(Signalling(raises)))
+        deadline = time.monotonic() + BOUND
+        while not stopped:
+            assert time.monotonic() < deadline, "stop() did not return"
+            time.sleep(0.001)
+        assert time.monotonic() - begin < 1.0
+        assert "Error cancelling tasks" not in caplog.text
+        assert isinstance(comms.end_reason, ValueError)
+
     def test_stop_from_the_comms_thread_raises(self):
         errors = []
 
