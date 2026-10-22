@@ -86,6 +86,27 @@ with no `violation`, so a consumer could tell it from a broken document only by 
 carries `violation.rule == "document_version_too_new"`, as a show document already did. The fix
 for it is to upgrade the software, not to edit the document.
 
+### Fixed — one bad request no longer stops a service from answering
+
+`NngRequestResponse.reply()`, which `Communicator.reply()` runs, ended its loop on the first request
+whose processor raised, or that was not JSON. From then on, **every** request to that service
+waited forever. A response that could not be JSON-encoded was never sent, so its requester waited
+forever too. Every request now gets exactly one reply. When a request cannot be answered normally,
+the reply is `{"OK": false, "error": "<ExceptionType>: <message>"}`: the shape `cuems-nodeconf`
+already uses, which `cuems-editor` reads as a refusal. Only a socket error ends the loop.
+
+### Fixed — `Communicator` accepts an `ipc://` address
+
+`Communicator("ipc:///tmp/editor.ipc")` checked the prefixed string as a file path, which resolves to
+the relative path `./ipc:/tmp/...`, and called `sys.exit(1)`. That stopped the calling service. A plain
+path always worked, and still does.
+
+### Fixed — a failed bus send no longer counts as traffic
+
+`NngBusHub` counted a message as sent, and stamped its send time, before `asend()`. A send that
+failed therefore kept `is_connection_healthy()` `True` while nothing reached the bus. The counters
+now move only after a successful send.
+
 ### Fixed — another cluster's controller no longer joins this one's network map
 
 Several CUEMS clusters can share one LAN, and every controller announces itself over mDNS. A

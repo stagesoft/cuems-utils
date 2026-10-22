@@ -13,6 +13,16 @@ from ..helpers import check_path
 from ..log import Logger
 
 
+def _error_reply(error: Exception) -> dict:
+    """The reply sent when a request cannot be answered normally.
+
+    REQ/REP needs exactly one reply per request: a requester left unanswered waits for good. The
+    shape is the one ``cuems-nodeconf``'s replies already use, which the editor reads as
+    ``reply.get('OK') is not True`` -> ``reply.get('error')``.
+    """
+    return {"OK": False, "error": f"{type(error).__name__}: {error}"}
+
+
 class IpcAddress(Enum):
     """ IPC addresses for the different services """
     HWDISCOVERY = '/tmp/hwdiscovery.ipc'
@@ -107,20 +117,32 @@ class NngRequestResponse(CommunicatorService):
             with Rep0(**self.params_reply) as socket:
                 while await asyncio.sleep(0, result=True):
                     request = await socket.arecv()
-                    decoded_request = json.loads(request.decode())  # Parse the JSON request
-                    Logger.debug(f"Received: {decoded_request}")
-                    if asyncio.iscoroutinefunction(request_processor):
-                        response = await request_processor(decoded_request)
-                    else:
-                        loop = asyncio.get_event_loop()
-                        response = await loop.run_in_executor(None, partial(request_processor, decoded_request))
+                    # One bad request must not stop the service: a request that is not JSON, or
+                    # whose processor raises, is answered with _error_reply() and the loop goes on.
+                    # Only a socket error (above, in arecv) ends it.
+                    try:
+                        decoded_request = json.loads(request.decode())  # Parse the JSON request
+                        Logger.debug(f"Received: {decoded_request}")
+                        if asyncio.iscoroutinefunction(request_processor):
+                            response = await request_processor(decoded_request)
+                        else:
+                            loop = asyncio.get_event_loop()
+                            response = await loop.run_in_executor(None, partial(request_processor, decoded_request))
+                    except Exception as e:
+                        Logger.error(f"Error occurred while processing request: {e}")
+                        response = _error_reply(e)
                     await self._respond(socket, response)
         except Exception as e:
             Logger.error(f"Error occurred while handling request: {e}")
 
     async def _respond(self, socket, response):
         try:
-            encoded_response = json.dumps(response).encode()
+            try:
+                encoded_response = json.dumps(response).encode()
+            except (TypeError, ValueError) as e:
+                # Still answer: without a reply the requester waits for good.
+                Logger.error(f"Error occurred while sending response: cannot encode it: {e}")
+                encoded_response = json.dumps(_error_reply(e)).encode()
             Logger.debug(f"Sending: {encoded_response}")
             await socket.asend(encoded_response)
         except Exception as e:
@@ -176,14 +198,17 @@ class Communicator(CommunicatorService):
         - communicator_service (Callable[[str, bool], CommunicatorService]): The communicator service to use.
         - requester_dials (bool): If True, the instance will dial the address. If False, it will listen for connections.
         """
+        # The filesystem check needs the socket path: an ipc:// address checked as given resolves
+        # to the relative path ./ipc:/... and exits.
+        socket_path = address[6:] if address[0:6] == 'ipc://' else address
         try:
-            check_path(address)
+            check_path(socket_path)
         except PermissionError as e:
             Logger.error(e)
             sys.exit(1)
         except FileNotFoundError:
             try:
-                check_path(address, dir_only = True)
+                check_path(socket_path, dir_only = True)
             except (NotADirectoryError, PermissionError) as e:
                 Logger.error(e)
                 sys.exit(1)

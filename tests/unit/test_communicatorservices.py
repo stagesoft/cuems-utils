@@ -202,10 +202,6 @@ class TestReply:
             run(NngRequestResponse(ADDRESS).reply(lambda q: q))  # returns, does not raise
         assert "Error occurred while handling request" in caplog.text
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "defect: an exception from the request processor ends reply()'s loop, so one bad request "
-        "stops the service answering anyone. Measured over real IPC: every later request hangs."
-    ))
     def test_a_raising_processor_does_not_stop_the_replier(self):
         def processor(q):
             if q.get("boom"):
@@ -217,14 +213,37 @@ class TestReply:
             run(NngRequestResponse(ADDRESS).reply(processor))
         assert {"ok": 2} in [json.loads(s) for s in sock.sent]
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "defect: a request that is not JSON ends reply()'s loop, like a raising processor."
-    ))
     def test_a_malformed_request_does_not_stop_the_replier(self):
         sock = FakeSocket([b"not json", frame({"n": 2})])
         with patch.object(module, "Rep0", return_value=sock):
             run(NngRequestResponse(ADDRESS).reply(lambda q: {"ok": q["n"]}))
         assert {"ok": 2} in [json.loads(s) for s in sock.sent]
+
+    def test_a_raising_processor_is_answered_with_an_error_reply(self):
+        sock = FakeSocket([frame({"n": 1})])
+        with patch.object(module, "Rep0", return_value=sock):
+            run(NngRequestResponse(ADDRESS).reply(Mock(side_effect=ValueError("boom"))))
+        assert [json.loads(s) for s in sock.sent] == [{"OK": False, "error": "ValueError: boom"}]
+
+    def test_a_malformed_request_is_answered_with_an_error_reply(self):
+        sock = FakeSocket([b"not json"])
+        with patch.object(module, "Rep0", return_value=sock):
+            run(NngRequestResponse(ADDRESS).reply(Mock()))
+        (reply,) = [json.loads(s) for s in sock.sent]
+        assert reply["OK"] is False and reply["error"].startswith("JSONDecodeError: ")
+
+    def test_every_request_gets_exactly_one_reply(self):
+        """REQ/REP: a request left unanswered blocks its requester for good."""
+        def processor(q):
+            if q["n"] == 1:
+                raise ValueError("boom")
+            return {"ok": q["n"]}
+
+        sock = FakeSocket([frame({"n": 0}), frame({"n": 1}), b"junk", frame({"n": 3})])
+        with patch.object(module, "Rep0", return_value=sock):
+            run(NngRequestResponse(ADDRESS).reply(processor))
+        assert len(sock.sent) == 4
+        assert json.loads(sock.sent[0]) == {"ok": 0} and json.loads(sock.sent[3]) == {"ok": 3}
 
 
 class TestRespond:
@@ -238,14 +257,20 @@ class TestRespond:
         run(NngRequestResponse(ADDRESS)._respond(sock, {"when": object()}))
         assert "Error occurred while sending response" in caplog.text
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "defect: when the response cannot be JSON-encoded nothing is sent, so the requester waits "
-        "forever (REQ/REP needs exactly one reply per request). Measured over real IPC."
-    ))
     def test_an_unencodable_response_still_answers_the_requester(self):
         sock = FakeSocket()
         run(NngRequestResponse(ADDRESS)._respond(sock, {"when": object()}))
         assert len(sock.sent) == 1
+
+    def test_the_answer_to_an_unencodable_response_is_an_error_reply(self):
+        sock = FakeSocket()
+        run(NngRequestResponse(ADDRESS)._respond(sock, {"when": object()}))
+        (reply,) = [json.loads(s) for s in sock.sent]
+        assert reply["OK"] is False and reply["error"].startswith("TypeError: ")
+
+    def test_a_failing_send_is_logged_not_raised(self, caplog):
+        run(NngRequestResponse(ADDRESS)._respond(FakeSocket(fail_send=OSError("peer gone")), {"r": 1}))
+        assert "peer gone" in caplog.text
 
 
 # --- NngRequestResponse.responder_* ----------------------------------------------------------
@@ -283,6 +308,16 @@ class TestResponderGetRequest:
         run(rr.responder_get_request(Mock()))
         assert len(rr.responder.contexts) == 2
         assert rr.responder.contexts[0] is not rr.responder.contexts[1]
+
+    @pytest.mark.xfail(strict=True, reason=(
+        "defect C7: a malformed request on the context API is logged and dropped, with no reply and "
+        "no close, so its requester waits forever and the context leaks. Same class as C3 in reply()."
+    ))
+    def test_a_malformed_request_is_answered_and_its_context_closed(self, rr):
+        rr.responder.incoming[:] = [b"not json"]
+        run(rr.responder_get_request(Mock()))
+        context = rr.responder.contexts[0]
+        assert len(context.sent) == 1 and context.closed is True
 
     def test_a_malformed_request_is_logged_and_the_callback_not_called(self, rr, caplog):
         rr.responder.incoming[:] = [b"not json"]
@@ -332,12 +367,6 @@ class TestCommunicatorInit:
         (tmp_path / "svc.ipc").touch()
         assert Communicator(str(tmp_path / "svc.ipc")).address == f"ipc://{tmp_path}/svc.ipc"
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "defect: an address that already carries ipc:// is passed to check_path as a file path, "
-        "whose directory 'ipc:' does not exist, so the constructor calls sys.exit(1) and takes the "
-        "calling service down. The prefix check right after it shows the address is meant to be "
-        "accepted."
-    ))
     def test_an_address_with_the_ipc_prefix_is_accepted(self, tmp_path):
         assert Communicator(f"ipc://{tmp_path}/svc.ipc").address == f"ipc://{tmp_path}/svc.ipc"
 

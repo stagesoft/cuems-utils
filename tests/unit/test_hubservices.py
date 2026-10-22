@@ -629,16 +629,26 @@ class TestSendHandler:
         assert dialer.connection.sent == [b'{"second": 2}']
         assert "Error in send handler: wire down" in caplog.text
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "defect: the sent counter and last-sent time are updated before asend(), so a failed send "
-        "counts as traffic and is_connection_healthy() stays True while nothing goes out."
-    ))
     def test_a_failed_send_is_not_counted_as_sent(self, dialer):
         dialer.connection = FakeBus(send_errors=[RuntimeError("wire down")])
         dialer.outgoing.put_nowait("{}")
         run(_run_sender_until_drained(dialer))
         assert dialer._messages_sent_count == 0
         assert dialer._last_message_sent is None
+
+    def test_after_a_failed_send_the_next_success_counts_once(self, dialer):
+        dialer.connection = FakeBus(send_errors=[RuntimeError("wire down")])
+        dialer.outgoing.put_nowait('{"lost": 1}')
+        dialer.outgoing.put_nowait('{"sent": 2}')
+        run(_run_sender_until_drained(dialer))
+        assert dialer._messages_sent_count == 1
+        assert dialer._last_message_sent is not None
+
+    def test_a_failed_send_alone_leaves_an_idle_link_unhealthy(self, dialer):
+        dialer.connection = FakeBus(send_errors=[RuntimeError("wire down")])
+        dialer.outgoing.put_nowait("{}")
+        run(_run_sender_until_drained(dialer))
+        assert dialer.is_connection_healthy() is False
 
 
 # --- _add_callbacks / _post_connect_callback / _post_remove_callback -----------------------------

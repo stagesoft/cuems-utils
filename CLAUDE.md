@@ -223,8 +223,10 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   per production class or method, in source order) and a `tests/integration/` counterpart (real
   signals to a child process, a real `NOTIFY_SOCKET`, real REQ/REP over IPC, real BUS over TCP/IPC).
   Coverage: `SignalEngine` 61→100%, `CommunicatorServices` 40→96%, `HubServices` 55→93%, library
-  87→90%. **Nine production defects found and pinned as `xfail(strict=True)`, production unchanged**:
-  `specs/planning/ipc-bus-signal-reliability-defects.md` (C1–C6, H1–H4, S1). ⚠ Two test traps:
+  87→90%. Production defects were found and pinned as `xfail(strict=True)`; the record is
+  `specs/planning/ipc-bus-signal-reliability-defects.md`. **C1–C4 and H3 are fixed**: a request that
+  fails is answered with `{"OK": False, "error": "<Type>: <msg>"}`, an `ipc://` address no longer
+  exits, and a failed bus send no longer counts as healthy. **Still open:** C5–C7, H1, H2, H4, S1. ⚠ Two test traps:
   stop a `reply()` server by **closing its socket**, never by cancelling alone (C6: ~1 in 1000
   cancellations hang); and assert log text through `tests/support/cuems_logs.capture`, since each
   module's logger takes `CUEMS_LOG_LEVEL` once and caches it.

@@ -547,19 +547,20 @@ class NngBusHub(HubService):
             try:
                 message = await self.outgoing.get()
 
-                # Track message send for connection health
-                self._last_message_sent = datetime.now()
-                self._messages_sent_count += 1
-
                 # DEBUG: Log message type before sending
                 try:
                     data = json.loads(message)
                     msg_type = data.get("__type__", data.get("type", "unknown"))
                 except Exception:
                     msg_type = "non-json"
-                Logger.debug(f"[SEND #{self._messages_sent_count}] {self.mode.value} sending: type={msg_type}")
+                Logger.debug(f"[SEND #{self._messages_sent_count + 1}] {self.mode.value} sending: type={msg_type}")
 
                 await self.connection.asend(message.encode())
+
+                # Track message send for connection health only once it went out: a failed send
+                # counted here kept is_connection_healthy() True while nothing reached the bus.
+                self._last_message_sent = datetime.now()
+                self._messages_sent_count += 1
             except pynng_exceptions.Closed:
                 # Same rule as the receiver: never touch NNG again once the
                 # socket is closed (see _receiver_handler).

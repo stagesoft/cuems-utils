@@ -47,6 +47,14 @@ cuems-utils (0.1.1) UNRELEASED; urgency=medium
     the loader would refuse after they wrote it ("refused on load"); what
     they write and their exit status are unchanged.
     python -m cuemsutils.xml.reshape_devices now runs the tool.
+  * Request/reply services keep answering: a request whose processor
+    raised, or that was not JSON, ended NngRequestResponse.reply() for good,
+    and an unencodable response was never sent, so requesters waited
+    forever. Every request now gets exactly one reply, on failure
+    {"OK": false, "error": "<Type>: <message>"}.
+  * Communicator accepts an ipc:// address; it used to sys.exit(1).
+  * NngBusHub counts a message as sent only after asend() succeeds, so a
+    failing link no longer reports itself healthy.
   * Packaging: debian/ lives on the working branch. After this merge
     debian/bookworm is contained in it; that line may keep releasing
     0.1.0rcN until 0.1.1 is published, and each such release is merged in

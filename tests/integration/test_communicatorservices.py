@@ -235,10 +235,6 @@ class TestFailureModes:
     def test_asking_a_service_that_is_not_running_returns_none(self, address):
         assert run(_ask(address, {"n": 1})) is None
 
-    @pytest.mark.xfail(strict=True, raises=asyncio.TimeoutError, reason=(
-        "defect: an exception from the processor ends reply()'s loop, so every later requester "
-        "waits forever."
-    ))
     def test_the_service_keeps_answering_after_its_processor_raised(self, address):
         def processor(q):
             if q.get("boom"):
@@ -248,20 +244,13 @@ class TestFailureModes:
         async def scenario():
             server = await _serving(address, processor)
             try:
-                try:  # the failing request itself: an error reply or no reply are both acceptable
-                    await _ask(address, {"boom": 1})
-                except asyncio.TimeoutError:
-                    pass
-                return await _ask(address, {"n": 2})
+                failed = await _ask(address, {"boom": 1})
+                return failed, await _ask(address, {"n": 2})
             finally:
                 await _stop(server)
 
-        assert run(scenario()) == {"ok": 2}
+        assert run(scenario()) == ({"OK": False, "error": "ValueError: boom"}, {"ok": 2})
 
-    @pytest.mark.xfail(strict=True, raises=asyncio.TimeoutError, reason=(
-        "defect: a response that cannot be JSON-encoded is never sent, so its requester waits "
-        "forever."
-    ))
     def test_a_requester_is_answered_even_when_its_response_cannot_be_encoded(self, address):
         async def scenario():
             server = await _serving(address, lambda q: {"when": object()})
@@ -270,4 +259,5 @@ class TestFailureModes:
             finally:
                 await _stop(server)
 
-        assert run(scenario()) is not None
+        reply = run(scenario())
+        assert reply["OK"] is False and reply["error"].startswith("TypeError: ")
