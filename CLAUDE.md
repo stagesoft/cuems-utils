@@ -223,8 +223,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   per production class or method, in source order) and a `tests/integration/` counterpart (real
   signals to a child process, a real `NOTIFY_SOCKET`, real REQ/REP over IPC, real BUS over TCP/IPC).
   Coverage: `SignalEngine` 61→100%, `CommunicatorServices` 40→96%, `HubServices` 55→93%, library
-  87→90%. Production defects were found and pinned as `xfail(strict=True)`; the record is
-  `specs/planning/ipc-bus-signal-reliability-defects.md`. **every defect is fixed (C1–C7, H1–H4, S1), H5 measured and not reproduced**: a request that
+  87→90%. Production defects were found and pinned as `xfail(strict=True)`, then fixed test first. **Every defect is fixed (C1–C8, H1–H4, S1), H5 was measured and not reproduced, and H6 is a protocol property handled in the engine.** The record that tabulated them (`specs/planning/ipc-bus-signal-reliability-defects.md`) is **deleted, superseded**: each fix has its own `CHANGELOG.md` 0.1.1 entry, and the ids still used in code comments and test names (C1…C8, H1…H6, S1) resolve there and in git history. In short: a request that
   fails is answered with `{"OK": False, "error": "<Type>: <msg>"}`, an `ipc://` address no longer
   exits, a failed bus send no longer counts as healthy, `send_request(..., timeout=100)` returns `None`
   at its deadline, and no pynng operation is ever exposed to cancellation (`_shielded`: pynng's bridge can
@@ -232,7 +231,7 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
   `NngBusHub.start()` now *returns* when its socket closes (decided: return, not raise); `cuems-engine` watches that task since `69c2d9a` (its comms thread is now `AsyncCommsThread`, and the upstream report that asked for it is deleted). Coverage now: `SignalEngine` 100%, `CommunicatorServices` 97%, `HubServices` 94%. ⚠ Traps: a REQ socket
   cannot poll (a timed-out receive abandons the request), and a node started before its controller may
   take up to `reconnect_time_max` (30 s) to join; the first BUS message on a brand-new link can be dropped (H6:
-  3 in 12000, 0 after a 20 ms settle; tests use `SETTLE`; the engine resends only its idempotent liveness `ping`, never `load`/`go`, see the defect record's H6); and assert log text through `tests/support/cuems_logs.capture`, since each
+  3 in 12000, 0 after a 20 ms settle; tests use `SETTLE`; the engine resends only its idempotent liveness `ping` (`18aabed`): `load` is not resent because `armed_ready` already acknowledges it and a duplicate re-arms the node, and `go` is not resent because `run_seq` is per run, not per GO, so a resend that did arrive fires the next cue; resending those needs per-message ids, a wire-format change); C8: `responder_get_request` raises on a socket error instead of returning (it used to spin ~28,700 times/s without yielding); and assert log text through `tests/support/cuems_logs.capture`, since each
   module's logger takes `CUEMS_LOG_LEVEL` once and caches it.
 
 - **`017-release-line-reconciliation` IMPLEMENTED** (2026-10-21/22, on its branch; merges into

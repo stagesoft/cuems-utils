@@ -47,7 +47,7 @@ nodeconf corrections to §6.3:
 - It now lives in `src/cuemsnodeconf/` with tests by kind.
 - The thread's name changes to `AsyncComms-Communications`.
 - Its fatal path's non-zero exit is `run_nodeconf._exit_status`.
-- Found while doing this and **fixed as C8** (`specs/planning/ipc-bus-signal-reliability-defects.md`):
+- Found while doing this and **fixed as C8** (in the defect record `specs/planning/ipc-bus-signal-reliability-defects.md`, since deleted as superseded; see `CHANGELOG.md` 0.1.1):
   `responder_get_request` swallowed socket errors, so a closed responder made the listener spin
   without yielding instead of ending, and supervision could not see it. It now raises.
 - The engine half waits until the engine's own 009 (release-line reconciliation) lands, so that
