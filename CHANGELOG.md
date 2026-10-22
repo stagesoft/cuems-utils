@@ -86,6 +86,28 @@ with no `violation`, so a consumer could tell it from a broken document only by 
 carries `violation.rule == "document_version_too_new"`, as a show document already did. The fix
 for it is to upgrade the software, not to edit the document.
 
+### Added — `AsyncCommsThread`, the thread that runs a service's NNG event loop
+
+`cuemsutils.tools.AsyncCommsThread` is the base class `cuems-engine` had, absorbed here so
+`cuems-nodeconf` can stop keeping a copy of it
+(`specs/planning/async-comms-thread-absorption.md`). It is the engine's class with the same surface,
+plus three changes:
+
+- **It notices when its communications end.** A task that raises, or a task marked with
+  `essential()` that returns, cancels the others, records `end_reason`, calls the overridable
+  `on_comms_ended()` and stops the loop. The engine's version waited for every task, so a bus hub
+  whose socket had closed left the thread running with no bus. A task that is not essential may
+  finish early, and the others keep running. The library never exits the process; the subclass
+  decides what an ended thread means for its service.
+- **`stop()` is safe to call more than once**, before `start()`, or after the communications ended
+  on their own. Called from the comms thread itself it raises `RuntimeError` instead of deadlocking.
+  `stop()` still blocks until the thread has gone, which keeps the process from aborting at exit
+  (ClickUp 869ed00ya). Measured in a child process with an NNG receive pending: without `stop()`,
+  11 of 20 runs aborted with status 134; with it, 20 of 20 exited 0.
+- **The loop is closed in its own thread**, and `run_coroutine()` refuses with the reason once the
+  communications have ended. `AsyncCommsThread.stop_all()` stops every live instance, for test
+  teardown.
+
 ### Fixed — one bad request no longer stops a service from answering
 
 `NngRequestResponse.reply()`, which `Communicator.reply()` runs, ended its loop on the first request

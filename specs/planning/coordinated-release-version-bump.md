@@ -65,6 +65,10 @@ and the file inventory in this repository.
 >    2026-10-16 (`8a4bc42`). Before publication, also tell the `cuems-power-bridge` and `cuems-frontend`
 >    maintainers the refactor's numbers (`0.4.0-1`, `0.2.0`), so their release lines stay below them.
 > 6. **Publication** (§11 step 10).
+> 7. **`AsyncCommsThread` absorption** (added 2026-10-22): the library half lands in `0.1.1`, and
+>    `cuems-engine` and `cuems-nodeconf` migrate onto it. After that, three candidate tags are stale
+>    (`cuems-utils`, `cuems-engine`, `cuems-nodeconf`) and have to be re-cut and re-validated. No
+>    relation moves. Work order: [`async-comms-thread-absorption.md`](async-comms-thread-absorption.md).
 
 ## The decision, in five rules
 

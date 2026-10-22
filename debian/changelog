@@ -72,6 +72,11 @@ cuems-utils (0.1.1) UNRELEASED; urgency=medium
     on a running hub, instead of after the current interval (10 s).
   * NngBusHub.start() returns, with an error logged, once its bus socket
     closes; it used to keep running with no bus.
+  * New cuemsutils.tools.AsyncCommsThread, absorbed from cuems-engine so
+    cuems-nodeconf stops keeping a copy: the daemon thread that runs a
+    service's NNG event loop. A task that raises, or an essential() task
+    that returns, ends the communications and calls on_comms_ended();
+    stop() blocks until the thread is gone, and is idempotent.
   * Packaging: debian/ lives on the working branch. After this merge
     debian/bookworm is contained in it; that line may keep releasing
     0.1.0rcN until 0.1.1 is published, and each such release is merged in
