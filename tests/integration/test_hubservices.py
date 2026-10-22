@@ -1,478 +1,338 @@
+"""Integration counterpart of ``cuemsutils.tools.HubServices``: real NNG buses over TCP and IPC.
+
+This is the controller/node topology the cluster runs: one LISTENER (the controller) and DIALERs
+(the nodes). Every wait is bounded, so a lost message shows up as a failure, not a stuck suite. The
+behaviour of each method in isolation is in ``tests/unit/test_hubservices.py``.
+"""
 import asyncio
-import json
-from datetime import datetime
-from unittest.mock import AsyncMock, Mock
+import shutil
+import socket
+import tempfile
+import time
+from contextlib import asynccontextmanager
 
 import pytest
-from pynng import exceptions as pynng_exceptions
-
-from cuemsutils.tools.HubServices import ConnectionInfo, Message, NngBusHub
-
-
-class TestMessage:
-    """Test the Message dataclass."""
-
-    def test_message_creation(self):
-        """Test basic Message creation."""
-        data = {"test": "value"}
-        sender = "test_sender"
-        message = Message(data=data, sender=sender)
-
-        assert message.data == data
-        assert message.sender == sender
-
-    def test_message_equality(self):
-        """Test Message equality comparison."""
-        data = {"test": "value"}
-        sender = "test_sender"
-        message1 = Message(data=data, sender=sender)
-        message2 = Message(data=data, sender=sender)
-
-        assert message1 == message2
-
-
-class TestConnectionInfo:
-    """Test the ConnectionInfo dataclass."""
-
-    def test_connection_info_creation(self):
-        """Test basic ConnectionInfo creation."""
-        pipe_id = 123
-        sender = "test_sender"
-        connected_at = datetime.now()
-
-        conn_info = ConnectionInfo(
-            pipe_id=pipe_id,
-            sender=sender,
-            connected_at=connected_at
-        )
-
-        assert conn_info.pipe_id == pipe_id
-        assert conn_info.sender == sender
-        assert conn_info.connected_at == connected_at
-
-
-class TestNngBusHub:
-    """Test the NngBusHub class."""
-
-    @pytest.fixture
-    def hub_controller(self):
-        """Create a controller hub for testing."""
-        return NngBusHub("tcp://127.0.0.1:5555", NngBusHub.Mode.LISTENER)
-
-    @pytest.fixture
-    def hub_node(self):
-        """Create a node hub for testing."""
-        return NngBusHub("tcp://127.0.0.1:5555", NngBusHub.Mode.DIALER)
-
-    def test_hub_initialization_controller(self, hub_controller: NngBusHub):
-        """Test controller hub initialization."""
-        assert hub_controller.address == "tcp://127.0.0.1:5555"
-        assert hub_controller.mode == NngBusHub.Mode.LISTENER
-        assert hub_controller.active_connections == {}
-        assert hub_controller._messages_received_count == 0
-        assert hub_controller._messages_sent_count == 0
-        assert hub_controller._auto_ping_enabled is False
-        assert hub_controller._auto_pong_enabled is True
-
-    def test_hub_initialization_node(self, hub_node: NngBusHub):
-        """Test node hub initialization."""
-        assert hub_node.address == "tcp://127.0.0.1:5555"
-        assert hub_node.mode == NngBusHub.Mode.DIALER
-        assert hub_node.active_connections == {}
-        assert hub_node._messages_received_count == 0
-        assert hub_node._messages_sent_count == 0
-
-    def test_send_message_dict(self, hub_controller: NngBusHub):
-        """Test sending a dict message."""
-        message = {"test": "value", "number": 42}
-
-        # Mock the outgoing queue
-        hub_controller.outgoing = AsyncMock()
-
-        # Run the async method
-        asyncio.run(hub_controller.send_message(message))
-
-        # Verify JSON encoding
-        hub_controller.outgoing.put.assert_called_once()
-        call_args = hub_controller.outgoing.put.call_args[0][0]
-        assert call_args == json.dumps(message)
-
-    def test_send_message_message_object(self, hub_controller: NngBusHub):
-        """Test sending a Message object."""
-        data = {"test": "value"}
-        sender = "test_sender"
-        message_obj = Message(data=data, sender=sender)
-
-        # Mock the outgoing queue
-        hub_controller.outgoing = AsyncMock()
-
-        # Run the async method
-        asyncio.run(hub_controller.send_message(message_obj))
-
-        # Verify JSON encoding
-        hub_controller.outgoing.put.assert_called_once()
-        call_args = hub_controller.outgoing.put.call_args[0][0]
-        assert call_args == json.dumps(data)
-
-    def test_send_message_invalid_type(self, hub_controller: NngBusHub):
-        """Test sending invalid message types raises TypeError."""
-        with pytest.raises(TypeError, match="send_message requires dict or Message"):
-            asyncio.run(hub_controller.send_message("invalid_string"))
-
-        with pytest.raises(TypeError, match="send_message requires dict or Message"):
-            asyncio.run(hub_controller.send_message(123))
-
-    def test_send_message_invalid_message_data(self, hub_controller: NngBusHub):
-        """Test sending Message with invalid data raises TypeError."""
-        invalid_message = Message(data="not_a_dict", sender="test")
-
-        with pytest.raises(TypeError, match="Message.data must be a dict"):
-            asyncio.run(hub_controller.send_message(invalid_message))
-
-    def test_get_message(self, hub_controller: NngBusHub):
-        """Test getting a message from the queue."""
-        expected_message = Message(data={"test": "value"}, sender="test_sender")
-
-        # Mock the incoming queue
-        hub_controller.incoming = AsyncMock()
-        hub_controller.incoming.get.return_value = expected_message
-
-        # Run the async method
-        result = asyncio.run(hub_controller.get_message())
-
-        assert result == expected_message
-        hub_controller.incoming.get.assert_called_once()
-
-    def test_get_active_connections(self, hub_controller: NngBusHub):
-        """Test getting active connections."""
-        # Add some test connections
-        conn1 = ConnectionInfo(pipe_id=1, sender="sender1", connected_at=datetime.now())
-        conn2 = ConnectionInfo(pipe_id=2, sender="sender2", connected_at=datetime.now())
-        hub_controller.active_connections = {1: conn1, 2: conn2}
-
-        connections = hub_controller.get_active_connections()
-
-        assert len(connections) == 2
-        assert conn1 in connections
-        assert conn2 in connections
-
-    def test_get_connection_count(self, hub_controller: NngBusHub):
-        """Test getting connection count."""
-        # Add some test connections
-        hub_controller.active_connections = {
-            1: ConnectionInfo(pipe_id=1, sender="sender1", connected_at=datetime.now()),
-            2: ConnectionInfo(pipe_id=2, sender="sender2", connected_at=datetime.now())
-        }
-
-        count = hub_controller.get_connection_count()
-        assert count == 2
-
-    def test_connection_health_info_no_activity(self, hub_controller: NngBusHub):
-        """Test connection health info with no activity."""
-        health = hub_controller.get_connection_health_info()
-
-        assert health['is_healthy'] is False
-        assert health['last_received'] is None
-        assert health['last_sent'] is None
-        assert health['seconds_since_activity'] is None
-        assert health['messages_received'] == 0
-        assert health['messages_sent'] == 0
-
-    def test_connection_health_info_with_activity(self, hub_controller: NngBusHub):
-        """Test connection health info with recent activity."""
-        now = datetime.now()
-        hub_controller._last_message_received = now
-        hub_controller._last_message_sent = now
-        hub_controller._messages_received_count = 5
-        hub_controller._messages_sent_count = 3
-
-        health = hub_controller.get_connection_health_info()
-
-        assert health['is_healthy'] is True
-        assert health['last_received'] == now
-        assert health['last_sent'] == now
-        assert health['seconds_since_activity'] < 1.0  # Allow for small timing differences
-        assert health['messages_received'] == 5
-        assert health['messages_sent'] == 3
-
-    def test_connection_health_info_old_activity(self, hub_controller: NngBusHub):
-        """Test connection health info with old activity."""
-        old_time = datetime(2020, 1, 1)  # Very old
-        hub_controller._last_message_received = old_time
-        hub_controller._messages_received_count = 1
-
-        health = hub_controller.get_connection_health_info(activity_timeout=30.0)
-
-        assert health['is_healthy'] is False
-        assert health['last_received'] == old_time
-        assert health['seconds_since_activity'] > 30.0
-
-    def test_is_connection_healthy(self, hub_controller):
-        """Test connection health check."""
-        # Healthy case
-        hub_controller._last_message_received = datetime.now()
-        assert hub_controller.is_connection_healthy() is True
-
-        # Unhealthy case
-        hub_controller._last_message_received = datetime(2020, 1, 1)
-        assert hub_controller.is_connection_healthy() is False
-
-    def test_enable_disable_auto_ping(self, hub_controller: NngBusHub):
-        """Test enabling and disabling auto-ping."""
-        assert hub_controller._auto_ping_enabled is False
-
-        hub_controller.enable_auto_ping(interval=5.0, inactivity_threshold=2.0)
-        assert hub_controller._auto_ping_enabled is True
-        assert hub_controller._auto_ping_interval == 5.0
-        assert hub_controller._inactivity_threshold == 2.0
-
-        hub_controller.disable_auto_ping()
-        assert hub_controller._auto_ping_enabled is False
-
-    def test_enable_disable_auto_pong(self, hub_controller: NngBusHub):
-        """Test enabling and disabling auto-pong."""
-        assert hub_controller._auto_pong_enabled is True
-
-        hub_controller.disable_auto_pong()
-        assert hub_controller._auto_pong_enabled is False
-
-        hub_controller.enable_auto_pong()
-        assert hub_controller._auto_pong_enabled is True
-
-    def test_send_ping(self, hub_controller: NngBusHub):
-        """Test sending ping message."""
-        hub_controller.outgoing = AsyncMock()
-
-        result = asyncio.run(hub_controller.send_ping())
-
-        assert result == 1
-        assert hub_controller._ping_count == 1
-        hub_controller.outgoing.put.assert_called_once()
-
-        # Verify ping message structure
-        call_args = hub_controller.outgoing.put.call_args[0][0]
-        ping_data = json.loads(call_args)
-        assert ping_data["__type__"] == "ping"
-        assert "timestamp" in ping_data
-
-    def test_handle_ping_pong_ping(self, hub_controller: NngBusHub):
-        """Test handling ping messages."""
-        ping_message = Message(
-            data={"__type__": "ping", "timestamp": "2023-01-01T00:00:00"},
-            sender="test_sender"
-        )
-
-        hub_controller.outgoing = AsyncMock()
-
-        result = asyncio.run(hub_controller._handle_ping_pong(ping_message, "test_sender"))
-
-        assert result is True
-        assert hub_controller._pong_count == 1
-        hub_controller.outgoing.put.assert_called_once()
-
-        # Verify pong message structure
-        call_args = hub_controller.outgoing.put.call_args[0][0]
-        pong_data = json.loads(call_args)
-        assert pong_data["__type__"] == "pong"
-        assert "timestamp" in pong_data
-        assert pong_data["ping_timestamp"] == "2023-01-01T00:00:00"
-
-    def test_handle_ping_pong_pong(self, hub_controller: NngBusHub):
-        """Test handling pong messages."""
-        pong_message = Message(
-            data={"__type__": "pong", "timestamp": "2023-01-01T00:00:00"},
-            sender="test_sender"
-        )
-
-        result = asyncio.run(hub_controller._handle_ping_pong(pong_message, "test_sender"))
-
-        assert result is True
-
-    def test_handle_ping_pong_non_ping_pong(self, hub_controller: NngBusHub):
-        """Test handling non-ping/pong messages."""
-        normal_message = Message(
-            data={"__type__": "normal", "content": "test"},
-            sender="test_sender"
-        )
-
-        result = asyncio.run(hub_controller._handle_ping_pong(normal_message, "test_sender"))
-
-        assert result is False
-
-    def test_handle_ping_pong_no_type(self, hub_controller: NngBusHub):
-        """Test handling messages without __type__ field."""
-        message = Message(data={"content": "test"}, sender="test_sender")
-
-        result = asyncio.run(hub_controller._handle_ping_pong(message, "test_sender"))
-
-        assert result is False
-
-    def test_extract_sender_info_tcp(self, hub_controller: NngBusHub):
-        """Test extracting sender info from TCP connection."""
-        # Mock pipe with TCP address
-        mock_pipe = Mock()
-        mock_addr = Mock()
-        mock_addr.addr = 0x7f000001  # 127.0.0.1
-        mock_addr.port = 12345
-        mock_pipe.remote_address = mock_addr
-
-        sender = hub_controller._extract_sender_info(mock_pipe)
-
-        # The actual implementation returns the IP in reverse order due to byte packing
-        assert sender == ("1.0.0.127", 14640)  # This is what the actual implementation returns
-
-    def test_extract_sender_info_ipc(self, hub_controller: NngBusHub):
-        """Test extracting sender info from IPC connection."""
-        # Mock pipe with IPC address
-        mock_pipe = Mock()
-        mock_pipe.remote_address = "ipc:///tmp/test"
-        mock_pipe.url = "ipc:///tmp/test"
-
-        sender = hub_controller._extract_sender_info(mock_pipe)
-
-        assert sender == "ipc:///tmp/test"
-
-    def test_extract_sender_info_unknown(self, hub_controller: NngBusHub):
-        """Test extracting sender info from unknown connection type."""
-        # Mock pipe with no remote_address
-        mock_pipe = Mock()
-        mock_pipe.remote_address = None
-        mock_pipe.url = None
-
-        sender = hub_controller._extract_sender_info(mock_pipe)
-
-        assert sender == "None"  # The actual implementation returns str(None)
-
-    def test_add_callbacks(self, hub_controller: NngBusHub):
-        """Test adding connection callbacks."""
-        mock_connection = Mock()
-        hub_controller.connection = mock_connection
-
-        hub_controller._add_callbacks()
-
-        mock_connection.add_post_pipe_connect_cb.assert_called_once()
-        mock_connection.add_post_pipe_remove_cb.assert_called_once()
-
-    def test_post_connect_callback(self, hub_controller: NngBusHub):
-        """Test post-connect callback."""
-        mock_pipe = Mock()
-        mock_pipe.id = 123
-        mock_pipe.remote_address = Mock()
-        mock_pipe.remote_address.addr = 0x7f000001
-        mock_pipe.remote_address.port = 12345
-
-        hub_controller._post_connect_callback(mock_pipe)
-
-        assert len(hub_controller.active_connections) == 1
-        conn_info = next(iter(hub_controller.active_connections.values()))
-        assert conn_info.pipe_id == 0
-        assert conn_info.sender == "unknown"
-        assert isinstance(conn_info.connected_at, datetime)
-
-    def test_post_remove_callback(self, hub_controller: NngBusHub):
-        """Test post-remove callback."""
-        # Add a connection first
-        conn_info = ConnectionInfo(pipe_id=123, sender="test", connected_at=datetime.now())
-        hub_controller.active_connections[123] = conn_info
-
-        mock_pipe = Mock()
-        mock_pipe.id = 123
-
-        hub_controller._post_remove_callback(mock_pipe)
-
-        assert 123 not in hub_controller.active_connections
-
-class TestHubIntegration:
-    """Integration tests for the communication system."""
-
-    def test_message_serialization_roundtrip(self):
-        """Test message serialization and deserialization."""
-        # Test that we can send a dict and it gets JSON-encoded
-        hub = NngBusHub("tcp://127.0.0.1:5555", NngBusHub.Mode.LISTENER)
-
-        # Mock the outgoing queue to capture the message
-        hub.outgoing = Mock()
-        hub.outgoing.put = AsyncMock()
-
-        # Send a message
-        test_message = {"test": "value", "number": 42}
-        asyncio.run(hub.send_message(test_message))
-
-        # Verify the message was JSON-encoded
-        hub.outgoing.put.assert_called_once()
-        call_args = hub.outgoing.put.call_args[0][0]
-        assert call_args == json.dumps(test_message)
-
-        # Verify we can decode it back
-        decoded = json.loads(call_args)
-        assert decoded == test_message
-
-
-class TestTeardownDoesNotRetryClosedSocket:
-    """Regression tests for ClickUp 869ed00ya.
-
-    pynng registers an atexit hook that calls nng_fini(), which frees NNG's
-    global state. Any NNG call issued after that aborts the whole process with
-    "panic: pthread_mutex_lock: Invalid argument". The receive/send loops must
-    therefore stop for good the first time the socket reports Closed, instead
-    of looping straight back into another arecv_msg()/asend().
-    """
-
-    @pytest.fixture
-    def hub(self):
-        return NngBusHub("tcp://127.0.0.1:5555", NngBusHub.Mode.DIALER)
-
-    @staticmethod
-    def closed():
-        """A real Closed instance — the class needs (msg, errno) to construct."""
-        return pynng_exceptions.Closed("Object closed", 7)
-
-    @staticmethod
-    def timed_out():
-        return pynng_exceptions.Timeout("Timed out", 5)
-
-    def test_receiver_stops_on_closed(self, hub: NngBusHub):
-        """A Closed socket must end the receive loop, not trigger a retry."""
-        hub.connection = Mock()
-        hub.connection.arecv_msg = AsyncMock(side_effect=self.closed())
-
-        asyncio.run(asyncio.wait_for(hub._receiver_handler(), timeout=5))
-
-        assert hub.connection.arecv_msg.await_count == 1, (
-            "receiver retried on a closed socket — this is what aborts the "
-            "process once nng_fini() has run"
-        )
-        assert hub._closing is True
-
-    def test_sender_stops_on_closed(self, hub: NngBusHub):
-        """A Closed socket must end the send loop, not trigger a retry."""
-        hub.connection = Mock()
-        hub.connection.asend = AsyncMock(side_effect=self.closed())
-        hub.outgoing.put_nowait(json.dumps({"a": 1}))
-        hub.outgoing.put_nowait(json.dumps({"b": 2}))
-
-        asyncio.run(asyncio.wait_for(hub._send_handler(), timeout=5))
-
-        assert hub.connection.asend.await_count == 1
-        assert hub._closing is True
-
-    def test_receiver_keeps_polling_on_timeout(self, hub: NngBusHub):
-        """Timeout is the normal polling path and must NOT stop the loop."""
-        hub.connection = Mock()
-        hub.connection.arecv_msg = AsyncMock(
-            side_effect=[self.timed_out() for _ in range(3)] + [self.closed()]
-        )
-
-        asyncio.run(asyncio.wait_for(hub._receiver_handler(), timeout=5))
-
-        assert hub.connection.arecv_msg.await_count == 4
-
-    def test_receiver_does_not_start_when_already_closing(self, hub: NngBusHub):
-        """Once _closing is set, the loop must not touch NNG at all."""
-        hub.connection = Mock()
-        hub.connection.arecv_msg = AsyncMock()
-        hub._closing = True
-
-        asyncio.run(asyncio.wait_for(hub._receiver_handler(), timeout=5))
-
-        hub.connection.arecv_msg.assert_not_awaited()
+from pynng import Bus0
+
+from cuemsutils.tools.HubServices import NngBusHub
+
+BOUND = 2.0  # seconds; a local round trip takes milliseconds
+# The dialer retries after 1 s, then doubles the wait (2 s, 4 s), so one retry lost to a busy box
+# already costs 3 s. 10 s covers two lost retries; a normal reconnect takes about 1 s.
+RECONNECT = 10.0
+
+
+def free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+@pytest.fixture
+def tcp():
+    return f"tcp://127.0.0.1:{free_port()}"
+
+
+@pytest.fixture
+def ipc():
+    directory = tempfile.mkdtemp(prefix="cuems-bus-")  # sun_path is limited to 108 bytes
+    yield f"ipc://{directory}/bus.ipc"
+    shutil.rmtree(directory, ignore_errors=True)
+
+
+def run(coro):
+    return asyncio.run(asyncio.wait_for(coro, timeout=30))
+
+
+async def until(predicate, timeout=BOUND):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        await asyncio.sleep(0.01)
+    return False
+
+
+class Running:
+    """Hubs whose start() runs in a task, stopped by cancelling it."""
+
+    def __init__(self):
+        self.tasks: dict[NngBusHub, asyncio.Task] = {}
+
+    def start(self, hub):
+        self.tasks[hub] = asyncio.create_task(hub.start())
+        return hub
+
+    async def stop(self, hub):
+        task = self.tasks.pop(hub)
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+    async def stop_all(self):
+        for hub in list(self.tasks):
+            await self.stop(hub)
+
+
+@asynccontextmanager
+async def running():
+    hubs = Running()
+    try:
+        yield hubs
+    finally:
+        await hubs.stop_all()
+
+
+async def connected(address, nodes=1, configure=None):
+    """A started listener and ``nodes`` started dialers, once the listener sees them all.
+    ``configure(listener)`` runs before the listener starts."""
+    hubs = Running()
+    listener = NngBusHub(address, NngBusHub.Mode.LISTENER)
+    if configure:
+        configure(listener)
+    hubs.start(listener)
+    await asyncio.sleep(0.05)
+    dialers = [hubs.start(NngBusHub(address, NngBusHub.Mode.DIALER)) for _ in range(nodes)]
+    assert await until(lambda: listener.get_connection_count() == nodes), "the nodes never connected"
+    return hubs, listener, dialers
+
+
+async def next_message(hub, timeout=BOUND):
+    return await asyncio.wait_for(hub.get_message(), timeout)
+
+
+async def nothing_arrives(hub, within=0.3):
+    try:
+        await asyncio.wait_for(hub.get_message(), within)
+    except asyncio.TimeoutError:
+        return True
+    return False
+
+
+# --- send_message / get_message across the bus -------------------------------------------------
+
+class TestBusRoundTrip:
+    def test_a_node_message_reaches_the_controller_with_the_node_tcp_address(self, tcp):
+        async def scenario():
+            hubs, listener, (node,) = await connected(tcp)
+            try:
+                await node.send_message({"cue": "go"})
+                return await next_message(listener)
+            finally:
+                await hubs.stop_all()
+
+        message = run(scenario())
+        assert message.data == {"cue": "go"}
+        ip, port = message.sender
+        assert ip == "127.0.0.1" and isinstance(port, int) and port > 0
+
+    def test_a_controller_message_reaches_the_node(self, tcp):
+        async def scenario():
+            hubs, listener, (node,) = await connected(tcp)
+            try:
+                await listener.send_message({"load": "show"})
+                return await next_message(node)
+            finally:
+                await hubs.stop_all()
+
+        assert run(scenario()).data == {"load": "show"}
+
+    def test_a_controller_message_reaches_every_node(self, tcp):
+        async def scenario():
+            hubs, listener, nodes = await connected(tcp, nodes=3)
+            try:
+                await listener.send_message({"all": 1})
+                return [await next_message(node) for node in nodes]
+            finally:
+                await hubs.stop_all()
+
+        assert [m.data for m in run(scenario())] == [{"all": 1}] * 3
+
+    def test_the_bus_does_not_relay_one_node_to_another(self, tcp):
+        """NNG BUS delivers to direct peers only: nodes talk to the controller, not each other."""
+        async def scenario():
+            hubs, listener, (a, b) = await connected(tcp, nodes=2)
+            try:
+                await a.send_message({"from": "a"})
+                await next_message(listener)
+                return await nothing_arrives(b)
+            finally:
+                await hubs.stop_all()
+
+        assert run(scenario()) is True
+
+    def test_messages_keep_their_order(self, tcp):
+        async def scenario():
+            hubs, listener, (node,) = await connected(tcp)
+            try:
+                for i in range(20):
+                    await node.send_message({"i": i})
+                return [(await next_message(listener)).data["i"] for _ in range(20)]
+            finally:
+                await hubs.stop_all()
+
+        assert run(scenario()) == list(range(20))
+
+    def test_ipc_works_the_same_and_the_sender_is_the_socket_url(self, ipc):
+        async def scenario():
+            hubs, listener, (node,) = await connected(ipc)
+            try:
+                await node.send_message({"over": "ipc"})
+                return await next_message(listener)
+            finally:
+                await hubs.stop_all()
+
+        message = run(scenario())
+        assert message.data == {"over": "ipc"}
+        assert message.sender == ipc
+
+
+# --- the pipe callbacks, through real connections --------------------------------------------------
+
+class TestConnectionTracking:
+    def test_the_controller_counts_nodes_coming_and_going(self, tcp):
+        async def scenario():
+            hubs, listener, (a, b) = await connected(tcp, nodes=2)
+            try:
+                counts = [listener.get_connection_count()]
+                await hubs.stop(a)
+                await until(lambda: listener.get_connection_count() == 1)
+                counts.append(listener.get_connection_count())
+                return counts
+            finally:
+                await hubs.stop_all()
+
+        assert run(scenario()) == [2, 1]
+
+
+# --- ping / pong across the bus ------------------------------------------------------------------
+
+class TestPingPongOverTheWire:
+    def test_a_node_answers_the_controller_ping_and_neither_user_queue_sees_it(self, tcp):
+        async def scenario():
+            hubs, listener, (node,) = await connected(tcp)
+            try:
+                await listener.send_ping()
+                await until(lambda: listener._messages_received_count >= 1)
+                return (node._pong_count, listener._messages_received_count,
+                        listener.incoming.qsize(), node.incoming.qsize())
+            finally:
+                await hubs.stop_all()
+
+        assert run(scenario()) == (1, 1, 0, 0)
+
+    def test_a_node_with_auto_pong_disabled_stays_silent(self, tcp):
+        async def scenario():
+            hubs, listener, (node,) = await connected(tcp)
+            node.disable_auto_pong()
+            try:
+                await listener.send_ping()
+                await until(lambda: node._messages_received_count >= 1)
+                await asyncio.sleep(0.2)
+                return node._pong_count, listener._messages_received_count
+            finally:
+                await hubs.stop_all()
+
+        assert run(scenario()) == (0, 0)
+
+    def test_auto_ping_keeps_an_idle_link_alive_and_healthy(self, tcp):
+        async def scenario():
+            # Before start(): the handler's first sleep uses the interval set at that moment.
+            hubs, listener, (node,) = await connected(
+                tcp, configure=lambda hub: hub.enable_auto_ping(interval=0.05, inactivity_threshold=0.0))
+            try:
+                await until(lambda: node._pong_count >= 2)
+                return node._pong_count, listener.is_connection_healthy(), node.is_connection_healthy()
+            finally:
+                await hubs.stop_all()
+
+        pongs, controller_healthy, node_healthy = run(scenario())
+        assert pongs >= 2 and controller_healthy and node_healthy
+
+
+# --- _send_handler's wait, start_dialer's reconnection ------------------------------------------
+
+class TestDeliveryAcrossStartupOrder:
+    def test_a_controller_message_queued_before_any_node_is_delivered_once_one_connects(self, tcp):
+        async def scenario():
+            async with running() as hubs:
+                listener = hubs.start(NngBusHub(tcp, NngBusHub.Mode.LISTENER))
+                await listener.send_message({"early": 1})
+                await asyncio.sleep(0.3)
+                node = hubs.start(NngBusHub(tcp, NngBusHub.Mode.DIALER))
+                return await next_message(node)
+
+        assert run(scenario()).data == {"early": 1}
+
+    def test_a_node_started_before_the_controller_connects_when_it_appears(self, tcp):
+        async def scenario():
+            async with running() as hubs:
+                node = hubs.start(NngBusHub(tcp, NngBusHub.Mode.DIALER))
+                await asyncio.sleep(0.2)
+                listener = hubs.start(NngBusHub(tcp, NngBusHub.Mode.LISTENER))
+                assert await until(lambda: listener.get_connection_count() == 1, RECONNECT)
+                await node.send_message({"hello": "late controller"})
+                return await next_message(listener)
+
+        assert run(scenario()).data == {"hello": "late controller"}
+
+    def test_a_node_reconnects_after_the_controller_restarts(self, tcp):
+        async def scenario():
+            async with running() as hubs:
+                first = hubs.start(NngBusHub(tcp, NngBusHub.Mode.LISTENER))
+                node = hubs.start(NngBusHub(tcp, NngBusHub.Mode.DIALER))
+                assert await until(lambda: first.get_connection_count() == 1)
+                await hubs.stop(first)
+                second = hubs.start(NngBusHub(tcp, NngBusHub.Mode.LISTENER))
+                assert await until(lambda: second.get_connection_count() == 1, RECONNECT)
+                await second.send_message({"after": "restart"})
+                return await next_message(node)
+
+        assert run(scenario()).data == {"after": "restart"}
+
+
+# --- start()'s teardown -----------------------------------------------------------------------
+
+class TestLifecycle:
+    def test_stopping_the_controller_releases_its_address(self, tcp):
+        async def scenario():
+            async with running() as hubs:
+                first = hubs.start(NngBusHub(tcp, NngBusHub.Mode.LISTENER))
+                await asyncio.sleep(0.1)
+                await hubs.stop(first)
+                assert first.connection is None and first._closing is True
+                with Bus0(listen=tcp):  # raises AddressInUse if the socket was not closed
+                    return True
+
+        assert run(scenario()) is True
+
+    @pytest.mark.xfail(strict=True, raises=asyncio.TimeoutError, reason=(
+        "defect: once its socket is closed, start() never returns (its receiver returns on Closed, "
+        "but start() waits for FIRST_EXCEPTION), so the service cannot react to losing the bus."
+    ))
+    def test_start_returns_when_its_socket_is_closed(self, tcp):
+        async def scenario():
+            hubs, listener, _ = await connected(tcp)
+            try:
+                listener.connection.close()
+                await asyncio.wait_for(asyncio.shield(hubs.tasks[listener]), BOUND)
+            finally:
+                await hubs.stop_all()
+
+        run(scenario())
+
+
+# --- _receiver_handler, against a peer that is not a hub ----------------------------------------
+
+class TestForeignPeers:
+    def test_non_json_text_from_a_raw_bus_peer_is_delivered_as_raw_data(self, tcp):
+        async def scenario():
+            async with running() as hubs:
+                listener = hubs.start(NngBusHub(tcp, NngBusHub.Mode.LISTENER))
+                await asyncio.sleep(0.1)
+                with Bus0() as peer:
+                    peer.dial(tcp, block=True)
+                    assert await until(lambda: listener.get_connection_count() == 1)
+                    await peer.asend(b"not json")
+                    return await next_message(listener)
+
+        assert run(scenario()).data == {"raw_data": "not json"}

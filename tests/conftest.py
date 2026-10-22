@@ -18,7 +18,10 @@ def _module_available(name: str) -> bool:
 collect_ignore_glob = []
 
 if not _module_available("pynng"):
-    collect_ignore_glob += ["integration/test_communicatorservices.py", "integration/test_hubservices.py"]
+    collect_ignore_glob += [
+        "integration/test_communicatorservices.py", "integration/test_hubservices.py",
+        "unit/test_communicatorservices.py", "unit/test_hubservices.py",
+    ]
 
 # systemd is NOT skipped: systemd-python is in the hatch test environment, so a missing module is a
 # failure to see (tests/contract/test_systemd_dependency.py).

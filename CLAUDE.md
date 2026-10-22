@@ -218,6 +218,17 @@ Note `pip install -e` needs network for the build backend, so it is not an optio
 
 ## Recent Changes
 
+- **Test counterparts for `SignalEngine`, `CommunicatorServices` and `HubServices`** (2026-10-22, on
+  `feat/xml-refactor`, no feature dir). Each module has a `tests/unit/` counterpart (fakes, one class
+  per production class or method, in source order) and a `tests/integration/` counterpart (real
+  signals to a child process, a real `NOTIFY_SOCKET`, real REQ/REP over IPC, real BUS over TCP/IPC).
+  Coverage: `SignalEngine` 61→100%, `CommunicatorServices` 40→96%, `HubServices` 55→93%, library
+  87→90%. **Nine production defects found and pinned as `xfail(strict=True)`, production unchanged**:
+  `specs/planning/ipc-bus-signal-reliability-defects.md` (C1–C6, H1–H4, S1). ⚠ Two test traps:
+  stop a `reply()` server by **closing its socket**, never by cancelling alone (C6: ~1 in 1000
+  cancellations hang); and assert log text through `tests/support/cuems_logs.capture`, since each
+  module's logger takes `CUEMS_LOG_LEVEL` once and caches it.
+
 - **`017-release-line-reconciliation` IMPLEMENTED** (2026-10-21/22, on its branch; merges into
   `feat/xml-refactor` with `--no-ff`; **nothing pushed, no tag moved**). Rule 4 ("merge before bump")
   for this repository: `origin/debian/bookworm` (`398a9cf`, `0.1.0rc17`) merged in (M1 `6a17392`), then

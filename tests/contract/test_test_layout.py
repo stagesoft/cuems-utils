@@ -54,13 +54,13 @@ def test_every_collected_test_carries_exactly_one_directory_marker(tmp_path):
 
 
 def test_every_collect_ignore_glob_still_matches_a_module():
-    """``tests/conftest.py`` skips modules whose optional dependency is missing (``pynng``,
-    ``systemd``) by path. A glob left behind by a move matches nothing, so the module is
-    collected and errors on a box without the dependency. Found when 017 moved the root
-    modules into their kind directories."""
+    """``tests/conftest.py`` skips modules whose dependency is missing (``pynng``) by path. A glob
+    left behind by a move matches nothing, so the module is collected and errors on a box without
+    the dependency. Found when 017 moved the root modules into their kind directories. The list
+    may span several lines."""
     source = (TESTS / "conftest.py").read_text()
-    globs = [g for line in source.splitlines() if "collect_ignore_glob +=" in line
-             for g in re.findall(r'"([^"]+\.py)"', line)]
+    globs = [g for block in re.findall(r"collect_ignore_glob \+= \[(.*?)\]", source, re.S)
+             for g in re.findall(r'"([^"]+\.py)"', block)]
     assert globs, "expected the optional-dependency globs in tests/conftest.py"
     stale = [g for g in globs if not list(TESTS.glob(g))]
     assert not stale, f"collect_ignore_glob entries that match no module: {stale}"
