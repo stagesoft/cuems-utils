@@ -197,3 +197,21 @@ def test_7_the_local_coverage_script_excludes_nocov():
         "tool"]["hatch"]["envs"]["test"]["scripts"]
     assert '-m "not nocov"' in scripts["run-cov"], scripts["run-cov"]
     assert scripts["run-timing"].startswith("pytest -m nocov"), scripts.get("run-timing")
+
+
+# --- 8. the hatch test environment can build systemd-python ---------------------------
+
+def test_8_every_job_that_builds_the_test_environment_installs_the_systemd_headers(tests_yml):
+    """``systemd-python`` is in the hatch ``test`` environment and compiles against
+    ``libsystemd`` (``tests/contract/test_systemd_dependency.py``). So a job that runs
+    ``hatch run test…`` must install ``libsystemd-dev`` and ``pkg-config`` before it."""
+    missing = []
+    for name, job in tests_yml["jobs"].items():
+        runs = [str(s.get("run", "")) for s in job.get("steps", [])]
+        first_hatch = next((i for i, r in enumerate(runs) if "hatch run test." in r), None)
+        if first_hatch is None:
+            continue
+        before = " ".join(runs[:first_hatch])
+        if not ("libsystemd-dev" in before and "pkg-config" in before):
+            missing.append(name)
+    assert not missing, f"jobs that build the test env without the systemd headers: {missing}"

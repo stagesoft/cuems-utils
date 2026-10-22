@@ -98,6 +98,10 @@ dependencies = [
   "ruff>=0.17.0,<0.18",
   # Feature 017, FR-070: tests/contract/test_ci_workflow.py reads the workflow files. Test-only.
   "pyyaml",
+  # Same pin as the systemd extra, so tests/unit/test_signalengine.py runs everywhere the suite
+  # does. Builds from source: needs libsystemd-dev and pkg-config (hence the env-vars below). In
+  # production it is Debian's python3-systemd (debian/control); the package build never installs it.
+  "systemd-python==235",
 ]
 
 [[tool.hatch.envs.test.matrix]]

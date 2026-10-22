@@ -34,6 +34,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      # systemd-python (hatch test env) compiles against libsystemd (test_systemd_dependency.py).
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsystemd-dev pkg-config
       - run: pip install hatch
       - name: ruff (0 findings)
         run: hatch run test.py3.11:lint
@@ -55,6 +57,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      # systemd-python (hatch test env) compiles against libsystemd (test_systemd_dependency.py).
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsystemd-dev pkg-config
       - run: pip install hatch
       - name: unit and contract tests
         working-directory: cuems-utils
@@ -90,6 +94,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      # systemd-python (hatch test env) compiles against libsystemd (test_systemd_dependency.py).
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsystemd-dev pkg-config
       - run: pip install hatch
       - name: integration tests
         working-directory: cuems-utils
@@ -206,6 +212,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+      # systemd-python (hatch test env) compiles against libsystemd (test_systemd_dependency.py).
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsystemd-dev pkg-config
       - run: pip install hatch
       - run: hatch run test.py${{ matrix.python }}:run -- -m "not slow" --junitxml=junit-py${{ matrix.python }}.xml
       - uses: actions/upload-artifact@v4

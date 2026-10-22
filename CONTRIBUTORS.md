@@ -43,9 +43,16 @@ If this file and that document conflict, the planning document wins.
 | hatch | ≥ 1.9 | environment and test matrix management |
 | Git | any recent | DCO sign-off required (see §8) |
 
-No system-level packages are required for basic development. The `systemd` optional
-extra (`systemd-python`) requires a Linux host with systemd headers; it is not needed
-to run the core test suite.
+The hatch `test` environment builds `systemd-python` from source, so `SignalEngine` is tested
+wherever the suite runs. That needs the systemd headers and `pkg-config` on the host:
+
+```bash
+sudo apt-get install libsystemd-dev pkg-config     # Debian / Ubuntu
+```
+
+Without them, creating the environment fails. A missing `systemd` module is a test failure, never a
+skip. In production nothing is pip-installed: the `.deb` depends on Debian's `python3-systemd`, which
+the shared venv sees through `--use-system-packages`.
 
 ---
 
