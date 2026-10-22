@@ -69,6 +69,8 @@ and the file inventory in this repository.
 >    `cuems-engine` and `cuems-nodeconf` migrate onto it. After that, three candidate tags are stale
 >    (`cuems-utils`, `cuems-engine`, `cuems-nodeconf`) and have to be re-cut and re-validated. No
 >    relation moves. Work order: [`async-comms-thread-absorption.md`](async-comms-thread-absorption.md).
+>    **Status 2026-10-22:** all three halves implemented on their `feat/xml-refactor` (unpushed); the
+>    re-cut is what is left.
 
 ## The decision, in five rules
 

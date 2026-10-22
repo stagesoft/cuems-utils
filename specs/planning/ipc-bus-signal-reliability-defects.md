@@ -15,7 +15,7 @@ Every defect was **measured** over real sockets, signals and processes, never in
 **Status (2026-10-22):** **every defect is fixed (C1–C8, H1–H4, S1), and H5 was measured and not reproduced**, test first: their xfail markers were
 removed, the tests went red, and the fix turned them green. Failed requests are now answered with
 `{"OK": False, "error": "<ExceptionType>: <message>"}`, the shape `cuems-nodeconf` already uses and
-`cuems-editor` already reads. C7 was found while fixing C3, and fixed the same way. A callback that *raises* is deliberately not answered for: it owns its context, and may already have replied or handed the context on (`cuems-engine` replies later, from another thread). **Open, outside this repository:** H1's engine half, in `specs/planning/upstream-cuems-engine-hub-start-supervision.md`. Delete this record once that lands. This
+`cuems-editor` already reads. C7 was found while fixing C3, and fixed the same way. A callback that *raises* is deliberately not answered for: it owns its context, and may already have replied or handed the context on (`cuems-engine` replies later, from another thread). **Open, outside this repository:** H1's engine half, in `specs/planning/upstream-cuems-engine-hub-start-supervision.md`. It is implemented on `cuems-engine`'s `feat/xml-refactor` (2026-10-22, the `AsyncCommsThread` migration). Delete this record once that commit is pushed. This
 document is deleted once those are resolved.
 
 Before the fixes, the production code was unchanged. Each defect except C6 is pinned by `xfail(strict=True)` tests that

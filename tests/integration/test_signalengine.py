@@ -118,6 +118,46 @@ class TestStatusSignals:
         assert not (out / "stop_all").exists()
 
 
+# --- exit_status, through the kernel ----------------------------------------------------------
+
+FAILING_CHILD = """
+import os, sys
+from pathlib import Path
+from cuemsutils.tools.SignalEngine import SignalEngine
+
+out = Path(sys.argv[1])
+
+class Service(SignalEngine):
+    def exit_status(self):
+        return 1
+
+engine = Service()
+engine.running = True
+(out / "ready").write_text(str(os.getpid()))
+engine.run(tick=0.02)
+"""
+
+
+def test_a_sigterm_exits_with_the_service_s_exit_status(tmp_path):
+    # The path a service takes when its comms end: it SIGTERMs itself, and systemd's
+    # Restart=on-failure restarts it only if the process exits non-zero.
+    script = tmp_path / "failing.py"
+    script.write_text(FAILING_CHILD)
+    proc = subprocess.Popen(
+        [sys.executable, "-u", str(script), str(tmp_path)],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        env={**os.environ, "CUEMS_LOG_LEVEL": "WARNING"},
+    )
+    try:
+        assert _wait_for(lambda: (tmp_path / "ready").exists()), "the service never became ready"
+        proc.send_signal(signal.SIGTERM)
+        assert proc.wait(timeout=5) == 1
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=5)
+
+
 # --- notify_systemd, through a real NOTIFY_SOCKET ----------------------------------------------
 
 @pytest.fixture

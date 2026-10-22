@@ -76,6 +76,9 @@ cuems-utils (0.1.1) UNRELEASED; urgency=medium
     on a running hub, instead of after the current interval (10 s).
   * NngBusHub.start() returns, with an error logged, once its bus socket
     closes; it used to keep running with no bus.
+  * SignalEngine's SIGTERM/SIGINT handlers exit with self.exit_status()
+    (0 unless a subclass overrides it), so a service that stops itself on
+    a failure can exit non-zero and be restarted by Restart=on-failure.
   * New cuemsutils.tools.AsyncCommsThread, absorbed from cuems-engine so
     cuems-nodeconf stops keeping a copy: the daemon thread that runs a
     service's NNG event loop. A task that raises, or an essential() task

@@ -108,6 +108,13 @@ plus three changes:
   communications have ended. `AsyncCommsThread.stop_all()` stops every live instance, for test
   teardown.
 
+### Added — `SignalEngine.exit_status()`: a service can exit non-zero on SIGTERM
+
+`handle_terminate` and `handle_interrupt` exited with status 0, always. A service that stops itself on
+a failure, such as `cuems-engine` when its comms thread ends and sends it SIGTERM, could therefore never
+reach systemd's `Restart=on-failure`. Both handlers now exit with `self.exit_status()`, read after
+`stop()`. It returns 0 unless a subclass overrides it, so nothing changes for a service that does not.
+
 ### Fixed — one bad request no longer stops a service from answering
 
 `NngRequestResponse.reply()`, which `Communicator.reply()` runs, ended its loop on the first request

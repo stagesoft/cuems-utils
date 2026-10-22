@@ -73,7 +73,7 @@ class SignalEngine:
 
         self.stop()
         sleep(0.1)
-        sys.exit()
+        sys.exit(self.exit_status())
 
     def handle_terminate(self, sigNum, frame) -> None:
         string = f'SIGTERM received! Exiting with result code: {sigNum}'
@@ -82,7 +82,16 @@ class SignalEngine:
 
         self.stop()
         sleep(0.1)
-        sys.exit()
+        sys.exit(self.exit_status())
+
+    def exit_status(self) -> int:
+        """The status SIGINT and SIGTERM exit with, read after stop(). 0 unless overridden.
+
+        A service that stops itself on a failure (for instance by sending itself SIGTERM when its
+        communications end) overrides this to return non-zero, which is what makes systemd's
+        ``Restart=on-failure`` restart it.
+        """
+        return 0
 
     def handle_print_all(self, sigNum, frame) -> None:
         Logger.info(f"STATUS REQUEST BY SIGUSR2 SIGNAL {sigNum}")

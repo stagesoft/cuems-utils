@@ -8,8 +8,42 @@ SPDX-License-Identifier: GPL-3.0-or-later
 **Written 2026-10-22.** **Status: library half (U1–U5) committed (`1c1334c`, plus `b592a57`: once
 `end_reason` is set, `stop()` only joins, which N2's SIGTERM-driven shutdown needs). nodeconf half
 (N1–N5) implemented on its `feat/xml-refactor` at `6e9be84`: suite 203 → 211 passed, stable over 3
-runs, no failure in either arm. Engine half (E) not started; it waits on the essential-task sign-off
-and the choice of branch (§8.3).** nodeconf corrections to §6.3:
+runs, no failure in either arm. Engine half (E1–E6) implemented 2026-10-22 on its `feat/xml-refactor`
+after its 009 landed (`796f61e`), so the rule-4 reconciliation was not touched: suite 1495 → 1518
+passed, 1 xfailed, no failure in either arm. Once the engine and nodeconf halves are committed,
+only §8.4 remains: re-cut and re-validate the three candidate tags (maintainer).**
+
+Engine corrections to §6.2, measured while doing it:
+- **E1 deviates on purpose.** `comms/AsyncCommsThread.py` is not deleted. It becomes the engine's thin
+  subclass carrying the fatal path both engine threads share (`on_comms_ended` → module-level
+  `terminate_process()`, a SIGTERM to self). That keeps the import path, the conftest's
+  `isinstance` check and one place to patch.
+- **E2 as recommended**: the bus hub is essential on both engines and `editor_listener` is essential
+  on the controller. The receiver and the WebSocket listener are not. Over the whole suite, only the
+  five tests written to end the comms log `communications ended`, so no existing test trips the
+  supervision.
+- **E3 needed a library change.** `engine.start()` never returns: `SignalEngine.start()` blocks in
+  `run()`. So on SIGTERM it is `SignalEngine.handle_terminate` that runs, never the entry scripts'
+  handlers. It calls `engine.stop()` (so `stop_comms()` *is* reached) and then `sys.exit()`, which
+  exits **0** whatever happened. The first engine draft changed the scripts, and its tests mocked the
+  engine, so they passed while the production path still exited 0. Fixed by
+  **`SignalEngine.exit_status()`**: both handlers now `sys.exit(self.exit_status())`, 0 unless
+  overridden, and `cuems-engine` is the only subclass. `BaseEngine.exit_status()` overrides it: 1
+  when `end_reason` is set (`NodeEngine` reads the cue handler's thread). The scripts are unchanged.
+  The engine's test drives `handle_terminate` on both engines and fails against a library without
+  the hook. `stop_comms()` passes `timeout=COMMS_STOP_TIMEOUT` (5 s).
+- **Tests**: an autouse `terminated` fixture replaces `terminate_process` with a recorder, so a test
+  that starts real comms threads can never SIGTERM pytest.
+- **E5 was already done**: 009 removed `src/cuems/`.
+- **E6's arms**: A0 (library before today, `ff84193`) and A (library HEAD), engine unchanged, both
+  1495 passed, 1 xfailed. B (migrated) 1518 passed, 1 xfailed. Measured with a scratchpad build of
+  `libmtcmaster` against this box's `librtmidi.so.7`, since the released deb needs `.so.6`. That is
+  a real library rather than the 009 stub. ⚠ The suite needs `LD_LIBRARY_PATH` pointing at it.
+- Noticed, not changed: the entry scripts install their own SIGTERM handler *after*
+  `engine.start()`, which only returns once the engine has stopped running. Those handlers are
+  therefore effectively dead code.
+
+nodeconf corrections to §6.3:
 - It now lives in `src/cuemsnodeconf/` with tests by kind.
 - The thread's name changes to `AsyncComms-Communications`.
 - Its fatal path's non-zero exit is `run_nodeconf._exit_status`.

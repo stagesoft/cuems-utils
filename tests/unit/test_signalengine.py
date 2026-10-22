@@ -218,6 +218,34 @@ class TestExitHandlers:
         with pytest.raises(SystemExit):
             getattr(engine, handler)(signal.Signals[label].value, None)
 
+    def test_exits_with_the_subclass_exit_status(self, no_sleep, handler, label):
+        # A service whose comms ended SIGTERMs itself; only a non-zero status gets systemd's
+        # Restart=on-failure to restart it, so the handler cannot always exit 0.
+        class Failing(SignalEngine):
+            def exit_status(self):
+                return 1
+
+        with pytest.raises(SystemExit) as exited:
+            getattr(Failing(with_signals=False), handler)(signal.Signals[label].value, None)
+        assert exited.value.code == 1
+
+    def test_reads_the_exit_status_after_stopping(self, no_sleep, handler, label):
+        class Stateful(SignalEngine):
+            def stop_all(self):
+                self.failed = True
+
+            def exit_status(self):
+                return 3 if getattr(self, "failed", False) else 0
+
+        with pytest.raises(SystemExit) as exited:
+            getattr(Stateful(with_signals=False), handler)(signal.Signals[label].value, None)
+        assert exited.value.code == 3
+
+
+class TestExitStatus:
+    def test_is_0_by_default(self, engine):
+        assert engine.exit_status() == 0
+
 
 # --- handle_print_all / handle_print_running / handle_child_signal ----------------------------
 

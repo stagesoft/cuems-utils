@@ -8,6 +8,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
 **From:** `cuems-utils`, 2026-10-22 (defect H1 in `specs/planning/ipc-bus-signal-reliability-defects.md`).
 `cuems-utils` edits no file in your repository. Delete this note once the engine change lands.
 
+> **Status 2026-10-22: the H1 half has landed** on `cuems-engine`'s `feat/xml-refactor` (unpushed)
+> through the `AsyncCommsThread` migration (`specs/planning/async-comms-thread-absorption.md` §6.2).
+> **The H6 half below ("the first message on a new link can be lost") is still open**: it needs
+> acknowledgement and resend on the engine's side, and is why this note stays.
+
 ## What changed in `cuems-utils` 0.1.1
 
 `NngBusHub.start()` used to run forever once its bus socket had closed: its receiver stopped, but
