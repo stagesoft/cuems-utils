@@ -1,3 +1,15 @@
+cuems-utils (0.1.0rc18) unstable; urgency=medium
+
+  * Merge main into debian/bookworm (0.1.0rc18, 869ejxng3 batch, PR #21):
+    cuemsutils.tools.media_sidecars, the loop period rule and the .period
+    sidecar the engine reads at load, the .idx caller and video_index_state
+    (moved here from cuems-editor); ffprobe runs under nice + ionice when
+    low_priority=True. Also on PyPI as cuemsutils 0.1.0rc18.
+  * cuems-engine 0.1.0rc6-7 and cuems-editor 0.1.0rc1-8 depend on it; the
+    whole 869ejxng3 batch is installed together on every box of a cluster.
+
+ -- Ion Reguera <ion@stagelab.coop>  Tue, 03 Nov 2026 00:28:46 +0100
+
 cuems-utils (0.1.0rc17) unstable; urgency=medium
 
   * Merge main into debian/bookworm (0.1.0rc17, 869fhjdq5, PR #19):
